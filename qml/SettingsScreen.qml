@@ -1,0 +1,312 @@
+import QtQuick
+import QtQuick.Controls.Basic
+
+// The settings screen, laid over the operator window: sections on the left, the selected
+// section's settings on the right. Edits are reported as they are made; nothing here
+// stores anything.
+Rectangle {
+    id: screen
+
+    // [{ name, color }]: the groups a slide's group name is matched against for its colour.
+    property var groups: []
+
+    // Whether to run through X11 on a Wayland desktop from the next launch.
+    property bool useX11: false
+
+    signal groupsEdited(var groups)
+    signal useX11Edited(bool useX11)
+    signal closed
+
+    // What the app is running on now: "wayland", "xcb" (X11), "windows", "cocoa", ...
+    readonly property string platform: Qt.platform.pluginName
+    readonly property var sections: Qt.platform.os === "linux"
+        ? [{ name: "Groups", path: "groups" }, { name: "Windows", path: "windows" }]
+        : [{ name: "Groups", path: "groups" }]
+    property string section: "groups"
+    readonly property var palette: [
+        "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
+        "#039be5", "#00acc1", "#00897b", "#43a047", "#7cb342", "#c0ca33",
+        "#fdd835", "#ffb300", "#fb8c00", "#f4511e", "#6d4c41", "#757575"
+    ]
+
+    function edited(index, change) {
+        groupsEdited(groups.map((group, i) => i === index ? Object.assign({}, group, change) : group))
+    }
+
+    color: "#b0000000"
+
+    // Swallow clicks and scrolling so nothing behind the screen reacts.
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+        onWheel: (wheel) => wheel.accepted = true
+    }
+
+    Rectangle {
+        anchors.centerIn: parent
+        width: Math.min(760, parent.width - 60)
+        height: Math.min(600, parent.height - 60)
+        radius: 8
+        color: "#1e1f22"
+        border.width: 1
+        border.color: "#45484e"
+
+        Text {
+            id: title
+
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: 18
+            color: "#e6e6e6"
+            font.pixelSize: 18
+            text: "Settings"
+        }
+
+        AppButton {
+            id: done
+
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
+            text: "Done"
+            onClicked: screen.closed()
+        }
+
+        SidebarList {
+            id: sectionList
+
+            anchors.left: parent.left
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 1
+            anchors.topMargin: 12
+            width: 180
+            model: screen.sections
+            selectedPath: screen.section
+            onPicked: (entry) => screen.section = entry.path
+        }
+
+        // Groups
+        Item {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            visible: screen.section === "groups"
+
+            Text {
+                id: groupsHelp
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: "Slides are framed in the colour of the group they belong to. A slide's group is "
+                    + "matched by name, ignoring case and a trailing number, so “Verse” also colours "
+                    + "“Verse 1” and “Verse 2” unless those have entries of their own."
+            }
+
+            ListView {
+                id: groupList
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: groupsHelp.bottom
+                anchors.bottom: addGroup.top
+                anchors.topMargin: 12
+                anchors.bottomMargin: 12
+                clip: true
+                spacing: 6
+                boundsBehavior: Flickable.StopAtBounds
+                model: screen.groups
+
+                ScrollBar.vertical: ScrollBar {}
+
+                KineticWheel {}
+
+                delegate: Item {
+                    id: row
+
+                    required property var modelData
+                    required property int index
+
+                    width: ListView.view.width - 14
+                    height: 34
+
+                    Rectangle {
+                        id: swatch
+
+                        width: 34
+                        height: 34
+                        radius: 6
+                        color: row.modelData.color
+                        border.width: 1
+                        border.color: "#45484e"
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: colors.open()
+                        }
+
+                        Popup {
+                            id: colors
+
+                            y: swatch.height + 4
+                            padding: 10
+
+                            background: Rectangle {
+                                radius: 8
+                                color: "#2b2d31"
+                                border.width: 1
+                                border.color: "#45484e"
+                            }
+
+                            contentItem: Column {
+                                spacing: 10
+
+                                Grid {
+                                    columns: 6
+                                    spacing: 6
+
+                                    Repeater {
+                                        model: screen.palette
+
+                                        delegate: Rectangle {
+                                            required property string modelData
+
+                                            width: 28
+                                            height: 28
+                                            radius: 5
+                                            color: modelData
+                                            border.width: Qt.colorEqual(modelData, row.modelData.color) ? 2 : 0
+                                            border.color: "white"
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                onClicked: {
+                                                    colors.close()
+                                                    screen.edited(row.index, { color: parent.modelData })
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Any other colour, as #rrggbb
+                                AppTextField {
+                                    width: 6 * 28 + 5 * 6
+                                    text: row.modelData.color
+                                    onEditingFinished: {
+                                        const value = text.trim()
+                                        if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+                                            colors.close()
+                                            screen.edited(row.index, { color: value.toLowerCase() })
+                                        } else {
+                                            text = row.modelData.color
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    AppTextField {
+                        anchors.left: swatch.right
+                        anchors.right: remove.left
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        text: row.modelData.name
+                        onEditingFinished: {
+                            if (text.trim() === "")
+                                text = row.modelData.name
+                            else if (text.trim() !== row.modelData.name)
+                                screen.edited(row.index, { name: text.trim() })
+                        }
+                    }
+
+                    AppButton {
+                        id: remove
+
+                        anchors.right: parent.right
+                        text: "Remove"
+                        onClicked: screen.groupsEdited(screen.groups.filter((group, i) => i !== row.index))
+                    }
+                }
+            }
+
+            AppButton {
+                id: addGroup
+
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                text: "Add Group"
+                onClicked: {
+                    screen.groupsEdited(screen.groups.concat([{ name: "New Group", color: "#757575" }]))
+                    groupList.positionViewAtEnd()
+                }
+            }
+        }
+
+        // Windows
+        Column {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            spacing: 14
+            visible: screen.section === "windows"
+
+            Row {
+                spacing: 12
+
+                // A switch
+                Rectangle {
+                    width: 44
+                    height: 24
+                    radius: 12
+                    color: screen.useX11 ? "#ff8a1f" : "#45484e"
+
+                    Rectangle {
+                        x: screen.useX11 ? parent.width - width - 3 : 3
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 18
+                        radius: 9
+                        color: "#e6e6e6"
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: screen.useX11Edited(!screen.useX11)
+                    }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 15
+                    text: "Remember window positions (run through X11)"
+                }
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: "A Wayland desktop does not let an application place its own windows, so the "
+                    + "output and stage windows come back wherever the desktop puts them. Running "
+                    + "through X11 lets their positions be remembered and keeps them above every "
+                    + "other window.\n\nThe cost: on a display scaled to anything other than 100% or "
+                    + "200%, everything is drawn at 200% and scaled down by the desktop, which is more "
+                    + "work for the graphics hardware and slightly softens the output.\n\n"
+                    + "Takes effect the next time the app starts. Running now on: "
+                    + (screen.platform === "xcb" ? "X11" : screen.platform === "wayland" ? "Wayland" : screen.platform) + "."
+            }
+        }
+    }
+}

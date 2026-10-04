@@ -1,0 +1,7 @@
+# Build output
+/build/
+/build-*/
+
+# Qt Creator
+/.qtcreator/
+CMakeLists.txt.user*
