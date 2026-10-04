@@ -815,7 +815,7 @@ Window {
             anchors.right: parent.right
             anchors.top: toolbar.bottom
             anchors.bottom: mediaBin.top
-            width: Math.max(220, Math.min(win.sidePanelWidth, win.width - 160 - 260))
+            width: Math.max(250, Math.min(win.sidePanelWidth, win.width - 160 - 260))
             color: "black"
 
             // Both previews are 16:9 and as wide as the panel, unless the panel is too
@@ -915,28 +915,48 @@ Window {
                 anchors.margins: 12
                 spacing: 6
 
+                // The key hints are dropped from all the buttons together when the widest
+                // label would no longer fit.
+                readonly property bool showHints: widestLabel.width + 8 <= buttonWidth
+
+                TextMetrics {
+                    id: widestLabel
+
+                    font.pixelSize: 12
+                    text: "F3 Media"
+                }
+
                 component ClearButton: AppButton {
+                    property string hint
+                    property string name
+
                     width: clearButtons.buttonWidth
                     leftPadding: 2
                     rightPadding: 2
                     font.pixelSize: 12
+                    text: clearButtons.showHints ? hint + " " + name : name
+                    // Red while its layer has something on it, grey once cleared.
+                    alert: true
                 }
 
                 ClearButton {
                     enabled: !win.cleared || win.liveMedia !== null
-                    text: "F1 All"
+                    hint: "F1"
+                    name: "All"
                     onClicked: win.clearAll()
                 }
 
                 ClearButton {
                     enabled: !win.cleared
-                    text: "F2 Slide"
+                    hint: "F2"
+                    name: "Slide"
                     onClicked: win.clearSlide()
                 }
 
                 ClearButton {
                     enabled: win.liveMedia !== null
-                    text: "F3 Media"
+                    hint: "F3"
+                    name: "Media"
                     onClicked: win.clearMedia()
                 }
             }

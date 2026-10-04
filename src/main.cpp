@@ -87,8 +87,13 @@ static void runSelfTest(QQuickWindow *operatorWindow, QQuickWindow *output, QQui
             after(20 + i * 16, [=] { scroll(Qt::ScrollUpdate, -20); });
         after(190, [=] { scroll(Qt::ScrollEnd, 0); report("at finger lift,"); });
         after(350, [=] { report("160 ms after lift,"); });
+        // Last, the preview panel at its narrowest, where the clear buttons are tightest.
         after(1200, [=] {
             report("1 s after lift,");
+            operatorWindow->setProperty("sidePanelWidth", 250);
+        });
+        after(1500, [=] {
+            grab(operatorWindow, "operator-4-narrow-panel");
             QCoreApplication::quit();
         });
     });
