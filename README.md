@@ -31,8 +31,9 @@ sudo apt install cmake ninja-build g++ \
     protobuf-compiler libprotobuf-dev libfontconfig-dev
 ```
 
-For hardware video decoding on Intel graphics, also `intel-media-va-driver`. Without a
-VA-API driver video is decoded on the CPU.
+Video plays without any of the drivers below, decoded on the CPU; see
+[Hardware video decoding](#hardware-video-decoding) to move that work to the graphics
+hardware.
 
 ```
 git clone --recurse-submodules <this repository>
@@ -41,6 +42,38 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build
 ./build/SimplePresenter
 ```
+
+## Hardware video decoding
+
+Qt Multimedia decodes video through FFmpeg and uses the graphics hardware when a driver
+for it is installed. Without one it falls back to the CPU, which works but costs more,
+and more so with 4K media or several videos at once. Only the Intel case has been
+tested with this app; the AMD and NVIDIA notes are what should apply.
+
+| Graphics | What to install on Ubuntu | Notes |
+|---|---|---|
+| Intel (Broadwell, 2014, or newer) | `intel-media-va-driver` | Tested. Decodes through VA-API. Older Intel chips use `i965-va-driver`. |
+| AMD | Nothing: the driver is part of Mesa (`mesa-libgallium`), installed with the desktop | Decodes through VA-API. On older Ubuntu releases it is the separate `mesa-va-drivers` package. |
+| NVIDIA, proprietary driver | The driver's own decode library, `libnvidia-decode-<version>`, which the `nvidia-driver-<version>` package pulls in | Decodes through VDPAU or NVDEC, not VA-API. |
+| NVIDIA, open-source nouveau driver | Nothing: also part of Mesa | Limited: only some older cards, and it needs firmware. Expect CPU decoding. |
+
+To see what a machine can decode, install `vainfo` and run it: it lists the codecs the
+VA-API driver offers, or fails if there is no driver. That does not apply to NVIDIA's
+proprietary driver.
+
+To see what the app itself chose, run it with Qt's multimedia logging on and play a
+video:
+
+```
+QT_LOGGING_RULES="qt.multimedia.ffmpeg*=true" ./build/SimplePresenter 2>&1 | grep hwaccel
+```
+
+`Checking HW context: vaapi` followed by `Using above hw context` means that method is
+available, and `Selected format ... for hw` means a video is being decoded with it.
+`Could not create hw context` for every method means CPU decoding.
+
+The lines FFmpeg prints at startup about VDPAU or Vulkan failing are it trying methods
+the machine does not have, and are harmless.
 
 ## Content
 
