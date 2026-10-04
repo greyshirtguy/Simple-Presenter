@@ -8,6 +8,14 @@ runs natively on Linux (Windows and macOS maybe later).
 It reads and shows ProPresenter 7 `.pro` presentations, with a slide layer over a media
 layer, shader transitions, a stage display and a media bin.
 
+## TODO
+
+- [ ] **Improve File Compatibility**: render more of what a `.pro` file can hold, such
+      as gradients, shapes other than rectangles, image fills and text that scales to fit.
+- [ ] **Playlist Support**: build and run an ordered list of presentations and media
+      for a service.
+- [ ] **Import Playlists**: read ProPresenter's `.proplaylist` files.
+
 Built with Qt 6 (C++ and QML). The ProPresenter file format comes from the unofficial
 protobuf definitions in [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto),
 included as a submodule.
