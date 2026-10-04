@@ -1,8 +1,10 @@
 # SimplePresenter
 
-A presentation app for Linux in the style of ProPresenter. It reads and shows
-ProPresenter 7 `.pro` presentations, with a slide layer over a media layer, shader
-transitions, a stage display and a media bin.
+An experiment in vibe coding a simple, ProPresenter-compatible presentation app that
+runs natively on Linux (Windows and macOS maybe later).
+
+It reads and shows ProPresenter 7 `.pro` presentations, with a slide layer over a media
+layer, shader transitions, a stage display and a media bin.
 
 Built with Qt 6 (C++ and QML). The ProPresenter file format comes from the unofficial
 protobuf definitions in [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto),
@@ -77,3 +79,22 @@ neither reads nor changes saved settings.
 | `qml/Output.qml`, `qml/Stage.qml` | The output and stage windows |
 | `qml/TransitionLayer.qml` | One output layer with shader transitions |
 | `shaders/` | The transitions |
+
+## Licence
+
+SimplePresenter is free software, licensed under the GNU Lesser General Public License
+version 3. See `COPYING.LESSER`, and `COPYING` for the GNU General Public License it
+builds on.
+
+It uses, under their own licences:
+
+- [Qt](https://www.qt.io) 6, under the LGPL version 3, linked dynamically.
+- [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto), under the
+  MIT licence.
+- The ripple transition in `shaders/ripple.frag`, ported from
+  [gl-transitions](https://gl-transitions.com), under the MIT licence.
+- Protocol Buffers, FFmpeg (through Qt Multimedia) and fontconfig, as provided by the
+  system.
+
+ProPresenter is a trademark of Renewed Vision. This project is not affiliated with or
+endorsed by them.
