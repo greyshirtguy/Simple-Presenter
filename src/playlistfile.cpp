@@ -4,14 +4,18 @@
 
 #include "propresenter.pb.h"
 
+#include <QCollator>
 #include <QColor>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
+#include <QImageReader>
 #include <QSaveFile>
 #include <QUrl>
 #include <QUuid>
+
+#include <algorithm>
 
 namespace {
 
@@ -43,9 +47,16 @@ bool readFile(const QString &path, rv::data::PlaylistDocument *document, QString
     return true;
 }
 
-bool read(const QString &root, rv::data::PlaylistDocument *document, QString *error)
+using Kind = PlaylistFile::Kind;
+
+QString pathOf(const QString &root, Kind kind)
 {
-    return readFile(playlistPath(root), document, error);
+    return kind == PlaylistFile::Media ? mediaPlaylistPath(root) : playlistPath(root);
+}
+
+bool read(const QString &root, Kind kind, rv::data::PlaylistDocument *document, QString *error)
+{
+    return readFile(pathOf(root, kind), document, error);
 }
 
 // A presentation is recorded by the path it had on the machine that wrote the playlist,
@@ -145,13 +156,13 @@ void addNode(const rv::data::Playlist &node, const QString &parent, int depth, c
 
 // Everything in the document, including what this app does not know about, is written
 // back as it was read, and the file is replaced in one step.
-QString write(const QString &root, const rv::data::PlaylistDocument &document)
+QString write(const QString &root, Kind kind, const rv::data::PlaylistDocument &document)
 {
     std::string bytes;
     if (!document.SerializeToString(&bytes))
         return QStringLiteral("Cannot encode the playlists");
-    QDir().mkpath(QFileInfo(playlistPath(root)).absolutePath());
-    QSaveFile file(playlistPath(root));
+    QDir().mkpath(QFileInfo(pathOf(root, kind)).absolutePath());
+    QSaveFile file(pathOf(root, kind));
     if (!file.open(QIODevice::WriteOnly) || file.write(bytes.data(), qint64(bytes.size())) != qint64(bytes.size())
         || !file.commit())
         return QStringLiteral("Cannot write the playlists: %1").arg(file.errorString());
@@ -160,10 +171,10 @@ QString write(const QString &root, const rv::data::PlaylistDocument &document)
 
 // Reads the file for changing. With no file yet, *document is left empty for the caller
 // to start one, if `mayBeAbsent`; otherwise that is an error.
-QString readForChange(const QString &root, rv::data::PlaylistDocument *document, bool mayBeAbsent = false)
+QString readForChange(const QString &root, Kind kind, rv::data::PlaylistDocument *document, bool mayBeAbsent = false)
 {
     QString error;
-    if (read(root, document, &error) || (error.isEmpty() && mayBeAbsent))
+    if (read(root, kind, document, &error) || (error.isEmpty() && mayBeAbsent))
         return {};
     return error.isEmpty() ? QStringLiteral("There are no playlists yet") : error;
 }
@@ -196,11 +207,12 @@ rv::data::Playlist *findNode(rv::data::Playlist *node, const std::string &id,
 
 // A file this app starts is laid out the way ProPresenter's is: one root node that only
 // holds the top-level playlists and folders.
-rv::data::Playlist *rootNode(rv::data::PlaylistDocument *document)
+rv::data::Playlist *rootNode(rv::data::PlaylistDocument *document, Kind kind)
 {
     rv::data::Playlist *node = document->mutable_root_node();
     if (!node->has_uuid()) {
-        document->set_type(rv::data::PlaylistDocument::TYPE_PRESENTATION);
+        document->set_type(kind == PlaylistFile::Media ? rv::data::PlaylistDocument::TYPE_MEDIA
+                                                       : rv::data::PlaylistDocument::TYPE_PRESENTATION);
         node->mutable_uuid()->set_string(newId());
         node->set_name("PLAYLIST");
         node->set_expanded(true);
@@ -268,7 +280,7 @@ QString findMediaFile(const rv::data::URL &url, const QString &root)
 void addMediaNode(const rv::data::Playlist &node, const QString &parent, int depth, const QString &root,
                   PlaylistFile *result)
 {
-    const QString id = QStringLiteral("playlist:") + QString::fromStdString(node.uuid().string());
+    const QString id = QString::fromStdString(node.uuid().string());
     const bool folder = node.has_playlists();
     result->nodes.append(QVariantMap {
         {"name", QString::fromStdString(node.name())},
@@ -300,6 +312,7 @@ void addMediaNode(const rv::data::Playlist &node, const QString &parent, int dep
             if (name.isEmpty())
                 name = QFileInfo(QUrl(QString::fromStdString(media.url().absolute_string())).path()).fileName();
             rows.append(QVariantMap {
+                {"id", QString::fromStdString(item.uuid().string())},
                 {"name", file.isEmpty() ? name : QFileInfo(file).fileName()},
                 {"path", file},
                 {"source", file.isEmpty() ? QUrl() : QUrl::fromLocalFile(file)},
@@ -334,7 +347,7 @@ PlaylistFile PlaylistFile::loadMedia(const QString &root, QString *error)
 {
     PlaylistFile result;
     rv::data::PlaylistDocument document;
-    if (!readFile(mediaPlaylistPath(root), &document, error))
+    if (!read(root, Media, &document, error))
         return result;
     for (const rv::data::Playlist &child : document.root_node().playlists().playlists())
         addMediaNode(child, QString(), 0, root, &result);
@@ -345,7 +358,7 @@ PlaylistFile PlaylistFile::load(const QString &root, QString *error)
 {
     PlaylistFile result;
     rv::data::PlaylistDocument document;
-    if (!read(root, &document, error))
+    if (!read(root, Presentations, &document, error))
         return result;
     // The root node is only a container; what the user sees starts with its children.
     for (const rv::data::Playlist &child : document.root_node().playlists().playlists())
@@ -356,8 +369,9 @@ PlaylistFile PlaylistFile::load(const QString &root, QString *error)
 QString PlaylistFile::setItemArrangement(const QString &root, const QString &itemId,
                                          const QString &arrangementId, const QString &arrangementName)
 {
+    const Kind kind = Presentations;
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document);
+    const QString error = readForChange(root, kind, &document);
     if (!error.isEmpty())
         return error;
 
@@ -374,18 +388,18 @@ QString PlaylistFile::setItemArrangement(const QString &root, const QString &ite
         presentation->set_arrangement_name(arrangementName.toStdString());
     }
 
-    return write(root, document);
+    return write(root, kind, document);
 }
 
-QString PlaylistFile::createNode(const QString &root, const QString &name, const QString &parentId, bool folder,
-                                 QString *id)
+QString PlaylistFile::createNode(const QString &root, Kind kind, const QString &name, const QString &parentId,
+                                 bool folder, QString *id)
 {
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document, true);
+    const QString error = readForChange(root, kind, &document, true);
     if (!error.isEmpty())
         return error;
 
-    rv::data::Playlist *top = rootNode(&document);
+    rv::data::Playlist *top = rootNode(&document, kind);
     rv::data::Playlist *parent = parentId.isEmpty() ? top : findNode(top, parentId.toStdString());
     if (!parent)
         return QStringLiteral("That folder is no longer there");
@@ -403,26 +417,26 @@ QString PlaylistFile::createNode(const QString &root, const QString &name, const
         node->mutable_items();
     }
     *id = QString::fromStdString(node->uuid().string());
-    return write(root, document);
+    return write(root, kind, document);
 }
 
-QString PlaylistFile::renameNode(const QString &root, const QString &id, const QString &name)
+QString PlaylistFile::renameNode(const QString &root, Kind kind, const QString &id, const QString &name)
 {
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document);
+    const QString error = readForChange(root, kind, &document);
     if (!error.isEmpty())
         return error;
     rv::data::Playlist *node = findNode(document.mutable_root_node(), id.toStdString());
     if (!node)
         return QStringLiteral("That playlist is no longer there");
     node->set_name(name.toStdString());
-    return write(root, document);
+    return write(root, kind, document);
 }
 
-QString PlaylistFile::removeNode(const QString &root, const QString &id)
+QString PlaylistFile::removeNode(const QString &root, Kind kind, const QString &id)
 {
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document);
+    const QString error = readForChange(root, kind, &document);
     if (!error.isEmpty())
         return error;
     google::protobuf::RepeatedPtrField<rv::data::Playlist> *siblings = nullptr;
@@ -435,13 +449,14 @@ QString PlaylistFile::removeNode(const QString &root, const QString &id)
             break;
         }
     }
-    return write(root, document);
+    return write(root, kind, document);
 }
 
 QString PlaylistFile::addPresentation(const QString &root, const QString &playlistId, const QString &file)
 {
+    const Kind kind = Presentations;
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document);
+    const QString error = readForChange(root, kind, &document);
     if (!error.isEmpty())
         return error;
     rv::data::Playlist *playlist = findNode(document.mutable_root_node(), playlistId.toStdString());
@@ -461,13 +476,13 @@ QString PlaylistFile::addPresentation(const QString &root, const QString &playli
         presentation->mutable_arrangement()->set_string(ProDocument::arrangementId(file, selected).toStdString());
         presentation->set_arrangement_name(selected.toStdString());
     }
-    return write(root, document);
+    return write(root, kind, document);
 }
 
-QString PlaylistFile::removeItem(const QString &root, const QString &itemId)
+QString PlaylistFile::removeItem(const QString &root, Kind kind, const QString &itemId)
 {
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document);
+    const QString error = readForChange(root, kind, &document);
     if (!error.isEmpty())
         return error;
 
@@ -485,19 +500,20 @@ QString PlaylistFile::removeItem(const QString &root, const QString &itemId)
         for (int i = 0; i < items->size(); ++i) {
             if (items->Get(i).uuid().string() == id) {
                 items->DeleteSubrange(i, 1);
-                return write(root, document);
+                return write(root, kind, document);
             }
         }
     }
     return QStringLiteral("The playlist no longer has that entry");
 }
 
-QString PlaylistFile::moveItem(const QString &root, const QString &itemId, const QString &targetId, bool after)
+QString PlaylistFile::moveItem(const QString &root, Kind kind, const QString &itemId, const QString &targetId,
+                               bool after)
 {
     if (itemId == targetId)
         return {};
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document);
+    const QString error = readForChange(root, kind, &document);
     if (!error.isEmpty())
         return error;
 
@@ -532,17 +548,18 @@ QString PlaylistFile::moveItem(const QString &root, const QString &itemId, const
         *items->Add() = moved;
         for (int i = items->size() - 1; i > to; --i)
             items->SwapElements(i, i - 1);
-        return write(root, document);
+        return write(root, kind, document);
     }
     return QStringLiteral("The playlist no longer has that entry");
 }
 
-QString PlaylistFile::moveNode(const QString &root, const QString &id, const QString &targetId, const QString &where)
+QString PlaylistFile::moveNode(const QString &root, Kind kind, const QString &id, const QString &targetId,
+                               const QString &where)
 {
     if (id == targetId)
         return {};
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document);
+    const QString error = readForChange(root, kind, &document);
     if (!error.isEmpty())
         return error;
 
@@ -569,7 +586,7 @@ QString PlaylistFile::moveNode(const QString &root, const QString &id, const QSt
         if (!target->has_playlists())
             return QStringLiteral("Only a folder can hold playlists");
         *target->mutable_playlists()->add_playlists() = moved;
-        return write(root, document);
+        return write(root, kind, document);
     }
     if (!destination)
         return QStringLiteral("That is no longer there");
@@ -581,21 +598,22 @@ QString PlaylistFile::moveNode(const QString &root, const QString &id, const QSt
     *destination->Add() = moved;
     for (int i = destination->size() - 1; i > to; --i)
         destination->SwapElements(i, i - 1);
-    return write(root, document);
+    return write(root, kind, document);
 }
 
 QString PlaylistFile::importPlaylists(const QString &root, const QByteArray &data, const QString &library,
                                       const QString &parentId, QString *id)
 {
+    const Kind kind = Presentations;
     rv::data::PlaylistDocument imported;
     if (!imported.ParseFromArray(data.constData(), int(data.size())) || !imported.root_node().has_playlists())
         return QStringLiteral("The archive's playlist cannot be read");
 
     rv::data::PlaylistDocument document;
-    const QString error = readForChange(root, &document, true);
+    const QString error = readForChange(root, kind, &document, true);
     if (!error.isEmpty())
         return error;
-    rv::data::Playlist *top = rootNode(&document);
+    rv::data::Playlist *top = rootNode(&document, kind);
     rv::data::Playlist *parent = parentId.isEmpty() ? top : findNode(top, parentId.toStdString());
     if (!parent || parent->has_items())
         parent = top;
@@ -607,5 +625,160 @@ QString PlaylistFile::importPlaylists(const QString &root, const QByteArray &dat
         if (id->isEmpty())
             *id = QString::fromStdString(node->uuid().string());
     }
-    return write(root, document);
+    return write(root, kind, document);
+}
+
+namespace {
+
+const QStringList videoPatterns = {"*.mp4", "*.mov", "*.m4v", "*.mkv", "*.webm", "*.avi"};
+const QStringList imagePatterns = {"*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.gif"};
+
+// Entries of one directory, sorted the way a file manager would.
+QList<QFileInfo> sortedEntries(const QString &directory, const QStringList &patterns, QDir::Filters filters)
+{
+    QList<QFileInfo> found = QDir(directory).entryInfoList(patterns, filters | QDir::NoDotAndDotDot);
+    QCollator collator;
+    collator.setNumericMode(true);
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(found.begin(), found.end(), [&collator](const QFileInfo &a, const QFileInfo &b) {
+        return collator.compare(a.fileName(), b.fileName()) < 0;
+    });
+    return found;
+}
+
+// A media file is recorded both by its path on this machine and, when it is inside the
+// folder the playlists belong to, relative to that folder.
+void setMediaPath(rv::data::URL *url, const QString &file, const QString &root)
+{
+    url->set_absolute_string(QUrl::fromLocalFile(file).toString(QUrl::FullyEncoded).toStdString());
+    const QString relative = QDir(root).relativeFilePath(file);
+    if (!relative.startsWith(QLatin1String(".."))) {
+        url->mutable_local()->set_root(rv::data::URL::LocalRelativePath::ROOT_SHOW);
+        url->mutable_local()->set_path(relative.toStdString());
+    }
+}
+
+// A playlist row for a media file, laid out the way ProPresenter writes one: a cue
+// whose one action plays the file, looping if it is a video.
+void addMediaItem(rv::data::Playlist *playlist, const QString &file, const QString &root)
+{
+    const std::string name = QFileInfo(file).completeBaseName().toStdString();
+    const bool video = QDir::match(videoPatterns, QFileInfo(file).fileName());
+
+    rv::data::PlaylistItem *item = playlist->mutable_items()->add_items();
+    item->mutable_uuid()->set_string(newId());
+    item->set_name(name);
+
+    rv::data::Cue *cue = item->mutable_cue();
+    cue->mutable_uuid()->set_string(newId());
+    cue->set_name(name);
+    cue->set_completion_action_type(rv::data::Cue::COMPLETION_ACTION_TYPE_LAST);
+    cue->set_isenabled(true);
+
+    rv::data::Action *action = cue->add_actions();
+    action->mutable_uuid()->set_string(newId());
+    action->set_isenabled(true);
+    action->set_type(rv::data::Action::ACTION_TYPE_MEDIA);
+    action->mutable_media()->mutable_audio();
+
+    rv::data::Media *element = action->mutable_media()->mutable_element();
+    element->mutable_uuid()->set_string(newId());
+    setMediaPath(element->mutable_url(), file, root);
+    element->mutable_metadata()->set_format(QFileInfo(file).suffix().toUpper().toStdString());
+    if (video) {
+        rv::data::Media::VideoTypeProperties *properties = element->mutable_video();
+        properties->mutable_drawing()->set_alpha_type(rv::data::ALPHA_TYPE_STRAIGHT);
+        properties->mutable_audio()->set_volume(1);
+        properties->mutable_transport()->set_play_rate(1);
+        properties->mutable_transport()->set_playback_behavior(rv::data::Media::TransportProperties::PLAYBACK_BEHAVIOR_LOOP);
+        setMediaPath(properties->mutable_file()->mutable_local_url(), file, root);
+    } else {
+        rv::data::Media::ImageTypeProperties *properties = element->mutable_image();
+        const QSize size = QImageReader(file).size();
+        if (size.isValid()) {
+            properties->mutable_drawing()->mutable_natural_size()->set_width(size.width());
+            properties->mutable_drawing()->mutable_natural_size()->set_height(size.height());
+        }
+        properties->mutable_drawing()->set_alpha_type(rv::data::ALPHA_TYPE_STRAIGHT);
+        setMediaPath(properties->mutable_file()->mutable_local_url(), file, root);
+    }
+}
+
+rv::data::Playlist *addPlaylist(rv::data::Playlist *parent, const QString &name, bool folder)
+{
+    rv::data::Playlist *node = parent->mutable_playlists()->add_playlists();
+    node->mutable_uuid()->set_string(newId());
+    node->set_name(name.toStdString());
+    if (folder) {
+        node->set_expanded(true);
+        node->mutable_playlists();
+    } else {
+        node->mutable_items();
+    }
+    return node;
+}
+
+// Turns one folder of media on disk into playlist nodes under `parent`. A folder with
+// only files becomes a playlist of them. A folder with folders in it becomes a playlist
+// folder, holding a playlist of its own files first, if it has any, then its subfolders.
+void seedFrom(const QString &directory, const QString &name, rv::data::Playlist *parent, const QString &root)
+{
+    const QList<QFileInfo> files = sortedEntries(directory, videoPatterns + imagePatterns, QDir::Files);
+    const QList<QFileInfo> folders = sortedEntries(directory, {}, QDir::Dirs);
+    if (folders.isEmpty()) {
+        if (files.isEmpty())
+            return;
+        rv::data::Playlist *playlist = addPlaylist(parent, name, false);
+        for (const QFileInfo &file : files)
+            addMediaItem(playlist, file.absoluteFilePath(), root);
+        return;
+    }
+    rv::data::Playlist *folder = addPlaylist(parent, name, true);
+    if (!files.isEmpty()) {
+        rv::data::Playlist *playlist = addPlaylist(folder, name, false);
+        for (const QFileInfo &file : files)
+            addMediaItem(playlist, file.absoluteFilePath(), root);
+    }
+    for (const QFileInfo &child : folders)
+        seedFrom(child.absoluteFilePath(), child.fileName(), folder, root);
+}
+
+} // namespace
+
+QString PlaylistFile::addMedia(const QString &root, const QString &playlistId, const QStringList &files)
+{
+    const Kind kind = Media;
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::Playlist *playlist = findNode(document.mutable_root_node(), playlistId.toStdString());
+    if (!playlist || playlist->has_playlists())
+        return QStringLiteral("That playlist is no longer there");
+    for (const QString &file : files)
+        addMediaItem(playlist, file, root);
+    return write(root, kind, document);
+}
+
+QString PlaylistFile::seedMediaFromFolders(const QString &root)
+{
+    const Kind kind = Media;
+    if (QFile::exists(pathOf(root, kind)))
+        return {};
+    rv::data::PlaylistDocument document;
+    rv::data::Playlist *top = rootNode(&document, kind);
+    top->mutable_playlists();
+
+    // The Media folder itself is not a node: its own files become a playlist called
+    // Media, and its subfolders sit beside that at the top level.
+    const QString media = QDir(root).absoluteFilePath("Media");
+    const QList<QFileInfo> files = sortedEntries(media, videoPatterns + imagePatterns, QDir::Files);
+    if (!files.isEmpty()) {
+        rv::data::Playlist *playlist = addPlaylist(top, QStringLiteral("Media"), false);
+        for (const QFileInfo &file : files)
+            addMediaItem(playlist, file.absoluteFilePath(), root);
+    }
+    for (const QFileInfo &child : sortedEntries(media, {}, QDir::Dirs))
+        seedFrom(child.absoluteFilePath(), child.fileName(), top, root);
+    return write(root, kind, document);
 }

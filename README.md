@@ -92,8 +92,12 @@ The app reads from `~/Documents/SimplePresenter`, created on first run:
 Libraries/<library name>/*.pro    presentations, one flat folder per library
 Media/...                         images and videos, in any depth of folders
 Playlists/Library                 playlists and playlist folders, in ProPresenter's format
-Playlists/Media                   media playlists, in ProPresenter's format (read only)
+Playlists/Media                   media playlists and their folders, in ProPresenter's format
 ```
+
+The media bin shows the media playlists, as ProPresenter's does, not the folders on
+disk. The first time the app runs on a folder with no media playlists file, it writes one
+that mirrors the folders under `Media`: a playlist for each folder of media.
 
 This is the layout of ProPresenter's own folder, so `--root <dir>` can point the app at
 a copy of one. Changes made in the app (a new playlist, a presentation added to one, an

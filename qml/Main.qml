@@ -30,10 +30,10 @@ Window {
     // the playlist being browsed unless a folder has been selected since: selecting a
     // folder leaves the presentations of whatever was browsed before on show.
     property string selectedNode: ""
-    property string mediaFolder: ""
-    // What the media bin can browse: the folders under Media, then ProPresenter's media
-    // playlists and the folders those are kept in.
-    readonly property var mediaSources: catalog.mediaFolders.concat(catalog.mediaPlaylists)
+    // The same pair for the media bin: the media playlist being browsed, and the media
+    // playlist or folder selected in its tree.
+    property string mediaPlaylistId: ""
+    property string selectedMediaNode: ""
     // What is in them, re-read by refreshLists() whenever either path or the disk changes.
     // `documents` holds the rows of the library or playlist being browsed, in the shape
     // PlaylistFile describes; a row's `path` identifies the row, its `file` the presentation.
@@ -52,8 +52,10 @@ Window {
     property string liveKey: ""
     property string livePlaylistId: ""
     property bool cleared: true
-    // What is on the media layer: { name, path, source, video }, or null
+    // What is on the media layer: { name, path, source, video }, or null, and the media
+    // playlist it was triggered from, "" if a slide triggered it
     property var liveMedia: null
+    property string liveMediaPlaylistId: ""
 
     // Cut and Dissolve first, then the rest, which are ported from gl-transitions.
     readonly property var transitions: [
@@ -147,7 +149,7 @@ Window {
 
     function refreshLists() {
         documents = playlistId !== "" ? catalog.playlistItems(playlistId) : catalog.documentsIn(libraryPath)
-        mediaFiles = catalog.mediaIn(mediaFolder)
+        mediaFiles = catalog.mediaIn(mediaPlaylistId)
     }
 
     function openLibrary(path) {
@@ -431,18 +433,79 @@ Window {
         grid.positionViewAtIndex(index, GridView.Contain)
     }
 
-    function showMedia(media) {
+    // Puts media on the media layer. `playlist` is the media playlist it was picked
+    // from, if it was.
+    function showMedia(media, playlist = "") {
         liveMedia = media
+        liveMediaPlaylistId = playlist
         output.showMedia(media)
     }
 
-    // For the self-test: the first file of the first media folder that has any.
+    function openMediaPlaylist(id) {
+        selectedMediaNode = id
+        mediaPlaylistId = id
+        refreshLists()
+    }
+
+    // Where a new media playlist or folder goes, by the same rule as newNodeParent().
+    function newMediaNodeParent() {
+        const selected = catalog.mediaPlaylists.find(p => p.path === selectedMediaNode)
+        return !selected ? "" : selected.folder ? selected.path : selected.parent
+    }
+
+    function newMediaNode(folder, parent) {
+        const names = catalog.mediaPlaylists.map(p => p.name)
+        const base = folder ? "New Folder" : "New Playlist"
+        let name = base
+        for (let n = 2; names.includes(name); ++n)
+            name = base + " " + n
+        const created = folder ? catalog.createMediaFolder(name, parent) : catalog.createMediaPlaylist(name, parent)
+        if (!report(created.error))
+            return
+        if (folder)
+            selectedMediaNode = created.id
+        else
+            openMediaPlaylist(created.id)
+        mediaList.editingPath = created.id
+    }
+
+    function showMediaAddMenu(item) {
+        const items = [
+            { label: "Add Folder", run: () => newMediaNode(true, newMediaNodeParent()) },
+            { label: "Add Playlist", run: () => newMediaNode(false, newMediaNodeParent()) }
+        ]
+        if (mediaPlaylistId !== "")
+            items.push({ label: "Add Media…", run: () => mediaDialog.open() })
+        menu.show(items, item)
+    }
+
+    function showMediaNodeMenu(node, item) {
+        const items = []
+        if (node.folder) {
+            items.push({ label: "New Playlist Here", run: () => newMediaNode(false, node.path) })
+            items.push({ label: "New Folder Here", run: () => newMediaNode(true, node.path) })
+        }
+        items.push({ label: "Rename", run: () => mediaList.editingPath = node.path })
+        items.push({
+            label: node.folder ? "Remove Folder…" : "Remove Playlist…",
+            run: () => menu.show([
+                { header: "Remove “" + node.name + "”?" },
+                { note: node.folder ? "The playlists in it go too. Media files stay on disk."
+                                    : "Its media files stay on disk." },
+                { label: "Remove", danger: true, run: () => report(catalog.removeMediaPlaylist(node.path)) },
+                { label: "Cancel", run: () => {} }
+            ], item)
+        })
+        menu.show(items, item)
+    }
+
+    // For the self-test: the first media of the first media playlist that has any here.
     function showFirstMedia() {
-        for (const folder of catalog.mediaFolders) {
-            const files = catalog.mediaIn(folder.path)
-            if (files.length > 0) {
-                mediaFolder = folder.path
-                showMedia(files[0])
+        for (const node of catalog.mediaPlaylists) {
+            const first = node.folder ? undefined : catalog.mediaIn(node.path).find(m => !m.missing)
+            if (first) {
+                openMediaPlaylist(node.path)
+                showMedia(first, node.path)
                 return
             }
         }
@@ -470,6 +533,7 @@ Window {
         if (liveMedia === null)
             return
         liveMedia = null
+        liveMediaPlaylistId = ""
         output.showMedia(null)
     }
 
@@ -525,7 +589,7 @@ Window {
         const library = String(saved("library", ""))
         const playlist = String(saved("playlist", ""))
         const presentation = String(saved("presentation", ""))
-        const folder = String(saved("mediaFolder", ""))
+        const mediaPlaylist = String(saved("mediaPlaylist", ""))
         libraryPath = catalog.libraries.some(l => l.path === library) ? library
                     : catalog.libraries.length > 0 ? catalog.libraries[0].path : ""
         if (catalog.playlists.some(p => p.path === playlist && !p.folder)) {
@@ -537,7 +601,9 @@ Window {
             openDocument(presentation)
         else
             openFirst()
-        mediaFolder = mediaSources.some(f => f.path === folder) ? folder : catalog.mediaDirectory
+        const firstMediaPlaylist = catalog.mediaPlaylists.find(p => !p.folder)
+        openMediaPlaylist(catalog.mediaPlaylists.some(p => p.path === mediaPlaylist && !p.folder) ? mediaPlaylist
+                          : firstMediaPlaylist ? firstMediaPlaylist.path : "")
         restored = true
     }
     onClosing: Qt.quit()
@@ -569,10 +635,7 @@ Window {
     }
     onPlaylistIdChanged: save("playlist", playlistId)
     onDocumentKeyChanged: save("presentation", documentKey)
-    onMediaFolderChanged: {
-        refreshLists()
-        save("mediaFolder", mediaFolder)
-    }
+    onMediaPlaylistIdChanged: save("mediaPlaylist", mediaPlaylistId)
 
     Settings {
         id: settings
@@ -593,8 +656,12 @@ Window {
                 win.openFirst()
             if (!win.catalog.playlists.some(p => p.path === win.selectedNode))
                 win.selectedNode = win.playlistId
-            if (!win.mediaSources.some(f => f.path === win.mediaFolder))
-                win.mediaFolder = win.catalog.mediaDirectory
+            if (!win.catalog.mediaPlaylists.some(p => p.path === win.mediaPlaylistId && !p.folder)) {
+                const first = win.catalog.mediaPlaylists.find(p => !p.folder)
+                win.openMediaPlaylist(first ? first.path : "")
+            } else if (!win.catalog.mediaPlaylists.some(p => p.path === win.selectedMediaNode)) {
+                win.selectedMediaNode = win.mediaPlaylistId
+            }
         }
     }
 
@@ -625,6 +692,18 @@ Window {
         title: "Import Playlist"
         nameFilters: ["ProPresenter playlists (*.proplaylist)", "All files (*)"]
         onAccepted: win.catalog.importPlaylist(selectedFile, win.libraryPath, win.newNodeParent())
+    }
+
+    // Files are added to the media playlist being browsed, where they are on disk.
+    FileDialog {
+        id: mediaDialog
+
+        title: "Add Media"
+        fileMode: FileDialog.OpenFiles
+        currentFolder: "file://" + win.catalog.mediaDirectory
+        nameFilters: ["Images and videos (*.mp4 *.mov *.m4v *.mkv *.webm *.avi *.jpg *.jpeg *.png *.webp *.bmp *.gif)",
+                      "All files (*)"]
+        onAccepted: win.report(win.catalog.addMedia(win.mediaPlaylistId, selectedFiles))
     }
 
     Output {
@@ -1072,7 +1151,7 @@ Window {
                 margins: 6
                 padding: 6
                 onClosed: {
-                    if (playlistList.editingPath === "")
+                    if (playlistList.editingPath === "" && mediaList.editingPath === "")
                         keys.forceActiveFocus()
                 }
 
@@ -1927,6 +2006,12 @@ Window {
             Drag.keys: ["playlist"]
         }
 
+        RowDrag {
+            id: mediaPlaylistDrag
+
+            Drag.keys: ["mediaPlaylist"]
+        }
+
         // Dividers. Each starts from the pane's current, clamped size, so dragging back
         // from a limit responds at once.
         Divider {
@@ -1979,21 +2064,61 @@ Window {
                 text: "Media bin"
             }
 
+            // Add a media folder or playlist, or media to the playlist being browsed
+            Rectangle {
+                id: mediaAddButton
+
+                x: sidebar.width - width - 12
+                anchors.bottom: mediaTitle.bottom
+                anchors.bottomMargin: 3
+                width: 26
+                height: 22
+                radius: 5
+                color: mediaAddMouse.pressed ? "#5c5f67" : mediaAddMouse.containsMouse ? "#53565e" : "#474a51"
+
+                Text {
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: -1
+                    color: win.textColor
+                    font.pixelSize: 16
+                    text: "+"
+                }
+
+                MouseArea {
+                    id: mediaAddMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: win.showMediaAddMenu(mediaAddButton)
+                }
+            }
+
+            // Media playlists and the folders they are kept in, in ProPresenter's own
+            // media playlists file. They behave as the playlists of presentations do:
+            // picking a playlist shows its media, picking a folder only selects it.
             SidebarList {
-                id: folderList
+                id: mediaList
 
                 anchors.left: parent.left
                 anchors.top: mediaTitle.bottom
                 anchors.bottom: parent.bottom
                 width: sidebar.width
-                model: win.mediaSources
-                selectedPath: win.mediaFolder
-                livePath: win.liveMedia ? win.liveMedia.path.substring(0, win.liveMedia.path.lastIndexOf("/")) : ""
-                // A folder of media playlists holds no media itself.
+                model: win.catalog.mediaPlaylists
+                selectedPath: win.selectedMediaNode
+                livePath: win.liveMedia ? win.liveMediaPlaylistId : ""
+                dragProxy: mediaPlaylistDrag
+                dropKeys: ["mediaPlaylist"]
+                dropZone: (node, source) => node.folder ? "both" : "between"
                 onPicked: (entry) => {
-                    if (!(entry.folder === true))
-                        win.mediaFolder = entry.path
+                    if (entry.folder)
+                        win.selectedMediaNode = entry.path
+                    else
+                        win.openMediaPlaylist(entry.path)
                 }
+                onMenuRequested: (entry, item) => win.showMediaNodeMenu(entry, item)
+                onRenamed: (entry, name) => win.report(win.catalog.renameMediaPlaylist(entry.path, name))
+                onEditingEnded: keys.forceActiveFocus()
+                onDropped: (node, source, where) => win.report(win.catalog.moveMediaPlaylist(source.entry.path, node.path, where))
             }
 
             GridView {
@@ -2002,7 +2127,7 @@ Window {
                 readonly property real labelHeight: 24
                 readonly property int columns: Math.max(1, Math.floor(width / win.mediaThumbnailWidth))
 
-                anchors.left: folderList.right
+                anchors.left: mediaList.right
                 anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
@@ -2101,15 +2226,15 @@ Window {
                         }
 
                         anchors.fill: parent
-                        enabled: !mediaCell.modelData.missing
                         hoverEnabled: true
                         preventStealing: true
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
                         onPressed: (mouse) => {
                             pressedAt = Qt.point(mouse.x, mouse.y)
                             dragging = false
                         }
                         onPositionChanged: (mouse) => {
-                            if (!pressed)
+                            if (!(pressedButtons & Qt.LeftButton) || mediaCell.modelData.missing)
                                 return
                             const at = mapToItem(keys, mouse.x, mouse.y)
                             mediaDrag.x = at.x
@@ -2120,12 +2245,16 @@ Window {
                                 mediaDrag.Drag.active = true
                             }
                         }
-                        onReleased: {
+                        onReleased: (mouse) => {
                             if (dragging) {
                                 mediaDrag.Drag.drop()
                                 finish()
-                            } else {
-                                win.showMedia(mediaCell.modelData)
+                            } else if (mouse.button === Qt.RightButton) {
+                                const id = mediaCell.modelData.id
+                                menu.show([{ label: "Remove from Playlist",
+                                             run: () => win.report(win.catalog.removeMediaItem(id)) }], mediaCell)
+                            } else if (!mediaCell.modelData.missing) {
+                                win.showMedia(mediaCell.modelData, win.mediaPlaylistId)
                             }
                         }
                         onCanceled: finish()
@@ -2137,9 +2266,8 @@ Window {
                 anchors.centerIn: mediaGrid
                 width: mediaGrid.width - 80
                 visible: win.mediaFiles.length === 0
-                text: win.mediaFolder.startsWith("playlist:") ? "This media playlist is empty."
-                    : win.catalog.mediaFolders.length > 1 ? "No media files in this folder."
-                    : "No media yet. Add images and videos to\n" + win.catalog.mediaDirectory
+                text: win.mediaPlaylistId !== "" ? "This media playlist is empty. Add media to it from the + above."
+                    : "No media playlists yet. Add one from the + beside Media bin."
             }
 
             // Thumbnail size, over the bottom right corner of the media
