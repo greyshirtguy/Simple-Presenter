@@ -2,11 +2,15 @@
 
 ![The Simple Presenter operator window: libraries and playlists at the top left with the selected playlist's presentations below them, a grid of slide thumbnails framed in their group colours, output and stage previews on the right, and the media bin along the bottom](docs/screenshot.png)
 
-An experiment in vibe coding a simple, ProPresenter-compatible presentation app that
-runs natively on Linux (Windows and macOS maybe later).
+As a fun experiment in vibe coding, I decided to make a simple, ProPresenter-compatible
+desktop application for Linux. It is a native app, not Electron, so it performs well even
+on older computers.
 
-It reads and shows ProPresenter 7 `.pro` presentations, with a slide layer over a media
-layer, shader transitions, a stage display and a media bin.
+It reads and displays ProPresenter 7 `.pro` presentations, with a slide layer over a media
+layer; there are no props, messages or announcements. Transitions are shaders, which keeps
+them cheap: a dissolve and a ripple for now, plus a plain cut. It has two outputs, an
+audience output and a stage display, each in its own window, and a media bin. It can also
+import a playlist that has been exported from ProPresenter.
 
 ## TODO
 
