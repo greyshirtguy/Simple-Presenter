@@ -94,6 +94,26 @@ qt_add_shaders(SimplePresenter "shaders"
     FILES
         shaders/dissolve.frag
         shaders/ripple.frag
+        shaders/gl-transitions/circleopen.frag
+        shaders/gl-transitions/crosswarp.frag
+        shaders/gl-transitions/CrossZoom.frag
+        shaders/gl-transitions/directionalwarp.frag
+        shaders/gl-transitions/Dreamy.frag
+        shaders/gl-transitions/heart.frag
+        shaders/gl-transitions/LinearBlur.frag
+        shaders/gl-transitions/pinwheel.frag
+        shaders/gl-transitions/pixelize.frag
+        shaders/gl-transitions/Radial.frag
+        shaders/gl-transitions/randomsquares.frag
+        shaders/gl-transitions/SimpleZoom.frag
+        shaders/gl-transitions/Swirl.frag
+        shaders/gl-transitions/WaterDrop.frag
+        shaders/gl-transitions/wind.frag
+        shaders/gl-transitions/windowslice.frag
+        shaders/gl-transitions/wipeDown.frag
+        shaders/gl-transitions/wipeLeft.frag
+        shaders/gl-transitions/wipeRight.frag
+        shaders/gl-transitions/wipeUp.frag
 )
 
 target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia proproto Fontconfig::Fontconfig ZLIB::ZLIB)

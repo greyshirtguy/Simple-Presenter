@@ -52,10 +52,31 @@ Window {
     // What is on the media layer: { name, path, source, video }, or null
     property var liveMedia: null
 
+    // Cut and Dissolve first, then the rest, which are ported from gl-transitions.
     readonly property var transitions: [
         { name: "Cut", shader: "" },
         { name: "Dissolve", shader: "qrc:/shaders/dissolve.frag.qsb" },
-        { name: "Ripple", shader: "qrc:/shaders/ripple.frag.qsb" }
+        { name: "Ripple", shader: "qrc:/shaders/ripple.frag.qsb" },
+        { name: "Wipe Left", shader: "qrc:/shaders/gl-transitions/wipeLeft.frag.qsb" },
+        { name: "Wipe Right", shader: "qrc:/shaders/gl-transitions/wipeRight.frag.qsb" },
+        { name: "Wipe Up", shader: "qrc:/shaders/gl-transitions/wipeUp.frag.qsb" },
+        { name: "Wipe Down", shader: "qrc:/shaders/gl-transitions/wipeDown.frag.qsb" },
+        { name: "Circle Open", shader: "qrc:/shaders/gl-transitions/circleopen.frag.qsb" },
+        { name: "Cross Warp", shader: "qrc:/shaders/gl-transitions/crosswarp.frag.qsb" },
+        { name: "Directional Warp", shader: "qrc:/shaders/gl-transitions/directionalwarp.frag.qsb" },
+        { name: "Dreamy", shader: "qrc:/shaders/gl-transitions/Dreamy.frag.qsb" },
+        { name: "Swirl", shader: "qrc:/shaders/gl-transitions/Swirl.frag.qsb" },
+        { name: "Water Drop", shader: "qrc:/shaders/gl-transitions/WaterDrop.frag.qsb" },
+        { name: "Window Slice", shader: "qrc:/shaders/gl-transitions/windowslice.frag.qsb" },
+        { name: "Pinwheel", shader: "qrc:/shaders/gl-transitions/pinwheel.frag.qsb" },
+        { name: "Radial", shader: "qrc:/shaders/gl-transitions/Radial.frag.qsb" },
+        { name: "Cross Zoom", shader: "qrc:/shaders/gl-transitions/CrossZoom.frag.qsb" },
+        { name: "Simple Zoom", shader: "qrc:/shaders/gl-transitions/SimpleZoom.frag.qsb" },
+        { name: "Linear Blur", shader: "qrc:/shaders/gl-transitions/LinearBlur.frag.qsb" },
+        { name: "Pixelize", shader: "qrc:/shaders/gl-transitions/pixelize.frag.qsb" },
+        { name: "Random Squares", shader: "qrc:/shaders/gl-transitions/randomsquares.frag.qsb" },
+        { name: "Wind", shader: "qrc:/shaders/gl-transitions/wind.frag.qsb" },
+        { name: "Heart", shader: "qrc:/shaders/gl-transitions/heart.frag.qsb" }
     ]
     property int transitionIndex: 1
     // Seconds
@@ -1130,7 +1151,7 @@ Window {
 
                 AppComboBox {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 120
+                    width: 160
                     model: win.transitions.map(t => t.name)
                     currentIndex: win.transitionIndex
                     onActivated: (index) => win.transitionIndex = index

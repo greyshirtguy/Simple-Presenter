@@ -18,8 +18,12 @@ Item {
     // The delegate instance holding the content most recently shown, from the moment its
     // transition starts; null until something is shown.
     property Item currentItem: null
-    // Stays fixed while a transition runs, and draws the resting content between them.
-    property string activeShader: "qrc:/shaders/dissolve.frag.qsb"
+    // The shader in use: the chosen one while a transition runs, fixed for its length,
+    // and the plain dissolve in between. At rest only the dissolve will do, because it
+    // is the one that shows the front content exactly as it is; some transitions bend or
+    // blur it even at their very start.
+    readonly property string restingShader: "qrc:/shaders/dissolve.frag.qsb"
+    property string activeShader: restingShader
     property ShaderEffectSource textureA: ShaderEffectSource {
         sourceItem: holderA
         hideSource: true
@@ -50,6 +54,7 @@ Item {
         const outgoing = aIsFront ? holderA : holderB
         aIsFront = !aIsFront
         progress = 0
+        activeShader = restingShader
         // Release what is no longer shown, so an outgoing video stops decoding.
         outgoing.item.content = null
     }
@@ -72,6 +77,8 @@ Item {
         property var fromTex: layer.aIsFront ? layer.textureA : layer.textureB
         property var toTex: layer.aIsFront ? layer.textureB : layer.textureA
         property real progress: layer.progress
+        // Width over height, which the gl-transitions shaders use to keep shapes round
+        property real ratio: height > 0 ? width / height : 1
         // ripple.frag only
         property real amplitude: 100
         property real speed: 50

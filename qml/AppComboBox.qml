@@ -54,9 +54,16 @@ ComboBox {
         margins: 6
         padding: 4
 
+        // A long list scrolls instead of running down the window.
         contentItem: ListView {
-            implicitHeight: contentHeight
+            implicitHeight: Math.min(contentHeight, 420)
             clip: true
+            boundsBehavior: Flickable.StopAtBounds
+
+            ScrollBar.vertical: ScrollBar {}
+
+            KineticWheel {}
+
             model: control.delegateModel
             currentIndex: control.highlightedIndex
         }

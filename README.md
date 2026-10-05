@@ -8,7 +8,8 @@ on older computers.
 
 It reads and displays ProPresenter 7 `.pro` presentations, with a slide layer over a media
 layer; there are no props, messages or announcements. Transitions are shaders, which keeps
-them cheap: a dissolve and a ripple for now, plus a plain cut. It has two outputs, an
+them cheap: a dissolve, a plain cut, and twenty-one ported from
+[gl-transitions](https://gl-transitions.com), such as wipes, warps, zooms and a ripple. It has two outputs, an
 audience output and a stage display, each in its own window, and a media bin. It can also
 import a playlist that has been exported from ProPresenter.
 
@@ -140,7 +141,7 @@ neither reads nor changes saved settings.
 | `qml/Main.qml` | The operator window |
 | `qml/Output.qml`, `qml/Stage.qml` | The output and stage windows |
 | `qml/TransitionLayer.qml` | One output layer with shader transitions |
-| `shaders/` | The transitions |
+| `shaders/` | The transitions; `shaders/gl-transitions` holds the ones ported from gl-transitions |
 
 ## Licence
 
@@ -153,8 +154,9 @@ It uses, under their own licences:
 - [Qt](https://www.qt.io) 6, under the LGPL version 3, linked dynamically.
 - [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto), under the
   MIT licence.
-- The ripple transition in `shaders/ripple.frag`, ported from
-  [gl-transitions](https://gl-transitions.com), under the MIT licence.
+- Transitions ported from [gl-transitions](https://gl-transitions.com), under the MIT
+  licence: `shaders/ripple.frag` and everything in `shaders/gl-transitions`, where the
+  licence text is. Each file credits its author.
 - Protocol Buffers, FFmpeg (through Qt Multimedia) and fontconfig, as provided by the
   system.
 
