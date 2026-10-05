@@ -1814,7 +1814,10 @@ Window {
 
                     anchors.fill: parent
                     keys: ["media"]
-                    onDropped: (drop) => win.assignMedia(cell.index, drop.source.media)
+                    onDropped: (drop) => {
+                        if (!drop.source.media.missing)
+                            win.assignMedia(cell.index, drop.source.media)
+                    }
                 }
             }
         }
@@ -2212,8 +2215,41 @@ Window {
                         }
                     }
 
+                    // Dropping another of the playlist's media here moves it to this
+                    // place: before this one from the left half, after it from the right.
+                    DropArea {
+                        id: reorderDrop
+
+                        property bool after: false
+                        readonly property bool moving: containsDrag && mediaDrag.media !== null
+                                                       && mediaDrag.media.id !== mediaCell.modelData.id
+
+                        anchors.fill: parent
+                        keys: ["media"]
+                        onEntered: (drag) => after = drag.x > width / 2
+                        onPositionChanged: (drag) => after = drag.x > width / 2
+                        onDropped: (drop) => {
+                            if (drop.source.media.id === mediaCell.modelData.id)
+                                return
+                            // The grid would otherwise jump back to the top.
+                            const scrolledTo = mediaGrid.contentY
+                            win.report(win.catalog.moveMediaItem(drop.source.media.id, mediaCell.modelData.id, after))
+                            mediaGrid.contentY = scrolledTo
+                        }
+                    }
+
+                    Rectangle {
+                        x: reorderDrop.after ? parent.width - 1.5 : -1.5
+                        y: 6
+                        width: 3
+                        height: parent.height - 12
+                        visible: reorderDrop.moving
+                        color: "white"
+                    }
+
                     // Click to put the file on the media layer; drag it onto a slide to
-                    // make that slide trigger it.
+                    // make that slide trigger it, or onto another of the playlist's media
+                    // to move it there.
                     MouseArea {
                         id: mediaMouse
 
@@ -2234,7 +2270,7 @@ Window {
                             dragging = false
                         }
                         onPositionChanged: (mouse) => {
-                            if (!(pressedButtons & Qt.LeftButton) || mediaCell.modelData.missing)
+                            if (!(pressedButtons & Qt.LeftButton))
                                 return
                             const at = mapToItem(keys, mouse.x, mouse.y)
                             mediaDrag.x = at.x
