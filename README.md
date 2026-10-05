@@ -1,6 +1,6 @@
 # Simple Presenter
 
-![The Simple Presenter operator window: libraries and presentations on the left, a grid of slide thumbnails framed in their group colours, output and stage previews on the right, and the media bin along the bottom](docs/screenshot.png)
+![The Simple Presenter operator window: libraries and playlists at the top left with the selected playlist's presentations below them, a grid of slide thumbnails framed in their group colours, output and stage previews on the right, and the media bin along the bottom](docs/screenshot.png)
 
 An experiment in vibe coding a simple, ProPresenter-compatible presentation app that
 runs natively on Linux (Windows and macOS maybe later).
