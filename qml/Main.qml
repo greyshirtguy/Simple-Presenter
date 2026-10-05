@@ -87,6 +87,11 @@ Window {
     property real sidebarWidth: 260
     // Height of the libraries and playlists pane at the top of the sidebar
     property real sourcesHeight: 260
+    // The width slide thumbnails aim for. The grid fits as many columns of at least this
+    // width as it can and stretches them to fill the row.
+    property real thumbnailWidth: 250
+    readonly property real smallestThumbnail: 180
+    readonly property real largestThumbnail: 400
     property real sidePanelWidth: 360
     property real mediaBinHeight: 250
 
@@ -228,6 +233,18 @@ Window {
             liveDocument = reloaded
         document = reloaded
         grid.contentY = scrolledTo
+    }
+
+    // Makes the slide thumbnails larger (+1) or smaller (-1). Since thumbnails stretch to
+    // fill their row, the size only visibly changes when the number of columns does, so
+    // this steps until it has, or until the limit.
+    function zoomThumbnails(direction) {
+        const columnsAt = width => Math.max(1, Math.floor(grid.width / width))
+        let target = thumbnailWidth
+        do {
+            target = Math.max(smallestThumbnail, Math.min(largestThumbnail, target + direction * 10))
+        } while (columnsAt(target) === grid.columns && target > smallestThumbnail && target < largestThumbnail)
+        thumbnailWidth = target
     }
 
     // Selects the presentation `delta` places from the current one in its library or
@@ -440,6 +457,8 @@ Window {
         height = Number(saved("windowHeight", height))
         sidebarWidth = Number(saved("sidebarWidth", sidebarWidth))
         sourcesHeight = Number(saved("sourcesHeight", sourcesHeight))
+        thumbnailWidth = Math.max(smallestThumbnail, Math.min(largestThumbnail,
+                                  Number(saved("thumbnailWidth", thumbnailWidth))))
         sidePanelWidth = Number(saved("sidePanelWidth", sidePanelWidth))
         mediaBinHeight = Number(saved("mediaBinHeight", mediaBinHeight))
         // Settings stores booleans as text.
@@ -492,6 +511,7 @@ Window {
     onHeightChanged: save("windowHeight", height)
     onSidebarWidthChanged: save("sidebarWidth", sidebarWidth)
     onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
+    onThumbnailWidthChanged: save("thumbnailWidth", thumbnailWidth)
     onSidePanelWidthChanged: save("sidePanelWidth", sidePanelWidth)
     onMediaBinHeightChanged: save("mediaBinHeight", mediaBinHeight)
     onMediaBinVisibleChanged: save("mediaBinVisible", mediaBinVisible)
@@ -881,8 +901,8 @@ Window {
                 }
             }
 
-            // The Presentations header: a solid bar, so there is no mistaking where the
-            // pane above ends, naming the library or playlist whose presentations follow.
+            // The Presentations header: a solid grey-blue bar, so there is no mistaking
+            // where the pane above ends, naming the library or playlist whose presentations follow.
             Rectangle {
                 id: presentationsHeader
 
@@ -890,7 +910,7 @@ Window {
                 anchors.right: parent.right
                 anchors.top: sources.bottom
                 height: 30
-                color: "#2f7fd9"
+                color: "#4f5665"
 
                 Text {
                     id: presentationsTitle
@@ -912,7 +932,7 @@ Window {
                     anchors.verticalCenter: parent.verticalCenter
                     horizontalAlignment: Text.AlignRight
                     elide: Text.ElideRight
-                    color: "#d6e8ff"
+                    color: "#c9cdd6"
                     font.pixelSize: 12
                     text: {
                         const source = win.playlistId !== ""
@@ -1435,7 +1455,7 @@ Window {
 
             objectName: "slideGrid"
 
-            readonly property int columns: Math.max(1, Math.floor(width / 250))
+            readonly property int columns: Math.max(1, Math.floor(width / win.thumbnailWidth))
             readonly property real labelHeight: 26
             readonly property int frameWidth: 4
 
@@ -1599,6 +1619,63 @@ Window {
                     keys: ["media"]
                     onDropped: (drop) => win.assignMedia(cell.index, drop.source.media)
                 }
+            }
+        }
+
+        // Thumbnail size, over the bottom right corner of the slides
+        Row {
+            anchors.right: grid.right
+            anchors.bottom: grid.bottom
+            anchors.rightMargin: 22
+            anchors.bottomMargin: 12
+            spacing: 8
+            visible: win.document !== null && win.document.slides.length > 0
+
+            component ZoomButton: Rectangle {
+                id: zoomButton
+
+                property alias text: zoomLabel.text
+                property bool available: true
+
+                signal clicked
+
+                width: 26
+                height: 26
+                radius: 13
+                color: zoomMouse.pressed ? "#6a6d75" : "#3a3c42"
+                border.width: 1
+                border.color: "#6c6f75"
+                opacity: !available ? 0.3 : zoomMouse.containsMouse ? 1 : 0.7
+
+                Text {
+                    id: zoomLabel
+
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: -1
+                    color: win.textColor
+                    font.pixelSize: 17
+                }
+
+                MouseArea {
+                    id: zoomMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    enabled: zoomButton.available
+                    onClicked: zoomButton.clicked()
+                }
+            }
+
+            ZoomButton {
+                text: "−"
+                available: win.thumbnailWidth > win.smallestThumbnail
+                onClicked: win.zoomThumbnails(-1)
+            }
+
+            ZoomButton {
+                text: "+"
+                available: win.thumbnailWidth < win.largestThumbnail && grid.columns > 1
+                onClicked: win.zoomThumbnails(1)
             }
         }
 

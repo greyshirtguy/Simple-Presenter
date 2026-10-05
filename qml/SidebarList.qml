@@ -74,13 +74,34 @@ ListView {
 
         width: ListView.view.width
         height: 30
-        color: header ? "#232427" : selected ? "#3d4046" : mouse.containsMouse && !label ? "#33353a" : "transparent"
+        // Selection and hover both lighten whatever is behind, so they read on any
+        // pane's background without bringing in a colour of their own; selection is
+        // the stronger, and is edged above and below.
+        color: header ? "#232427" : selected ? "#22ffffff" : mouse.containsMouse && !label ? "#10ffffff" : "transparent"
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 1
+            visible: entry.selected
+            color: "#55ffffff"
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            visible: entry.selected
+            color: "#55ffffff"
+        }
 
         Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            width: 3
+            width: 6
             visible: list.livePath !== "" && entry.modelData.path === list.livePath
             color: "#ff8a1f"
         }
