@@ -86,6 +86,7 @@ QVariantMap toRow(const rv::data::PlaylistItem &item, const QString &root)
     } else if (item.has_presentation()) {
         const QString file = findPresentation(item.presentation().document_path(), root);
         row.insert("kind", QStringLiteral("presentation"));
+        row.insert("icon", QStringLiteral("presentation"));
         row.insert("file", file);
         row.insert("missing", file.isEmpty());
 
@@ -106,19 +107,22 @@ QVariantMap toRow(const rv::data::PlaylistItem &item, const QString &root)
     return row;
 }
 
-void addNode(const rv::data::Playlist &node, int depth, const QString &root, PlaylistFile *result)
+void addNode(const rv::data::Playlist &node, const QString &parent, int depth, const QString &root,
+             PlaylistFile *result)
 {
     const QString id = QString::fromStdString(node.uuid().string());
     const bool folder = node.has_playlists();
     result->nodes.append(QVariantMap {
         {"name", QString::fromStdString(node.name())},
         {"path", id},
+        {"parent", parent},
         {"depth", depth},
         {"folder", folder},
+        {"icon", folder ? QStringLiteral("folder") : QStringLiteral("playlist")},
     });
     if (folder) {
         for (const rv::data::Playlist &child : node.playlists().playlists())
-            addNode(child, depth + 1, root, result);
+            addNode(child, id, depth + 1, root, result);
         return;
     }
     QVariantList rows;
@@ -180,6 +184,57 @@ rv::data::Playlist *findNode(rv::data::Playlist *node, const std::string &id,
     return nullptr;
 }
 
+// A file this app starts is laid out the way ProPresenter's is: one root node that only
+// holds the top-level playlists and folders.
+rv::data::Playlist *rootNode(rv::data::PlaylistDocument *document)
+{
+    rv::data::Playlist *node = document->mutable_root_node();
+    if (!node->has_uuid()) {
+        document->set_type(rv::data::PlaylistDocument::TYPE_PRESENTATION);
+        node->mutable_uuid()->set_string(newId());
+        node->set_name("PLAYLIST");
+        node->set_expanded(true);
+    }
+    return node;
+}
+
+// Records a presentation file both by its path on this machine and, when it is inside
+// the folder the playlists belong to, relative to that folder, which is the form that
+// survives the folder being moved or opened on another machine.
+void setDocumentPath(rv::data::URL *url, const QString &file, const QString &root)
+{
+    url->Clear();
+    url->set_absolute_string(QUrl::fromLocalFile(file).toString(QUrl::FullyEncoded).toStdString());
+    const QString relative = QDir(root).relativeFilePath(file);
+    if (!relative.startsWith(QLatin1String(".."))) {
+        url->mutable_local()->set_root(rv::data::URL::LocalRelativePath::ROOT_SHOW);
+        url->mutable_local()->set_path(relative.toStdString());
+    }
+}
+
+// Gives a copied node, and everything in it, ids of its own, and points its
+// presentations at the files of that name in `library`.
+void adopt(rv::data::Playlist *node, const QString &library, const QString &root)
+{
+    node->mutable_uuid()->set_string(newId());
+    if (node->has_playlists()) {
+        for (rv::data::Playlist &child : *node->mutable_playlists()->mutable_playlists())
+            adopt(&child, library, root);
+        return;
+    }
+    for (rv::data::PlaylistItem &item : *node->mutable_items()->mutable_items()) {
+        item.mutable_uuid()->set_string(newId());
+        if (!item.has_presentation())
+            continue;
+        rv::data::URL *url = item.mutable_presentation()->mutable_document_path();
+        QString name = QFileInfo(QString::fromStdString(url->local().path())).fileName();
+        if (name.isEmpty())
+            name = QFileInfo(QUrl(QString::fromStdString(url->absolute_string())).path()).fileName();
+        if (!name.isEmpty())
+            setDocumentPath(url, QDir(library).absoluteFilePath(name), root);
+    }
+}
+
 rv::data::PlaylistItem *findItem(rv::data::Playlist *node, const std::string &id)
 {
     if (node->has_playlists()) {
@@ -206,7 +261,7 @@ PlaylistFile PlaylistFile::load(const QString &root, QString *error)
         return result;
     // The root node is only a container; what the user sees starts with its children.
     for (const rv::data::Playlist &child : document.root_node().playlists().playlists())
-        addNode(child, 0, root, &result);
+        addNode(child, QString(), 0, root, &result);
     return result;
 }
 
@@ -234,30 +289,32 @@ QString PlaylistFile::setItemArrangement(const QString &root, const QString &ite
     return write(root, document);
 }
 
-QString PlaylistFile::createPlaylist(const QString &root, const QString &name, QString *id)
+QString PlaylistFile::createNode(const QString &root, const QString &name, const QString &parentId, bool folder,
+                                 QString *id)
 {
     rv::data::PlaylistDocument document;
     const QString error = readForChange(root, &document, true);
     if (!error.isEmpty())
         return error;
 
-    // A file this app starts is laid out the way ProPresenter's is: one root node that
-    // only holds the top-level playlists and folders.
-    rv::data::Playlist *rootNode = document.mutable_root_node();
-    if (!rootNode->has_uuid()) {
-        document.set_type(rv::data::PlaylistDocument::TYPE_PRESENTATION);
-        rootNode->mutable_uuid()->set_string(newId());
-        rootNode->set_name("PLAYLIST");
-        rootNode->set_expanded(true);
-    }
-    if (rootNode->has_items())
-        return QStringLiteral("The playlists file has an unexpected layout");
+    rv::data::Playlist *top = rootNode(&document);
+    rv::data::Playlist *parent = parentId.isEmpty() ? top : findNode(top, parentId.toStdString());
+    if (!parent)
+        return QStringLiteral("That folder is no longer there");
+    if (parent->has_items())
+        return QStringLiteral("A playlist cannot hold other playlists");
 
-    rv::data::Playlist *playlist = rootNode->mutable_playlists()->add_playlists();
-    playlist->mutable_uuid()->set_string(newId());
-    playlist->set_name(name.toStdString());
-    playlist->mutable_items();
-    *id = QString::fromStdString(playlist->uuid().string());
+    rv::data::Playlist *node = parent->mutable_playlists()->add_playlists();
+    node->mutable_uuid()->set_string(newId());
+    node->set_name(name.toStdString());
+    // Which of the two lists a node has is what makes it a folder or a playlist.
+    if (folder) {
+        node->set_expanded(true);
+        node->mutable_playlists();
+    } else {
+        node->mutable_items();
+    }
+    *id = QString::fromStdString(node->uuid().string());
     return write(root, document);
 }
 
@@ -274,7 +331,7 @@ QString PlaylistFile::renameNode(const QString &root, const QString &id, const Q
     return write(root, document);
 }
 
-QString PlaylistFile::deletePlaylist(const QString &root, const QString &id)
+QString PlaylistFile::removeNode(const QString &root, const QString &id)
 {
     rv::data::PlaylistDocument document;
     const QString error = readForChange(root, &document);
@@ -283,9 +340,7 @@ QString PlaylistFile::deletePlaylist(const QString &root, const QString &id)
     google::protobuf::RepeatedPtrField<rv::data::Playlist> *siblings = nullptr;
     const rv::data::Playlist *node = findNode(document.mutable_root_node(), id.toStdString(), &siblings);
     if (!node || !siblings)
-        return QStringLiteral("That playlist is no longer there");
-    if (node->has_playlists())
-        return QStringLiteral("Folders cannot be deleted here");
+        return QStringLiteral("That is no longer there");
     for (int i = 0; i < siblings->size(); ++i) {
         if (&siblings->Get(i) == node) {
             siblings->DeleteSubrange(i, 1);
@@ -309,17 +364,8 @@ QString PlaylistFile::addPresentation(const QString &root, const QString &playli
     item->mutable_uuid()->set_string(newId());
     item->set_name(QFileInfo(file).completeBaseName().toStdString());
 
-    // Recorded both by its path on this machine and, when it is inside the folder the
-    // playlists belong to, relative to that folder, which is the form that survives the
-    // folder being moved or opened on another machine.
     rv::data::PlaylistItem::Presentation *presentation = item->mutable_presentation();
-    rv::data::URL *url = presentation->mutable_document_path();
-    url->set_absolute_string(QUrl::fromLocalFile(file).toString(QUrl::FullyEncoded).toStdString());
-    const QString relative = QDir(root).relativeFilePath(file);
-    if (!relative.startsWith(QLatin1String(".."))) {
-        url->mutable_local()->set_root(rv::data::URL::LocalRelativePath::ROOT_SHOW);
-        url->mutable_local()->set_path(relative.toStdString());
-    }
+    setDocumentPath(presentation->mutable_document_path(), file, root);
 
     QStringList arrangements;
     QString selected;
@@ -356,4 +402,122 @@ QString PlaylistFile::removeItem(const QString &root, const QString &itemId)
         }
     }
     return QStringLiteral("The playlist no longer has that entry");
+}
+
+QString PlaylistFile::moveItem(const QString &root, const QString &itemId, const QString &targetId, bool after)
+{
+    if (itemId == targetId)
+        return {};
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, &document);
+    if (!error.isEmpty())
+        return error;
+
+    const auto indexOf = [](const google::protobuf::RepeatedPtrField<rv::data::PlaylistItem> &items, const QString &id) {
+        for (int i = 0; i < items.size(); ++i) {
+            if (items.Get(i).uuid().string() == id.toStdString())
+                return i;
+        }
+        return -1;
+    };
+
+    QList<rv::data::Playlist *> pending {document.mutable_root_node()};
+    while (!pending.isEmpty()) {
+        rv::data::Playlist *node = pending.takeFirst();
+        if (node->has_playlists()) {
+            for (rv::data::Playlist &child : *node->mutable_playlists()->mutable_playlists())
+                pending.append(&child);
+            continue;
+        }
+        auto *items = node->mutable_items()->mutable_items();
+        const int from = indexOf(*items, itemId);
+        if (from < 0)
+            continue;
+        if (indexOf(*items, targetId) < 0)
+            return QStringLiteral("Rows can only be moved within their own playlist");
+
+        // Take the row out, find where the target now is, add the row at the end and
+        // walk it back up to its place.
+        const rv::data::PlaylistItem moved = items->Get(from);
+        items->DeleteSubrange(from, 1);
+        const int to = indexOf(*items, targetId) + (after ? 1 : 0);
+        *items->Add() = moved;
+        for (int i = items->size() - 1; i > to; --i)
+            items->SwapElements(i, i - 1);
+        return write(root, document);
+    }
+    return QStringLiteral("The playlist no longer has that entry");
+}
+
+QString PlaylistFile::moveNode(const QString &root, const QString &id, const QString &targetId, const QString &where)
+{
+    if (id == targetId)
+        return {};
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, &document);
+    if (!error.isEmpty())
+        return error;
+
+    rv::data::Playlist *top = document.mutable_root_node();
+    google::protobuf::RepeatedPtrField<rv::data::Playlist> *siblings = nullptr;
+    rv::data::Playlist *node = findNode(top, id.toStdString(), &siblings);
+    if (!node || !siblings || !findNode(top, targetId.toStdString()))
+        return QStringLiteral("That is no longer there");
+    if (findNode(node, targetId.toStdString()))
+        return QStringLiteral("A folder cannot be moved into itself");
+
+    // Take the node out, then find the target afresh and put the node by or in it.
+    const rv::data::Playlist moved = *node;
+    for (int i = 0; i < siblings->size(); ++i) {
+        if (&siblings->Get(i) == node) {
+            siblings->DeleteSubrange(i, 1);
+            break;
+        }
+    }
+
+    google::protobuf::RepeatedPtrField<rv::data::Playlist> *destination = nullptr;
+    rv::data::Playlist *target = findNode(top, targetId.toStdString(), &destination);
+    if (where == QLatin1String("onto")) {
+        if (!target->has_playlists())
+            return QStringLiteral("Only a folder can hold playlists");
+        *target->mutable_playlists()->add_playlists() = moved;
+        return write(root, document);
+    }
+    if (!destination)
+        return QStringLiteral("That is no longer there");
+    int to = 0;
+    while (to < destination->size() && &destination->Get(to) != target)
+        ++to;
+    if (where == QLatin1String("after"))
+        ++to;
+    *destination->Add() = moved;
+    for (int i = destination->size() - 1; i > to; --i)
+        destination->SwapElements(i, i - 1);
+    return write(root, document);
+}
+
+QString PlaylistFile::importPlaylists(const QString &root, const QByteArray &data, const QString &library,
+                                      const QString &parentId, QString *id)
+{
+    rv::data::PlaylistDocument imported;
+    if (!imported.ParseFromArray(data.constData(), int(data.size())) || !imported.root_node().has_playlists())
+        return QStringLiteral("The archive's playlist cannot be read");
+
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, &document, true);
+    if (!error.isEmpty())
+        return error;
+    rv::data::Playlist *top = rootNode(&document);
+    rv::data::Playlist *parent = parentId.isEmpty() ? top : findNode(top, parentId.toStdString());
+    if (!parent || parent->has_items())
+        parent = top;
+
+    for (const rv::data::Playlist &source : imported.root_node().playlists().playlists()) {
+        rv::data::Playlist *node = parent->mutable_playlists()->add_playlists();
+        *node = source;
+        adopt(node, library, root);
+        if (id->isEmpty())
+            *id = QString::fromStdString(node->uuid().string());
+    }
+    return write(root, document);
 }

@@ -1,6 +1,7 @@
 import QtCore
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import QtQuick.Effects
 import QtMultimedia
 import QtQuick.Window
@@ -25,6 +26,10 @@ Window {
     // browsed instead of a library, playlistId is its id; "" otherwise.
     property string libraryPath: ""
     property string playlistId: ""
+    // The playlist or playlist folder selected in the tree, "" while a library is. It is
+    // the playlist being browsed unless a folder has been selected since: selecting a
+    // folder leaves the presentations of whatever was browsed before on show.
+    property string selectedNode: ""
     property string mediaFolder: ""
     // What is in them, re-read by refreshLists() whenever either path or the disk changes.
     // `documents` holds the rows of the library or playlist being browsed, in the shape
@@ -61,8 +66,9 @@ Window {
     property bool settingsOpen: false
     // Read by main.cpp at the next launch; see the Windows section of the settings screen.
     property bool useX11: false
-    // An error to show above the slides, or ""
+    // A message to show above the slides, or "", and whether it reports a failure
     property string notice: ""
+    property bool noticeIsError: true
     // [{ name, color }], edited on the settings screen
     property var groups: [
         { name: "Intro", color: "#fdd835" },
@@ -79,6 +85,8 @@ Window {
     ]
     // Pane sizes, changed by dragging the dividers between them
     property real sidebarWidth: 260
+    // Height of the libraries and playlists pane at the top of the sidebar
+    property real sourcesHeight: 260
     property real sidePanelWidth: 360
     property real mediaBinHeight: 250
 
@@ -110,6 +118,7 @@ Window {
     }
 
     function openLibrary(path) {
+        selectedNode = ""
         playlistId = ""
         libraryPath = path
         refreshLists()
@@ -117,6 +126,7 @@ Window {
     }
 
     function openPlaylist(id) {
+        selectedNode = id
         playlistId = id
         refreshLists()
         openFirst()
@@ -181,10 +191,8 @@ Window {
         const key = entry.path
         const error = entry.playlistItem ? catalog.setPlaylistItemArrangement(key, entry.file, name)
                                          : catalog.setArrangement(entry.file, name)
-        if (error !== "") {
-            notice = error
+        if (!report(error))
             return
-        }
         notice = ""
         const rearranged = entry.playlistItem ? catalog.openArranged(entry.file, name) : catalog.open(entry.file)
         if (liveDocument && liveKey === key && livePlaylistId === playlistId && liveIndex >= 0) {
@@ -209,10 +217,8 @@ Window {
         const path = document.path
         const id = document.slides[index].id
         const error = media ? catalog.setSlideMedia(path, id, media.path) : catalog.removeSlideMedia(path, id)
-        if (error !== "") {
-            notice = error
+        if (!report(error))
             return
-        }
         notice = ""
         // Same slides in the same order, so the grid can stay where it is scrolled to
         // and the live slide keeps its index.
@@ -239,21 +245,50 @@ Window {
     // Shows an error from a change to the playlists, if there was one.
     function report(error) {
         notice = error
+        noticeIsError = true
         return error === ""
     }
 
-    // Adds an empty playlist, browses it and starts renaming it in place.
-    function newPlaylist() {
+    // Where a new playlist or folder goes: inside the selected folder, or beside the
+    // selected playlist, or at the top level if a library is selected.
+    function newNodeParent() {
+        const selected = catalog.playlists.find(p => p.path === selectedNode)
+        return !selected ? "" : selected.folder ? selected.path : selected.parent
+    }
+
+    function showAddMenu(item) {
+        menu.show([
+            { label: "Add Folder", run: () => newPlaylistNode(true, newNodeParent()) },
+            { label: "Add Playlist", run: () => newPlaylistNode(false, newNodeParent()) },
+            { label: "Import Playlist…", run: () => importDialog.open() }
+        ], item)
+    }
+
+    // Adds an empty playlist, or with `folder` an empty playlist folder, inside the
+    // folder `parent` or at the top level for "", and starts renaming it in place. A new
+    // playlist is also browsed.
+    function newPlaylistNode(folder, parent) {
         const names = catalog.playlists.map(p => p.name)
-        let name = "New Playlist"
+        const base = folder ? "New Folder" : "New Playlist"
+        let name = base
         for (let n = 2; names.includes(name); ++n)
-            name = "New Playlist " + n
-        const created = catalog.createPlaylist(name)
+            name = base + " " + n
+        const created = folder ? catalog.createPlaylistFolder(name, parent) : catalog.createPlaylist(name, parent)
         if (!report(created.error))
             return
-        openPlaylist(created.id)
-        playlistList.positionViewAtEnd()
+        if (folder)
+            selectedNode = created.id
+        else
+            openPlaylist(created.id)
         playlistList.editingPath = created.id
+        // Bring the new row into view once the list has grown to hold it.
+        Qt.callLater(() => {
+            const index = catalog.playlists.findIndex(p => p.path === created.id)
+            const bottom = playlistList.y + (index + 1) * 30
+            if (bottom > sourcesView.contentY + sourcesView.height)
+                sourcesView.contentY = Math.max(0, Math.min(bottom - sourcesView.height + 8,
+                                                            sourcesView.contentHeight - sourcesView.height))
+        })
     }
 
     function addToPlaylist(playlist, file) {
@@ -286,20 +321,26 @@ Window {
             menu.show(items, item)
     }
 
-    // Opens the menu for a playlist or playlist folder.
+    // Opens the menu for a playlist or playlist folder. "Remove" is the word throughout:
+    // only the list goes, never the presentations it refers to.
     function showPlaylistMenu(node, item) {
-        const items = [{ label: "Rename", run: () => playlistList.editingPath = node.path }]
-        if (!node.folder) {
-            // Deleting asks once more, by swapping the menu for a confirmation.
-            items.push({
-                label: "Delete Playlist…",
-                run: () => menu.show([
-                    { header: "Delete “" + node.name + "”?" },
-                    { label: "Delete", danger: true, run: () => report(catalog.deletePlaylist(node.path)) },
-                    { label: "Cancel", run: () => {} }
-                ], item)
-            })
+        const items = []
+        if (node.folder) {
+            items.push({ label: "New Playlist Here", run: () => newPlaylistNode(false, node.path) })
+            items.push({ label: "New Folder Here", run: () => newPlaylistNode(true, node.path) })
         }
+        items.push({ label: "Rename", run: () => playlistList.editingPath = node.path })
+        // Removing asks once more, by swapping the menu for a confirmation.
+        items.push({
+            label: node.folder ? "Remove Folder…" : "Remove Playlist…",
+            run: () => menu.show([
+                { header: "Remove “" + node.name + "”?" },
+                { note: node.folder ? "The playlists in it go too. Presentations stay in their libraries."
+                                    : "Its presentations stay in their libraries." },
+                { label: "Remove", danger: true, run: () => report(catalog.removePlaylist(node.path)) },
+                { label: "Cancel", run: () => {} }
+            ], item)
+        })
         menu.show(items, item)
     }
 
@@ -398,6 +439,7 @@ Window {
         width = Number(saved("windowWidth", width))
         height = Number(saved("windowHeight", height))
         sidebarWidth = Number(saved("sidebarWidth", sidebarWidth))
+        sourcesHeight = Number(saved("sourcesHeight", sourcesHeight))
         sidePanelWidth = Number(saved("sidePanelWidth", sidePanelWidth))
         mediaBinHeight = Number(saved("mediaBinHeight", mediaBinHeight))
         // Settings stores booleans as text.
@@ -426,8 +468,10 @@ Window {
         const folder = String(saved("mediaFolder", ""))
         libraryPath = catalog.libraries.some(l => l.path === library) ? library
                     : catalog.libraries.length > 0 ? catalog.libraries[0].path : ""
-        if (catalog.playlists.some(p => p.path === playlist && !p.folder))
+        if (catalog.playlists.some(p => p.path === playlist && !p.folder)) {
             playlistId = playlist
+            selectedNode = playlist
+        }
         refreshLists()
         if (documents.some(d => d.path === presentation && openable(d)))
             openDocument(presentation)
@@ -447,6 +491,7 @@ Window {
     onWidthChanged: save("windowWidth", width)
     onHeightChanged: save("windowHeight", height)
     onSidebarWidthChanged: save("sidebarWidth", sidebarWidth)
+    onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
     onSidePanelWidthChanged: save("sidePanelWidth", sidePanelWidth)
     onMediaBinHeightChanged: save("mediaBinHeight", mediaBinHeight)
     onMediaBinVisibleChanged: save("mediaBinVisible", mediaBinVisible)
@@ -484,9 +529,40 @@ Window {
                 win.openLibrary(firstLibrary)
             else if (!win.documents.some(d => d.path === win.documentKey && win.openable(d)))
                 win.openFirst()
+            if (!win.catalog.playlists.some(p => p.path === win.selectedNode))
+                win.selectedNode = win.playlistId
             if (!win.catalog.mediaFolders.some(f => f.path === win.mediaFolder))
                 win.mediaFolder = win.catalog.mediaDirectory
         }
+    }
+
+    Connections {
+        target: win.catalog
+
+        function onImportingChanged() {
+            if (win.catalog.importing) {
+                win.notice = "Importing the playlist…"
+                win.noticeIsError = false
+            }
+        }
+
+        function onImportFinished(error, summary, playlist) {
+            if (!win.report(error))
+                return
+            win.notice = "Imported " + summary + "."
+            win.noticeIsError = false
+            if (playlist !== "")
+                win.openPlaylist(playlist)
+        }
+    }
+
+    // Presentations go into the library last browsed, playlists where a new one would.
+    FileDialog {
+        id: importDialog
+
+        title: "Import Playlist"
+        nameFilters: ["ProPresenter playlists (*.proplaylist)", "All files (*)"]
+        onAccepted: win.catalog.importPlaylist(selectedFile, win.libraryPath, win.newNodeParent())
     }
 
     Output {
@@ -541,12 +617,12 @@ Window {
         }
         onReleased: keys.forceActiveFocus()
 
+        // Always drawn, so the panes' edges read as something to drag, but quietly.
         Rectangle {
             anchors.centerIn: parent
-            width: divider.vertical ? 2 : parent.width
-            height: divider.vertical ? parent.height : 2
-            visible: divider.containsMouse || divider.pressed
-            color: win.accentColor
+            width: divider.vertical ? 3 : parent.width
+            height: divider.vertical ? parent.height : 3
+            color: divider.containsMouse || divider.pressed ? "#a0a3aa" : "#5d6068"
         }
     }
 
@@ -674,95 +750,213 @@ Window {
             width: Math.max(160, Math.min(win.sidebarWidth, win.width - sidePanel.width - 260))
             color: win.surfaceColor
 
-            SectionTitle {
-                id: librariesTitle
+            // Libraries and playlists share one pane, a shade lighter than the
+            // presentations below it, that scrolls as a whole. Drag the Presentations
+            // header to resize it.
+            Rectangle {
+                id: sources
 
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.top: parent.top
-                color: win.librariesColor
-                text: "Libraries"
+                height: Math.max(90, Math.min(win.sourcesHeight, sidebar.height - presentationsHeader.height - 90))
+                color: "#383a41"
+
+                Flickable {
+                    id: sourcesView
+
+                    anchors.fill: parent
+                    contentHeight: sourcesColumn.height
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    ScrollBar.vertical: ScrollBar {}
+
+                    KineticWheel {}
+
+                    Column {
+                        id: sourcesColumn
+
+                        width: sourcesView.width
+
+                        SectionTitle {
+                            color: win.librariesColor
+                            text: "Libraries"
+                        }
+
+                        SidebarList {
+                            id: libraryList
+
+                            width: parent.width
+                            height: contentHeight
+                            interactive: false
+                            model: win.catalog.libraries
+                            selectedPath: win.selectedNode === "" ? win.libraryPath : ""
+                            livePath: !win.cleared && win.liveDocument && win.livePlaylistId === ""
+                                      ? win.liveDocument.path.substring(0, win.liveDocument.path.lastIndexOf("/")) : ""
+                            onPicked: (entry) => win.openLibrary(entry.path)
+                        }
+
+                        // Playlists and the folders they are kept in, in ProPresenter's
+                        // own playlists file. Drop a presentation on a playlist to add it.
+                        Item {
+                            width: parent.width
+                            height: playlistsTitle.height
+
+                            SectionTitle {
+                                id: playlistsTitle
+
+                                color: win.playlistsColor
+                                text: "Playlists"
+                            }
+
+                            // Add a folder or a playlist, or import a playlist
+                            Rectangle {
+                                id: addButton
+
+                                anchors.right: parent.right
+                                anchors.rightMargin: 12
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 3
+                                width: 26
+                                height: 22
+                                radius: 5
+                                color: addMouse.pressed ? "#5c5f67" : addMouse.containsMouse ? "#53565e" : "#474a51"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    anchors.verticalCenterOffset: -1
+                                    color: win.textColor
+                                    font.pixelSize: 16
+                                    text: "+"
+                                }
+
+                                MouseArea {
+                                    id: addMouse
+
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: win.showAddMenu(addButton)
+                                }
+                            }
+                        }
+
+                        SidebarList {
+                            id: playlistList
+
+                            width: parent.width
+                            height: contentHeight
+                            interactive: false
+                            model: win.catalog.playlists
+                            selectedPath: win.selectedNode
+                            livePath: win.cleared ? "" : win.livePlaylistId
+                            dragProxy: playlistDrag
+                            dropKeys: ["presentation", "playlist"]
+                            // A presentation goes onto a playlist. A playlist or folder
+                            // goes between the others, or onto a folder to go inside it.
+                            dropZone: (node, source) => source === presentationDrag ? (node.folder ? "" : "onto")
+                                                      : node.folder ? "both" : "between"
+                            onPicked: (entry) => {
+                                if (entry.folder)
+                                    win.selectedNode = entry.path
+                                else
+                                    win.openPlaylist(entry.path)
+                            }
+                            onMenuRequested: (entry, item) => win.showPlaylistMenu(entry, item)
+                            onRenamed: (entry, name) => win.report(win.catalog.renamePlaylist(entry.path, name))
+                            onEditingEnded: keys.forceActiveFocus()
+                            onDropped: (node, source, where) => {
+                                if (source === playlistDrag)
+                                    win.report(win.catalog.movePlaylistNode(source.entry.path, node.path, where))
+                                else if (win.openable(source.entry))
+                                    win.addToPlaylist(node.path, source.entry.file)
+                            }
+                        }
+
+                        Item {
+                            width: 1
+                            height: 10
+                        }
+                    }
+                }
             }
 
-            SidebarList {
-                id: libraryList
+            // The Presentations header: a solid bar, so there is no mistaking where the
+            // pane above ends, naming the library or playlist whose presentations follow.
+            Rectangle {
+                id: presentationsHeader
 
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.top: librariesTitle.bottom
-                height: Math.min(contentHeight, sidebar.height * 0.2)
-                model: win.catalog.libraries
-                selectedPath: win.playlistId === "" ? win.libraryPath : ""
-                livePath: !win.cleared && win.liveDocument && win.livePlaylistId === ""
-                          ? win.liveDocument.path.substring(0, win.liveDocument.path.lastIndexOf("/")) : ""
-                onPicked: (entry) => win.openLibrary(entry.path)
+                anchors.top: sources.bottom
+                height: 30
+                color: "#2f7fd9"
+
+                Text {
+                    id: presentationsTitle
+
+                    x: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "white"
+                    font.pixelSize: 12
+                    font.bold: true
+                    font.capitalization: Font.AllUppercase
+                    text: "Presentations"
+                }
+
+                Text {
+                    anchors.left: presentationsTitle.right
+                    anchors.leftMargin: 10
+                    anchors.right: parent.right
+                    anchors.rightMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    horizontalAlignment: Text.AlignRight
+                    elide: Text.ElideRight
+                    color: "#d6e8ff"
+                    font.pixelSize: 12
+                    text: {
+                        const source = win.playlistId !== ""
+                            ? win.catalog.playlists.find(p => p.path === win.playlistId)
+                            : win.catalog.libraries.find(l => l.path === win.libraryPath)
+                        return source ? source.name : ""
+                    }
+                }
+
             }
 
-            // Playlists and the folders they are kept in, in ProPresenter's own playlists
-            // file. Drop a presentation on a playlist to add it.
-            SectionTitle {
-                id: playlistsTitle
-
-                anchors.top: libraryList.bottom
-                color: win.playlistsColor
-                text: "Playlists"
-            }
-
-            AppButton {
-                anchors.right: parent.right
-                anchors.rightMargin: 8
-                anchors.verticalCenter: playlistsTitle.verticalCenter
-                anchors.verticalCenterOffset: 3
-                width: 24
-                height: 22
-                leftPadding: 0
-                rightPadding: 0
-                text: "+"
-                onClicked: win.newPlaylist()
-            }
-
-            SidebarList {
-                id: playlistList
-
+            // The edge between the two panes, along the top of the header
+            Divider {
+                vertical: false
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.top: playlistsTitle.bottom
-                height: Math.min(contentHeight, sidebar.height * 0.35)
-                model: win.catalog.playlists
-                selectedPath: win.playlistId
-                livePath: win.cleared ? "" : win.livePlaylistId
-                dropKeys: ["presentation"]
-                acceptsDrop: (node) => !node.folder
-                onPicked: (entry) => win.openPlaylist(entry.path)
-                onMenuRequested: (entry, item) => win.showPlaylistMenu(entry, item)
-                onRenamed: (entry, name) => win.report(win.catalog.renamePlaylist(entry.path, name))
-                onEditingEnded: keys.forceActiveFocus()
-                onDropped: (node, source) => win.addToPlaylist(node.path, source.entry.file)
+                anchors.verticalCenter: presentationsHeader.top
+                onMoved: (delta) => win.sourcesHeight = sources.height + delta
             }
 
-            SectionTitle {
-                id: documentsTitle
-
-                anchors.top: playlistList.bottom
-                color: win.presentationsColor
-                text: "Presentations"
-            }
-
+            // In a playlist, rows can be dragged up and down to reorder them.
             SidebarList {
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.top: documentsTitle.bottom
+                anchors.top: presentationsHeader.bottom
                 anchors.bottom: parent.bottom
                 model: win.documents
                 selectedPath: win.documentKey
                 livePath: !win.cleared && win.livePlaylistId === win.playlistId ? win.liveKey : ""
+                dragProxy: presentationDrag
+                draggable: (entry) => entry.playlistItem || win.openable(entry)
+                dropKeys: win.playlistId !== "" ? ["presentation"] : []
+                dropZone: (entry, source) => "between"
                 onPicked: (entry) => {
                     if (entry.missing)
-                        win.notice = "“" + entry.name + "” is in the playlist but not in the libraries here."
+                        win.report("“" + entry.name + "” is in the playlist but not in the libraries here.")
                     else
                         win.openEntry(entry)
                 }
-                dragProxy: presentationDrag
-                draggable: (entry) => win.openable(entry)
                 onMenuRequested: (entry, item) => win.showPresentationMenu(entry, item)
+                onDropped: (target, source, where) => {
+                    if (source.entry.playlistItem && source.entry.path !== target.path)
+                        win.report(win.catalog.movePlaylistItem(source.entry.path, target.path, where === "after"))
+                }
             }
 
             // The one right-click menu of the sidebar. show() takes its rows: a row with
@@ -780,9 +974,14 @@ Window {
                     open()
                 }
 
-                x: 24
+                // Under the row it was opened from, or under a small button, ending at the
+                // button's right edge. `margins` then keeps the whole menu inside the
+                // window whatever that works out to, and a menu taller than the window
+                // scrolls.
+                x: parent && parent.width < 60 ? parent.width - width : 24
                 y: parent ? parent.height - 2 : 0
-                width: 220
+                width: 240
+                margins: 6
                 padding: 4
                 onClosed: {
                     if (playlistList.editingPath === "")
@@ -796,46 +995,71 @@ Window {
                     border.color: "#45484e"
                 }
 
-                contentItem: Column {
-                    Repeater {
-                        model: menu.items
+                contentItem: Flickable {
+                    implicitHeight: Math.min(menuRows.height, win.height - 40)
+                    contentHeight: menuRows.height
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
 
-                        delegate: Rectangle {
-                            id: row
+                    Column {
+                        id: menuRows
 
-                            required property var modelData
-                            readonly property bool caption: modelData.header !== undefined
+                        Repeater {
+                            model: menu.items
 
-                            width: menu.availableWidth
-                            height: caption ? 28 : 30
-                            radius: 4
-                            color: !caption && rowMouse.containsMouse ? "#45484e" : "transparent"
+                            delegate: Rectangle {
+                                id: row
 
-                            Text {
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                verticalAlignment: Text.AlignVCenter
-                                elide: Text.ElideRight
-                                color: row.caption ? win.dimTextColor
-                                     : row.modelData.danger ? "#ff6b6b"
-                                     : row.modelData.current ? win.accentColor : win.textColor
-                                font.pixelSize: row.caption ? 12 : 14
-                                font.capitalization: row.caption ? Font.AllUppercase : Font.MixedCase
-                                text: row.caption ? row.modelData.header
-                                    : (row.modelData.current ? "✓  " : "") + row.modelData.label
-                            }
+                                required property var modelData
+                                readonly property bool note: modelData.note !== undefined
+                                readonly property bool caption: modelData.header !== undefined || note
 
-                            MouseArea {
-                                id: rowMouse
+                                width: menu.availableWidth
+                                height: note ? noteText.implicitHeight + 10 : caption ? 28 : 30
+                                radius: 4
+                                color: !caption && rowMouse.containsMouse ? "#45484e" : "transparent"
 
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                enabled: !row.caption
-                                onClicked: {
-                                    const run = row.modelData.run
-                                    menu.close()
-                                    run()
+                                Text {
+                                    id: noteText
+
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    visible: row.note
+                                    verticalAlignment: Text.AlignVCenter
+                                    wrapMode: Text.Wrap
+                                    color: win.dimTextColor
+                                    font.pixelSize: 12
+                                    text: row.note ? row.modelData.note : ""
+                                }
+
+                                Text {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    visible: !row.note
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                    color: row.caption ? win.dimTextColor
+                                         : row.modelData.danger ? "#ff6b6b"
+                                         : row.modelData.current ? win.accentColor : win.textColor
+                                    font.pixelSize: row.caption ? 12 : 14
+                                    font.capitalization: row.caption ? Font.AllUppercase : Font.MixedCase
+                                    text: row.note ? "" : row.caption ? row.modelData.header
+                                        : (row.modelData.current ? "✓  " : "") + row.modelData.label
+                                }
+
+                                MouseArea {
+                                    id: rowMouse
+
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    enabled: !row.caption
+                                    onClicked: {
+                                        const run = row.modelData.run
+                                        menu.close()
+                                        run()
+                                    }
                                 }
                             }
                         }
@@ -1171,7 +1395,7 @@ Window {
                 anchors.rightMargin: 16
                 anchors.verticalCenter: parent.verticalCenter
                 elide: Text.ElideRight
-                color: "#ff6b6b"
+                color: win.noticeIsError ? "#ff6b6b" : win.dimTextColor
                 font.pixelSize: 13
                 text: win.notice
             }
@@ -1388,6 +1612,7 @@ Window {
             readonly property bool hasMedia: slide !== null && slide.mediaName !== ""
 
             width: 200
+            margins: 6
             padding: 4
             onClosed: keys.forceActiveFocus()
 
@@ -1468,15 +1693,14 @@ Window {
             }
         }
 
-        // A presentation being dragged out of the presentations list: a point that follows
-        // the pointer, with the presentation's name beside it.
-        Item {
-            id: presentationDrag
+        // What is being dragged out of a sidebar list: a point that follows the pointer,
+        // with the name of the dragged entry beside it.
+        component RowDrag: Item {
+            id: rowDrag
 
             property var entry: null
 
             z: 50
-            Drag.keys: ["presentation"]
 
             Rectangle {
                 x: 12
@@ -1484,7 +1708,7 @@ Window {
                 width: dragLabel.implicitWidth + 20
                 height: 28
                 radius: 6
-                visible: presentationDrag.Drag.active
+                visible: rowDrag.Drag.active
                 color: win.surfaceColor
                 border.width: 1
                 border.color: win.accentColor
@@ -1496,9 +1720,21 @@ Window {
                     anchors.centerIn: parent
                     color: win.textColor
                     font.pixelSize: 13
-                    text: presentationDrag.entry ? presentationDrag.entry.name : ""
+                    text: rowDrag.entry ? rowDrag.entry.name : ""
                 }
             }
+        }
+
+        RowDrag {
+            id: presentationDrag
+
+            Drag.keys: ["presentation"]
+        }
+
+        RowDrag {
+            id: playlistDrag
+
+            Drag.keys: ["playlist"]
         }
 
         // Dividers. Each starts from the pane's current, clamped size, so dragging back

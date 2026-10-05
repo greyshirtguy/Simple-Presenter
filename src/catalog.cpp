@@ -1,10 +1,12 @@
 #include "catalog.h"
 
+#include "playlistimport.h"
 #include "prodocument.h"
 
 #include <QCollator>
 #include <QDir>
 #include <QFileInfo>
+#include <QThread>
 #include <QUrl>
 
 #include <algorithm>
@@ -54,7 +56,11 @@ void Catalog::rescan()
 {
     m_libraries.clear();
     for (const QFileInfo &library : entries(m_librariesDirectory, {}, QDir::Dirs))
-        m_libraries.append(QVariantMap {{"name", library.fileName()}, {"path", library.absoluteFilePath()}});
+        m_libraries.append(QVariantMap {
+            {"name", library.fileName()},
+            {"path", library.absoluteFilePath()},
+            {"icon", QStringLiteral("library")},
+        });
 
     m_mediaFolders.clear();
     addFolderTree(m_mediaDirectory, QStringLiteral("Media"), 0, &m_mediaFolders);
@@ -91,6 +97,7 @@ QVariantList Catalog::documentsIn(const QString &library) const
             {"path", file.absoluteFilePath()},
             {"name", file.completeBaseName()},
             {"kind", QStringLiteral("presentation")},
+            {"icon", QStringLiteral("presentation")},
             {"file", file.absoluteFilePath()},
             {"missing", false},
             {"playlistItem", false},
@@ -164,10 +171,17 @@ QString Catalog::afterChange(const QString &error)
     return error;
 }
 
-QVariantMap Catalog::createPlaylist(const QString &name)
+QVariantMap Catalog::createPlaylist(const QString &name, const QString &parent)
 {
     QString id;
-    const QString error = afterChange(PlaylistFile::createPlaylist(m_root, name, &id));
+    const QString error = afterChange(PlaylistFile::createNode(m_root, name, parent, false, &id));
+    return {{"id", id}, {"error", error}};
+}
+
+QVariantMap Catalog::createPlaylistFolder(const QString &name, const QString &parent)
+{
+    QString id;
+    const QString error = afterChange(PlaylistFile::createNode(m_root, name, parent, true, &id));
     return {{"id", id}, {"error", error}};
 }
 
@@ -176,9 +190,9 @@ QString Catalog::renamePlaylist(const QString &id, const QString &name)
     return afterChange(PlaylistFile::renameNode(m_root, id, name));
 }
 
-QString Catalog::deletePlaylist(const QString &id)
+QString Catalog::removePlaylist(const QString &id)
 {
-    return afterChange(PlaylistFile::deletePlaylist(m_root, id));
+    return afterChange(PlaylistFile::removeNode(m_root, id));
 }
 
 QString Catalog::addToPlaylist(const QString &playlist, const QString &file)
@@ -207,4 +221,46 @@ QString Catalog::setSlideMedia(const QString &path, const QString &slideId, cons
 QString Catalog::removeSlideMedia(const QString &path, const QString &slideId)
 {
     return ProDocument::removeCueMedia(path, slideId);
+}
+
+QString Catalog::movePlaylistItem(const QString &item, const QString &target, bool after)
+{
+    return afterChange(PlaylistFile::moveItem(m_root, item, target, after));
+}
+
+QString Catalog::movePlaylistNode(const QString &id, const QString &target, const QString &where)
+{
+    return afterChange(PlaylistFile::moveNode(m_root, id, target, where));
+}
+
+void Catalog::importPlaylist(const QUrl &archive, const QString &library, const QString &parent)
+{
+    if (m_importing)
+        return;
+    m_importing = true;
+    emit importingChanged();
+
+    // With no library to put the presentations in, they get one of their own.
+    const QString destination = library.isEmpty() ? QDir(m_librariesDirectory).absoluteFilePath("Imported") : library;
+    const QString path = archive.toLocalFile();
+    const QString root = m_root;
+
+    // Copying can be hundreds of megabytes of media, so it happens off the main thread
+    // and the output keeps running. The playlists file is only touched back here.
+    QThread *worker = QThread::create([this, path, root, destination, parent] {
+        QString error;
+        const PlaylistImport unpacked = PlaylistImport::unpack(path, root, destination, &error);
+        QMetaObject::invokeMethod(this, [this, unpacked, error, root, destination, parent] {
+            QString failure = error;
+            QString playlist;
+            if (failure.isEmpty())
+                failure = PlaylistFile::importPlaylists(root, unpacked.playlistData, destination, parent, &playlist);
+            m_importing = false;
+            emit importingChanged();
+            rescan();
+            emit importFinished(failure, unpacked.summary(), playlist);
+        }, Qt::QueuedConnection);
+    });
+    connect(worker, &QThread::finished, worker, &QObject::deleteLater);
+    worker->start();
 }

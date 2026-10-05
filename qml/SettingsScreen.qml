@@ -155,6 +155,8 @@ Rectangle {
                             id: colors
 
                             y: swatch.height + 4
+                            // Kept inside the window
+                            margins: 6
                             padding: 10
 
                             background: Rectangle {

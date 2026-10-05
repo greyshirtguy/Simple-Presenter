@@ -50,6 +50,8 @@ ComboBox {
     popup: Popup {
         y: control.height + 4
         width: control.width
+        // Kept inside the window
+        margins: 6
         padding: 4
 
         contentItem: ListView {

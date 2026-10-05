@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Multimedia ShaderTools)
 find_package(Protobuf REQUIRED)
 find_package(Fontconfig REQUIRED)
+find_package(ZLIB REQUIRED)
 qt_standard_project_setup(REQUIRES 6.9)
 
 # ProPresenter 7 document schema: the presentation and playlist documents and everything
@@ -40,6 +41,8 @@ qt_add_executable(SimplePresenter
     src/fontresolver.h
     src/playlistfile.cpp
     src/playlistfile.h
+    src/playlistimport.cpp
+    src/playlistimport.h
     src/prodocument.cpp
     src/prodocument.h
     src/richtext.h
@@ -47,6 +50,8 @@ qt_add_executable(SimplePresenter
     src/rtf.h
     src/thumbnailprovider.cpp
     src/thumbnailprovider.h
+    src/zipreader.cpp
+    src/zipreader.h
 )
 target_include_directories(SimplePresenter PRIVATE src)
 
@@ -67,6 +72,7 @@ qt_add_qml_module(SimplePresenter
         qml/Slide.qml
         qml/MediaContent.qml
         qml/ResizeGrips.qml
+        qml/RowIcon.qml
         qml/SettingsScreen.qml
         qml/SidebarList.qml
         qml/Stage.qml
@@ -90,4 +96,4 @@ qt_add_shaders(SimplePresenter "shaders"
         shaders/ripple.frag
 )
 
-target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia proproto Fontconfig::Fontconfig)
+target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia proproto Fontconfig::Fontconfig ZLIB::ZLIB)

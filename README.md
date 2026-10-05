@@ -13,9 +13,11 @@ layer, shader transitions, a stage display and a media bin.
 - [ ] **Improve File Compatibility**: render more of what a `.pro` file can hold, such
       as gradients, shapes other than rectangles, image fills and text that scales to fit.
 - [ ] **Playlist Support**: build and run an ordered list of presentations and media
-      for a service. Playlists can be created, filled, renamed, deleted and run; still
-      to do are reordering, headers, folders and media rows.
-- [ ] **Import Playlists**: read ProPresenter's `.proplaylist` files.
+      for a service. Playlists and folders can be created, renamed, rearranged, removed
+      and run, and their rows added, reordered and removed; still to do are headers and
+      media rows.
+- [x] **Import Playlists**: read ProPresenter's exported `.proplaylist` files, bringing
+      in the playlist, its presentations and, when the export included it, its media.
 
 Built with Qt 6 (C++ and QML). The ProPresenter file format comes from the unofficial
 protobuf definitions in [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto),
@@ -29,7 +31,8 @@ Needs Qt 6.9 or newer. On Ubuntu 26.04:
 sudo apt install cmake ninja-build g++ \
     qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qt6-shadertools-dev \
     qml6-module-qtquick-controls qml6-module-qtquick-effects qml6-module-qtmultimedia \
-    protobuf-compiler libprotobuf-dev libfontconfig-dev
+    qml6-module-qtquick-dialogs qml6-module-qtquick-shapes \
+    protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev
 ```
 
 Video plays without any of the drivers below, decoded on the CPU; see
@@ -90,6 +93,10 @@ This is the layout of ProPresenter's own folder, so `--root <dir>` can point the
 a copy of one. Changes made in the app (a new playlist, a presentation added to one, an
 arrangement chosen, media dropped on a slide) are written to the files in that folder.
 
+An exported playlist is imported from the "+" beside Playlists. Its presentations go
+into the library last browsed and its media under `Media`, keeping the folders it had
+below ProPresenter's own `Media` folder; files already there are left as they are.
+
 `--root <dir>` points it at a different folder. `--help` lists the other options.
 
 ## Keys
@@ -118,6 +125,8 @@ neither reads nor changes saved settings.
 |---|---|
 | `src/main.cpp` | Startup, command-line options, the self-test |
 | `src/prodocument.*` | Reads and writes `.pro` files |
+| `src/playlistfile.*` | Reads and writes the playlists file |
+| `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/rtf.*` | Parser for the RTF that slide text is stored in |
 | `src/strokedtext.*` | Draws slide text with stroke and fill |
 | `src/catalog.*` | Libraries and media found on disk |
