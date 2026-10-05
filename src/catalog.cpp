@@ -32,7 +32,12 @@ QList<QFileInfo> entries(const QString &directory, const QStringList &patterns, 
 
 void addFolderTree(const QString &directory, const QString &name, int depth, QVariantList *folders)
 {
-    folders->append(QVariantMap {{"name", name}, {"path", directory}, {"depth", depth}});
+    folders->append(QVariantMap {
+        {"name", name},
+        {"path", directory},
+        {"depth", depth},
+        {"icon", QStringLiteral("folder")},
+    });
     for (const QFileInfo &child : entries(directory, {}, QDir::Dirs))
         addFolderTree(child.absoluteFilePath(), child.fileName(), depth + 1, folders);
 }
@@ -67,6 +72,10 @@ void Catalog::rescan()
 
     QString error;
     m_playlists = PlaylistFile::load(m_root, &error);
+    if (!error.isEmpty())
+        qWarning("%s", qPrintable(error));
+    error.clear();
+    m_mediaPlaylists = PlaylistFile::loadMedia(m_root, &error);
     if (!error.isEmpty())
         qWarning("%s", qPrintable(error));
 
@@ -112,6 +121,8 @@ QVariantList Catalog::documentsIn(const QString &library) const
 
 QVariantList Catalog::mediaIn(const QString &folder) const
 {
+    if (folder.startsWith(QLatin1String("playlist:")))
+        return m_mediaPlaylists.items.value(folder);
     QVariantList media;
     if (folder.isEmpty())
         return media;
@@ -121,6 +132,7 @@ QVariantList Catalog::mediaIn(const QString &folder) const
             {"path", file.absoluteFilePath()},
             {"source", QUrl::fromLocalFile(file.absoluteFilePath())},
             {"video", QDir::match(videoPatterns, file.fileName())},
+            {"missing", false},
         });
     }
     return media;

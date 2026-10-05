@@ -31,6 +31,9 @@ Window {
     // folder leaves the presentations of whatever was browsed before on show.
     property string selectedNode: ""
     property string mediaFolder: ""
+    // What the media bin can browse: the folders under Media, then ProPresenter's media
+    // playlists and the folders those are kept in.
+    readonly property var mediaSources: catalog.mediaFolders.concat(catalog.mediaPlaylists)
     // What is in them, re-read by refreshLists() whenever either path or the disk changes.
     // `documents` holds the rows of the library or playlist being browsed, in the shape
     // PlaylistFile describes; a row's `path` identifies the row, its `file` the presentation.
@@ -113,6 +116,10 @@ Window {
     property real thumbnailWidth: 250
     readonly property real smallestThumbnail: 180
     readonly property real largestThumbnail: 400
+    // The same for the media bin's thumbnails
+    property real mediaThumbnailWidth: 180
+    readonly property real smallestMediaThumbnail: 110
+    readonly property real largestMediaThumbnail: 320
     property real sidePanelWidth: 360
     property real mediaBinHeight: 250
 
@@ -256,16 +263,27 @@ Window {
         grid.contentY = scrolledTo
     }
 
-    // Makes the slide thumbnails larger (+1) or smaller (-1). Since thumbnails stretch to
-    // fill their row, the size only visibly changes when the number of columns does, so
-    // this steps until it has, or until the limit.
-    function zoomThumbnails(direction) {
-        const columnsAt = width => Math.max(1, Math.floor(grid.width / width))
-        let target = thumbnailWidth
+    // A thumbnail width one step larger (+1) or smaller (-1) than `current`, for a grid
+    // of `columns` columns and the given width, within the limits. Since thumbnails
+    // stretch to fill their row, the size only visibly changes when the number of
+    // columns does, so this steps until it has, or until the limit.
+    function steppedThumbnail(current, direction, gridWidth, columns, smallest, largest) {
+        const columnsAt = width => Math.max(1, Math.floor(gridWidth / width))
+        let target = current
         do {
-            target = Math.max(smallestThumbnail, Math.min(largestThumbnail, target + direction * 10))
-        } while (columnsAt(target) === grid.columns && target > smallestThumbnail && target < largestThumbnail)
-        thumbnailWidth = target
+            target = Math.max(smallest, Math.min(largest, target + direction * 10))
+        } while (columnsAt(target) === columns && target > smallest && target < largest)
+        return target
+    }
+
+    function zoomThumbnails(direction) {
+        thumbnailWidth = steppedThumbnail(thumbnailWidth, direction, grid.width, grid.columns,
+                                          smallestThumbnail, largestThumbnail)
+    }
+
+    function zoomMediaThumbnails(direction) {
+        mediaThumbnailWidth = steppedThumbnail(mediaThumbnailWidth, direction, mediaGrid.width, mediaGrid.columns,
+                                               smallestMediaThumbnail, largestMediaThumbnail)
     }
 
     // Selects the presentation `delta` places from the current one in its library or
@@ -480,6 +498,8 @@ Window {
         sourcesHeight = Number(saved("sourcesHeight", sourcesHeight))
         thumbnailWidth = Math.max(smallestThumbnail, Math.min(largestThumbnail,
                                   Number(saved("thumbnailWidth", thumbnailWidth))))
+        mediaThumbnailWidth = Math.max(smallestMediaThumbnail, Math.min(largestMediaThumbnail,
+                                       Number(saved("mediaThumbnailWidth", mediaThumbnailWidth))))
         sidePanelWidth = Number(saved("sidePanelWidth", sidePanelWidth))
         mediaBinHeight = Number(saved("mediaBinHeight", mediaBinHeight))
         // Settings stores booleans as text.
@@ -517,7 +537,7 @@ Window {
             openDocument(presentation)
         else
             openFirst()
-        mediaFolder = catalog.mediaFolders.some(f => f.path === folder) ? folder : catalog.mediaDirectory
+        mediaFolder = mediaSources.some(f => f.path === folder) ? folder : catalog.mediaDirectory
         restored = true
     }
     onClosing: Qt.quit()
@@ -533,6 +553,7 @@ Window {
     onSidebarWidthChanged: save("sidebarWidth", sidebarWidth)
     onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
     onThumbnailWidthChanged: save("thumbnailWidth", thumbnailWidth)
+    onMediaThumbnailWidthChanged: save("mediaThumbnailWidth", mediaThumbnailWidth)
     onSidePanelWidthChanged: save("sidePanelWidth", sidePanelWidth)
     onMediaBinHeightChanged: save("mediaBinHeight", mediaBinHeight)
     onMediaBinVisibleChanged: save("mediaBinVisible", mediaBinVisible)
@@ -572,7 +593,7 @@ Window {
                 win.openFirst()
             if (!win.catalog.playlists.some(p => p.path === win.selectedNode))
                 win.selectedNode = win.playlistId
-            if (!win.catalog.mediaFolders.some(f => f.path === win.mediaFolder))
+            if (!win.mediaSources.some(f => f.path === win.mediaFolder))
                 win.mediaFolder = win.catalog.mediaDirectory
         }
     }
@@ -664,6 +685,29 @@ Window {
             width: divider.vertical ? 3 : parent.width
             height: divider.vertical ? parent.height : 3
             color: divider.containsMouse || divider.pressed ? "#a0a3aa" : "#5d6068"
+        }
+    }
+
+    // The body of a pop-up menu: a rounded panel a shade lighter than the panes, with a
+    // bright edge and a shadow, so it stands clear of whatever it opens over.
+    component MenuBackground: Item {
+        RectangularShadow {
+            anchors.fill: panel
+            radius: panel.radius
+            blur: 24
+            spread: 2
+            offset: Qt.vector2d(0, 6)
+            color: "#b0000000"
+        }
+
+        Rectangle {
+            id: panel
+
+            anchors.fill: parent
+            radius: 9
+            color: "#33363d"
+            border.width: 1.5
+            border.color: "#8b8f98"
         }
     }
 
@@ -1007,6 +1051,9 @@ Window {
                 id: menu
 
                 property var items: []
+                // Whether the rows come in sections under captions. If so the rows sit in
+                // from the captions, with room at their left for the tick on a current one.
+                readonly property bool sectioned: items.some(item => item.header !== undefined)
 
                 function show(items, item) {
                     close()
@@ -1021,20 +1068,15 @@ Window {
                 // scrolls.
                 x: parent && parent.width < 60 ? parent.width - width : 24
                 y: parent ? parent.height - 2 : 0
-                width: 240
+                width: 250
                 margins: 6
-                padding: 4
+                padding: 6
                 onClosed: {
                     if (playlistList.editingPath === "")
                         keys.forceActiveFocus()
                 }
 
-                background: Rectangle {
-                    radius: 6
-                    color: win.surfaceColor
-                    border.width: 1
-                    border.color: "#45484e"
-                }
+                background: MenuBackground {}
 
                 contentItem: Flickable {
                     implicitHeight: Math.min(menuRows.height, win.height - 40)
@@ -1048,23 +1090,34 @@ Window {
                         Repeater {
                             model: menu.items
 
-                            delegate: Rectangle {
+                            delegate: Item {
                                 id: row
 
                                 required property var modelData
+                                required property int index
                                 readonly property bool note: modelData.note !== undefined
-                                readonly property bool caption: modelData.header !== undefined || note
+                                readonly property bool heading: modelData.header !== undefined
+                                readonly property bool caption: heading || note
+                                // A gap above each section after the first sets it apart.
+                                readonly property real gap: heading && index > 0 ? 6 : 0
+                                readonly property real indent: menu.sectioned && !caption ? 30 : 12
 
                                 width: menu.availableWidth
-                                height: note ? noteText.implicitHeight + 10 : caption ? 28 : 30
-                                radius: 4
-                                color: !caption && rowMouse.containsMouse ? "#45484e" : "transparent"
+                                height: gap + (note ? noteText.implicitHeight + 10 : caption ? 26 : 30)
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.topMargin: row.gap
+                                    radius: 4
+                                    color: row.heading ? "#484b53"
+                                         : !row.caption && rowMouse.containsMouse ? "#565962" : "transparent"
+                                }
 
                                 Text {
                                     id: noteText
 
                                     anchors.fill: parent
-                                    anchors.leftMargin: 10
+                                    anchors.leftMargin: 12
                                     anchors.rightMargin: 10
                                     visible: row.note
                                     verticalAlignment: Text.AlignVCenter
@@ -1074,26 +1127,40 @@ Window {
                                     text: row.note ? row.modelData.note : ""
                                 }
 
+                                // The tick of the current row, in the space the indent leaves
                                 Text {
+                                    x: 12
+                                    anchors.verticalCenter: label.verticalCenter
+                                    visible: !row.caption && row.modelData.current === true
+                                    color: win.accentColor
+                                    font.pixelSize: 13
+                                    text: "✓"
+                                }
+
+                                Text {
+                                    id: label
+
                                     anchors.fill: parent
-                                    anchors.leftMargin: 10
+                                    anchors.topMargin: row.gap
+                                    anchors.leftMargin: row.indent
                                     anchors.rightMargin: 10
                                     visible: !row.note
                                     verticalAlignment: Text.AlignVCenter
                                     elide: Text.ElideRight
-                                    color: row.caption ? win.dimTextColor
+                                    color: row.heading ? "#d5d7dc"
                                          : row.modelData.danger ? "#ff6b6b"
                                          : row.modelData.current ? win.accentColor : win.textColor
-                                    font.pixelSize: row.caption ? 12 : 14
-                                    font.capitalization: row.caption ? Font.AllUppercase : Font.MixedCase
-                                    text: row.note ? "" : row.caption ? row.modelData.header
-                                        : (row.modelData.current ? "✓  " : "") + row.modelData.label
+                                    font.pixelSize: row.heading ? 11 : 14
+                                    font.bold: row.heading
+                                    font.capitalization: row.heading ? Font.AllUppercase : Font.MixedCase
+                                    text: row.note ? "" : row.heading ? row.modelData.header : row.modelData.label
                                 }
 
                                 MouseArea {
                                     id: rowMouse
 
                                     anchors.fill: parent
+                                    anchors.topMargin: row.gap
                                     hoverEnabled: true
                                     enabled: !row.caption
                                     onClicked: {
@@ -1149,65 +1216,95 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
 
-                AppComboBox {
+                // The transition and its length, grouped on a panel of their own
+                Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 160
-                    model: win.transitions.map(t => t.name)
-                    currentIndex: win.transitionIndex
-                    onActivated: (index) => win.transitionIndex = index
-                }
+                    width: transitionControls.width + 12
+                    height: 38
+                    radius: 8
+                    color: "#23252b"
+                    border.width: 1
+                    border.color: "#3a3c42"
 
-                AppSlider {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 120
-                    from: 0
-                    to: 3
-                    stepSize: 0.05
-                    enabled: win.transitionIndex !== 0
-                    value: Math.min(win.transitionDuration, to)
-                    onMoved: win.transitionDuration = Math.round(value * 100) / 100
-                }
+                    Row {
+                        id: transitionControls
 
-                // Seconds; accepts any value from 0 up, beyond the slider's range.
-                AppTextField {
-                    id: durationField
+                        anchors.centerIn: parent
+                        spacing: 6
 
-                    function reset() {
-                        text = Number(win.transitionDuration.toFixed(2)).toString()
-                    }
+                        AppComboBox {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 150
+                            height: 28
+                            font.pixelSize: 13
+                            model: win.transitions.map(t => t.name)
+                            currentIndex: win.transitionIndex
+                            onActivated: (index) => win.transitionIndex = index
+                        }
 
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 45
-                    horizontalAlignment: TextInput.AlignRight
-                    enabled: win.transitionIndex !== 0
-                    onEditingFinished: {
-                        const seconds = Number(text.replace(",", "."))
-                        if (text.trim() !== "" && isFinite(seconds) && seconds >= 0)
-                            win.transitionDuration = seconds
-                        reset()
-                        keys.forceActiveFocus()
-                    }
-                    Keys.onEscapePressed: {
-                        reset()
-                        keys.forceActiveFocus()
-                    }
-                    Component.onCompleted: reset()
+                        AppSlider {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 100
+                            from: 0
+                            to: 3
+                            stepSize: 0.05
+                            enabled: win.transitionIndex !== 0
+                            value: Math.min(win.transitionDuration, to)
+                            onMoved: win.transitionDuration = Math.round(value * 100) / 100
+                        }
 
-                    Connections {
-                        target: win
+                        // Seconds; accepts any value from 0 up, beyond the slider's range.
+                        AppTextField {
+                            id: durationField
 
-                        function onTransitionDurationChanged() {
-                            durationField.reset()
+                            function reset() {
+                                text = Number(win.transitionDuration.toFixed(2)).toString()
+                            }
+
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 42
+                            height: 28
+                            leftPadding: 4
+                            rightPadding: 6
+                            font.pixelSize: 13
+                            horizontalAlignment: TextInput.AlignRight
+                            enabled: win.transitionIndex !== 0
+                            onEditingFinished: {
+                                const seconds = Number(text.replace(",", "."))
+                                if (text.trim() !== "" && isFinite(seconds) && seconds >= 0)
+                                    win.transitionDuration = seconds
+                                reset()
+                                keys.forceActiveFocus()
+                            }
+                            Keys.onEscapePressed: {
+                                reset()
+                                keys.forceActiveFocus()
+                            }
+                            Component.onCompleted: reset()
+
+                            Connections {
+                                target: win
+
+                                function onTransitionDurationChanged() {
+                                    durationField.reset()
+                                }
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            rightPadding: 2
+                            color: win.dimTextColor
+                            font.pixelSize: 12
+                            text: "s"
                         }
                     }
                 }
 
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    rightPadding: 16
-                    color: win.dimTextColor
-                    font.pixelSize: 13
-                    text: "s"
+                // Sets the transition controls apart from the buttons that follow
+                Item {
+                    width: 14
+                    height: 1
                 }
 
                 ToolbarIcon {
@@ -1711,15 +1808,10 @@ Window {
 
             width: 200
             margins: 6
-            padding: 4
+            padding: 6
             onClosed: keys.forceActiveFocus()
 
-            background: Rectangle {
-                radius: 6
-                color: win.surfaceColor
-                border.width: 1
-                border.color: "#45484e"
-            }
+            background: MenuBackground {}
 
             contentItem: Rectangle {
                 implicitHeight: 30
@@ -1894,16 +1986,21 @@ Window {
                 anchors.top: mediaTitle.bottom
                 anchors.bottom: parent.bottom
                 width: sidebar.width
-                model: win.catalog.mediaFolders
+                model: win.mediaSources
                 selectedPath: win.mediaFolder
                 livePath: win.liveMedia ? win.liveMedia.path.substring(0, win.liveMedia.path.lastIndexOf("/")) : ""
-                onPicked: (entry) => win.mediaFolder = entry.path
+                // A folder of media playlists holds no media itself.
+                onPicked: (entry) => {
+                    if (!(entry.folder === true))
+                        win.mediaFolder = entry.path
+                }
             }
 
             GridView {
                 id: mediaGrid
 
                 readonly property real labelHeight: 24
+                readonly property int columns: Math.max(1, Math.floor(width / win.mediaThumbnailWidth))
 
                 anchors.left: folderList.right
                 anchors.right: parent.right
@@ -1914,7 +2011,7 @@ Window {
                 anchors.topMargin: 6
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                cellWidth: 180
+                cellWidth: Math.floor((width - 12) / columns)
                 cellHeight: (cellWidth - 12) * 9 / 16 + labelHeight + 12
                 model: win.mediaFiles
 
@@ -1959,9 +2056,19 @@ Window {
 
                             Image {
                                 anchors.fill: parent
-                                source: "image://thumbnail/" + encodeURIComponent(mediaCell.modelData.path)
+                                source: mediaCell.modelData.missing ? ""
+                                      : "image://thumbnail/" + encodeURIComponent(mediaCell.modelData.path)
                                 fillMode: Image.PreserveAspectFit
                                 asynchronous: true
+                            }
+
+                            // A media playlist can name a file that is not on this machine.
+                            Text {
+                                anchors.centerIn: parent
+                                visible: mediaCell.modelData.missing
+                                color: "#d07070"
+                                font.pixelSize: 12
+                                text: "missing"
                             }
                         }
 
@@ -1974,7 +2081,7 @@ Window {
                             anchors.rightMargin: 6
                             verticalAlignment: Text.AlignVCenter
                             elide: Text.ElideMiddle
-                            color: win.textColor
+                            color: mediaCell.modelData.missing ? win.dimTextColor : win.textColor
                             font.pixelSize: 11
                             text: mediaCell.modelData.name
                         }
@@ -1994,6 +2101,7 @@ Window {
                         }
 
                         anchors.fill: parent
+                        enabled: !mediaCell.modelData.missing
                         hoverEnabled: true
                         preventStealing: true
                         onPressed: (mouse) => {
@@ -2029,8 +2137,31 @@ Window {
                 anchors.centerIn: mediaGrid
                 width: mediaGrid.width - 80
                 visible: win.mediaFiles.length === 0
-                text: win.catalog.mediaFolders.length > 1 ? "No media files in this folder."
+                text: win.mediaFolder.startsWith("playlist:") ? "This media playlist is empty."
+                    : win.catalog.mediaFolders.length > 1 ? "No media files in this folder."
                     : "No media yet. Add images and videos to\n" + win.catalog.mediaDirectory
+            }
+
+            // Thumbnail size, over the bottom right corner of the media
+            Row {
+                anchors.right: mediaGrid.right
+                anchors.bottom: mediaGrid.bottom
+                anchors.rightMargin: 22
+                anchors.bottomMargin: 10
+                spacing: 8
+                visible: win.mediaFiles.length > 0
+
+                ZoomButton {
+                    text: "−"
+                    available: win.mediaThumbnailWidth > win.smallestMediaThumbnail
+                    onClicked: win.zoomMediaThumbnails(-1)
+                }
+
+                ZoomButton {
+                    text: "+"
+                    available: win.mediaThumbnailWidth < win.largestMediaThumbnail && mediaGrid.columns > 1
+                    onClicked: win.zoomMediaThumbnails(1)
+                }
             }
         }
     }

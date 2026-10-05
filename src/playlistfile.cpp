@@ -20,10 +20,15 @@ QString playlistPath(const QString &root)
     return QDir(root).absoluteFilePath("Playlists/Library");
 }
 
-// False with an empty *error if there is no file.
-bool read(const QString &root, rv::data::PlaylistDocument *document, QString *error)
+QString mediaPlaylistPath(const QString &root)
 {
-    QFile file(playlistPath(root));
+    return QDir(root).absoluteFilePath("Playlists/Media");
+}
+
+// False with an empty *error if there is no file.
+bool readFile(const QString &path, rv::data::PlaylistDocument *document, QString *error)
+{
+    QFile file(path);
     if (!file.exists())
         return false;
     if (!file.open(QIODevice::ReadOnly)) {
@@ -36,6 +41,11 @@ bool read(const QString &root, rv::data::PlaylistDocument *document, QString *er
         return false;
     }
     return true;
+}
+
+bool read(const QString &root, rv::data::PlaylistDocument *document, QString *error)
+{
+    return readFile(playlistPath(root), document, error);
 }
 
 // A presentation is recorded by the path it had on the machine that wrote the playlist,
@@ -235,6 +245,73 @@ void adopt(rv::data::Playlist *node, const QString &library, const QString &root
     }
 }
 
+// Where a media file is on this machine: by its path relative to the ProPresenter
+// folder, else by the path it was recorded with, else by its name anywhere under Media.
+QString findMediaFile(const rv::data::URL &url, const QString &root)
+{
+    if (url.has_local() && url.local().root() == rv::data::URL::LocalRelativePath::ROOT_SHOW) {
+        const QString relative = QDir(root).absoluteFilePath(QString::fromStdString(url.local().path()));
+        if (QFile::exists(relative))
+            return relative;
+    }
+    const QString recorded = QUrl(QString::fromStdString(url.absolute_string())).toLocalFile();
+    if (!recorded.isEmpty() && QFile::exists(recorded))
+        return recorded;
+    const QString name = recorded.isEmpty() ? QFileInfo(QString::fromStdString(url.local().path())).fileName()
+                                            : QFileInfo(recorded).fileName();
+    if (name.isEmpty())
+        return {};
+    QDirIterator it(QDir(root).absoluteFilePath("Media"), {name}, QDir::Files, QDirIterator::Subdirectories);
+    return it.hasNext() ? it.next() : QString();
+}
+
+void addMediaNode(const rv::data::Playlist &node, const QString &parent, int depth, const QString &root,
+                  PlaylistFile *result)
+{
+    const QString id = QStringLiteral("playlist:") + QString::fromStdString(node.uuid().string());
+    const bool folder = node.has_playlists();
+    result->nodes.append(QVariantMap {
+        {"name", QString::fromStdString(node.name())},
+        {"path", id},
+        {"parent", parent},
+        {"depth", depth},
+        {"folder", folder},
+        {"icon", folder ? QStringLiteral("folder") : QStringLiteral("mediaPlaylist")},
+    });
+    if (folder) {
+        for (const rv::data::Playlist &child : node.playlists().playlists())
+            addMediaNode(child, id, depth + 1, root, result);
+        return;
+    }
+
+    // Each row is a cue whose action is the media to play.
+    QVariantList rows;
+    for (const rv::data::PlaylistItem &item : node.items().items()) {
+        if (item.is_hidden() || !item.has_cue())
+            continue;
+        for (const rv::data::Action &action : item.cue().actions()) {
+            if (!action.has_media())
+                continue;
+            const rv::data::Media &media = action.media().element();
+            if (!media.has_video() && !media.has_image())
+                continue;
+            const QString file = findMediaFile(media.url(), root);
+            QString name = QString::fromStdString(item.name());
+            if (name.isEmpty())
+                name = QFileInfo(QUrl(QString::fromStdString(media.url().absolute_string())).path()).fileName();
+            rows.append(QVariantMap {
+                {"name", file.isEmpty() ? name : QFileInfo(file).fileName()},
+                {"path", file},
+                {"source", file.isEmpty() ? QUrl() : QUrl::fromLocalFile(file)},
+                {"video", media.has_video()},
+                {"missing", file.isEmpty()},
+            });
+            break;
+        }
+    }
+    result->items.insert(id, rows);
+}
+
 rv::data::PlaylistItem *findItem(rv::data::Playlist *node, const std::string &id)
 {
     if (node->has_playlists()) {
@@ -252,6 +329,17 @@ rv::data::PlaylistItem *findItem(rv::data::Playlist *node, const std::string &id
 }
 
 } // namespace
+
+PlaylistFile PlaylistFile::loadMedia(const QString &root, QString *error)
+{
+    PlaylistFile result;
+    rv::data::PlaylistDocument document;
+    if (!readFile(mediaPlaylistPath(root), &document, error))
+        return result;
+    for (const rv::data::Playlist &child : document.root_node().playlists().playlists())
+        addMediaNode(child, QString(), 0, root, &result);
+    return result;
+}
 
 PlaylistFile PlaylistFile::load(const QString &root, QString *error)
 {

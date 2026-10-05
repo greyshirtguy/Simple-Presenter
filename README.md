@@ -92,6 +92,7 @@ The app reads from `~/Documents/SimplePresenter`, created on first run:
 Libraries/<library name>/*.pro    presentations, one flat folder per library
 Media/...                         images and videos, in any depth of folders
 Playlists/Library                 playlists and playlist folders, in ProPresenter's format
+Playlists/Media                   media playlists, in ProPresenter's format (read only)
 ```
 
 This is the layout of ProPresenter's own folder, so `--root <dir>` can point the app at

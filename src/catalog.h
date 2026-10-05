@@ -31,6 +31,10 @@ class Catalog : public QObject
     // { name, path, depth, folder } for each playlist and playlist folder, in tree order.
     // `path` is the node's id; folder rows only hold other rows.
     Q_PROPERTY(QVariantList playlists READ playlists NOTIFY changed)
+    // { name, path, depth, folder, icon } for each media playlist and media playlist
+    // folder, in tree order, from ProPresenter's media playlists file. Their paths start
+    // with "playlist:", which mediaIn understands. Read only.
+    Q_PROPERTY(QVariantList mediaPlaylists READ mediaPlaylists NOTIFY changed)
     // Goes up whenever anything on disk changed; bind to it to re-query the folder contents.
     Q_PROPERTY(int revision READ revision NOTIFY changed)
     // Whether an import is still copying files.
@@ -44,6 +48,7 @@ public:
     QVariantList libraries() const { return m_libraries; }
     QVariantList mediaFolders() const { return m_mediaFolders; }
     QVariantList playlists() const { return m_playlists.nodes; }
+    QVariantList mediaPlaylists() const { return m_mediaPlaylists.nodes; }
     int revision() const { return m_revision; }
     bool importing() const { return m_importing; }
 
@@ -51,7 +56,9 @@ public:
     // shape PlaylistFile describes for playlist rows: here `path` and `file` are both the
     // file's path, and the arrangement is the one selected in the file.
     Q_INVOKABLE QVariantList documentsIn(const QString &library) const;
-    // { name, path, source, video } for each image and video directly in a folder, sorted by name.
+    // { name, path, source, video } for each image and video directly in a folder, sorted
+    // by name; or, given a media playlist's path, its media in playlist order, where a
+    // file that cannot be found has `missing` set and no path.
     Q_INVOKABLE QVariantList mediaIn(const QString &folder) const;
     // The rows of the playlist with this id, as PlaylistFile describes them.
     Q_INVOKABLE QVariantList playlistItems(const QString &playlist) const;
@@ -110,6 +117,7 @@ private:
     QVariantList m_libraries;
     QVariantList m_mediaFolders;
     PlaylistFile m_playlists;
+    PlaylistFile m_mediaPlaylists;
     int m_revision = 0;
     bool m_importing = false;
     QFileSystemWatcher m_watcher;

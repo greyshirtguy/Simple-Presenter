@@ -2,15 +2,17 @@ import QtQuick
 import QtQuick.Shapes
 
 // A small icon for a row of a list, drawn as shapes so it stays sharp at any scale.
-// `kind` is "library", "folder", "playlist" or "presentation"; anything else draws
-// nothing. Libraries and playlists are white glyphs on a coloured rounded square;
+// `kind` is "library", "folder", "playlist", "mediaPlaylist" or "presentation"; anything
+// else draws nothing. Libraries and playlists are white glyphs on a coloured rounded
+// square, orange for a library, blue for a playlist and purple for a media playlist;
 // folders and presentations are plain muted glyphs, since they label rows and are not
 // the content.
 Item {
     id: icon
 
     property string kind
-    readonly property bool badge: kind === "library" || kind === "playlist"
+    readonly property bool list: kind === "playlist" || kind === "mediaPlaylist"
+    readonly property bool badge: kind === "library" || list
     readonly property color ink: badge ? "white" : kind === "folder" ? "#c2b280" : "#b9bcc2"
 
     width: badge ? 18 : 16
@@ -20,7 +22,7 @@ Item {
         anchors.fill: parent
         visible: icon.badge
         radius: 4
-        color: icon.kind === "library" ? "#f08a24" : "#3d8be0"
+        color: icon.kind === "library" ? "#f08a24" : icon.kind === "playlist" ? "#3d8be0" : "#9a6ae0"
     }
 
     component Outline: Shape {
@@ -49,7 +51,7 @@ Item {
 
     // Playlist: three entries, each a marker and a line.
     Repeater {
-        model: icon.kind === "playlist" ? 3 : 0
+        model: icon.list ? 3 : 0
 
         delegate: Item {
             required property int index

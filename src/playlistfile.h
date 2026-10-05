@@ -22,6 +22,11 @@ struct PlaylistFile
 
     // An absent file is an empty set of playlists, not an error.
     static PlaylistFile load(const QString &root, QString *error);
+    // The media playlists, from <root>/Playlists/Media: the same tree, with each
+    // playlist's rows being media files: { name, path, source, video, missing }. A node's
+    // `path` here is its id prefixed with "playlist:", so it cannot be taken for a folder
+    // on disk, and playlists carry the icon "mediaPlaylist". Read only.
+    static PlaylistFile loadMedia(const QString &root, QString *error);
     // The functions below each change the file and write it back, returning an error
     // message that is empty on success. Everything else in the file is kept as it was.
 
