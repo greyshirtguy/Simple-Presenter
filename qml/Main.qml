@@ -21,19 +21,28 @@ Window {
     // Set once the last session has been restored; nothing is saved before then.
     property bool restored: false
 
-    // Paths of the library and media folder being browsed
+    // Paths of the library and media folder being browsed. While a playlist is being
+    // browsed instead of a library, playlistId is its id; "" otherwise.
     property string libraryPath: ""
+    property string playlistId: ""
     property string mediaFolder: ""
-    // What is in them, re-read by refreshLists() whenever either path or the disk changes
+    // What is in them, re-read by refreshLists() whenever either path or the disk changes.
+    // `documents` holds the rows of the library or playlist being browsed, in the shape
+    // PlaylistFile describes; a row's `path` identifies the row, its `file` the presentation.
     property var documents: []
     property var mediaFiles: []
 
     // The presentation shown in the grid: { name, path, slides, error } from Catalog.open()
     property var document: null
+    // Which row of `documents` it was opened from
+    property string documentKey: ""
     // The presentation and slide on the slide layer. They stay set while the layer is
     // cleared, so stepping carries on from where it was.
     property var liveDocument: null
     property int liveIndex: -1
+    // The row and playlist it went live from ("" for a library)
+    property string liveKey: ""
+    property string livePlaylistId: ""
     property bool cleared: true
     // What is on the media layer: { name, path, source, video }, or null
     property var liveMedia: null
@@ -81,7 +90,7 @@ Window {
     readonly property string stageNextText: nextSlide ? nextSlide.plainText : ""
 
     readonly property bool viewingLive: document !== null && liveDocument !== null
-                                        && document.path === liveDocument.path
+                                        && documentKey === liveKey && playlistId === livePlaylistId
                                         && document.arrangement === liveDocument.arrangement
 
     readonly property color panelColor: "#1e1f22"
@@ -91,25 +100,65 @@ Window {
     readonly property color accentColor: "#ff8a1f"
     // Title colours of the three browsing areas
     readonly property color librariesColor: "#ff8a1f"
+    readonly property color playlistsColor: "#5fd38d"
     readonly property color presentationsColor: "#4da3ff"
     readonly property color mediaBinColor: "#b388ff"
 
     function refreshLists() {
-        documents = catalog.documentsIn(libraryPath)
+        documents = playlistId !== "" ? catalog.playlistItems(playlistId) : catalog.documentsIn(libraryPath)
         mediaFiles = catalog.mediaIn(mediaFolder)
     }
 
     function openLibrary(path) {
+        playlistId = ""
         libraryPath = path
-        if (documents.length > 0)
-            openDocument(documents[0].path)
-        else
-            document = null
+        refreshLists()
+        openFirst()
     }
 
-    function openDocument(path) {
-        document = catalog.open(path)
+    function openPlaylist(id) {
+        playlistId = id
+        refreshLists()
+        openFirst()
+    }
+
+    // Whether a row is a presentation that is actually here to open.
+    function openable(entry) {
+        return entry.kind === "presentation" && !entry.missing
+    }
+
+    // A playlist row brings its own choice of arrangement; a library row follows the
+    // one saved in the presentation.
+    function load(entry) {
+        return entry.playlistItem ? catalog.openArranged(entry.file, entry.arrangement) : catalog.open(entry.file)
+    }
+
+    function currentEntry() {
+        return documents.find(d => d.path === documentKey)
+    }
+
+    function openEntry(entry) {
+        if (!openable(entry))
+            return
+        documentKey = entry.path
+        document = load(entry)
         grid.positionViewAtBeginning()
+    }
+
+    function openDocument(key) {
+        const entry = documents.find(d => d.path === key)
+        if (entry)
+            openEntry(entry)
+    }
+
+    function openFirst() {
+        const first = documents.find(openable)
+        if (first) {
+            openEntry(first)
+        } else {
+            documentKey = ""
+            document = null
+        }
     }
 
     // The frame colour for a slide: the configured group of the same name, else the one
@@ -125,17 +174,20 @@ Window {
         return slide.groupColor !== "" ? slide.groupColor : surfaceColor
     }
 
-    // Selects one of a presentation's arrangements ("" for Master), saves that in its
-    // file, and re-lays out the presentation wherever it is showing.
-    function setArrangement(path, name) {
-        const error = catalog.setArrangement(path, name)
+    // Selects one of a presentation's arrangements ("" for Master) for a row and re-lays
+    // out the presentation wherever that row is showing. For a library row the choice is
+    // saved in the presentation file; for a playlist row, in the playlist.
+    function setArrangement(entry, name) {
+        const key = entry.path
+        const error = entry.playlistItem ? catalog.setPlaylistItemArrangement(key, entry.file, name)
+                                         : catalog.setArrangement(entry.file, name)
         if (error !== "") {
             notice = error
             return
         }
         notice = ""
-        const rearranged = catalog.open(path)
-        if (liveDocument && liveDocument.path === path && liveIndex >= 0) {
+        const rearranged = entry.playlistItem ? catalog.openArranged(entry.file, name) : catalog.open(entry.file)
+        if (liveDocument && liveKey === key && livePlaylistId === playlistId && liveIndex >= 0) {
             // Follow the live slide to its first place in the new order. If the new
             // arrangement leaves it out, the output keeps it and nothing is marked live.
             const index = rearranged.slides.findIndex(s => s.id === liveDocument.slides[liveIndex].id)
@@ -144,7 +196,7 @@ Window {
                 liveIndex = index
             }
         }
-        if (document && document.path === path) {
+        if (documentKey === key) {
             document = rearranged
             grid.positionViewAtBeginning()
         }
@@ -165,21 +217,105 @@ Window {
         // Same slides in the same order, so the grid can stay where it is scrolled to
         // and the live slide keeps its index.
         const scrolledTo = grid.contentY
-        const reloaded = catalog.open(path)
+        const reloaded = load(currentEntry())
         if (viewingLive)
             liveDocument = reloaded
         document = reloaded
         grid.contentY = scrolledTo
     }
 
-    // Selects the presentation `delta` places from the current one in its library.
+    // Selects the presentation `delta` places from the current one in its library or
+    // playlist, passing over headers and presentations that are missing.
     function stepDocument(delta) {
-        if (documents.length === 0)
+        const rows = documents.filter(openable)
+        if (rows.length === 0)
             return
-        const current = document ? documents.findIndex(d => d.path === document.path) : -1
-        const next = Math.max(0, Math.min(documents.length - 1, current + delta))
+        const current = rows.findIndex(d => d.path === documentKey)
+        const next = Math.max(0, Math.min(rows.length - 1, current + delta))
         if (next !== current)
-            openDocument(documents[next].path)
+            openEntry(rows[next])
+    }
+
+    // Shows an error from a change to the playlists, if there was one.
+    function report(error) {
+        notice = error
+        return error === ""
+    }
+
+    // Adds an empty playlist, browses it and starts renaming it in place.
+    function newPlaylist() {
+        const names = catalog.playlists.map(p => p.name)
+        let name = "New Playlist"
+        for (let n = 2; names.includes(name); ++n)
+            name = "New Playlist " + n
+        const created = catalog.createPlaylist(name)
+        if (!report(created.error))
+            return
+        openPlaylist(created.id)
+        playlistList.positionViewAtEnd()
+        playlistList.editingPath = created.id
+    }
+
+    function addToPlaylist(playlist, file) {
+        report(catalog.addToPlaylist(playlist, file))
+    }
+
+    // Opens the menu for a row of the presentations list.
+    function showPresentationMenu(entry, item) {
+        const items = []
+        if (openable(entry)) {
+            items.push({ header: "Arrangement" })
+            for (const name of [""].concat(entry.arrangements)) {
+                items.push({
+                    label: name === "" ? "Master" : name,
+                    current: entry.arrangement === name,
+                    run: () => setArrangement(entry, name)
+                })
+            }
+            const playlists = catalog.playlists.filter(p => !p.folder)
+            if (playlists.length > 0)
+                items.push({ header: "Add to playlist" })
+            for (const playlist of playlists)
+                items.push({ label: playlist.name, run: () => addToPlaylist(playlist.path, entry.file) })
+        }
+        if (entry.playlistItem) {
+            items.push({ header: "Playlist" })
+            items.push({ label: "Remove from Playlist", run: () => report(catalog.removePlaylistItem(entry.path)) })
+        }
+        if (items.length > 0)
+            menu.show(items, item)
+    }
+
+    // Opens the menu for a playlist or playlist folder.
+    function showPlaylistMenu(node, item) {
+        const items = [{ label: "Rename", run: () => playlistList.editingPath = node.path }]
+        if (!node.folder) {
+            // Deleting asks once more, by swapping the menu for a confirmation.
+            items.push({
+                label: "Delete Playlist…",
+                run: () => menu.show([
+                    { header: "Delete “" + node.name + "”?" },
+                    { label: "Delete", danger: true, run: () => report(catalog.deletePlaylist(node.path)) },
+                    { label: "Cancel", run: () => {} }
+                ], item)
+            })
+        }
+        menu.show(items, item)
+    }
+
+    // For the self-test: the playlist with the most rows, if there are any playlists.
+    function openBusiestPlaylist() {
+        let busiest = ""
+        let most = 0
+        for (const node of catalog.playlists) {
+            const rows = node.folder ? 0 : catalog.playlistItems(node.path).length
+            if (rows > most) {
+                most = rows
+                busiest = node.path
+            }
+        }
+        if (busiest !== "")
+            openPlaylist(busiest)
     }
 
     // Puts a slide on the slide layer, and any media its cue triggers on the media layer.
@@ -189,6 +325,8 @@ Window {
         const slide = document.slides[index]
         liveDocument = document
         liveIndex = index
+        liveKey = documentKey
+        livePlaylistId = playlistId
         cleared = false
         output.showSlide(slide)
         if (slide.media)
@@ -283,17 +421,18 @@ Window {
         }
 
         const library = String(saved("library", ""))
+        const playlist = String(saved("playlist", ""))
         const presentation = String(saved("presentation", ""))
         const folder = String(saved("mediaFolder", ""))
-        if (catalog.libraries.some(l => l.path === library)) {
-            libraryPath = library
-            if (documents.some(d => d.path === presentation))
-                openDocument(presentation)
-            else
-                openLibrary(library)
-        } else if (catalog.libraries.length > 0) {
-            openLibrary(catalog.libraries[0].path)
-        }
+        libraryPath = catalog.libraries.some(l => l.path === library) ? library
+                    : catalog.libraries.length > 0 ? catalog.libraries[0].path : ""
+        if (catalog.playlists.some(p => p.path === playlist && !p.folder))
+            playlistId = playlist
+        refreshLists()
+        if (documents.some(d => d.path === presentation && openable(d)))
+            openDocument(presentation)
+        else
+            openFirst()
         mediaFolder = catalog.mediaFolders.some(f => f.path === folder) ? folder : catalog.mediaDirectory
         restored = true
     }
@@ -321,7 +460,8 @@ Window {
         refreshLists()
         save("library", libraryPath)
     }
-    onDocumentChanged: save("presentation", document ? document.path : "")
+    onPlaylistIdChanged: save("playlist", playlistId)
+    onDocumentKeyChanged: save("presentation", documentKey)
     onMediaFolderChanged: {
         refreshLists()
         save("mediaFolder", mediaFolder)
@@ -337,12 +477,13 @@ Window {
         // Keep each selection if it is still on disk; otherwise fall back to the first.
         function onChanged() {
             win.refreshLists()
-            if (!win.catalog.libraries.some(l => l.path === win.libraryPath))
-                win.openLibrary(win.catalog.libraries.length > 0 ? win.catalog.libraries[0].path : "")
-            else if (win.document && !win.documents.some(d => d.path === win.document.path))
-                win.openLibrary(win.libraryPath)
-            else if (!win.document && win.documents.length > 0)
-                win.openDocument(win.documents[0].path)
+            const firstLibrary = win.catalog.libraries.length > 0 ? win.catalog.libraries[0].path : ""
+            if (win.playlistId !== "" && !win.catalog.playlists.some(p => p.path === win.playlistId))
+                win.openLibrary(firstLibrary)
+            else if (win.playlistId === "" && !win.catalog.libraries.some(l => l.path === win.libraryPath))
+                win.openLibrary(firstLibrary)
+            else if (!win.documents.some(d => d.path === win.documentKey && win.openable(d)))
+                win.openFirst()
             if (!win.catalog.mediaFolders.some(f => f.path === win.mediaFolder))
                 win.mediaFolder = win.catalog.mediaDirectory
         }
@@ -547,18 +688,60 @@ Window {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: librariesTitle.bottom
-                height: Math.min(contentHeight, sidebar.height * 0.3)
+                height: Math.min(contentHeight, sidebar.height * 0.2)
                 model: win.catalog.libraries
-                selectedPath: win.libraryPath
-                livePath: !win.cleared && win.liveDocument
+                selectedPath: win.playlistId === "" ? win.libraryPath : ""
+                livePath: !win.cleared && win.liveDocument && win.livePlaylistId === ""
                           ? win.liveDocument.path.substring(0, win.liveDocument.path.lastIndexOf("/")) : ""
                 onPicked: (entry) => win.openLibrary(entry.path)
+            }
+
+            // Playlists and the folders they are kept in, in ProPresenter's own playlists
+            // file. Drop a presentation on a playlist to add it.
+            SectionTitle {
+                id: playlistsTitle
+
+                anchors.top: libraryList.bottom
+                color: win.playlistsColor
+                text: "Playlists"
+            }
+
+            AppButton {
+                anchors.right: parent.right
+                anchors.rightMargin: 8
+                anchors.verticalCenter: playlistsTitle.verticalCenter
+                anchors.verticalCenterOffset: 3
+                width: 24
+                height: 22
+                leftPadding: 0
+                rightPadding: 0
+                text: "+"
+                onClicked: win.newPlaylist()
+            }
+
+            SidebarList {
+                id: playlistList
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: playlistsTitle.bottom
+                height: Math.min(contentHeight, sidebar.height * 0.35)
+                model: win.catalog.playlists
+                selectedPath: win.playlistId
+                livePath: win.cleared ? "" : win.livePlaylistId
+                dropKeys: ["presentation"]
+                acceptsDrop: (node) => !node.folder
+                onPicked: (entry) => win.openPlaylist(entry.path)
+                onMenuRequested: (entry, item) => win.showPlaylistMenu(entry, item)
+                onRenamed: (entry, name) => win.report(win.catalog.renamePlaylist(entry.path, name))
+                onEditingEnded: keys.forceActiveFocus()
+                onDropped: (node, source) => win.addToPlaylist(node.path, source.entry.file)
             }
 
             SectionTitle {
                 id: documentsTitle
 
-                anchors.top: libraryList.bottom
+                anchors.top: playlistList.bottom
                 color: win.presentationsColor
                 text: "Presentations"
             }
@@ -569,28 +752,42 @@ Window {
                 anchors.top: documentsTitle.bottom
                 anchors.bottom: parent.bottom
                 model: win.documents
-                selectedPath: win.document ? win.document.path : ""
-                livePath: !win.cleared && win.liveDocument ? win.liveDocument.path : ""
-                onPicked: (entry) => win.openDocument(entry.path)
-                onMenuRequested: (entry, item) => {
-                    arrangementMenu.entry = entry
-                    arrangementMenu.parent = item
-                    arrangementMenu.open()
+                selectedPath: win.documentKey
+                livePath: !win.cleared && win.livePlaylistId === win.playlistId ? win.liveKey : ""
+                onPicked: (entry) => {
+                    if (entry.missing)
+                        win.notice = "“" + entry.name + "” is in the playlist but not in the libraries here."
+                    else
+                        win.openEntry(entry)
                 }
+                dragProxy: presentationDrag
+                draggable: (entry) => win.openable(entry)
+                onMenuRequested: (entry, item) => win.showPresentationMenu(entry, item)
             }
 
-            // Right-click menu of a presentation: its arrangements
+            // The one right-click menu of the sidebar. show() takes its rows: a row with
+            // `header` is a caption; any other has a `label` and a `run` function, and
+            // may be marked `current` (ticked) or `danger` (red).
             Popup {
-                id: arrangementMenu
+                id: menu
 
-                property var entry: null
-                readonly property var names: entry ? [""].concat(entry.arrangements) : []
+                property var items: []
+
+                function show(items, item) {
+                    close()
+                    menu.items = items
+                    parent = item
+                    open()
+                }
 
                 x: 24
                 y: parent ? parent.height - 2 : 0
-                width: 200
+                width: 220
                 padding: 4
-                onClosed: keys.forceActiveFocus()
+                onClosed: {
+                    if (playlistList.editingPath === "")
+                        keys.forceActiveFocus()
+                }
 
                 background: Rectangle {
                     radius: 6
@@ -600,30 +797,19 @@ Window {
                 }
 
                 contentItem: Column {
-                    Text {
-                        leftPadding: 10
-                        topPadding: 6
-                        bottomPadding: 6
-                        color: win.dimTextColor
-                        font.pixelSize: 12
-                        font.capitalization: Font.AllUppercase
-                        text: "Arrangement"
-                    }
-
                     Repeater {
-                        model: arrangementMenu.names
+                        model: menu.items
 
                         delegate: Rectangle {
-                            id: choice
+                            id: row
 
-                            required property string modelData
-                            readonly property bool current: arrangementMenu.entry !== null
-                                                            && arrangementMenu.entry.arrangement === modelData
+                            required property var modelData
+                            readonly property bool caption: modelData.header !== undefined
 
-                            width: arrangementMenu.availableWidth
-                            height: 30
+                            width: menu.availableWidth
+                            height: caption ? 28 : 30
                             radius: 4
-                            color: choiceMouse.containsMouse ? "#45484e" : "transparent"
+                            color: !caption && rowMouse.containsMouse ? "#45484e" : "transparent"
 
                             Text {
                                 anchors.fill: parent
@@ -631,20 +817,25 @@ Window {
                                 anchors.rightMargin: 10
                                 verticalAlignment: Text.AlignVCenter
                                 elide: Text.ElideRight
-                                color: choice.current ? win.accentColor : win.textColor
-                                font.pixelSize: 14
-                                text: (choice.current ? "✓  " : "     ") + (choice.modelData === "" ? "Master" : choice.modelData)
+                                color: row.caption ? win.dimTextColor
+                                     : row.modelData.danger ? "#ff6b6b"
+                                     : row.modelData.current ? win.accentColor : win.textColor
+                                font.pixelSize: row.caption ? 12 : 14
+                                font.capitalization: row.caption ? Font.AllUppercase : Font.MixedCase
+                                text: row.caption ? row.modelData.header
+                                    : (row.modelData.current ? "✓  " : "") + row.modelData.label
                             }
 
                             MouseArea {
-                                id: choiceMouse
+                                id: rowMouse
 
                                 anchors.fill: parent
                                 hoverEnabled: true
+                                enabled: !row.caption
                                 onClicked: {
-                                    const path = arrangementMenu.entry.path
-                                    arrangementMenu.close()
-                                    win.setArrangement(path, choice.modelData)
+                                    const run = row.modelData.run
+                                    menu.close()
+                                    run()
                                 }
                             }
                         }
@@ -998,7 +1189,8 @@ Window {
             }
 
             // "Master" is every group once, in the order the presentation stores them.
-            // The choice is saved in the presentation file.
+            // The choice is saved in the presentation file, or for a playlist row in the
+            // playlist.
             AppComboBox {
                 id: arrangementBox
 
@@ -1009,7 +1201,7 @@ Window {
                 model: win.document ? ["Master"].concat(win.document.arrangements) : []
                 currentIndex: win.document && win.document.arrangement !== ""
                               ? win.document.arrangements.indexOf(win.document.arrangement) + 1 : 0
-                onActivated: (index) => win.setArrangement(win.document.path, index === 0 ? "" : model[index])
+                onActivated: (index) => win.setArrangement(win.currentEntry(), index === 0 ? "" : model[index])
             }
         }
 
@@ -1272,6 +1464,39 @@ Window {
                     source: mediaDrag.media ? "image://thumbnail/" + encodeURIComponent(mediaDrag.media.path) : ""
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
+                }
+            }
+        }
+
+        // A presentation being dragged out of the presentations list: a point that follows
+        // the pointer, with the presentation's name beside it.
+        Item {
+            id: presentationDrag
+
+            property var entry: null
+
+            z: 50
+            Drag.keys: ["presentation"]
+
+            Rectangle {
+                x: 12
+                y: 8
+                width: dragLabel.implicitWidth + 20
+                height: 28
+                radius: 6
+                visible: presentationDrag.Drag.active
+                color: win.surfaceColor
+                border.width: 1
+                border.color: win.accentColor
+                opacity: 0.95
+
+                Text {
+                    id: dragLabel
+
+                    anchors.centerIn: parent
+                    color: win.textColor
+                    font.pixelSize: 13
+                    text: presentationDrag.entry ? presentationDrag.entry.name : ""
                 }
             }
         }

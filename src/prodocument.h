@@ -4,6 +4,8 @@
 #include <QStringList>
 #include <QVariantList>
 
+#include <optional>
+
 // A presentation flattened into what the QML slide renderer consumes: a list of slides in
 // display order. Each is a map of `id` (its cue's, so the same slide can be found again
 // after rearranging), size, background, label, plain text and a list of elements, plus
@@ -21,14 +23,19 @@ struct ProDocument
     QStringList arrangements;
     QString arrangement;
 
-    // Reads a ProPresenter 7 .pro file, following the arrangement it has selected. On
-    // failure returns an empty document and sets *error. Media whose recorded path does
-    // not exist here is looked up by file name under mediaDirectory.
-    static ProDocument load(const QString &path, const QString &mediaDirectory, QString *error);
+    // Reads a ProPresenter 7 .pro file. `arrangement` names the arrangement to follow,
+    // "" (or a name the file does not have) being every group in stored order; without
+    // it the arrangement the file has selected is followed. On failure returns an empty
+    // document and sets *error. Media whose recorded path does not exist here is looked
+    // up by file name under mediaDirectory.
+    static ProDocument load(const QString &path, const QString &mediaDirectory,
+                            const std::optional<QString> &arrangement, QString *error);
     // Just the arrangement names and which is selected ("" for none). False if unreadable.
     static bool arrangementsOf(const QString &path, QStringList *names, QString *selected);
     // Selects the named arrangement, or none for "", and writes the file back. Returns
     // an error message, empty on success.
+    // The id of the arrangement of that name, or empty.
+    static QString arrangementId(const QString &path, const QString &name);
     static QString setArrangement(const QString &path, const QString &name);
     // Makes the cue with this id trigger the given image or video file as its media,
     // replacing the media it triggered before if any, and writes the file back. Returns

@@ -13,7 +13,8 @@ layer, shader transitions, a stage display and a media bin.
 - [ ] **Improve File Compatibility**: render more of what a `.pro` file can hold, such
       as gradients, shapes other than rectangles, image fills and text that scales to fit.
 - [ ] **Playlist Support**: build and run an ordered list of presentations and media
-      for a service.
+      for a service. Playlists can be created, filled, renamed, deleted and run; still
+      to do are reordering, headers, folders and media rows.
 - [ ] **Import Playlists**: read ProPresenter's `.proplaylist` files.
 
 Built with Qt 6 (C++ and QML). The ProPresenter file format comes from the unofficial
@@ -82,7 +83,12 @@ The app reads from `~/Documents/SimplePresenter`, created on first run:
 ```
 Libraries/<library name>/*.pro    presentations, one flat folder per library
 Media/...                         images and videos, in any depth of folders
+Playlists/Library                 playlists and playlist folders, in ProPresenter's format
 ```
+
+This is the layout of ProPresenter's own folder, so `--root <dir>` can point the app at
+a copy of one. Changes made in the app (a new playlist, a presentation added to one, an
+arrangement chosen, media dropped on a slide) are written to the files in that folder.
 
 `--root <dir>` points it at a different folder. `--help` lists the other options.
 

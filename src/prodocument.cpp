@@ -237,7 +237,8 @@ const rv::data::Presentation::Arrangement *selectedArrangement(const rv::data::P
 
 } // namespace
 
-ProDocument ProDocument::load(const QString &path, const QString &mediaDirectory, QString *error)
+ProDocument ProDocument::load(const QString &path, const QString &mediaDirectory,
+                              const std::optional<QString> &arrangement, QString *error)
 {
     rv::data::Presentation presentation;
     if (!readPresentation(path, &presentation, error))
@@ -256,10 +257,21 @@ ProDocument ProDocument::load(const QString &path, const QString &mediaDirectory
     for (const auto &candidate : presentation.arrangements())
         document.arrangements << QString::fromStdString(candidate.name());
 
-    const rv::data::Presentation::Arrangement *chosen = selectedArrangement(presentation);
+    // Which arrangement: the one asked for by name, or the one the document has selected.
+    const rv::data::Presentation::Arrangement *chosen = nullptr;
+    if (!arrangement) {
+        chosen = selectedArrangement(presentation);
+    } else {
+        for (const auto &candidate : presentation.arrangements()) {
+            if (QString::fromStdString(candidate.name()) == *arrangement) {
+                chosen = &candidate;
+                break;
+            }
+        }
+    }
 
-    // Display order: the selected arrangement's groups, which may repeat, or with none
-    // selected every group as stored (ProPresenter's "Master"). Each group lists its cues.
+    // Display order: the arrangement's groups, which may repeat, or with no arrangement
+    // every group as stored (ProPresenter's "Master"). Each group lists its cues.
     QList<const rv::data::Presentation::CueGroup *> groups;
     if (chosen) {
         document.arrangement = QString::fromStdString(chosen->name());
@@ -466,4 +478,17 @@ QString ProDocument::removeCueMedia(const QString &path, const QString &cueId)
         return {};
     }
     return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+}
+
+QString ProDocument::arrangementId(const QString &path, const QString &name)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return {};
+    for (const auto &candidate : presentation.arrangements()) {
+        if (QString::fromStdString(candidate.name()) == name)
+            return QString::fromStdString(candidate.uuid().string());
+    }
+    return {};
 }

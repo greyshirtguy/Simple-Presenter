@@ -9,12 +9,14 @@ find_package(Protobuf REQUIRED)
 find_package(Fontconfig REQUIRED)
 qt_standard_project_setup(REQUIRES 6.9)
 
-# ProPresenter 7 document schema: presentation.proto and everything it imports.
+# ProPresenter 7 document schema: the presentation and playlist documents and everything
+# they import.
 set(PRO_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ProPresenter7-Proto/autogen-proto)
 set(PRO_PROTO_NAMES
     action alignmentGuide alphaType applicationInfo background collectionElementType color cue
     customOptions digitalAudio effects fileProperties font graphicsData groups hotKey input
-    intRange layers messages musicKeyScale presentation presentationSlide propSlide rvtimestamp
+    intRange layers messages musicKeyScale planningCenter playlist presentation
+    presentationSlide propresenter propSlide rvtimestamp
     slide stage templateIdentification timers url uuid version
 )
 list(TRANSFORM PRO_PROTO_NAMES PREPEND ${PRO_PROTO_DIR}/ OUTPUT_VARIABLE PRO_PROTO_FILES)
@@ -36,6 +38,8 @@ qt_add_executable(SimplePresenter
     src/main.cpp
     src/fontresolver.cpp
     src/fontresolver.h
+    src/playlistfile.cpp
+    src/playlistfile.h
     src/prodocument.cpp
     src/prodocument.h
     src/richtext.h

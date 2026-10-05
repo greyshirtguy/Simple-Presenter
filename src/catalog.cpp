@@ -39,11 +39,13 @@ void addFolderTree(const QString &directory, const QString &name, int depth, QVa
 
 Catalog::Catalog(const QString &root, QObject *parent)
     : QObject(parent)
+    , m_root(QDir(root).absolutePath())
     , m_librariesDirectory(QDir(root).absoluteFilePath("Libraries"))
     , m_mediaDirectory(QDir(root).absoluteFilePath("Media"))
 {
     QDir().mkpath(m_librariesDirectory);
     QDir().mkpath(m_mediaDirectory);
+    QDir().mkpath(QDir(m_root).absoluteFilePath("Playlists"));
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &Catalog::rescan);
     rescan();
 }
@@ -57,8 +59,13 @@ void Catalog::rescan()
     m_mediaFolders.clear();
     addFolderTree(m_mediaDirectory, QStringLiteral("Media"), 0, &m_mediaFolders);
 
+    QString error;
+    m_playlists = PlaylistFile::load(m_root, &error);
+    if (!error.isEmpty())
+        qWarning("%s", qPrintable(error));
+
     // Watch every folder whose contents are shown, so any change triggers a rescan.
-    QStringList watched {m_librariesDirectory};
+    QStringList watched {m_librariesDirectory, QDir(m_root).absoluteFilePath("Playlists")};
     for (const QVariant &library : std::as_const(m_libraries))
         watched << library.toMap().value("path").toString();
     for (const QVariant &folder : std::as_const(m_mediaFolders))
@@ -81,11 +88,16 @@ QVariantList Catalog::documentsIn(const QString &library) const
         QString arrangement;
         ProDocument::arrangementsOf(file.absoluteFilePath(), &arrangements, &arrangement);
         documents.append(QVariantMap {
-            {"name", file.completeBaseName()},
             {"path", file.absoluteFilePath()},
-            {"arrangements", arrangements},
+            {"name", file.completeBaseName()},
+            {"kind", QStringLiteral("presentation")},
+            {"file", file.absoluteFilePath()},
+            {"missing", false},
+            {"playlistItem", false},
             {"arrangement", arrangement},
+            {"arrangements", arrangements},
             {"detail", arrangement.isEmpty() ? QString() : u'[' + arrangement + u']'},
+            {"color", QString()},
         });
     }
     return documents;
@@ -107,10 +119,25 @@ QVariantList Catalog::mediaIn(const QString &folder) const
     return media;
 }
 
+QVariantList Catalog::playlistItems(const QString &playlist) const
+{
+    return m_playlists.items.value(playlist);
+}
+
 QVariantMap Catalog::open(const QString &path) const
 {
+    return open(path, std::nullopt);
+}
+
+QVariantMap Catalog::openArranged(const QString &path, const QString &arrangement) const
+{
+    return open(path, arrangement);
+}
+
+QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arrangement) const
+{
     QString error;
-    const ProDocument document = ProDocument::load(path, m_mediaDirectory, &error);
+    const ProDocument document = ProDocument::load(path, m_mediaDirectory, arrangement, &error);
     return {
         {"name", QFileInfo(path).completeBaseName()},
         {"path", path},
@@ -119,6 +146,49 @@ QVariantMap Catalog::open(const QString &path) const
         {"arrangement", document.arrangement},
         {"error", error},
     };
+}
+
+QString Catalog::setPlaylistItemArrangement(const QString &item, const QString &file, const QString &arrangement)
+{
+    const QString id = arrangement.isEmpty() ? QString() : ProDocument::arrangementId(file, arrangement);
+    if (!arrangement.isEmpty() && id.isEmpty())
+        return QStringLiteral("%1 has no arrangement named %2").arg(QFileInfo(file).fileName(), arrangement);
+    return afterChange(PlaylistFile::setItemArrangement(m_root, item, id, arrangement));
+}
+
+// Shows a successful change at once, without waiting for the folder watcher.
+QString Catalog::afterChange(const QString &error)
+{
+    if (error.isEmpty())
+        rescan();
+    return error;
+}
+
+QVariantMap Catalog::createPlaylist(const QString &name)
+{
+    QString id;
+    const QString error = afterChange(PlaylistFile::createPlaylist(m_root, name, &id));
+    return {{"id", id}, {"error", error}};
+}
+
+QString Catalog::renamePlaylist(const QString &id, const QString &name)
+{
+    return afterChange(PlaylistFile::renameNode(m_root, id, name));
+}
+
+QString Catalog::deletePlaylist(const QString &id)
+{
+    return afterChange(PlaylistFile::deletePlaylist(m_root, id));
+}
+
+QString Catalog::addToPlaylist(const QString &playlist, const QString &file)
+{
+    return afterChange(PlaylistFile::addPresentation(m_root, playlist, file));
+}
+
+QString Catalog::removePlaylistItem(const QString &item)
+{
+    return afterChange(PlaylistFile::removeItem(m_root, item));
 }
 
 QString Catalog::setArrangement(const QString &path, const QString &arrangement)
