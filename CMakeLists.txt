@@ -8,6 +8,10 @@ find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Multimedia ShaderTools)
 find_package(Protobuf REQUIRED)
 find_package(Fontconfig REQUIRED)
 find_package(ZLIB REQUIRED)
+# FFmpeg's libraries, which Qt Multimedia plays video with anyway, are used directly for
+# one thing: taking a single frame from a video for its thumbnail (src/videoframe.cpp).
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFmpeg REQUIRED IMPORTED_TARGET libavformat libavcodec libswscale libavutil)
 qt_standard_project_setup(REQUIRES 6.9)
 
 # ProPresenter 7 document schema: the presentation and playlist documents and everything
@@ -57,6 +61,8 @@ qt_add_executable(SimplePresenter
     src/textlayout.h
     src/thumbnailprovider.cpp
     src/thumbnailprovider.h
+    src/videoframe.cpp
+    src/videoframe.h
     src/workspacefiles.cpp
     src/workspacefiles.h
     src/zipreader.cpp
@@ -138,4 +144,5 @@ qt_add_shaders(SimplePresenter "shaders"
         shaders/gl-transitions/wipeUp.frag
 )
 
-target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia proproto Fontconfig::Fontconfig ZLIB::ZLIB)
+target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia proproto Fontconfig::Fontconfig ZLIB::ZLIB
+                      PkgConfig::FFmpeg)

@@ -1,5 +1,9 @@
 #include "thumbnailprovider.h"
 
+#include "videoframe.h"
+#include "workspacefiles.h"
+
+#include <QAtomicInt>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -8,20 +12,18 @@
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
-#include <QMediaPlayer>
-#include <QPointer>
-#include <QQueue>
 #include <QStandardPaths>
+#include <QThread>
 #include <QThreadPool>
-#include <QTimer>
 #include <QUrl>
-#include <QVideoFrame>
-#include <QVideoSink>
 
 namespace {
 
+// Wide enough for the largest thumbnail the views show, on a screen scaled to 150%.
 const int thumbnailWidth = 480;
-const QStringList videoSuffixes = {"mp4", "mov", "m4v", "mkv", "webm", "avi"};
+
+// Set as the app closes: whatever has not been started is then not worth starting.
+QAtomicInt closing;
 
 class Response : public QQuickImageResponse
 {
@@ -31,7 +33,12 @@ public:
         return QQuickTextureFactory::textureFactoryForImage(m_image);
     }
 
-    // May be called from any thread, once.
+    // The view no longer wants the picture. Called from another thread than the one
+    // doing the work, which looks at this before it starts.
+    void cancel() override { m_cancelled.storeRelaxed(1); }
+    bool cancelled() const { return m_cancelled.loadRelaxed() != 0; }
+
+    // May be called from any thread, once. The response is deleted soon afterwards.
     void finish(const QImage &image)
     {
         m_image = image;
@@ -40,6 +47,7 @@ public:
 
 private:
     QImage m_image;
+    QAtomicInt m_cancelled;
 };
 
 // Thumbnails are kept on disk under the user's cache folder, keyed by the file's full
@@ -89,91 +97,32 @@ QImage readImage(const QString &path)
     return reader.read();
 }
 
-// Decodes video thumbnails on the main thread's event loop, a couple at a time: each one
-// opens a decoder, so a folder full of videos must not start them all at once.
-class VideoThumbnailer : public QObject
+// The threads that make thumbnails: as many as half the processor's threads, so that
+// the window, and a video that is playing, always have the other half.
+//
+// They run at ordinary priority. Running them at idle priority, to be sure of never
+// taking time from a show, was tried and is a trap: Qt scales large images on a pool of
+// threads of its own, a thread started from an idle-priority thread is idle-priority
+// too, and Qt keeps those threads for the window's own image work, which then crawls
+// whenever the machine is busy.
+QThreadPool &workers()
 {
-public:
-    static VideoThumbnailer *instance()
-    {
-        static VideoThumbnailer *thumbnailer = new VideoThumbnailer(QCoreApplication::instance());
-        return thumbnailer;
-    }
-
-    void enqueue(const QString &path, Response *response)
-    {
-        m_queue.enqueue({path, response});
-        startNext();
-    }
-
-private:
-    struct Request
-    {
-        QString path;
-        QPointer<Response> response;
-    };
-
-    using QObject::QObject;
-
-    void startNext()
-    {
-        while (m_active < maxActive && !m_queue.isEmpty()) {
-            const Request request = m_queue.dequeue();
-            if (request.response)
-                start(request);
-        }
-    }
-
-    void start(const Request &request)
-    {
-        ++m_active;
-        auto *job = new QObject(this);
-        auto *player = new QMediaPlayer(job);
-        auto *sink = new QVideoSink(job);
-        auto *timeout = new QTimer(job);
-        player->setVideoSink(sink);
-
-        // `job` owns everything, so deleting it disconnects all of this; done at most once.
-        const auto finish = [this, job, player, path = request.path, response = request.response](const QImage &image) {
-            if (job->property("finished").toBool())
-                return;
-            job->setProperty("finished", true);
-            player->stop();
-            job->deleteLater();
-            writeCached(path, image);
-            if (response)
-                response->finish(image);
-            --m_active;
-            startNext();
-        };
-
-        // Skip a little way in: the very first frame of a clip is often black or a fade-in.
-        connect(player, &QMediaPlayer::mediaStatusChanged, job, [job, player](QMediaPlayer::MediaStatus status) {
-            if (status != QMediaPlayer::LoadedMedia || job->property("started").toBool())
-                return;
-            job->setProperty("started", true);
-            player->setPosition(qMin<qint64>(player->duration() / 10, 5000));
-            player->play();
-        });
-        connect(sink, &QVideoSink::videoFrameChanged, job, [job, finish](const QVideoFrame &frame) {
-            if (!job->property("started").toBool() || !frame.isValid())
-                return;
-            const QImage image = frame.toImage();
-            if (!image.isNull())
-                finish(image.scaledToWidth(thumbnailWidth, Qt::SmoothTransformation));
-        });
-        connect(player, &QMediaPlayer::errorOccurred, job, [finish] { finish({}); });
-        connect(timeout, &QTimer::timeout, job, [finish] { finish({}); });
-
-        timeout->setSingleShot(true);
-        timeout->start(10000);
-        player->setSource(QUrl::fromLocalFile(request.path));
-    }
-
-    static constexpr int maxActive = 2;
-    QQueue<Request> m_queue;
-    int m_active = 0;
-};
+    static QThreadPool pool;
+    static const bool ready = [] {
+        pool.setMaxThreadCount(qBound(1, QThread::idealThreadCount() / 2, 4));
+        // Closing the app must not wait for a queue of thumbnails. What is waiting is
+        // dropped, and the few being made are let finish while their requests are
+        // still there to be answered.
+        QObject::connect(qApp, &QCoreApplication::aboutToQuit, qApp, [] {
+            closing.storeRelaxed(1);
+            pool.clear();
+            pool.waitForDone();
+        }, Qt::DirectConnection);
+        return true;
+    }();
+    Q_UNUSED(ready)
+    return pool;
+}
 
 } // namespace
 
@@ -181,20 +130,14 @@ QQuickImageResponse *ThumbnailProvider::requestImageResponse(const QString &id, 
 {
     const QString path = QUrl::fromPercentEncoding(id.section(u'?', 0, 0).toUtf8());
     auto *response = new Response;
-
-    const bool isVideo = videoSuffixes.contains(QFileInfo(path).suffix().toLower());
-    QThreadPool::globalInstance()->start([path, isVideo, response] {
-        QImage image = readCached(path);
-        if (image.isNull() && isVideo) {
-            // Video is decoded on the main thread's event loop.
-            QMetaObject::invokeMethod(QCoreApplication::instance(), [path, response] {
-                VideoThumbnailer::instance()->enqueue(path, response);
-            }, Qt::QueuedConnection);
-            return;
-        }
-        if (image.isNull()) {
-            image = readImage(path);
-            writeCached(path, image);
+    workers().start([path, response] {
+        QImage image;
+        if (!response->cancelled() && !closing.loadRelaxed()) {
+            image = readCached(path);
+            if (image.isNull()) {
+                image = workspace::isVideo(path) ? grabVideoFrame(path, thumbnailWidth) : readImage(path);
+                writeCached(path, image);
+            }
         }
         response->finish(image);
     });
