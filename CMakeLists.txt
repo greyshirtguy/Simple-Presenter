@@ -118,6 +118,8 @@ qt_add_qml_module(SimplePresenter
     SOURCES
         src/catalog.h
         src/catalog.cpp
+        src/firstframe.h
+        src/firstframe.cpp
         src/framerelay.h
         src/framerelay.cpp
         src/presentationeditor.h

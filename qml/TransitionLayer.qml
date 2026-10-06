@@ -18,6 +18,13 @@ import QtQuick
 // simply drawn. That matters on modest graphics hardware: going through the textures
 // and a shader would cost two more passes over the whole output for every frame of a
 // playing video, to show exactly what drawing it directly shows.
+//
+// Some content needs a moment before it can be shown: a still has to be read from its
+// file, which is done on another thread so that nothing stands still meanwhile, and a
+// video has no picture until its first frame has been decoded (see MediaContent). A
+// delegate like that has a `ready` property, and a change to content that is not ready
+// waits for it: the layer goes on showing what it showed, with the incoming instance
+// out of sight, and the cut or the transition is made when the content can be seen.
 Item {
     id: layer
 
@@ -33,6 +40,8 @@ Item {
     // Whether a transition is running, and so whether the instances are being drawn into
     // textures for the shader rather than to the window
     property bool blending: false
+    // Whether the incoming instance has been given content that it cannot show yet
+    property bool waiting: false
     // The delegate instance holding the content most recently shown, from the moment its
     // transition starts; null until something is shown.
     property Item currentItem: null
@@ -53,18 +62,35 @@ Item {
         hideSource: layer.blending
     }
 
-    // Transitions to `content`, or to nothing if it is null.
+    // Transitions to `content`, or to nothing if it is null: at once if the content can
+    // be shown at once, and otherwise when it can.
     function show(content) {
         if (transition.running) {
             transition.stop()
             commit()
         }
+        // Whatever was being waited for is given up for this.
+        patience.stop()
+        waiting = false
+        const incoming = (aIsFront ? holderB : holderA).item
+        incoming.content = content
+        if (incoming.ready === false) {
+            waiting = true
+            patience.start()
+        } else {
+            begin()
+        }
+    }
+
+    // Brings in what the incoming instance has been given.
+    function begin() {
+        patience.stop()
         const animated = shader !== "" && duration > 0
-        // Before the incoming instance is given anything to draw, or it would be drawn
-        // straight over the outgoing one.
+        // Before the incoming instance is let be seen, or it would be drawn straight
+        // over the outgoing one.
         blending = animated
+        waiting = false
         currentItem = (aIsFront ? holderB : holderA).item
-        currentItem.content = content
         if (!animated) {
             commit()
             return
@@ -83,10 +109,12 @@ Item {
         blending = false
     }
 
+    // The incoming one of the two is kept out of sight while it is being waited for.
     Loader {
         id: holderA
 
         anchors.fill: parent
+        visible: layer.aIsFront || !layer.waiting
         sourceComponent: layer.delegate
     }
 
@@ -94,7 +122,28 @@ Item {
         id: holderB
 
         anchors.fill: parent
+        visible: !layer.aIsFront || !layer.waiting
         sourceComponent: layer.delegate
+    }
+
+    // The incoming instance saying that it can show what it was given
+    Connections {
+        target: layer.waiting ? (layer.aIsFront ? holderB : holderA).item : null
+
+        function onReadyChanged() {
+            if (target.ready)
+                layer.begin()
+        }
+    }
+
+    // A file that takes longer than this to give a picture is not waited for any more:
+    // the change is made, to nothing at first, and the picture shows when it arrives. A
+    // show is not held up by one slow file.
+    Timer {
+        id: patience
+
+        interval: 1000
+        onTriggered: layer.begin()
     }
 
     ShaderEffect {

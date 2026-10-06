@@ -573,9 +573,13 @@ Window {
         liveKey = documentKey
         livePlaylistId = playlistId
         cleared = false
-        output.showSlide(slide)
-        if (slide.media)
-            showMedia(slide.media)
+        if (slide.media) {
+            liveMedia = slide.media
+            liveMediaPlaylistId = ""
+            output.showSlideWithMedia(slide, slide.media)
+        } else {
+            output.showSlide(slide)
+        }
         grid.positionViewAtIndex(index, GridView.Contain)
     }
 
