@@ -5,9 +5,10 @@ import QtQuick
 // adjusted about it, and its length as a slider and as a number of seconds.
 //
 // It sits over the bottom left corner of the slides, as the thumbnail size buttons sit
-// over the bottom right, and like them is faint until the pointer is on it or it is in
-// use. It is drawn at four fifths of the size its parts are made at; what opens from it
-// (the menu, the panel of what can be adjusted) opens upwards, at full size.
+// over the bottom right, and is faint, fainter than they are since it covers more, until
+// the pointer is on it or it is in use. It is drawn at four fifths of the size its
+// parts are made at; what opens from it (the menu, the panel of what can be adjusted)
+// opens upwards, at full size.
 Item {
     id: controls
 
@@ -19,7 +20,7 @@ Item {
 
     width: panel.width * shrink
     height: panel.height * shrink
-    opacity: busy ? 1 : 0.7
+    opacity: busy ? 1 : 0.3
 
     HoverHandler {
         id: hover
