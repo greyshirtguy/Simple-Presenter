@@ -2,8 +2,8 @@ import QtQuick
 import QtMultimedia
 import SimplePresenterApp
 
-// The right of the operator window: what the audience and the stage are being shown, and
-// the buttons that clear it.
+// The right of the operator window: what the audience and the stage are being shown, the
+// buttons that clear it, and the transport for a video that is playing.
 //
 // The previews are built from cheap parts instead of second copies of the outputs. The
 // slide is drawn again at this small size; a still image comes from its cached
@@ -19,13 +19,16 @@ Rectangle {
     // Where the output's playing video delivers its frames, or null: the preview borrows
     // a few of them a second.
     property var liveVideoSink: null
+    // The player of the output's video, or null: what the transport works
+    property var livePlayer: null
 
     color: "black"
 
-    // Both previews are 16:9 and as wide as the panel, unless the panel is too
-    // short for that, in which case they shrink to fit and stay centred.
+    // Both previews are 16:9 and as wide as the panel, unless the panel is too short
+    // for that with the transport under them, in which case they shrink to fit and stay
+    // centred.
     readonly property real previewWidth: Math.max(80, Math.min(
-        width - 24, (height - 2 * outputTitle.height - clearButtons.height - 48) / 2 * 16 / 9))
+        width - 24, (height - 2 * outputTitle.height - clearButtons.height - transport.height - 60) / 2 * 16 / 9))
 
     SectionTitle {
         id: outputTitle
@@ -67,6 +70,8 @@ Rectangle {
             }
 
             FrameRelay {
+                id: relay
+
                 source: sidePanel.liveVideoSink
                 target: previewVideo.videoSink
                 interval: 100
@@ -162,5 +167,17 @@ Rectangle {
             name: "Media"
             onClicked: sidePanel.win.clearMedia()
         }
+    }
+
+    Transport {
+        id: transport
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: clearButtons.bottom
+        anchors.margins: 12
+        player: sidePanel.livePlayer
+        media: sidePanel.win.liveMedia
+        pulse: relay
     }
 }

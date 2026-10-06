@@ -1,10 +1,12 @@
 import QtQuick
+import QtQuick.Shapes
 
 // A small square button drawn as a glyph, in the app's dark style. `kind` picks the
 // glyph: "bold", "italic", "underline" and "strike" are letters; "alignLeft",
 // "alignCenter", "alignRight" and "alignJustify" are lines of text; "alignTop",
 // "alignMiddle" and "alignBottom" are a block against an edge; "eye" and "lock" are for
-// the rows of a list; "sliders" is three sliders, for things to adjust; anything else
+// the rows of a list; "sliders" is three sliders, for things to adjust; "play", "pause",
+// "stop" and "restart" (back to the start) are for something that runs; anything else
 // shows `text`. `on` draws it as switched on. Never takes keyboard focus.
 Rectangle {
     id: button
@@ -124,6 +126,63 @@ Rectangle {
                     radius: 1.5
                     color: button.ink
                 }
+            }
+        }
+    }
+
+    // For something that runs: a triangle to play, two bars to pause, a square to stop,
+    // and a bar with a triangle up against it to go back to the start. Only made for a
+    // button of one of those kinds, the triangles being shapes and not rectangles.
+    Loader {
+        anchors.centerIn: parent
+        active: button.kind === "play" || button.kind === "pause" || button.kind === "stop" || button.kind === "restart"
+
+        sourceComponent: Item {
+            width: 12
+            height: 12
+
+            Shape {
+                anchors.fill: parent
+                visible: button.kind === "play" || button.kind === "restart"
+                preferredRendererType: Shape.CurveRenderer
+
+                ShapePath {
+                    fillColor: button.ink
+                    strokeColor: "transparent"
+
+                    PathPolyline {
+                        path: button.kind === "play" ? [Qt.point(1.5, 0), Qt.point(11.5, 6), Qt.point(1.5, 12), Qt.point(1.5, 0)]
+                                                     : [Qt.point(12, 0), Qt.point(3.5, 6), Qt.point(12, 12), Qt.point(12, 0)]
+                    }
+                }
+            }
+
+            Rectangle {
+                visible: button.kind === "restart"
+                width: 2.5
+                height: 12
+                color: button.ink
+            }
+
+            Repeater {
+                model: button.kind === "pause" ? [1, 7.5] : []
+
+                delegate: Rectangle {
+                    required property real modelData
+
+                    x: modelData
+                    width: 3.5
+                    height: 12
+                    color: button.ink
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                visible: button.kind === "stop"
+                radius: 1
+                color: button.ink
             }
         }
     }

@@ -9,6 +9,10 @@
 // Passes video frames from one video sink to another at a reduced rate, so a second,
 // small view of a playing video costs a few frame uploads a second instead of a second
 // decoder. Both properties take a QVideoSink (a VideoOutput's videoSink).
+//
+// It says `relayed` each time it passes a frame on. Whatever else in the same window
+// follows the video can change then, and be drawn in the redraw the frame is about to
+// cause, at no cost of its own: the transport does.
 class FrameRelay : public QObject
 {
     Q_OBJECT
@@ -30,6 +34,7 @@ signals:
     void sourceChanged();
     void targetChanged();
     void intervalChanged();
+    void relayed();
 
 private:
     void relay(const QVideoFrame &frame);

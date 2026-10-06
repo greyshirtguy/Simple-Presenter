@@ -130,6 +130,7 @@ qt_add_qml_module(SimplePresenter
         qml/StageView.qml
         qml/Toolbar.qml
         qml/ToolbarIcon.qml
+        qml/Transport.qml
         qml/TransitionCatalogue.qml
         qml/TransitionLayer.qml
         qml/TransitionOptions.qml

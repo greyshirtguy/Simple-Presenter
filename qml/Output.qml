@@ -22,6 +22,8 @@ AuxWindow {
     property int duration: 0
     // The QVideoSink of the video on the media layer, or null; lets a preview borrow its frames.
     readonly property var liveVideoSink: mediaLayer.currentItem ? mediaLayer.currentItem.videoSink : null
+    // The MediaPlayer of the video on the media layer, or null; lets a transport control work it.
+    readonly property var livePlayer: mediaLayer.currentItem ? mediaLayer.currentItem.player : null
     // A slide held back until the media that goes with it can be shown: see
     // showSlideWithMedia(). Undefined when none is; null is a slide layer to be cleared.
     property var heldSlide: undefined

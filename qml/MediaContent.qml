@@ -30,6 +30,9 @@ Item {
     readonly property bool ready: loader.item === null || loader.item.ready
     // The QVideoSink frames are delivered to while a video is showing, else null
     readonly property var videoSink: content !== null && content.video && loader.item ? loader.item.videoSink : null
+    // The MediaPlayer playing the video while one is showing, else null: what a
+    // transport control works
+    readonly property var player: content !== null && content.video && loader.item ? loader.item.player : null
 
     Loader {
         id: loader
@@ -78,12 +81,15 @@ Item {
             id: clip
 
             readonly property var videoSink: output.videoSink
+            readonly property var player: mediaPlayer
             // Once the first frame is there to be seen, or the file has turned out not
             // to play
             readonly property bool ready: firstFrame.arrived || failed
             property bool failed: false
 
             MediaPlayer {
+                id: mediaPlayer
+
                 source: root.content?.source ?? ""
                 videoOutput: output
                 loops: root.content?.loops === false ? 1 : MediaPlayer.Infinite

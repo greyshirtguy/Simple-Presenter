@@ -33,4 +33,5 @@ void FrameRelay::relay(const QVideoFrame &frame)
         return;
     m_sinceLast.start();
     m_target->setVideoFrame(frame);
+    emit relayed();
 }

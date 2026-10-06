@@ -188,8 +188,10 @@ int main(int argc, char *argv[])
     engine.setInitialProperties({
         {"catalog", QVariant::fromValue(&catalog)},
         {"outputScreen", outputScreen},
-        // The self-test must not read or disturb the user's saved session.
+        // The self-test must not read or disturb the user's saved session,
         {"remember", !parser.isSet(selfTestOption)},
+        // and its pictures must not depend on when it is run or how long it takes.
+        {"clocksHeld", parser.isSet(selfTestOption)},
     });
     engine.loadFromModule("SimplePresenterApp", "Main");
 

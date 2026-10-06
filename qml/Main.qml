@@ -45,6 +45,10 @@ Window {
     property int outputScreen: -1
     // Whether to restore the last session's selections and layout, and save this one's
     property bool remember: true
+    // Whether what shows a time is held still, which so far is the transport. For the
+    // self-test, whose pictures must be the same whenever it is run and however long
+    // it takes over it.
+    property bool clocksHeld: false
     // Set once the last session has been restored; nothing is saved before then.
     property bool restored: false
 
@@ -1140,6 +1144,7 @@ Window {
             width: Math.max(250, Math.min(win.sidePanelWidth, win.width - 160 - 260))
             win: win
             liveVideoSink: output.liveVideoSink
+            livePlayer: win.clocksHeld ? null : output.livePlayer
         }
 
         SlideGrid {
