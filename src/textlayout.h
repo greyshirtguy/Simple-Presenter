@@ -35,6 +35,15 @@ struct TextLayoutResult
 
 // Lays the text out in a box `width` wide, with its top at 0. Lines are stacked the way
 // QTextDocument stacks them, which is what a TextEdit shows.
+//
+// Two things are remembered, because the same work comes round again and again. The
+// outline of each glyph is kept by font and glyph: getting outlines from a font is most
+// of the cost of a layout, and since layout is always in slide units, every slide of a
+// presentation asks for the same letters of the same font at the same size. And whole
+// layouts are kept by text and width, the most recently used few hundred: one slide is
+// laid out for its thumbnail, for the preview and for the output, and again whenever a
+// list it is in is rebuilt. Safe to call from several threads at once, which happens:
+// each window draws on a thread of its own.
 TextLayoutResult layoutText(const RichText &text, qreal width);
 
 // Puts the text into a document that lays out as layoutText() does. Every stretch of the
