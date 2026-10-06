@@ -2,17 +2,28 @@
 
 ![The Simple Presenter operator window: libraries and playlists at the top left with the selected playlist's presentations below them, a grid of slide thumbnails framed in their group colours, output and stage previews on the right, and the media bin along the bottom](docs/screenshot.png)
 
-As a fun experiment in vibe coding, I decided to make a simple, ProPresenter-compatible
-desktop application for Linux. It is a native app, not Electron, so it performs well even
-on older computers.
+Simple Presenter is an experiment in vibe coding, and my first attempt at building
+something non-trivial that way: a presenter for Linux that works on a ProPresenter 7
+folder as it is. It has three goals.
 
-It reads and displays ProPresenter 7 `.pro` presentations, with a slide layer over a media
-layer; there are no props, messages or announcements. Transitions are shaders, which keeps
-them cheap: a dissolve, a plain cut, and twenty-one ported from
-[gl-transitions](https://gl-transitions.com), such as wipes, warps, zooms and a ripple. It has two outputs, an
-audience output and a stage display, each in its own window, and a media bin. It can also
-import a playlist that has been exported from ProPresenter, and it has a simple
-[editor](#editing) for the text boxes on a slide.
+- **Linux.** A native Linux application, in Qt and C++ rather than a web page in a
+  wrapper, that reads and writes ProPresenter's own files: its presentations, its
+  playlists and its media. A copy of a ProPresenter folder can be opened and run as it
+  stands, and what is changed here can be opened there again.
+- **Simple.** The essentials of running a show and little else: slides over media,
+  transitions, an audience output and a stage display, playlists, a media bin and a
+  small editor. There are no props, messages or announcements.
+- **Lightweight.** Above all it has to perform, even on modest and older computers. It
+  is developed and measured on a 2017 laptop with integrated graphics, and the design
+  choices are made for that machine first: see
+  [Built for modest hardware](#built-for-modest-hardware).
+
+It shows ProPresenter 7 `.pro` presentations on a slide layer over a media layer.
+Transitions are shaders, which keeps them cheap: a dissolve, a plain cut, and twenty-one
+ported from [gl-transitions](https://gl-transitions.com), such as wipes, warps, zooms
+and a ripple. It has two outputs, an audience output and a stage display, each in its
+own window, and a media bin. It can import a playlist that has been exported from
+ProPresenter, and it has a simple [editor](#editing) for the text boxes on a slide.
 
 ## TODO
 
@@ -32,33 +43,203 @@ import a playlist that has been exported from ProPresenter, and it has a simple
 - [x] **Import Playlists**: read ProPresenter's exported `.proplaylist` files, bringing
       in the playlist, its presentations and, when the export included it, its media.
 
-Built with Qt 6 (C++ and QML). The ProPresenter file format comes from the unofficial
-protobuf definitions in [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto),
-included as a submodule.
+## Installing
 
-## Building
-
-Needs Qt 6.9 or newer. On Ubuntu 26.04:
+There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
+is what the app is made and tested on, with the standard desktop. Download
+`simplepresenter_0.1.0_amd64.deb` from the
+[Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install cmake ninja-build g++ \
+sudo apt install ./simplepresenter_0.1.0_amd64.deb
+```
+
+That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
+among the applications. `sudo apt remove simplepresenter` takes it off again.
+
+The package holds only this program, and is under 2 MB. Qt, FFmpeg and the video
+drivers are the system's own, which is why it is small, why video is decoded by whatever
+the machine's drivers can do (see [Hardware video decoding](#hardware-video-decoding)),
+and also why it is tied to one release: it is built against the Qt that Ubuntu 26.04
+ships (6.10), and will not install where Qt is older, as on Ubuntu 24.04, or has moved
+on. Anywhere else, build it from source, which takes a few minutes.
+
+### The first run
+
+The app keeps everything in workspaces, under `~/Documents/SimplePresenter/WorkSpaces`,
+and the first time it starts it makes an empty one called `Default`. To give it
+something to show, either
+
+- copy your ProPresenter folder (`Documents/ProPresenter` on a Mac or on Windows) into
+  `WorkSpaces`, and pick it from the workspace picker at the left of the toolbar; or
+- put some `.pro` files into a folder of their own inside `WorkSpaces/Default/Libraries`,
+  and some images or videos into `WorkSpaces/Default/Media`.
+
+The app works on that copy and saves its changes into it; [Workspaces](#workspaces) has
+the details.
+
+## Building from source
+
+Nothing here is specific to Ubuntu except the names of the packages. It needs Qt 6.9
+or newer.
+
+**1. Install the tools and the libraries.**
+
+```
+sudo apt install git cmake ninja-build g++ pkg-config \
     qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qt6-shadertools-dev \
     qml6-module-qtquick-controls qml6-module-qtquick-effects qml6-module-qtmultimedia \
-    qml6-module-qtquick-dialogs qml6-module-qtquick-shapes \
-    protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev
+    qml6-module-qtquick-dialogs qml6-module-qtquick-shapes qt6-image-formats-plugins \
+    protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev \
+    libavformat-dev libavcodec-dev libswscale-dev libavutil-dev
 ```
 
-Video plays without any of the drivers below, decoded on the CPU; see
-[Hardware video decoding](#hardware-video-decoding) to move that work to the graphics
-hardware.
+| These | are for |
+|---|---|
+| `git`, `cmake`, `ninja-build`, `g++`, `pkg-config` | Fetching the code and building it |
+| `qt6-…-dev` | Qt 6, which the app is written with: windows, drawing, video playback, and the tool that compiles the transition shaders |
+| `qml6-module-…` | The parts of Qt Quick that the app loads when it starts, such as buttons and effects |
+| `qt6-image-formats-plugins` | Reading pictures in the formats Qt does not have built in, WebP among them |
+| `protobuf-compiler`, `libprotobuf-dev` | ProPresenter's files are Protocol Buffers. The build turns the descriptions of the format into C++ that reads and writes it |
+| `libfontconfig-dev` | Finding fonts by the names ProPresenter knows them by |
+| `zlib1g-dev` | Unpacking exported playlists, which are zip archives |
+| `libav…-dev`, `libswscale-dev` | FFmpeg, for taking a frame from a video as its thumbnail |
+
+**2. Get the code.**
 
 ```
-git clone --recurse-submodules <this repository>
-cd <this repository>
+git clone --recurse-submodules https://github.com/greyshirtguy/Simple-Presenter.git
+cd Simple-Presenter
+```
+
+`--recurse-submodules` also fetches
+[ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto), the
+unofficial descriptions of ProPresenter's file formats that the app is built on. If the
+build complains that `.proto` files are missing, that step was skipped:
+`git submodule update --init` does it afterwards.
+
+**3. Build it.**
+
+```
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build
+```
+
+The first line checks that everything in step 1 is there and sets the build up in a
+folder called `build`; the second compiles. It takes a few minutes the first time, most
+of it spent on the code generated for ProPresenter's formats. The result is one file,
+`build/SimplePresenter`, with the interface and the shaders compiled into it.
+
+**4. Run it.**
+
+```
 ./build/SimplePresenter
 ```
+
+See [The first run](#the-first-run) for giving it something to show, and
+`./build/SimplePresenter --help` for its options. Video plays with or without a driver
+for decoding it on the graphics hardware; [Hardware video decoding](#hardware-video-decoding)
+says how to get one.
+
+**5. Look around.** [How it works](#how-it-works) is the short version, and
+`src/main.cpp` opens with a tour of the code that says where everything is. The sources
+are written to be read: each file starts by saying what it is for and why it is the way
+it is. To browse or change them in an editor that understands the project, open
+`CMakeLists.txt` in Qt Creator. After a change, `cmake --build build` again rebuilds
+only what the change touched, and the [self-test](#self-test) shows whether anything
+that is drawn has moved.
+
+**6. Make the package,** if you want one to install or to pass on:
+
+```
+cd build && cpack
+```
+
+writes the same `.deb` as on the Releases page.
+
+## Built for modest hardware
+
+The machine all of this is measured on is a 2017 Dell laptop: a two-core Core i5-7300U
+with Intel HD 620 graphics. On it, at the time of writing:
+
+| | |
+|---|---|
+| Starting, to the first frame on screen | 0.7 to 0.9 seconds |
+| Sitting with a still slide on the output | no processor time at all |
+| A 4K video under lyrics, full screen at 1080p | the graphics chip a third busy (it is a quarter busy with only the desktop on screen); 5 to 7% of one processor core |
+| Showing the slides of a presentation just picked | about 70 ms |
+| Thumbnails for 112 videos, 47 of them 4K, the first time they are seen | 2.5 seconds, while the window stays responsive |
+| Putting a still on the output, even one of 8000 by 4500 | read in the background; the window is not held up |
+| Memory, with a workspace open | about 260 MB, of which 160 MB is what Qt needs for any window; up to 400 MB while a 4K video plays |
+
+What gets it there:
+
+- **Nothing is drawn twice.** A slide's text is turned into a picture once, when the
+  slide is shown, and from then on costs the graphics chip one rectangle. Nothing runs
+  while nothing changes.
+- **A transition costs only while it runs.** It is one shader blending two textures.
+  Between transitions nothing is blended and the output is drawn directly; going
+  through the blend all the time, as the app once did, kept the graphics chip twice as
+  busy for the same picture.
+- **Video is decoded once, by the hardware if it can.** The graphics chip decodes it
+  when a driver is installed, and the preview in the operator window borrows a few of
+  the output's frames a second instead of decoding the file again.
+- **Media files are never read on the thread that runs the windows.** Thumbnails are
+  made on spare processor threads, one keyframe from each video, and kept on disk. A
+  still put on the output is read on another thread, at no more than the size it can be
+  shown at, and brought in when it is ready, so a large picture does not make a
+  transition or a playing video stutter.
+- **The small pictures are honest but plain.** Thumbnails are the real slides drawn
+  small, without their shadows, which cannot be seen at that size and are the dear part.
+- **Lists are only rebuilt when they change.** The app notices when a workspace changes
+  on disk, but rebuilds what is on screen only if what it shows is different.
+
+## How it works
+
+```
+  a workspace on disk                    C++ (src/)                      QML (qml/)
+  -------------------          ---------------------------       --------------------------
+  Libraries/*/*.pro    --->    ProDocument, proconvert    --->   Main.qml: what is open,
+  Playlists/Library            PlaylistFile                      what is live, what a key
+  Playlists/Media              (parse, flatten into              or a click does
+  Media/...                    lists and maps)                          |
+                                                                        | goLive(), showMedia()
+        ^                      StrokedText, textlayout                  v
+        |                      (text laid out and drawn   <---   Output.qml: a media layer
+        +--- changes are       with its outline, once)           and a slide layer, each a
+             written back                                        TransitionLayer
+             into the files    ThumbnailProvider, videoframe
+                               (small pictures, cached)   --->   thumbnails in the lists
+```
+
+The app is three windows and a folder. The folder is the workspace. The operator window
+is where the show is run from; the output window is what the audience sees, a media
+layer with a slide layer over it; the stage window is what the people on stage see.
+
+The code is in two halves. The C++ in `src/` does files and pixels: it reads and writes
+ProPresenter's documents, parses the RTF their text is kept in, lays text out and draws
+it with its outline, and makes thumbnails. The QML in `qml/` is everything on screen and
+all of the behaviour. What passes between them is plain data: a presentation crosses
+over as a list of slides, each a map of everything needed to draw it, so the QML never
+sees a file format and the C++ never decides what is on the output.
+
+Two rules run through all of it.
+
+- **The files are ProPresenter's, and stay that way.** They hold far more than this app
+  understands. Every change is made by parsing the whole file, altering only the fields
+  the change is about, and writing the whole thing back in one step, so that whatever
+  the app does not know about goes back exactly as it came.
+- **One drawing of a slide.** The same component draws a slide on the output, in a
+  thumbnail, in the preview and in the editor, from the same data. Layout is done in
+  the slide's own coordinates and scaled, so a line of text breaks at the same word at
+  every size.
+
+A transition is a small fragment shader that is handed the outgoing and incoming
+pictures and a number that goes from 0 to 1; `shaders/dissolve.frag` explains the
+pattern, and adding one is a shader file and two lines.
+
+`src/main.cpp` opens with a longer tour, and the header of each file says how that part
+works.
 
 ## Hardware video decoding
 
@@ -208,33 +389,45 @@ drives the app through a fixed sequence (a slide, a transition, the clears, a si
 trackpad swipe, then the editor brought up on a presentation with an element picked and
 its text being edited), saves frames from each window into `<dir>` as PNGs, and quits.
 It changes nothing in the workspace, neither reads nor changes saved settings, and opens
-the first workspace unless `--workspace` names one.
+the first workspace unless `--workspace` names one. Run it before and after a change to
+anything that draws, and compare the frames.
+
+With `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software` in front of it, it runs
+without putting windows on the screen, and every run gives the same frames; that way of
+drawing leaves out shadows, transitions and video, so it checks layout and text, not
+those.
 
 ## Layout
 
 | Path | What it is |
 |---|---|
-| `src/main.cpp` | Startup, command-line options, the self-test |
+| `src/main.cpp` | Startup and command-line options; begins with a tour of the code |
+| `src/catalog.*` | The open workspace: its libraries, playlists and media, and every change to them |
+| `src/workspacefiles.*` | How documents refer to files, and how those files are found again |
 | `src/prodocument.*` | Reads `.pro` files for showing, and makes the changes show mode can |
 | `src/proconvert.*` | Turns a slide in a `.pro` file into what is drawn, and changes back into the file's terms |
 | `src/presentationeditor.*` | A presentation open in the editor: its changes, undo, saving and backups |
-| `src/playlistfile.*` | Reads and writes the playlists file |
+| `src/playlistfile.*` | Reads and writes the two playlists files |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |
 | `src/textlayout.*` | Lays text out, the same for drawing it and for editing it in place |
 | `src/strokedtext.*` | Draws slide text with stroke and fill |
 | `src/richtextbridge.*` | Lets a text box on the slide be typed into |
-| `src/catalog.*` | The open workspace: its libraries, playlists and media |
-| `src/thumbnailprovider.*` | Cached image and video thumbnails |
+| `src/thumbnailprovider.*`, `src/videoframe.*` | Thumbnails of images and videos, made on worker threads and cached |
 | `src/framerelay.*` | Feeds the preview from the output's video frames |
+| `src/firstframe.*` | Says when a video has its first picture, so that it is not put on the output before |
 | `src/fontresolver.*` | Finds fonts by PostScript name through fontconfig |
-| `qml/Main.qml` | The operator window |
-| `qml/Editor.qml`, `qml/EditorCanvas.qml`, `qml/EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
+| `src/selftest.*` | The self-test |
+| `qml/Main.qml` | The operator window: the app's state and logic |
+| `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
+| `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
+| `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | The output and stage windows |
+| `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
-| `qml/Output.qml`, `qml/Stage.qml` | The output and stage windows |
-| `qml/TransitionLayer.qml` | One output layer with shader transitions |
 | `shaders/` | The transitions; `shaders/gl-transitions` holds the ones ported from gl-transitions |
+| `packaging/` | The launcher, icon and description that an installed copy has |
+| `third_party/ProPresenter7-Proto` | The descriptions of ProPresenter's file formats, as a submodule |
 
 ## Licence
 
@@ -250,8 +443,8 @@ It uses, under their own licences:
 - Transitions ported from [gl-transitions](https://gl-transitions.com), under the MIT
   licence: `shaders/ripple.frag` and everything in `shaders/gl-transitions`, where the
   licence text is. Each file credits its author.
-- Protocol Buffers, FFmpeg (through Qt Multimedia) and fontconfig, as provided by the
-  system.
+- Protocol Buffers, fontconfig, zlib and FFmpeg (through Qt Multimedia, and directly
+  for video thumbnails), as provided by the system.
 
 ProPresenter is a trademark of Renewed Vision. This project is not affiliated with or
 endorsed by them.
