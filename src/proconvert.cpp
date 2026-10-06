@@ -310,6 +310,7 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     map.insert("visibilityRules", false);
     map.insert("visibilityCriterion", 0);
     map.insert("visibilityConditions", QVariantList());
+    map.insert("visibilityTimed", false);
     for (const DataLink &link : slideElement.data_links()) {
         if (link.has_alternate_text()) {
             map.insert("linkKind", QStringLiteral("element"));
@@ -342,11 +343,20 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
                         {"hasText", other.visibility_criterion() == Criterion::ELEMENT_VISIBILITY_CRITERION_HAS_TEXT},
                     });
                 } else {
-                    conditions.append(QVariantMap {
+                    QVariantMap other {
                         {"kind", QStringLiteral("other")},
                         {"index", index},
                         {"label", otherConditionLabel(condition)},
-                    });
+                    };
+                    // Of the others, one about a timer can be told: see toSlideMap.
+                    if (condition.has_timer_visibility()) {
+                        const auto &timer = condition.timer_visibility();
+                        other.insert("timed", true);
+                        other.insert("timerId", QString::fromStdString(timer.timer_uuid().string()));
+                        other.insert("timerName", QString::fromStdString(timer.timer_name()));
+                        other.insert("timerCriterion", int(timer.visibility_criterion()));
+                    }
+                    conditions.append(other);
                 }
             }
             map.insert("visibilityRules", true);
@@ -688,21 +698,32 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
         QVariantMap element = elements.at(i).toMap();
         bool visible = !element.value("hidden").toBool();
         if (visible && element.value("visibilityRules").toBool()) {
-            // A rule about something this app does not track counts as met.
+            // A rule about something this app does not track counts as met. One about a
+            // timer does too, here: whether it is met changes while the slide is on
+            // show, so what draws the slide asks the timers (see Slide.qml), and is
+            // told by `visibilityTimed` that it has to and by each condition's `met`
+            // how the conditions that are settled here came out.
             int met = 0;
-            const QVariantList conditions = element.value("visibilityConditions").toList();
-            for (const QVariant &entry : conditions) {
-                const QVariantMap condition = entry.toMap();
-                if (condition.value("kind").toString() != QLatin1String("element")) {
-                    ++met;
-                    continue;
+            bool timed = false;
+            QVariantList conditions = element.value("visibilityConditions").toList();
+            for (QVariant &entry : conditions) {
+                QVariantMap condition = entry.toMap();
+                bool holds = true;
+                if (condition.value("kind").toString() == QLatin1String("element")) {
+                    const qsizetype other = findElement(elements, condition.value("elementId").toString(),
+                                                        condition.value("elementName").toString());
+                    const bool hasText = other >= 0 && !shown.at(other).plainText().trimmed().isEmpty();
+                    holds = hasText == condition.value("hasText").toBool();
+                } else if (condition.value("timed").toBool()) {
+                    timed = true;
                 }
-                const qsizetype other = findElement(elements, condition.value("elementId").toString(),
-                                                    condition.value("elementName").toString());
-                const bool hasText = other >= 0 && !shown.at(other).plainText().trimmed().isEmpty();
-                if (hasText == condition.value("hasText").toBool())
+                if (holds)
                     ++met;
+                condition.insert("met", holds);
+                entry = condition;
             }
+            element.insert("visibilityConditions", conditions);
+            element.insert("visibilityTimed", timed);
             switch (element.value("visibilityCriterion").toInt()) {
             case DataLink::VisibilityLink::VISIBILITY_CRITERION_ANY:
                 visible = conditions.isEmpty() || met > 0;

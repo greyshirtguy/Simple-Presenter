@@ -69,6 +69,8 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //     the last minute) and linkTimerPattern (text with "${timer}" where the time
 //     goes). For anything else, linkLabel names it
 //   visibilityRules (bool), visibilityCriterion (0 all, 1 any, 2 none),
+//     visibilityTimed (one of the conditions is about a timer, so whether the element
+//     shows is not settled until it is drawn: see Slide.qml),
 //     visibilityConditions: a list of { kind: "element", elementId, elementName, hasText }
 //     and, for conditions on things this app does not track, { kind: "other", index,
 //     label }

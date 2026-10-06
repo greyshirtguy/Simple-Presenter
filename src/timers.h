@@ -123,6 +123,12 @@ public:
     // The timer a link means, by id or failing that by name: its id, or "" if there is
     // none.
     Q_INVOKABLE QString linkedTimer(const QString &id, const QString &name) const;
+    // Whether a timer is as a rule for when an element shows asks, the timer being
+    // found as a link's is. `criterion` is as ProPresenter's files have it: 0 it has
+    // time left, 1 it has run out, 2 it is running, 3 it is not. A timer that is not
+    // here is not running, and has neither time left nor run out. Whatever asks should
+    // read `tick` in the same binding, to be asked again when the answer may differ.
+    Q_INVOKABLE bool meets(const QString &id, const QString &name, int criterion) const;
 
     Q_INVOKABLE void start(const QString &id);
     Q_INVOKABLE void stop(const QString &id);

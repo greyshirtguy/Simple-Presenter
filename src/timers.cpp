@@ -349,6 +349,28 @@ QString Timers::linkedTimer(const QString &id, const QString &name) const
     return timer ? QString::fromStdString(timer->uuid().string()) : QString();
 }
 
+bool Timers::meets(const QString &id, const QString &name, int criterion) const
+{
+    // The criteria, as the file format numbers them
+    enum { HasTimeLeft = 0, HasRunOut = 1, IsRunning = 2, IsNotRunning = 3 };
+    const rv::data::Timer *timer = find(id, name);
+    if (!timer)
+        return criterion == IsNotRunning;
+    const Run run = m_runs.value(QString::fromStdString(timer->uuid().string()));
+    // Run out is run out whether or not the timer is let carry on past it.
+    const Configuration &configuration = timer->configuration();
+    const double now = seconds(*timer, run);
+    const bool runOut = configuration.has_elapsed_time()
+        ? configuration.elapsed_time().has_end_time() && now >= configuration.elapsed_time().end_time()
+        : now <= 0;
+    switch (criterion) {
+    case HasTimeLeft: return !runOut;
+    case HasRunOut: return runOut;
+    case IsRunning: return run.running;
+    default: return !run.running;
+    }
+}
+
 QString Timers::linked(double seconds, bool countsDown, const Format &format, const QString &pattern)
 {
     const QString time = written(seconds, countsDown, format);
