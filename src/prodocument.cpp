@@ -34,6 +34,24 @@ QVariantMap toMedia(const rv::data::Action &action, workspace::FileFinder *finde
     return map;
 }
 
+// What a cue's timer action asks, as Timers::act() takes it.
+QVariantMap toTimerAction(const rv::data::Action::TimerType &timer)
+{
+    QVariantMap map {
+        {"action", int(timer.action_type())},
+        {"timerId", QString::fromStdString(timer.timer_identification().parameter_uuid().string())},
+        {"timerName", QString::fromStdString(timer.timer_identification().parameter_name())},
+        {"amount", timer.increment_amount()},
+    };
+    // How the timer is to be set up, if the action says: passed on as it is in the
+    // file, for the timers to read as they read their own.
+    if (timer.has_timer_configuration()) {
+        map.insert("configuration", QString::fromLatin1(
+                       QByteArray::fromStdString(timer.timer_configuration().SerializeAsString()).toBase64()));
+    }
+    return map;
+}
+
 bool isVisualMedia(const rv::data::Action &action)
 {
     return action.has_media() && (action.media().element().has_video() || action.media().element().has_image());
@@ -50,6 +68,7 @@ QVariantMap emptySlide(const QString &label)
         {"groupStart", false},
         {"mediaName", QString()},
         {"mediaForeground", false},
+        {"timerActions", QVariantList()},
         {"plainText", QString()},
         {"elements", QVariantList()},
     };
@@ -127,10 +146,11 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
             return slides;
         const QString id = QString::fromStdString(cue.uuid().string());
         // The cue's media action, if it has one: its file's name, whether it is a
-        // foreground, and the file if found.
+        // foreground, and the file if found. And what it does to timers.
         QString name;
         bool foreground = false;
         QVariantMap media;
+        QVariantList timerActions;
         for (const rv::data::Action &action : cue.actions()) {
             if (!action.isenabled())
                 continue;
@@ -141,16 +161,21 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                 name = workspace::fileNameOf(action.media().element().url());
                 foreground = workspace::mediaBehaviour(action).foreground;
                 media = toMedia(action, &mediaFinder);
+            } else if (action.has_timer()) {
+                timerActions.append(toTimerAction(action.timer()));
             }
         }
         if (slides.isEmpty() && !name.isEmpty())
             slides.append(emptySlide(name));
-        if (!slides.isEmpty() && !name.isEmpty()) {
+        if (!slides.isEmpty()) {
             QVariantMap first = slides.first().toMap();
-            first.insert("mediaName", name);
-            first.insert("mediaForeground", foreground);
-            if (!media.isEmpty())
-                first.insert("media", media);
+            if (!name.isEmpty()) {
+                first.insert("mediaName", name);
+                first.insert("mediaForeground", foreground);
+                if (!media.isEmpty())
+                    first.insert("media", media);
+            }
+            first.insert("timerActions", timerActions);
             slides.first() = first;
         }
         for (QVariant &entry : slides) {

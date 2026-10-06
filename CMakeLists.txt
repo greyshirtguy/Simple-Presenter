@@ -123,11 +123,14 @@ qt_add_qml_module(SimplePresenter
         qml/RowIcon.qml
         qml/SectionTitle.qml
         qml/SettingsScreen.qml
+        qml/ShowControl.qml
         qml/Sidebar.qml
         qml/SidebarList.qml
         qml/SlideGrid.qml
         qml/Stage.qml
         qml/StageView.qml
+        qml/TimeField.qml
+        qml/TimersPanel.qml
         qml/Toolbar.qml
         qml/ToolbarIcon.qml
         qml/Transport.qml
@@ -148,6 +151,8 @@ qt_add_qml_module(SimplePresenter
         src/richtextbridge.cpp
         src/strokedtext.h
         src/strokedtext.cpp
+        src/timers.h
+        src/timers.cpp
 )
 
 # The transitions. Compiled by qsb for every graphics backend Qt can draw with, and loaded

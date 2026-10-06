@@ -701,6 +701,7 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
         {"groupStart", false},
         {"mediaName", QString()},
         {"mediaForeground", false},
+        {"timerActions", QVariantList()},
         {"plainText", texts.join(u'\n')},
         {"elements", elements},
     };

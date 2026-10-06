@@ -3,7 +3,8 @@ import QtMultimedia
 import SimplePresenterApp
 
 // The right of the operator window: what the audience and the stage are being shown, the
-// buttons that clear it, and the transport for a video that is playing.
+// buttons that clear it, the transport for a video that is playing, and the show
+// controls (timers, and in time props and the stage display).
 //
 // The previews are built from cheap parts instead of second copies of the outputs. The
 // slide is drawn again at this small size; a still image comes from its cached
@@ -21,14 +22,29 @@ Rectangle {
     property var liveVideoSink: null
     // The player of the output's video, or null: what the transport works
     property var livePlayer: null
+    // Which tab of the show controls is showing
+    property alias showControlTab: showControl.tab
 
     color: "black"
 
     // Both previews are 16:9 and as wide as the panel, unless the panel is too short
-    // for that with the transport under them, in which case they shrink to fit and stay
-    // centred.
+    // for that with everything under them, in which case they shrink to fit and stay
+    // centred. What they shrink for is the show controls, which are left room for four
+    // timers; but previews too small to make anything out in are no use, so below a
+    // width that is still worth having it is the show controls that give way, down to
+    // room for two.
+    readonly property real showControlRoom: 210
+    readonly property real leastShowControlRoom: 130
+    readonly property real leastUsefulPreview: 150
     readonly property real previewWidth: Math.max(80, Math.min(
-        width - 24, (height - 2 * outputTitle.height - clearButtons.height - transport.height - 60) / 2 * 16 / 9))
+        width - 24, Math.max(previewWidthLeaving(showControlRoom),
+                             Math.min(leastUsefulPreview, previewWidthLeaving(leastShowControlRoom)))))
+
+    // How wide the previews can be if this much height is to be left under everything
+    // else for the show controls.
+    function previewWidthLeaving(room) {
+        return (height - 2 * outputTitle.height - clearButtons.height - transport.height - room - 72) / 2 * 16 / 9
+    }
 
     SectionTitle {
         id: outputTitle
@@ -179,5 +195,16 @@ Rectangle {
         player: sidePanel.livePlayer
         media: sidePanel.win.liveMedia
         pulse: relay
+    }
+
+    ShowControl {
+        id: showControl
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: transport.bottom
+        anchors.bottom: parent.bottom
+        anchors.margins: 12
+        win: sidePanel.win
     }
 }

@@ -3,9 +3,10 @@
 // The app is three windows and a folder.
 //
 //   The folder is a workspace: libraries of ProPresenter 7 presentations, media files,
-//   and two playlists files, laid out exactly as ProPresenter lays out its own folder
-//   (src/catalog.h). Nothing is imported or converted; the app works on the files as
-//   they are, and writes its changes back into them.
+//   two playlists files and the timers, laid out exactly as ProPresenter lays out its
+//   own folder (src/catalog.h, and src/timers.h for the timers). Nothing is imported or
+//   converted; the app works on the files as they are, and writes its changes back into
+//   them.
 //
 //   The operator window (qml/Main.qml) is where the show is run from: pick a
 //   presentation, click a slide, and it is on the output.
@@ -58,7 +59,9 @@
 //     still put on the output is read on another thread and brought in when it is
 //     ready (qml/MediaContent.qml).
 //   - Nothing runs when nothing changes. With a still slide up, the app uses no
-//     processor time at all.
+//     processor time at all; a running timer has what shows it drawn again once a
+//     second, and the transport is drawn with the preview's frames, not by itself
+//     (qml/Transport.qml).
 //
 // Never losing what is in a file. ProPresenter's files hold far more than this app
 // understands. Every change is made the same way: parse the whole file, alter only the

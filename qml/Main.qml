@@ -36,7 +36,8 @@ import SimplePresenterApp
 // goes to the media layer as a background, which stays while other slides come and go
 // and is not started again by a slide that brings the same one, or as a foreground,
 // which the next slide takes off (alreadyPlaying() and goLive() are all there is to
-// that).
+// that). And what it does to a timer is passed to the timers (`Timers`, src/timers.h),
+// which belong to no window: whatever shows a timer asks them.
 Window {
     id: win
 
@@ -45,7 +46,7 @@ Window {
     property int outputScreen: -1
     // Whether to restore the last session's selections and layout, and save this one's
     property bool remember: true
-    // Whether what shows a time is held still, which so far is the transport. For the
+    // Whether what shows a time is held still: the timers, and the transport. For the
     // self-test, whose pictures must be the same whenever it is run and however long
     // it takes over it.
     property bool clocksHeld: false
@@ -650,6 +651,9 @@ Window {
         liveKey = documentKey
         livePlaylistId = playlistId
         cleared = false
+        // What the slide's cue does to timers, such as starting the countdown it shows
+        for (const action of slide.timerActions)
+            Timers.act(action)
         if (!slide.media) {
             // A foreground is for the moment it was triggered in: a slide that brings no
             // media of its own ends it. A background plays on.
@@ -839,6 +843,10 @@ Window {
             // Nothing stored yet, or not readable: keep the defaults.
         }
 
+        const tab = String(saved("showControlTab", "timers"))
+        if (["timers", "props", "stage"].includes(tab))
+            sidePanel.showControlTab = tab
+        report(Timers.open(catalog.workspacePath, clocksHeld))
         restoreSelections()
         restored = true
         save("workspace", catalog.workspacePath)
@@ -907,6 +915,8 @@ Window {
         selectedMediaNode = ""
         notice = ""
         catalog.openWorkspace(path)
+        // The timers are the workspace's too.
+        report(Timers.open(path, clocksHeld))
         restoreSelections()
         restored = true
         save("workspace", path)
@@ -1145,6 +1155,7 @@ Window {
             win: win
             liveVideoSink: output.liveVideoSink
             livePlayer: win.clocksHeld ? null : output.livePlayer
+            onShowControlTabChanged: win.save("showControlTab", showControlTab)
         }
 
         SlideGrid {
