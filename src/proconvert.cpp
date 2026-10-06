@@ -3,6 +3,7 @@
 #include "fontresolver.h"
 #include "rtf.h"
 #include "rtfwriter.h"
+#include "workspacefiles.h"
 
 #include <QFile>
 #include <QFileInfo>
@@ -11,7 +12,6 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStringList>
-#include <QUuid>
 #include <QtMath>
 
 #include <algorithm>
@@ -427,11 +427,6 @@ QString writePresentation(const QString &path, const rv::data::Presentation &pre
         || !file.commit())
         return QStringLiteral("Cannot write %1: %2").arg(QFileInfo(path).fileName(), file.errorString());
     return {};
-}
-
-std::string newUuid()
-{
-    return QUuid::createUuid().toString(QUuid::WithoutBraces).toUpper().toStdString();
 }
 
 QColor toColor(const rv::data::Color &color)
@@ -898,7 +893,7 @@ rv::data::Slide::Element makeTextElement(const rv::data::Slide &slide, const rv:
     result.mutable_text_scroller()->set_repeat_distance(0.05);
 
     rv::data::Graphics::Element *element = result.mutable_element();
-    element->mutable_uuid()->set_string(newUuid());
+    element->mutable_uuid()->set_string(workspace::newUuid());
     element->set_name(uniqueElementName(slide, QStringLiteral("Text")).toStdString());
     element->set_opacity(1);
 

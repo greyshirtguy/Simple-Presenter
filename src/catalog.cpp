@@ -3,41 +3,31 @@
 #include "playlistimport.h"
 #include "prodocument.h"
 #include "thumbnailprovider.h"
+#include "workspacefiles.h"
 
-#include <QCollator>
 #include <QDir>
 #include <QFileInfo>
 #include <QThread>
 #include <QUrl>
 
-#include <algorithm>
-
-namespace {
-
-const QStringList videoPatterns = {"*.mp4", "*.mov", "*.m4v", "*.mkv", "*.webm", "*.avi"};
-const QStringList imagePatterns = {"*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.gif"};
-
-// Entries of one directory, sorted the way a file manager would ("Song 2" before "Song 10").
-QList<QFileInfo> entries(const QString &directory, const QStringList &patterns, QDir::Filters filters)
-{
-    QList<QFileInfo> found = QDir(directory).entryInfoList(patterns, filters | QDir::NoDotAndDotDot);
-
-    QCollator collator;
-    collator.setNumericMode(true);
-    collator.setCaseSensitivity(Qt::CaseInsensitive);
-    std::sort(found.begin(), found.end(), [&collator](const QFileInfo &a, const QFileInfo &b) {
-        return collator.compare(a.fileName(), b.fileName()) < 0;
-    });
-    return found;
-}
-
-} // namespace
+using workspace::sortedEntries;
 
 Catalog::Catalog(const QString &workspace, QObject *parent)
     : QObject(parent)
 {
-    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &Catalog::rescan);
+    // Changes on disk come in bursts: one file saved is several events, and an import
+    // or a copy in a file manager is hundreds. They are waited out, and the folders
+    // read once when they stop.
+    m_settle.setSingleShot(true);
+    m_settle.setInterval(150);
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_settle, qOverload<>(&QTimer::start));
+    connect(&m_settle, &QTimer::timeout, this, &Catalog::rescan);
     openWorkspace(workspace);
+}
+
+QString Catalog::mediaDialogFilter() const
+{
+    return workspace::mediaDialogFilter();
 }
 
 QString Catalog::workspaceName() const
@@ -58,53 +48,94 @@ void Catalog::openWorkspace(const QString &path)
     const QString seedError = PlaylistFile::seedMediaFromFolders(m_root);
     if (!seedError.isEmpty())
         qWarning("%s", qPrintable(seedError));
+    m_documents.clear();
+    // Whatever the next scan finds counts as a change, even an identical workspace.
+    m_scanned = false;
     emit workspaceChanged();
     rescan();
 }
 
+// Reads the workspace from disk again. The views are only told if what they show has
+// come out different: most of what happens on disk (a presentation saved with the same
+// arrangements, a thumbnail written beside the files) changes nothing they show, and
+// telling them anyway would have every list rebuilt for nothing.
 void Catalog::rescan()
 {
+    m_settle.stop();
+
     // The workspaces are the folders beside the open one.
     const QString workspacesDirectory = QFileInfo(m_root).absolutePath();
-    m_workspaces.clear();
-    for (const QFileInfo &workspace : entries(workspacesDirectory, {}, QDir::Dirs))
-        m_workspaces.append(QVariantMap {{"name", workspace.fileName()}, {"path", workspace.absoluteFilePath()}});
+    QVariantList workspaces;
+    for (const QFileInfo &workspace : sortedEntries(workspacesDirectory, {}, QDir::Dirs))
+        workspaces.append(QVariantMap {{"name", workspace.fileName()}, {"path", workspace.absoluteFilePath()}});
 
-    m_libraries.clear();
-    for (const QFileInfo &library : entries(m_librariesDirectory, {}, QDir::Dirs))
-        m_libraries.append(QVariantMap {
+    QVariantList libraries;
+    QStringList libraryPaths;
+    for (const QFileInfo &library : sortedEntries(m_librariesDirectory, {}, QDir::Dirs)) {
+        libraries.append(QVariantMap {
             {"name", library.fileName()},
             {"path", library.absoluteFilePath()},
             {"icon", QStringLiteral("library")},
         });
+        libraryPaths << library.absoluteFilePath();
+    }
 
     QString error;
-    m_playlists = PlaylistFile::load(m_root, &error);
+    const PlaylistFile playlists = PlaylistFile::load(m_root, &error);
     if (!error.isEmpty())
         qWarning("%s", qPrintable(error));
     error.clear();
-    m_mediaPlaylists = PlaylistFile::loadMedia(m_root, &error);
+    const PlaylistFile mediaPlaylists = PlaylistFile::loadMedia(m_root, &error);
     if (!error.isEmpty())
         qWarning("%s", qPrintable(error));
 
+    // The presentations of the libraries that have been looked into, read again.
+    QHash<QString, QVariantList> documents;
+    for (auto it = m_documents.constBegin(); it != m_documents.constEnd(); ++it) {
+        if (libraryPaths.contains(it.key()))
+            documents.insert(it.key(), listDocuments(it.key()));
+    }
+
     // Watch every folder whose contents are shown, so any change triggers a rescan.
-    QStringList watched {workspacesDirectory, m_librariesDirectory, QDir(m_root).absoluteFilePath("Playlists")};
-    for (const QVariant &library : std::as_const(m_libraries))
-        watched << library.toMap().value("path").toString();
+    const QStringList watched = QStringList {workspacesDirectory, m_librariesDirectory,
+                                             QDir(m_root).absoluteFilePath("Playlists")} + libraryPaths;
     if (!m_watcher.directories().isEmpty())
         m_watcher.removePaths(m_watcher.directories());
     m_watcher.addPaths(watched);
 
+    const bool same = m_scanned && workspaces == m_workspaces && libraries == m_libraries
+                      && playlists.nodes == m_playlists.nodes && playlists.items == m_playlists.items
+                      && mediaPlaylists.nodes == m_mediaPlaylists.nodes && mediaPlaylists.items == m_mediaPlaylists.items
+                      && documents == m_documents;
+    if (same)
+        return;
+    m_scanned = true;
+    m_workspaces = workspaces;
+    m_libraries = libraries;
+    m_playlists = playlists;
+    m_mediaPlaylists = mediaPlaylists;
+    m_documents = documents;
     ++m_revision;
     emit changed();
 }
 
+// Lists a library the first time it is asked for; from then on rescan() keeps the list
+// up to date. A workspace can have many libraries, and only the ones looked into cost
+// anything.
 QVariantList Catalog::documentsIn(const QString &library) const
 {
-    QVariantList documents;
     if (library.isEmpty())
-        return documents;
-    for (const QFileInfo &file : entries(library, {QStringLiteral("*.pro")}, QDir::Files)) {
+        return {};
+    auto listed = m_documents.constFind(library);
+    if (listed == m_documents.constEnd())
+        listed = m_documents.insert(library, listDocuments(library));
+    return *listed;
+}
+
+QVariantList Catalog::listDocuments(const QString &library) const
+{
+    QVariantList documents;
+    for (const QFileInfo &file : sortedEntries(library, {QStringLiteral("*.pro")}, QDir::Files)) {
         QStringList arrangements;
         QString arrangement;
         ProDocument::arrangementsOf(file.absoluteFilePath(), &arrangements, &arrangement);
@@ -219,8 +250,7 @@ QString Catalog::setArrangement(const QString &path, const QString &arrangement)
 
 QString Catalog::setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath)
 {
-    return ProDocument::setCueMedia(path, slideId, mediaPath,
-                                    QDir::match(videoPatterns, QFileInfo(mediaPath).fileName()), m_root);
+    return ProDocument::setCueMedia(path, slideId, mediaPath, m_root);
 }
 
 QString Catalog::removeSlideMedia(const QString &path, const QString &slideId)
@@ -304,7 +334,7 @@ QString Catalog::addMedia(const QString &playlist, const QList<QUrl> &files)
     QStringList paths;
     for (const QUrl &file : files) {
         const QString path = file.toLocalFile();
-        if (QDir::match(videoPatterns + imagePatterns, QFileInfo(path).fileName()))
+        if (workspace::isMedia(path))
             paths << path;
     }
     if (paths.isEmpty())

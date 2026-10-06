@@ -7,6 +7,18 @@
 
 // The playlists of a ProPresenter folder, read from <root>/Playlists/Library: a tree of
 // folders holding playlists, each playlist an ordered list of headers and presentations.
+// The media playlists, in <root>/Playlists/Media, are the same kind of file with media
+// files for rows, and are handled by the same code.
+//
+// Both files are one `PlaylistDocument` message: a root node whose children are folders
+// (nodes that hold nodes) and playlists (nodes that hold items). A playlist does not
+// contain its presentations or media; each row refers to a file (see workspacefiles.h
+// for how those references are read and written).
+//
+// Reading flattens the tree into rows for a list to show. Every change is its own
+// function, which reads the file, makes the one change to the message and writes it
+// back; nothing is held in memory between changes, so the file on disk is always the
+// truth, whichever of this app and ProPresenter wrote it last.
 struct PlaylistFile
 {
     // Which of the two files: the playlists of presentations, or the media playlists.

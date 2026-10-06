@@ -2,6 +2,7 @@
 
 #include "proconvert.h"
 #include "richtext.h"
+#include "workspacefiles.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -239,8 +240,9 @@ void PresentationEditor::backUp()
     }
     m_backupPath = target;
 
-    // Their names sort by time, so the oldest come first.
-    const QStringList copies = directory.entryList({base + QStringLiteral(" ????-??-?? ??.??.??.pro")}, QDir::Files, QDir::Name);
+    // Their names sort by time, so the oldest come first. The pattern is in pieces only
+    // because "??-", written whole, is a trigraph, which the compiler remarks on.
+    const QStringList copies = directory.entryList({base + QStringLiteral(" ????" "-??" "-?? ??.??.??.pro")}, QDir::Files, QDir::Name);
     for (qsizetype i = 0; i < copies.size() - backupsKept; ++i)
         QFile::remove(directory.filePath(copies.at(i)));
 }
@@ -407,7 +409,7 @@ QVariantMap PresentationEditor::duplicate(int row, const QString &element)
             return elementGone;
         rv::data::Slide::Element copy = slide->elements(index);
         rv::data::Graphics::Element *graphics = copy.mutable_element();
-        graphics->mutable_uuid()->set_string(proconvert::newUuid());
+        graphics->mutable_uuid()->set_string(workspace::newUuid());
         graphics->set_name(proconvert::uniqueElementName(*slide, QString::fromStdString(graphics->name())).toStdString());
         graphics->mutable_bounds()->mutable_origin()->set_x(graphics->bounds().origin().x() + 30);
         graphics->mutable_bounds()->mutable_origin()->set_y(graphics->bounds().origin().y() + 30);

@@ -1,21 +1,16 @@
 #include "playlistfile.h"
 
 #include "prodocument.h"
+#include "workspacefiles.h"
 
 #include "propresenter.pb.h"
 
-#include <QCollator>
 #include <QColor>
 #include <QDir>
-#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
-#include <QImageReader>
 #include <QSaveFile>
 #include <QUrl>
-#include <QUuid>
-
-#include <algorithm>
 
 namespace {
 
@@ -59,30 +54,9 @@ bool read(const QString &root, Kind kind, rv::data::PlaylistDocument *document, 
     return readFile(pathOf(root, kind), document, error);
 }
 
-// A presentation is recorded by the path it had on the machine that wrote the playlist,
-// and usually also relative to the ProPresenter folder. The relative form is the one
-// that still means something here; failing that, the recorded path, and failing that
-// a file of the same name in any library.
-QString findPresentation(const rv::data::URL &url, const QString &root)
-{
-    if (url.has_local() && url.local().root() == rv::data::URL::LocalRelativePath::ROOT_SHOW) {
-        const QString relative = QDir(root).absoluteFilePath(QString::fromStdString(url.local().path()));
-        if (QFile::exists(relative))
-            return relative;
-    }
-    const QString recorded = QUrl(QString::fromStdString(url.absolute_string())).toLocalFile();
-    if (!recorded.isEmpty() && QFile::exists(recorded))
-        return recorded;
-
-    const QString name = recorded.isEmpty() ? QFileInfo(QString::fromStdString(url.local().path())).fileName()
-                                            : QFileInfo(recorded).fileName();
-    if (name.isEmpty())
-        return {};
-    QDirIterator it(QDir(root).absoluteFilePath("Libraries"), {name}, QDir::Files, QDirIterator::Subdirectories);
-    return it.hasNext() ? it.next() : QString();
-}
-
-QVariantMap toRow(const rv::data::PlaylistItem &item, const QString &root)
+// A row of a playlist of presentations. `finder` finds presentations, by name anywhere
+// in the libraries if they are not where the playlist says.
+QVariantMap toRow(const rv::data::PlaylistItem &item, workspace::FileFinder *finder)
 {
     QVariantMap row {
         {"path", QString::fromStdString(item.uuid().string())},
@@ -105,7 +79,7 @@ QVariantMap toRow(const rv::data::PlaylistItem &item, const QString &root)
             row.insert("color", QColor::fromRgbF(unit(color.red()), unit(color.green()), unit(color.blue())).name());
         }
     } else if (item.has_presentation()) {
-        const QString file = findPresentation(item.presentation().document_path(), root);
+        const QString file = finder->find(item.presentation().document_path());
         row.insert("kind", QStringLiteral("presentation"));
         row.insert("icon", QStringLiteral("presentation"));
         row.insert("file", file);
@@ -128,7 +102,7 @@ QVariantMap toRow(const rv::data::PlaylistItem &item, const QString &root)
     return row;
 }
 
-void addNode(const rv::data::Playlist &node, const QString &parent, int depth, const QString &root,
+void addNode(const rv::data::Playlist &node, const QString &parent, int depth, workspace::FileFinder *finder,
              PlaylistFile *result)
 {
     const QString id = QString::fromStdString(node.uuid().string());
@@ -143,13 +117,13 @@ void addNode(const rv::data::Playlist &node, const QString &parent, int depth, c
     });
     if (folder) {
         for (const rv::data::Playlist &child : node.playlists().playlists())
-            addNode(child, id, depth + 1, root, result);
+            addNode(child, id, depth + 1, finder, result);
         return;
     }
     QVariantList rows;
     for (const rv::data::PlaylistItem &item : node.items().items()) {
         if (!item.is_hidden())
-            rows.append(toRow(item, root));
+            rows.append(toRow(item, finder));
     }
     result->items.insert(id, rows);
 }
@@ -179,10 +153,7 @@ QString readForChange(const QString &root, Kind kind, rv::data::PlaylistDocument
     return error.isEmpty() ? QStringLiteral("There are no playlists yet") : error;
 }
 
-std::string newId()
-{
-    return QUuid::createUuid().toString(QUuid::WithoutBraces).toUpper().toStdString();
-}
+using workspace::newUuid;
 
 // The node with this id, and through *siblings the list it sits in (null for the root).
 rv::data::Playlist *findNode(rv::data::Playlist *node, const std::string &id,
@@ -213,39 +184,25 @@ rv::data::Playlist *rootNode(rv::data::PlaylistDocument *document, Kind kind)
     if (!node->has_uuid()) {
         document->set_type(kind == PlaylistFile::Media ? rv::data::PlaylistDocument::TYPE_MEDIA
                                                        : rv::data::PlaylistDocument::TYPE_PRESENTATION);
-        node->mutable_uuid()->set_string(newId());
+        node->mutable_uuid()->set_string(newUuid());
         node->set_name("PLAYLIST");
         node->set_expanded(true);
     }
     return node;
 }
 
-// Records a presentation file both by its path on this machine and, when it is inside
-// the folder the playlists belong to, relative to that folder, which is the form that
-// survives the folder being moved or opened on another machine.
-void setDocumentPath(rv::data::URL *url, const QString &file, const QString &root)
-{
-    url->Clear();
-    url->set_absolute_string(QUrl::fromLocalFile(file).toString(QUrl::FullyEncoded).toStdString());
-    const QString relative = QDir(root).relativeFilePath(file);
-    if (!relative.startsWith(QLatin1String(".."))) {
-        url->mutable_local()->set_root(rv::data::URL::LocalRelativePath::ROOT_SHOW);
-        url->mutable_local()->set_path(relative.toStdString());
-    }
-}
-
 // Gives a copied node, and everything in it, ids of its own, and points its
 // presentations at the files of that name in `library`.
 void adopt(rv::data::Playlist *node, const QString &library, const QString &root)
 {
-    node->mutable_uuid()->set_string(newId());
+    node->mutable_uuid()->set_string(newUuid());
     if (node->has_playlists()) {
         for (rv::data::Playlist &child : *node->mutable_playlists()->mutable_playlists())
             adopt(&child, library, root);
         return;
     }
     for (rv::data::PlaylistItem &item : *node->mutable_items()->mutable_items()) {
-        item.mutable_uuid()->set_string(newId());
+        item.mutable_uuid()->set_string(newUuid());
         if (!item.has_presentation())
             continue;
         rv::data::URL *url = item.mutable_presentation()->mutable_document_path();
@@ -253,31 +210,11 @@ void adopt(rv::data::Playlist *node, const QString &library, const QString &root
         if (name.isEmpty())
             name = QFileInfo(QUrl(QString::fromStdString(url->absolute_string())).path()).fileName();
         if (!name.isEmpty())
-            setDocumentPath(url, QDir(library).absoluteFilePath(name), root);
+            workspace::recordFile(url, QDir(library).absoluteFilePath(name), root);
     }
 }
 
-// Where a media file is on this machine: by its path relative to the ProPresenter
-// folder, else by the path it was recorded with, else by its name anywhere under Media.
-QString findMediaFile(const rv::data::URL &url, const QString &root)
-{
-    if (url.has_local() && url.local().root() == rv::data::URL::LocalRelativePath::ROOT_SHOW) {
-        const QString relative = QDir(root).absoluteFilePath(QString::fromStdString(url.local().path()));
-        if (QFile::exists(relative))
-            return relative;
-    }
-    const QString recorded = QUrl(QString::fromStdString(url.absolute_string())).toLocalFile();
-    if (!recorded.isEmpty() && QFile::exists(recorded))
-        return recorded;
-    const QString name = recorded.isEmpty() ? QFileInfo(QString::fromStdString(url.local().path())).fileName()
-                                            : QFileInfo(recorded).fileName();
-    if (name.isEmpty())
-        return {};
-    QDirIterator it(QDir(root).absoluteFilePath("Media"), {name}, QDir::Files, QDirIterator::Subdirectories);
-    return it.hasNext() ? it.next() : QString();
-}
-
-void addMediaNode(const rv::data::Playlist &node, const QString &parent, int depth, const QString &root,
+void addMediaNode(const rv::data::Playlist &node, const QString &parent, int depth, workspace::FileFinder *finder,
                   PlaylistFile *result)
 {
     const QString id = QString::fromStdString(node.uuid().string());
@@ -292,7 +229,7 @@ void addMediaNode(const rv::data::Playlist &node, const QString &parent, int dep
     });
     if (folder) {
         for (const rv::data::Playlist &child : node.playlists().playlists())
-            addMediaNode(child, id, depth + 1, root, result);
+            addMediaNode(child, id, depth + 1, finder, result);
         return;
     }
 
@@ -307,7 +244,7 @@ void addMediaNode(const rv::data::Playlist &node, const QString &parent, int dep
             const rv::data::Media &media = action.media().element();
             if (!media.has_video() && !media.has_image())
                 continue;
-            const QString file = findMediaFile(media.url(), root);
+            const QString file = finder->find(media.url());
             QString name = QString::fromStdString(item.name());
             if (name.isEmpty())
                 name = QFileInfo(QUrl(QString::fromStdString(media.url().absolute_string())).path()).fileName();
@@ -349,8 +286,10 @@ PlaylistFile PlaylistFile::loadMedia(const QString &root, QString *error)
     rv::data::PlaylistDocument document;
     if (!read(root, Media, &document, error))
         return result;
+    // One finder for the whole file: see FileFinder.
+    workspace::FileFinder finder(root, QStringLiteral("Media"));
     for (const rv::data::Playlist &child : document.root_node().playlists().playlists())
-        addMediaNode(child, QString(), 0, root, &result);
+        addMediaNode(child, QString(), 0, &finder, &result);
     return result;
 }
 
@@ -361,8 +300,9 @@ PlaylistFile PlaylistFile::load(const QString &root, QString *error)
     if (!read(root, Presentations, &document, error))
         return result;
     // The root node is only a container; what the user sees starts with its children.
+    workspace::FileFinder finder(root, QStringLiteral("Libraries"));
     for (const rv::data::Playlist &child : document.root_node().playlists().playlists())
-        addNode(child, QString(), 0, root, &result);
+        addNode(child, QString(), 0, &finder, &result);
     return result;
 }
 
@@ -407,7 +347,7 @@ QString PlaylistFile::createNode(const QString &root, Kind kind, const QString &
         return QStringLiteral("A playlist cannot hold other playlists");
 
     rv::data::Playlist *node = parent->mutable_playlists()->add_playlists();
-    node->mutable_uuid()->set_string(newId());
+    node->mutable_uuid()->set_string(newUuid());
     node->set_name(name.toStdString());
     // Which of the two lists a node has is what makes it a folder or a playlist.
     if (folder) {
@@ -464,11 +404,11 @@ QString PlaylistFile::addPresentation(const QString &root, const QString &playli
         return QStringLiteral("That playlist is no longer there");
 
     rv::data::PlaylistItem *item = playlist->mutable_items()->add_items();
-    item->mutable_uuid()->set_string(newId());
+    item->mutable_uuid()->set_string(newUuid());
     item->set_name(QFileInfo(file).completeBaseName().toStdString());
 
     rv::data::PlaylistItem::Presentation *presentation = item->mutable_presentation();
-    setDocumentPath(presentation->mutable_document_path(), file, root);
+    workspace::recordFile(presentation->mutable_document_path(), file, root);
 
     QStringList arrangements;
     QString selected;
@@ -630,84 +570,37 @@ QString PlaylistFile::importPlaylists(const QString &root, const QByteArray &dat
 
 namespace {
 
-const QStringList videoPatterns = {"*.mp4", "*.mov", "*.m4v", "*.mkv", "*.webm", "*.avi"};
-const QStringList imagePatterns = {"*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.gif"};
-
-// Entries of one directory, sorted the way a file manager would.
-QList<QFileInfo> sortedEntries(const QString &directory, const QStringList &patterns, QDir::Filters filters)
-{
-    QList<QFileInfo> found = QDir(directory).entryInfoList(patterns, filters | QDir::NoDotAndDotDot);
-    QCollator collator;
-    collator.setNumericMode(true);
-    collator.setCaseSensitivity(Qt::CaseInsensitive);
-    std::sort(found.begin(), found.end(), [&collator](const QFileInfo &a, const QFileInfo &b) {
-        return collator.compare(a.fileName(), b.fileName()) < 0;
-    });
-    return found;
-}
-
-// A media file is recorded both by its path on this machine and, when it is inside the
-// folder the playlists belong to, relative to that folder.
-void setMediaPath(rv::data::URL *url, const QString &file, const QString &root)
-{
-    url->set_absolute_string(QUrl::fromLocalFile(file).toString(QUrl::FullyEncoded).toStdString());
-    const QString relative = QDir(root).relativeFilePath(file);
-    if (!relative.startsWith(QLatin1String(".."))) {
-        url->mutable_local()->set_root(rv::data::URL::LocalRelativePath::ROOT_SHOW);
-        url->mutable_local()->set_path(relative.toStdString());
-    }
-}
+using workspace::sortedEntries;
 
 // A playlist row for a media file, laid out the way ProPresenter writes one: a cue
 // whose one action plays the file, looping if it is a video.
 void addMediaItem(rv::data::Playlist *playlist, const QString &file, const QString &root)
 {
     const std::string name = QFileInfo(file).completeBaseName().toStdString();
-    const bool video = QDir::match(videoPatterns, QFileInfo(file).fileName());
 
     rv::data::PlaylistItem *item = playlist->mutable_items()->add_items();
-    item->mutable_uuid()->set_string(newId());
+    item->mutable_uuid()->set_string(newUuid());
     item->set_name(name);
 
     rv::data::Cue *cue = item->mutable_cue();
-    cue->mutable_uuid()->set_string(newId());
+    cue->mutable_uuid()->set_string(newUuid());
     cue->set_name(name);
     cue->set_completion_action_type(rv::data::Cue::COMPLETION_ACTION_TYPE_LAST);
     cue->set_isenabled(true);
 
     rv::data::Action *action = cue->add_actions();
-    action->mutable_uuid()->set_string(newId());
+    action->mutable_uuid()->set_string(newUuid());
     action->set_isenabled(true);
     action->set_type(rv::data::Action::ACTION_TYPE_MEDIA);
     action->mutable_media()->mutable_audio();
 
-    rv::data::Media *element = action->mutable_media()->mutable_element();
-    element->mutable_uuid()->set_string(newId());
-    setMediaPath(element->mutable_url(), file, root);
-    element->mutable_metadata()->set_format(QFileInfo(file).suffix().toUpper().toStdString());
-    if (video) {
-        rv::data::Media::VideoTypeProperties *properties = element->mutable_video();
-        properties->mutable_drawing()->set_alpha_type(rv::data::ALPHA_TYPE_STRAIGHT);
-        properties->mutable_audio()->set_volume(1);
-        properties->mutable_transport()->set_play_rate(1);
-        properties->mutable_transport()->set_playback_behavior(rv::data::Media::TransportProperties::PLAYBACK_BEHAVIOR_LOOP);
-        setMediaPath(properties->mutable_file()->mutable_local_url(), file, root);
-    } else {
-        rv::data::Media::ImageTypeProperties *properties = element->mutable_image();
-        const QSize size = QImageReader(file).size();
-        if (size.isValid()) {
-            properties->mutable_drawing()->mutable_natural_size()->set_width(size.width());
-            properties->mutable_drawing()->mutable_natural_size()->set_height(size.height());
-        }
-        properties->mutable_drawing()->set_alpha_type(rv::data::ALPHA_TYPE_STRAIGHT);
-        setMediaPath(properties->mutable_file()->mutable_local_url(), file, root);
-    }
+    *action->mutable_media()->mutable_element() = workspace::mediaElement(file, root);
 }
 
 rv::data::Playlist *addPlaylist(rv::data::Playlist *parent, const QString &name, bool folder)
 {
     rv::data::Playlist *node = parent->mutable_playlists()->add_playlists();
-    node->mutable_uuid()->set_string(newId());
+    node->mutable_uuid()->set_string(newUuid());
     node->set_name(name.toStdString());
     if (folder) {
         node->set_expanded(true);
@@ -723,7 +616,7 @@ rv::data::Playlist *addPlaylist(rv::data::Playlist *parent, const QString &name,
 // folder, holding a playlist of its own files first, if it has any, then its subfolders.
 void seedFrom(const QString &directory, const QString &name, rv::data::Playlist *parent, const QString &root)
 {
-    const QList<QFileInfo> files = sortedEntries(directory, videoPatterns + imagePatterns, QDir::Files);
+    const QList<QFileInfo> files = sortedEntries(directory, workspace::mediaPatterns(), QDir::Files);
     const QList<QFileInfo> folders = sortedEntries(directory, {}, QDir::Dirs);
     if (folders.isEmpty()) {
         if (files.isEmpty())
@@ -772,7 +665,7 @@ QString PlaylistFile::seedMediaFromFolders(const QString &root)
     // The Media folder itself is not a node: its own files become a playlist called
     // Media, and its subfolders sit beside that at the top level.
     const QString media = QDir(root).absoluteFilePath("Media");
-    const QList<QFileInfo> files = sortedEntries(media, videoPatterns + imagePatterns, QDir::Files);
+    const QList<QFileInfo> files = sortedEntries(media, workspace::mediaPatterns(), QDir::Files);
     if (!files.isEmpty()) {
         rv::data::Playlist *playlist = addPlaylist(top, QStringLiteral("Media"), false);
         for (const QFileInfo &file : files)

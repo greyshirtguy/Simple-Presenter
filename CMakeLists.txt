@@ -57,6 +57,8 @@ qt_add_executable(SimplePresenter
     src/textlayout.h
     src/thumbnailprovider.cpp
     src/thumbnailprovider.h
+    src/workspacefiles.cpp
+    src/workspacefiles.h
     src/zipreader.cpp
     src/zipreader.h
 )

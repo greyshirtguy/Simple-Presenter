@@ -9,6 +9,18 @@
 
 // Conversion between ProPresenter's slide messages and what the rest of the app works
 // with. Shared by the reader used for showing presentations and by the editor.
+//
+// Reading goes one way: a `Slide` message becomes a map (toSlideMap), which is all that
+// QML ever sees of a slide. The map is flat and complete on purpose. Whatever has to be
+// worked out is worked out here, once: which elements show (an element can be hidden,
+// or shown only when another has text), and what text each shows (an element can show
+// another's text in its own style). The views then only draw what they are given, and
+// the output, the thumbnails and the editor cannot disagree about it.
+//
+// Writing goes the other way, and is never a whole slide: applyChanges() and writeText()
+// alter fields of the message that was read, in place, and nothing else in it. That is
+// the rule for every file this app writes: what it does not understand, it does not
+// touch, so ProPresenter finds its own work as it left it.
 namespace proconvert {
 
 // Reads a presentation file. On failure returns false and sets *error.
@@ -17,9 +29,6 @@ bool readPresentation(const QString &path, rv::data::Presentation *presentation,
 // is written back as it was read. The file is replaced in one step, so a failure part
 // way through leaves the original untouched. Returns an error message, empty on success.
 QString writePresentation(const QString &path, const rv::data::Presentation &presentation);
-// An identifier in the form ProPresenter uses.
-std::string newUuid();
-
 QColor toColor(const rv::data::Color &color);
 void setColor(rv::data::Color *target, const QColor &color);
 

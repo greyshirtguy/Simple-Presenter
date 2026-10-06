@@ -6,8 +6,20 @@
 
 #include <optional>
 
-// A presentation flattened into what the QML slide renderer consumes: a list of slides in
-// display order. Each is a map of `id` (its cue's, so the same slide can be found again
+// A presentation, read for showing.
+//
+// How ProPresenter stores one. A .pro file is a `Presentation` message holding
+//   - cues: one for each slide. A cue is a list of actions, the things that happen when
+//     it is triggered: usually one that shows a slide, and often one that starts a
+//     media file under it;
+//   - cue groups: named, coloured runs of cues (Verse 1, Chorus), each a list of cue ids;
+//   - arrangements: named orders of the groups, in which a group may come up several
+//     times (Verse 1, Chorus, Verse 2, Chorus); and which of them is selected.
+// With no arrangement selected the slides run in the order the groups are stored, which
+// ProPresenter calls Master.
+//
+// What this makes of it: a presentation flattened into what the QML slide renderer
+// consumes, a list of slides in display order. Each is a map of `id` (its cue's, so the same slide can be found again
 // after rearranging), size, background, label, plain text and a list of elements, plus
 // its group: `group` (name), `groupColor` (the document's own colour for
 // it as "#rrggbb", or empty) and `groupStart` (true on the first slide of each run of the
@@ -42,7 +54,7 @@ struct ProDocument
     // replacing the media it triggered before if any, and writes the file back. The
     // media is recorded relative to `workspace` as well as by its path, if it is inside.
     // Returns an error message, empty on success.
-    static QString setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool video,
+    static QString setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath,
                                const QString &workspace);
     // Removes the media the cue triggers, if any, and writes the file back.
     static QString removeCueMedia(const QString &path, const QString &cueId);

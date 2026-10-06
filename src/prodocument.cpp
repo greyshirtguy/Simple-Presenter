@@ -1,75 +1,25 @@
 #include "prodocument.h"
 
 #include "proconvert.h"
+#include "workspacefiles.h"
 
-using proconvert::newUuid;
 using proconvert::readPresentation;
 using proconvert::writePresentation;
+using workspace::newUuid;
 
 #include <QColor>
-#include <QDirIterator>
-#include <QFile>
+#include <QDateTime>
 #include <QFileInfo>
 #include <QHash>
-#include <QImageReader>
+#include <QMutex>
 #include <QUrl>
-#include <QtMath>
 
 namespace {
 
-// Where a media file is on this machine. A document records it by the path it had on
-// the machine that wrote it and, usually, relative to the workspace folder. The relative
-// form is tried first, since it still holds when the workspace has been moved or copied
-// from elsewhere; then the recorded path; then any file of that name under the
-// workspace's Media folder.
-QString findMedia(const rv::data::URL &url, const QString &workspace)
-{
-    if (url.has_local() && url.local().root() == rv::data::URL::LocalRelativePath::ROOT_SHOW
-        && !url.local().path().empty() && !workspace.isEmpty()) {
-        const QString relative = QDir(workspace).absoluteFilePath(QString::fromStdString(url.local().path()));
-        if (QFile::exists(relative))
-            return relative;
-    }
-    const QString recorded = QUrl(QString::fromStdString(url.absolute_string())).toLocalFile();
-    if (!recorded.isEmpty() && QFile::exists(recorded))
-        return recorded;
-
-    QStringList names;
-    if (!recorded.isEmpty())
-        names << QFileInfo(recorded).fileName();
-    if (url.has_local() && !url.local().path().empty())
-        names << QFileInfo(QString::fromStdString(url.local().path())).fileName();
-    if (names.isEmpty() || workspace.isEmpty())
-        return {};
-
-    QDirIterator it(QDir(workspace).absoluteFilePath("Media"), names, QDir::Files, QDirIterator::Subdirectories);
-    return it.hasNext() ? it.next() : QString();
-}
-
-// Records a media file both by its path on this machine and, when it is inside the
-// workspace, relative to the workspace folder.
-void setMediaUrl(rv::data::URL *url, const QString &file, const QString &workspace)
-{
-    url->set_absolute_string(QUrl::fromLocalFile(file).toString(QUrl::FullyEncoded).toStdString());
-    const QString relative = QDir(workspace).relativeFilePath(file);
-    if (!workspace.isEmpty() && !relative.startsWith(QLatin1String(".."))) {
-        url->mutable_local()->set_root(rv::data::URL::LocalRelativePath::ROOT_SHOW);
-        url->mutable_local()->set_path(relative.toStdString());
-    }
-}
-
-// The file name a media element refers to, whether or not the file can be found here.
-QString mediaName(const rv::data::Media &media)
-{
-    const QUrl url(QString::fromStdString(media.url().absolute_string()));
-    const QString name = url.fileName();
-    return name.isEmpty() ? QFileInfo(QString::fromStdString(media.url().local().path())).fileName() : name;
-}
-
 // Empty if the file cannot be found.
-QVariantMap toMedia(const rv::data::Media &media, const QString &workspace)
+QVariantMap toMedia(const rv::data::Media &media, workspace::FileFinder *finder)
 {
-    const QString path = findMedia(media.url(), workspace);
+    const QString path = finder->find(media.url());
     if (path.isEmpty())
         return {};
     return {
@@ -163,7 +113,10 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
 
     // A cue becomes one grid entry: its slide, plus the media it triggers alongside. A cue
     // with media and no slide still gets an entry, so the media can be triggered.
-    const auto slidesForCue = [&workspace](const rv::data::Cue &cue) {
+    // One finder for the whole presentation, so that its media is only looked for by
+    // name, if it comes to that, with one pass over the Media folder.
+    workspace::FileFinder mediaFinder(workspace, QStringLiteral("Media"));
+    const auto slidesForCue = [&mediaFinder](const rv::data::Cue &cue) {
         QVariantList slides;
         if (!cue.isenabled())
             return slides;
@@ -178,8 +131,8 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                 slides.append(proconvert::toSlideMap(action.slide().presentation().base_slide(),
                                       QString::fromStdString(action.label().text())));
             } else if (isVisualMedia(action) && name.isEmpty()) {
-                name = mediaName(action.media().element());
-                media = toMedia(action.media().element(), workspace);
+                name = workspace::fileNameOf(action.media().element().url());
+                media = toMedia(action.media().element(), &mediaFinder);
             }
         }
         if (slides.isEmpty() && !name.isEmpty())
@@ -230,8 +183,33 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
     return document;
 }
 
+// Every list of presentations shows each one's arrangement, and the lists are read again
+// whenever anything in the workspace changes, so this is asked of every file over and
+// over. The answer is kept for as long as the file is the same file: same size, same
+// time of last change.
 bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QString *selected)
 {
+    struct Known
+    {
+        qint64 size;
+        QDateTime changed;
+        QStringList names;
+        QString selected;
+    };
+    static QHash<QString, Known> known;
+    static QMutex mutex;
+
+    const QFileInfo file(path);
+    {
+        const QMutexLocker lock(&mutex);
+        const auto found = known.constFind(path);
+        if (found != known.constEnd() && found->size == file.size() && found->changed == file.lastModified()) {
+            *names = found->names;
+            *selected = found->selected;
+            return true;
+        }
+    }
+
     rv::data::Presentation presentation;
     QString error;
     if (!readPresentation(path, &presentation, &error))
@@ -241,6 +219,9 @@ bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QStrin
         names->append(QString::fromStdString(candidate.name()));
     const auto *chosen = selectedArrangement(presentation);
     *selected = chosen ? QString::fromStdString(chosen->name()) : QString();
+
+    const QMutexLocker lock(&mutex);
+    known.insert(path, {file.size(), file.lastModified(), *names, *selected});
     return true;
 }
 
@@ -269,7 +250,7 @@ QString ProDocument::setArrangement(const QString &path, const QString &name)
     return writePresentation(path, presentation);
 }
 
-QString ProDocument::setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool video,
+QString ProDocument::setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath,
                                  const QString &workspace)
 {
     rv::data::Presentation presentation;
@@ -307,28 +288,7 @@ QString ProDocument::setCueMedia(const QString &path, const QString &cueId, cons
     // It described the old file's length.
     action->clear_duration();
 
-    rv::data::Media element;
-    element.mutable_uuid()->set_string(newUuid());
-    setMediaUrl(element.mutable_url(), mediaPath, workspace);
-    element.mutable_metadata()->set_format(QFileInfo(mediaPath).suffix().toUpper().toStdString());
-    if (video) {
-        rv::data::Media::VideoTypeProperties *properties = element.mutable_video();
-        properties->mutable_drawing()->set_alpha_type(rv::data::ALPHA_TYPE_STRAIGHT);
-        properties->mutable_audio()->set_volume(1);
-        properties->mutable_transport()->set_play_rate(1);
-        properties->mutable_transport()->set_playback_behavior(rv::data::Media::TransportProperties::PLAYBACK_BEHAVIOR_LOOP);
-        setMediaUrl(properties->mutable_file()->mutable_local_url(), mediaPath, workspace);
-    } else {
-        rv::data::Media::ImageTypeProperties *properties = element.mutable_image();
-        const QSize size = QImageReader(mediaPath).size();
-        if (size.isValid()) {
-            properties->mutable_drawing()->mutable_natural_size()->set_width(size.width());
-            properties->mutable_drawing()->mutable_natural_size()->set_height(size.height());
-        }
-        properties->mutable_drawing()->set_alpha_type(rv::data::ALPHA_TYPE_STRAIGHT);
-        setMediaUrl(properties->mutable_file()->mutable_local_url(), mediaPath, workspace);
-    }
-    *action->mutable_media()->mutable_element() = element;
+    *action->mutable_media()->mutable_element() = workspace::mediaElement(mediaPath, workspace);
 
     return writePresentation(path, presentation);
 }

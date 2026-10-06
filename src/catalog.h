@@ -4,6 +4,7 @@
 
 #include <QFileSystemWatcher>
 #include <QObject>
+#include <QTimer>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
@@ -18,7 +19,15 @@
 //   <workspace>/Playlists/Media             the media playlists, likewise
 // which is how ProPresenter lays out its own folder, so a copy of one is a workspace.
 // Workspaces sit side by side in one folder, and the catalog can be switched from one to
-// another. Kept up to date as files and folders come and go.
+// another.
+//
+// This is the one object the QML side talks to about what is on disk. It holds what the
+// lists show (libraries, playlists, media playlists and their rows) as plain lists of
+// maps, read whenever the folders change; `changed` says they have. Every change the app
+// makes to a workspace goes through here too, as a function that writes the file and
+// returns an error message, empty on success. The reading and writing themselves are in
+// PlaylistFile (the two playlists files), ProDocument (presentations) and
+// PlaylistImport (exported playlists); the editor has its own, PresentationEditor.
 class Catalog : public QObject
 {
     Q_OBJECT
@@ -46,6 +55,8 @@ class Catalog : public QObject
     Q_PROPERTY(int thumbnailRevision READ thumbnailRevision NOTIFY thumbnailsDiscarded)
     // Whether an import is still copying files.
     Q_PROPERTY(bool importing READ importing NOTIFY importingChanged)
+    // A filter for a file dialog, showing the media files the app can use.
+    Q_PROPERTY(QString mediaDialogFilter READ mediaDialogFilter CONSTANT)
 
 public:
     explicit Catalog(const QString &workspace, QObject *parent = nullptr);
@@ -65,6 +76,7 @@ public:
     int revision() const { return m_revision; }
     bool importing() const { return m_importing; }
     int thumbnailRevision() const { return m_thumbnailRevision; }
+    QString mediaDialogFilter() const;
 
     // Discards the cached thumbnails of these media files; they are made again as the
     // views next show them.
@@ -137,6 +149,7 @@ signals:
 
 private:
     void rescan();
+    QVariantList listDocuments(const QString &library) const;
     QString afterChange(const QString &error);
     QVariantMap open(const QString &path, const std::optional<QString> &arrangement) const;
 
@@ -150,5 +163,11 @@ private:
     int m_revision = 0;
     bool m_importing = false;
     int m_thumbnailRevision = 0;
+    // The presentations of each library that has been asked for, by its path
+    mutable QHash<QString, QVariantList> m_documents;
+    // Whether the workspace has been read at all yet
+    bool m_scanned = false;
     QFileSystemWatcher m_watcher;
+    // Runs out a little after the last change on disk, and then the workspace is read
+    QTimer m_settle;
 };
