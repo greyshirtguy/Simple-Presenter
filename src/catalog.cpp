@@ -32,26 +32,43 @@ QList<QFileInfo> entries(const QString &directory, const QStringList &patterns, 
 
 } // namespace
 
-Catalog::Catalog(const QString &root, QObject *parent)
+Catalog::Catalog(const QString &workspace, QObject *parent)
     : QObject(parent)
-    , m_root(QDir(root).absolutePath())
-    , m_librariesDirectory(QDir(root).absoluteFilePath("Libraries"))
-    , m_mediaDirectory(QDir(root).absoluteFilePath("Media"))
 {
+    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &Catalog::rescan);
+    openWorkspace(workspace);
+}
+
+QString Catalog::workspaceName() const
+{
+    return QFileInfo(m_root).fileName();
+}
+
+void Catalog::openWorkspace(const QString &path)
+{
+    m_root = QDir(path).absolutePath();
+    m_librariesDirectory = QDir(m_root).absoluteFilePath("Libraries");
+    m_mediaDirectory = QDir(m_root).absoluteFilePath("Media");
     QDir().mkpath(m_librariesDirectory);
     QDir().mkpath(m_mediaDirectory);
     QDir().mkpath(QDir(m_root).absoluteFilePath("Playlists"));
-    // The media bin shows media playlists, as ProPresenter's does. A folder that has
+    // The media bin shows media playlists, as ProPresenter's does. A workspace that has
     // never had any gets a set that mirrors the folders under Media, once.
     const QString seedError = PlaylistFile::seedMediaFromFolders(m_root);
     if (!seedError.isEmpty())
         qWarning("%s", qPrintable(seedError));
-    connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &Catalog::rescan);
+    emit workspaceChanged();
     rescan();
 }
 
 void Catalog::rescan()
 {
+    // The workspaces are the folders beside the open one.
+    const QString workspacesDirectory = QFileInfo(m_root).absolutePath();
+    m_workspaces.clear();
+    for (const QFileInfo &workspace : entries(workspacesDirectory, {}, QDir::Dirs))
+        m_workspaces.append(QVariantMap {{"name", workspace.fileName()}, {"path", workspace.absoluteFilePath()}});
+
     m_libraries.clear();
     for (const QFileInfo &library : entries(m_librariesDirectory, {}, QDir::Dirs))
         m_libraries.append(QVariantMap {
@@ -70,7 +87,7 @@ void Catalog::rescan()
         qWarning("%s", qPrintable(error));
 
     // Watch every folder whose contents are shown, so any change triggers a rescan.
-    QStringList watched {m_librariesDirectory, QDir(m_root).absoluteFilePath("Playlists")};
+    QStringList watched {workspacesDirectory, m_librariesDirectory, QDir(m_root).absoluteFilePath("Playlists")};
     for (const QVariant &library : std::as_const(m_libraries))
         watched << library.toMap().value("path").toString();
     if (!m_watcher.directories().isEmpty())
@@ -130,7 +147,7 @@ QVariantMap Catalog::openArranged(const QString &path, const QString &arrangemen
 QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arrangement) const
 {
     QString error;
-    const ProDocument document = ProDocument::load(path, m_mediaDirectory, arrangement, &error);
+    const ProDocument document = ProDocument::load(path, m_root, arrangement, &error);
     return {
         {"name", QFileInfo(path).completeBaseName()},
         {"path", path},
@@ -201,7 +218,8 @@ QString Catalog::setArrangement(const QString &path, const QString &arrangement)
 
 QString Catalog::setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath)
 {
-    return ProDocument::setCueMedia(path, slideId, mediaPath, QDir::match(videoPatterns, QFileInfo(mediaPath).fileName()));
+    return ProDocument::setCueMedia(path, slideId, mediaPath,
+                                    QDir::match(videoPatterns, QFileInfo(mediaPath).fileName()), m_root);
 }
 
 QString Catalog::removeSlideMedia(const QString &path, const QString &slideId)

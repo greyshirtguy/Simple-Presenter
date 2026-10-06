@@ -26,9 +26,10 @@ struct ProDocument
     // Reads a ProPresenter 7 .pro file. `arrangement` names the arrangement to follow,
     // "" (or a name the file does not have) being every group in stored order; without
     // it the arrangement the file has selected is followed. On failure returns an empty
-    // document and sets *error. Media whose recorded path does not exist here is looked
-    // up by file name under mediaDirectory.
-    static ProDocument load(const QString &path, const QString &mediaDirectory,
+    // document and sets *error. `workspace` is the folder the presentation's library,
+    // media and playlists live under: media is looked for relative to it, then at its
+    // recorded path, then by file name under its Media folder.
+    static ProDocument load(const QString &path, const QString &workspace,
                             const std::optional<QString> &arrangement, QString *error);
     // Just the arrangement names and which is selected ("" for none). False if unreadable.
     static bool arrangementsOf(const QString &path, QStringList *names, QString *selected);
@@ -38,9 +39,11 @@ struct ProDocument
     static QString arrangementId(const QString &path, const QString &name);
     static QString setArrangement(const QString &path, const QString &name);
     // Makes the cue with this id trigger the given image or video file as its media,
-    // replacing the media it triggered before if any, and writes the file back. Returns
-    // an error message, empty on success.
-    static QString setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool video);
+    // replacing the media it triggered before if any, and writes the file back. The
+    // media is recorded relative to `workspace` as well as by its path, if it is inside.
+    // Returns an error message, empty on success.
+    static QString setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool video,
+                               const QString &workspace);
     // Removes the media the cue triggers, if any, and writes the file back.
     static QString removeCueMedia(const QString &path, const QString &cueId);
 };

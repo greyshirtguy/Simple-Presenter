@@ -586,10 +586,36 @@ Window {
             // Nothing stored yet, or not readable: keep the defaults.
         }
 
-        const library = String(saved("library", ""))
-        const playlist = String(saved("playlist", ""))
-        const presentation = String(saved("presentation", ""))
-        const mediaPlaylist = String(saved("mediaPlaylist", ""))
+        restoreSelections()
+        restored = true
+        save("workspace", catalog.workspacePath)
+    }
+
+    // What is selected is remembered for each workspace by name. Paths inside the
+    // workspace are kept relative to it, so they still hold if its folder is moved.
+    function selectionKey(key) {
+        return "workspaces/" + catalog.workspaceName + "/" + key
+    }
+
+    function saveSelection(key, value) {
+        const inside = catalog.workspacePath + "/"
+        save(selectionKey(key), value.startsWith(inside) ? value.substring(inside.length) : value)
+    }
+
+    function savedSelection(key) {
+        if (!remember)
+            return ""
+        const value = String(settings.value(selectionKey(key), ""))
+        return value.includes("/") && !value.startsWith("/") ? catalog.workspacePath + "/" + value : value
+    }
+
+    // Selects what was selected last time in the open workspace, where it is still
+    // there, and otherwise the first library, presentation and media playlist.
+    function restoreSelections() {
+        const library = savedSelection("library")
+        const playlist = savedSelection("playlist")
+        const presentation = savedSelection("presentation")
+        const mediaPlaylist = savedSelection("mediaPlaylist")
         libraryPath = catalog.libraries.some(l => l.path === library) ? library
                     : catalog.libraries.length > 0 ? catalog.libraries[0].path : ""
         if (catalog.playlists.some(p => p.path === playlist && !p.folder)) {
@@ -604,8 +630,35 @@ Window {
         const firstMediaPlaylist = catalog.mediaPlaylists.find(p => !p.folder)
         openMediaPlaylist(catalog.mediaPlaylists.some(p => p.path === mediaPlaylist && !p.folder) ? mediaPlaylist
                           : firstMediaPlaylist ? firstMediaPlaylist.path : "")
-        restored = true
     }
+
+    // Closes the open workspace and opens another: the output is cleared, everything
+    // shown is reloaded from the other folder, and what was selected there last time is
+    // selected again.
+    function switchWorkspace(path) {
+        if (path === catalog.workspacePath)
+            return
+        clearAll()
+        // Nothing is saved while the selections are in between the two workspaces.
+        restored = false
+        liveDocument = null
+        liveIndex = -1
+        liveKey = ""
+        livePlaylistId = ""
+        document = null
+        documentKey = ""
+        playlistId = ""
+        selectedNode = ""
+        libraryPath = ""
+        mediaPlaylistId = ""
+        selectedMediaNode = ""
+        notice = ""
+        catalog.openWorkspace(path)
+        restoreSelections()
+        restored = true
+        save("workspace", path)
+    }
+
     onClosing: Qt.quit()
 
     // Saved as they change, not on exit, so a crash or a kill loses nothing.
@@ -631,11 +684,11 @@ Window {
     onTransitionDurationChanged: save("transitionDuration", transitionDuration)
     onLibraryPathChanged: {
         refreshLists()
-        save("library", libraryPath)
+        saveSelection("library", libraryPath)
     }
-    onPlaylistIdChanged: save("playlist", playlistId)
-    onDocumentKeyChanged: save("presentation", documentKey)
-    onMediaPlaylistIdChanged: save("mediaPlaylist", mediaPlaylistId)
+    onPlaylistIdChanged: saveSelection("playlist", playlistId)
+    onDocumentKeyChanged: saveSelection("presentation", documentKey)
+    onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
 
     Settings {
         id: settings
@@ -1275,8 +1328,50 @@ Window {
                 onDoubleTapped: win.visibility = win.visibility === Window.Maximized ? Window.Windowed : Window.Maximized
             }
 
-            Text {
+            // The workspace: the folder everything shown comes from. Picking another
+            // reloads the app from that one.
+            Rectangle {
+                id: workspacePicker
+
                 anchors.left: parent.left
+                anchors.leftMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                width: workspaceRow.width + 14
+                height: 38
+                radius: 8
+                color: "#23252b"
+                border.width: 1
+                border.color: "#3a3c42"
+
+                Row {
+                    id: workspaceRow
+
+                    anchors.centerIn: parent
+                    spacing: 8
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        leftPadding: 4
+                        color: win.dimTextColor
+                        font.pixelSize: 11
+                        font.capitalization: Font.AllUppercase
+                        text: "Workspace"
+                    }
+
+                    AppComboBox {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 180
+                        height: 28
+                        font.pixelSize: 13
+                        model: win.catalog.workspaces.map(w => w.name)
+                        currentIndex: win.catalog.workspaces.findIndex(w => w.path === win.catalog.workspacePath)
+                        onActivated: (index) => win.switchWorkspace(win.catalog.workspaces[index].path)
+                    }
+                }
+            }
+
+            Text {
+                anchors.left: workspacePicker.right
                 anchors.leftMargin: 14
                 anchors.right: toolbarControls.left
                 anchors.rightMargin: 16

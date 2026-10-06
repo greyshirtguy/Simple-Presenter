@@ -84,9 +84,15 @@ available, and `Selected format ... for hw` means a video is being decoded with 
 The lines FFmpeg prints at startup about VDPAU or Vulkan failing are it trying methods
 the machine does not have, and are harmless.
 
-## Content
+## Workspaces
 
-The app reads from `~/Documents/SimplePresenter`, created on first run:
+Everything the app shows comes from a workspace: one folder holding the libraries, media
+and playlists for a setup. Workspaces sit side by side in
+`~/Documents/SimplePresenter/WorkSpaces`, and the picker at the left of the toolbar
+switches between them, clearing the output and reloading everything from the one chosen.
+The app opens the workspace used last, and remembers what was selected in each.
+
+A workspace is laid out the way ProPresenter lays out its own folder:
 
 ```
 Libraries/<library name>/*.pro    presentations, one flat folder per library
@@ -95,19 +101,25 @@ Playlists/Library                 playlists and playlist folders, in ProPresente
 Playlists/Media                   media playlists and their folders, in ProPresenter's format
 ```
 
-The media bin shows the media playlists, as ProPresenter's does, not the folders on
-disk. The first time the app runs on a folder with no media playlists file, it writes one
-that mirrors the folders under `Media`: a playlist for each folder of media.
+So a copy of a ProPresenter folder, dropped into `WorkSpaces`, is a workspace. It will
+hold more than this (themes, presets, configuration), which the app leaves alone.
+Changes made in the app (a new playlist, a presentation added to one, an arrangement
+chosen, media dropped on a slide) are written to the files in the workspace.
 
-This is the layout of ProPresenter's own folder, so `--root <dir>` can point the app at
-a copy of one. Changes made in the app (a new playlist, a presentation added to one, an
-arrangement chosen, media dropped on a slide) are written to the files in that folder.
+Files are found by their path relative to the workspace first, so a workspace keeps
+working when it is moved or copied from another machine; then by the path recorded for
+them; then, for media, by name anywhere under `Media`.
+
+The media bin shows the media playlists, as ProPresenter's does, not the folders on
+disk. The first time the app opens a workspace with no media playlists file, it writes
+one that mirrors the folders under `Media`: a playlist for each folder of media.
 
 An exported playlist is imported from the "+" beside Playlists. Its presentations go
 into the library last browsed and its media under `Media`, keeping the folders it had
 below ProPresenter's own `Media` folder; files already there are left as they are.
 
-`--root <dir>` points it at a different folder. `--help` lists the other options.
+`--workspace <dir>` opens a particular workspace folder, wherever it is; the folders
+beside it are then the ones the picker offers. `--help` lists the other options.
 
 ## Keys
 
@@ -127,7 +139,8 @@ below ProPresenter's own `Media` folder; files already there are left as they ar
 
 drives the app through a fixed sequence (a slide, a transition, the clears, a simulated
 trackpad swipe), saves frames from each window into `<dir>` as PNGs, and quits. It
-neither reads nor changes saved settings.
+neither reads nor changes saved settings, and opens the first workspace unless
+`--workspace` names one.
 
 ## Layout
 
@@ -139,7 +152,7 @@ neither reads nor changes saved settings.
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/rtf.*` | Parser for the RTF that slide text is stored in |
 | `src/strokedtext.*` | Draws slide text with stroke and fill |
-| `src/catalog.*` | Libraries and media found on disk |
+| `src/catalog.*` | The open workspace: its libraries, playlists and media |
 | `src/thumbnailprovider.*` | Cached image and video thumbnails |
 | `src/framerelay.*` | Feeds the preview from the output's video frames |
 | `src/fontresolver.*` | Finds fonts by PostScript name through fontconfig |

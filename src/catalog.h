@@ -11,20 +11,26 @@
 
 #include <optional>
 
-// What is on disk under the app's root folder:
-//   <root>/Libraries/<library>/*.pro   presentations, one flat folder per library
-//   <root>/Media/...                   images and videos, in any depth of folders
-//   <root>/Playlists/Library           the playlists, in ProPresenter's own format
-//   <root>/Playlists/Media             the media playlists, likewise
-// which is how ProPresenter lays out its own folder, so that can be the root.
-// Kept up to date as files and folders come and go.
+// What is on disk in a workspace: one folder holding everything for a setup,
+//   <workspace>/Libraries/<library>/*.pro   presentations, one flat folder per library
+//   <workspace>/Media/...                   images and videos, in any depth of folders
+//   <workspace>/Playlists/Library           the playlists, in ProPresenter's own format
+//   <workspace>/Playlists/Media             the media playlists, likewise
+// which is how ProPresenter lays out its own folder, so a copy of one is a workspace.
+// Workspaces sit side by side in one folder, and the catalog can be switched from one to
+// another. Kept up to date as files and folders come and go.
 class Catalog : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("Created in main.cpp")
-    Q_PROPERTY(QString librariesDirectory READ librariesDirectory CONSTANT)
-    Q_PROPERTY(QString mediaDirectory READ mediaDirectory CONSTANT)
+    // The open workspace's folder and its name, and { name, path } for it and every
+    // folder beside it, sorted by name.
+    Q_PROPERTY(QString workspacePath READ workspacePath NOTIFY workspaceChanged)
+    Q_PROPERTY(QString workspaceName READ workspaceName NOTIFY workspaceChanged)
+    Q_PROPERTY(QVariantList workspaces READ workspaces NOTIFY changed)
+    Q_PROPERTY(QString librariesDirectory READ librariesDirectory NOTIFY workspaceChanged)
+    Q_PROPERTY(QString mediaDirectory READ mediaDirectory NOTIFY workspaceChanged)
     // { name, path } for each library folder, sorted by name.
     Q_PROPERTY(QVariantList libraries READ libraries NOTIFY changed)
     // { name, path, depth, folder } for each playlist and playlist folder, in tree order.
@@ -39,8 +45,15 @@ class Catalog : public QObject
     Q_PROPERTY(bool importing READ importing NOTIFY importingChanged)
 
 public:
-    explicit Catalog(const QString &root, QObject *parent = nullptr);
+    explicit Catalog(const QString &workspace, QObject *parent = nullptr);
 
+    // Switches to another workspace folder, creating what it lacks. Everything the
+    // catalog reports changes with it.
+    Q_INVOKABLE void openWorkspace(const QString &path);
+
+    QString workspacePath() const { return m_root; }
+    QString workspaceName() const;
+    QVariantList workspaces() const { return m_workspaces; }
     QString librariesDirectory() const { return m_librariesDirectory; }
     QString mediaDirectory() const { return m_mediaDirectory; }
     QVariantList libraries() const { return m_libraries; }
@@ -107,6 +120,7 @@ public:
 
 signals:
     void changed();
+    void workspaceChanged();
     void importingChanged();
     // `error` is empty on success, when `summary` says what was brought in and
     // `playlist` is the id of the first playlist added.
@@ -120,6 +134,7 @@ private:
     QString m_root;
     QString m_librariesDirectory;
     QString m_mediaDirectory;
+    QVariantList m_workspaces;
     QVariantList m_libraries;
     PlaylistFile m_playlists;
     PlaylistFile m_mediaPlaylists;

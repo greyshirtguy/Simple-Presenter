@@ -143,18 +143,20 @@ int main(int argc, char *argv[])
     QGuiApplication::setOrganizationName("SimplePresenter");
     QGuiApplication::setApplicationName("SimplePresenter");
 
-    const QString defaultRoot =
-        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/SimplePresenter";
+    // Workspaces are folders side by side in here; each holds everything for one setup.
+    const QString workspacesDirectory =
+        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/SimplePresenter/WorkSpaces";
 
     QCommandLineParser parser;
     parser.setApplicationDescription("Shows ProPresenter 7 presentations and media on a second window or screen.");
     parser.addHelpOption();
     const QCommandLineOption listOption("list-screens", "List the available screens and exit.");
-    const QCommandLineOption rootOption({"r", "root"}, "Folder holding Libraries/ and Media/ (default: " + defaultRoot + ").", "dir");
+    const QCommandLineOption workspaceOption({"w", "workspace"}, "Workspace folder to open, holding Libraries/, Media/ and Playlists/. "
+                                             "Default: the one used last, else the first in " + workspacesDirectory + ".", "dir");
     const QCommandLineOption screenOption({"s", "screen"}, "Screen for the fullscreen output (index or name). "
                                           "Default: a non-primary screen if there is one, otherwise a window.", "screen");
     const QCommandLineOption selfTestOption("selftest", "Drive the output through a fixed sequence, save frames as PNGs into <dir>, then quit.", "dir");
-    parser.addOptions({listOption, rootOption, screenOption, selfTestOption});
+    parser.addOptions({listOption, workspaceOption, screenOption, selfTestOption});
     parser.process(app);
 
     QTextStream out(stdout);
@@ -189,7 +191,20 @@ int main(int argc, char *argv[])
         }
     }
 
-    Catalog catalog(parser.isSet(rootOption) ? parser.value(rootOption) : defaultRoot);
+    // Which workspace: the one asked for, else the one used last if it is still there,
+    // else the first there is, else a new one. The self-test ignores the one used last,
+    // so that it does not depend on the user's saved session.
+    QString workspace = parser.value(workspaceOption);
+    if (workspace.isEmpty() && !parser.isSet(selfTestOption)) {
+        const QString last = QSettings("SimplePresenter", "SimplePresenter").value("workspace").toString();
+        if (!last.isEmpty() && QDir(last).exists())
+            workspace = last;
+    }
+    if (workspace.isEmpty()) {
+        const QStringList existing = QDir(workspacesDirectory).entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+        workspace = workspacesDirectory + "/" + (existing.isEmpty() ? QStringLiteral("Default") : existing.first());
+    }
+    Catalog catalog(workspace);
 
     QQmlApplicationEngine engine;
     engine.addImageProvider("thumbnail", new ThumbnailProvider);

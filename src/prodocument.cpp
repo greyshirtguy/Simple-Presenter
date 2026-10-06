@@ -126,10 +126,19 @@ QVariantMap toSlide(const rv::data::Slide &slide, const QString &label)
     };
 }
 
-// Documents record media by the path it had on the machine that wrote them. Use that if
-// it exists here, otherwise the first file of the same name under mediaDirectory.
-QString findMedia(const rv::data::URL &url, const QString &mediaDirectory)
+// Where a media file is on this machine. A document records it by the path it had on
+// the machine that wrote it and, usually, relative to the workspace folder. The relative
+// form is tried first, since it still holds when the workspace has been moved or copied
+// from elsewhere; then the recorded path; then any file of that name under the
+// workspace's Media folder.
+QString findMedia(const rv::data::URL &url, const QString &workspace)
 {
+    if (url.has_local() && url.local().root() == rv::data::URL::LocalRelativePath::ROOT_SHOW
+        && !url.local().path().empty() && !workspace.isEmpty()) {
+        const QString relative = QDir(workspace).absoluteFilePath(QString::fromStdString(url.local().path()));
+        if (QFile::exists(relative))
+            return relative;
+    }
     const QString recorded = QUrl(QString::fromStdString(url.absolute_string())).toLocalFile();
     if (!recorded.isEmpty() && QFile::exists(recorded))
         return recorded;
@@ -139,11 +148,23 @@ QString findMedia(const rv::data::URL &url, const QString &mediaDirectory)
         names << QFileInfo(recorded).fileName();
     if (url.has_local() && !url.local().path().empty())
         names << QFileInfo(QString::fromStdString(url.local().path())).fileName();
-    if (names.isEmpty() || mediaDirectory.isEmpty())
+    if (names.isEmpty() || workspace.isEmpty())
         return {};
 
-    QDirIterator it(mediaDirectory, names, QDir::Files, QDirIterator::Subdirectories);
+    QDirIterator it(QDir(workspace).absoluteFilePath("Media"), names, QDir::Files, QDirIterator::Subdirectories);
     return it.hasNext() ? it.next() : QString();
+}
+
+// Records a media file both by its path on this machine and, when it is inside the
+// workspace, relative to the workspace folder.
+void setMediaUrl(rv::data::URL *url, const QString &file, const QString &workspace)
+{
+    url->set_absolute_string(QUrl::fromLocalFile(file).toString(QUrl::FullyEncoded).toStdString());
+    const QString relative = QDir(workspace).relativeFilePath(file);
+    if (!workspace.isEmpty() && !relative.startsWith(QLatin1String(".."))) {
+        url->mutable_local()->set_root(rv::data::URL::LocalRelativePath::ROOT_SHOW);
+        url->mutable_local()->set_path(relative.toStdString());
+    }
 }
 
 // The file name a media element refers to, whether or not the file can be found here.
@@ -155,9 +176,9 @@ QString mediaName(const rv::data::Media &media)
 }
 
 // Empty if the file cannot be found.
-QVariantMap toMedia(const rv::data::Media &media, const QString &mediaDirectory)
+QVariantMap toMedia(const rv::data::Media &media, const QString &workspace)
 {
-    const QString path = findMedia(media.url(), mediaDirectory);
+    const QString path = findMedia(media.url(), workspace);
     if (path.isEmpty())
         return {};
     return {
@@ -237,7 +258,7 @@ const rv::data::Presentation::Arrangement *selectedArrangement(const rv::data::P
 
 } // namespace
 
-ProDocument ProDocument::load(const QString &path, const QString &mediaDirectory,
+ProDocument ProDocument::load(const QString &path, const QString &workspace,
                               const std::optional<QString> &arrangement, QString *error)
 {
     rv::data::Presentation presentation;
@@ -286,7 +307,7 @@ ProDocument ProDocument::load(const QString &path, const QString &mediaDirectory
 
     // A cue becomes one grid entry: its slide, plus the media it triggers alongside. A cue
     // with media and no slide still gets an entry, so the media can be triggered.
-    const auto slidesForCue = [&mediaDirectory](const rv::data::Cue &cue) {
+    const auto slidesForCue = [&workspace](const rv::data::Cue &cue) {
         QVariantList slides;
         if (!cue.isenabled())
             return slides;
@@ -302,7 +323,7 @@ ProDocument ProDocument::load(const QString &path, const QString &mediaDirectory
                                       QString::fromStdString(action.label().text())));
             } else if (isVisualMedia(action) && name.isEmpty()) {
                 name = mediaName(action.media().element());
-                media = toMedia(action.media().element(), mediaDirectory);
+                media = toMedia(action.media().element(), workspace);
             }
         }
         if (slides.isEmpty() && !name.isEmpty())
@@ -392,7 +413,8 @@ QString ProDocument::setArrangement(const QString &path, const QString &name)
     return writePresentation(path, presentation);
 }
 
-QString ProDocument::setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool video)
+QString ProDocument::setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool video,
+                                 const QString &workspace)
 {
     rv::data::Presentation presentation;
     QString error;
@@ -429,12 +451,9 @@ QString ProDocument::setCueMedia(const QString &path, const QString &cueId, cons
     // It described the old file's length.
     action->clear_duration();
 
-    // The file is recorded by its path on this machine. ProPresenter's paths relative to
-    // its own folders are left out: there is no such folder here to be relative to.
-    const std::string url = QUrl::fromLocalFile(mediaPath).toString(QUrl::FullyEncoded).toStdString();
     rv::data::Media element;
     element.mutable_uuid()->set_string(newUuid());
-    element.mutable_url()->set_absolute_string(url);
+    setMediaUrl(element.mutable_url(), mediaPath, workspace);
     element.mutable_metadata()->set_format(QFileInfo(mediaPath).suffix().toUpper().toStdString());
     if (video) {
         rv::data::Media::VideoTypeProperties *properties = element.mutable_video();
@@ -442,7 +461,7 @@ QString ProDocument::setCueMedia(const QString &path, const QString &cueId, cons
         properties->mutable_audio()->set_volume(1);
         properties->mutable_transport()->set_play_rate(1);
         properties->mutable_transport()->set_playback_behavior(rv::data::Media::TransportProperties::PLAYBACK_BEHAVIOR_LOOP);
-        properties->mutable_file()->mutable_local_url()->set_absolute_string(url);
+        setMediaUrl(properties->mutable_file()->mutable_local_url(), mediaPath, workspace);
     } else {
         rv::data::Media::ImageTypeProperties *properties = element.mutable_image();
         const QSize size = QImageReader(mediaPath).size();
@@ -451,7 +470,7 @@ QString ProDocument::setCueMedia(const QString &path, const QString &cueId, cons
             properties->mutable_drawing()->mutable_natural_size()->set_height(size.height());
         }
         properties->mutable_drawing()->set_alpha_type(rv::data::ALPHA_TYPE_STRAIGHT);
-        properties->mutable_file()->mutable_local_url()->set_absolute_string(url);
+        setMediaUrl(properties->mutable_file()->mutable_local_url(), mediaPath, workspace);
     }
     *action->mutable_media()->mutable_element() = element;
 
