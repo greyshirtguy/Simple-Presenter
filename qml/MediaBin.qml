@@ -16,7 +16,9 @@ Rectangle {
     // The operator window: what this shows is its state, and what happens here is done
     // by calling its functions.
     required property var win
-    // How wide the list of media playlists is: the width of the lists above it
+    // How wide the list of media playlists is, the thumbnails having the rest. The
+    // operator window keeps it, and has the line between the two that is dragged to
+    // change it.
     property real listWidth: 260
     // What a row dragged out of the list of playlists, and a file dragged out of the
     // grid, are carried by

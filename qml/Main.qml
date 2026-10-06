@@ -134,6 +134,9 @@ Window {
     ]
     // Pane sizes, changed by dragging the dividers between them
     property real sidebarWidth: 260
+    // How wide the media bin's list of playlists is. It starts as wide as the lists
+    // above it, and is its own from when it is first dragged.
+    property real mediaListWidth: 260
     // Height of the libraries and playlists pane at the top of the sidebar
     property real sourcesHeight: 260
     // The width slide thumbnails aim for. The grid fits as many columns of at least this
@@ -816,6 +819,7 @@ Window {
         width = Number(saved("windowWidth", width))
         height = Number(saved("windowHeight", height))
         sidebarWidth = Number(saved("sidebarWidth", sidebarWidth))
+        mediaListWidth = Number(saved("mediaListWidth", sidebarWidth))
         sourcesHeight = Number(saved("sourcesHeight", sourcesHeight))
         thumbnailWidth = Math.max(smallestThumbnail, Math.min(largestThumbnail,
                                   Number(saved("thumbnailWidth", thumbnailWidth))))
@@ -943,6 +947,7 @@ Window {
     onWidthChanged: save("windowWidth", width)
     onHeightChanged: save("windowHeight", height)
     onSidebarWidthChanged: save("sidebarWidth", sidebarWidth)
+    onMediaListWidthChanged: save("mediaListWidth", mediaListWidth)
     onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
     onThumbnailWidthChanged: save("thumbnailWidth", thumbnailWidth)
     onMediaThumbnailWidthChanged: save("mediaThumbnailWidth", mediaThumbnailWidth)
@@ -1255,6 +1260,17 @@ Window {
             onReleased: win.takeFocus()
         }
 
+        // Between the media bin's list of playlists and its thumbnails
+        Divider {
+            objectName: "mediaListDivider"
+            x: mediaBin.x + mediaBin.listWidth - width / 2
+            anchors.top: mediaBin.top
+            anchors.bottom: mediaBin.bottom
+            visible: win.mediaBinVisible
+            onMoved: (delta) => win.mediaListWidth = mediaBin.listWidth + delta
+            onReleased: win.takeFocus()
+        }
+
         MediaBin {
             id: mediaBin
 
@@ -1264,7 +1280,7 @@ Window {
             height: visible ? Math.max(120, Math.min(win.mediaBinHeight, win.height - toolbar.height - 160)) : 0
             visible: win.mediaBinVisible
             win: win
-            listWidth: sidebar.width
+            listWidth: Math.max(140, Math.min(win.mediaListWidth, width - 220))
             playlistDrag: mediaPlaylistDrag
             mediaDrag: mediaDrag
         }
