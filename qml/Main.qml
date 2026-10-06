@@ -10,7 +10,8 @@ import SimplePresenterApp
 // The operator window. A toolbar across the top stands in for the title bar; below it
 // are libraries and their presentations on the left, the selected presentation's slides
 // as a grid of thumbnails in the middle, the preview and clear buttons on the right, and
-// the media bin along the bottom. Owns the output and stage windows.
+// the media bin along the bottom. Owns the output and stage windows. In editor mode all
+// of that below the toolbar gives way to the editor, for the presentation being viewed.
 Window {
     id: win
 
@@ -90,6 +91,12 @@ Window {
     property bool outputEnabled: true
     property bool stageEnabled: true
     property bool settingsOpen: false
+    // Whether the editor is up, in place of the slides, working on the presentation
+    // being viewed
+    property bool editing: false
+    // Set if the workspace changed on disk while the editor was up: the lists are
+    // brought up to date when it comes down, not after every change it saves.
+    property bool listsStale: false
     // Read by main.cpp at the next launch; see the Windows section of the settings screen.
     property bool useX11: false
     // A message to show above the slides, or "", and whether it reports a failure
@@ -387,6 +394,7 @@ Window {
         }
         if (openable(entry)) {
             items.push({ header: "Presentation" })
+            items.push({ label: "Edit", run: () => startEditing(entry) })
             items.push({ label: "Rebuild Thumbnails", run: () => catalog.rebuildThumbnails(mediaOf(entry.file)) })
         }
         if (items.length > 0)
@@ -437,6 +445,72 @@ Window {
         }
         if (busiest !== "")
             openPlaylist(busiest)
+    }
+
+    // Brings up the editor on a presentation, at the slide that is live if that
+    // presentation is the live one.
+    function startEditing(entry) {
+        if (editing || !entry || !openable(entry))
+            return
+        if (documentKey !== entry.path)
+            openEntry(entry)
+        const slide = viewingLive && liveIndex >= 0 && liveIndex < document.slides.length ? document.slides[liveIndex].id : ""
+        if (!report(editScreen.open(entry.file, catalog.workspacePath, slide)))
+            return
+        notice = ""
+        editing = true
+        editScreen.takeFocus()
+    }
+
+    // Takes the editor down and shows the presentation as it now is. What is on the
+    // output is left as it is until a slide is next shown.
+    function stopEditing() {
+        if (!editing)
+            return
+        editScreen.finish()
+        const changed = editScreen.editor.changed
+        editScreen.close()
+        editing = false
+        keys.forceActiveFocus()
+        if (listsStale) {
+            listsStale = false
+            followCatalog()
+        }
+        const entry = currentEntry()
+        if (changed && entry) {
+            // The same slides in the same order, so the grid can stay where it is.
+            const scrolledTo = grid.contentY
+            document = load(entry)
+            grid.contentY = scrolledTo
+        }
+    }
+
+    // The url of the thumbnail of the media a slide of the presentation being viewed
+    // triggers, or "": what the editor shows behind that slide.
+    function slideBackdrop(slideId) {
+        const slide = document ? document.slides.find(s => s.id === slideId) : undefined
+        return slide && slide.media ? thumbnailUrl(slide.media.path) : ""
+    }
+
+    // For the self-test: steps through bringing the editor up, picking the first
+    // element with text, editing that text, and taking the editor down. Nothing is
+    // changed, so nothing is written.
+    function selfTestEditor(step) {
+        if (step === 0) {
+            startEditing(currentEntry())
+        } else if (step === 3) {
+            stopEditing()
+        } else if (editing) {
+            // On the first slide that has one, if the one being shown has none.
+            const pickable = () => editScreen.canvas.elements.find(e => e.hasText && !e.locked && !e.hidden)
+            for (let row = 0; !pickable() && row < editScreen.editor.count; ++row)
+                editScreen.showRow(row)
+            const first = pickable()
+            if (first && step === 1)
+                editScreen.canvas.pick(first.id)
+            else if (first)
+                editScreen.canvas.editText(first.id)
+        }
     }
 
     // Puts a slide on the slide layer, and any media its cue triggers on the media layer.
@@ -578,7 +652,7 @@ Window {
     color: panelColor
     // The toolbar is the title bar: it drags the window and carries the window buttons.
     flags: Qt.Window | Qt.FramelessWindowHint
-    title: document ? document.name + " — SimplePresenter" : "SimplePresenter"
+    title: (editing ? "Editing " : "") + (document ? document.name + " — SimplePresenter" : "SimplePresenter")
 
     // Restores the last session where what it refers to is still on disk, and falls back
     // to the first library and presentation and the top media folder where it is not.
@@ -687,7 +761,12 @@ Window {
         save("workspace", path)
     }
 
-    onClosing: Qt.quit()
+    // Whatever is still being typed in the editor goes into the file first.
+    onClosing: {
+        if (editing)
+            editScreen.finish()
+        Qt.quit()
+    }
 
     // Saved as they change, not on exit, so a crash or a kill loses nothing.
     function save(key, value) {
@@ -722,27 +801,37 @@ Window {
         id: settings
     }
 
+    // Brings the lists up to date with the workspace on disk, keeping each selection if
+    // it is still there and otherwise falling back to the first.
+    function followCatalog() {
+        refreshLists()
+        const firstLibrary = catalog.libraries.length > 0 ? catalog.libraries[0].path : ""
+        if (playlistId !== "" && !catalog.playlists.some(p => p.path === playlistId))
+            openLibrary(firstLibrary)
+        else if (playlistId === "" && !catalog.libraries.some(l => l.path === libraryPath))
+            openLibrary(firstLibrary)
+        else if (!documents.some(d => d.path === documentKey && openable(d)))
+            openFirst()
+        if (!catalog.playlists.some(p => p.path === selectedNode))
+            selectedNode = playlistId
+        if (!catalog.mediaPlaylists.some(p => p.path === mediaPlaylistId && !p.folder)) {
+            const first = catalog.mediaPlaylists.find(p => !p.folder)
+            openMediaPlaylist(first ? first.path : "")
+        } else if (!catalog.mediaPlaylists.some(p => p.path === selectedMediaNode)) {
+            selectedMediaNode = mediaPlaylistId
+        }
+    }
+
     Connections {
         target: win.catalog
 
-        // Keep each selection if it is still on disk; otherwise fall back to the first.
+        // Every change the editor saves is a change on disk; reading the lists again
+        // for each would be a lot of work for nothing, so that waits until it is done.
         function onChanged() {
-            win.refreshLists()
-            const firstLibrary = win.catalog.libraries.length > 0 ? win.catalog.libraries[0].path : ""
-            if (win.playlistId !== "" && !win.catalog.playlists.some(p => p.path === win.playlistId))
-                win.openLibrary(firstLibrary)
-            else if (win.playlistId === "" && !win.catalog.libraries.some(l => l.path === win.libraryPath))
-                win.openLibrary(firstLibrary)
-            else if (!win.documents.some(d => d.path === win.documentKey && win.openable(d)))
-                win.openFirst()
-            if (!win.catalog.playlists.some(p => p.path === win.selectedNode))
-                win.selectedNode = win.playlistId
-            if (!win.catalog.mediaPlaylists.some(p => p.path === win.mediaPlaylistId && !p.folder)) {
-                const first = win.catalog.mediaPlaylists.find(p => !p.folder)
-                win.openMediaPlaylist(first ? first.path : "")
-            } else if (!win.catalog.mediaPlaylists.some(p => p.path === win.selectedMediaNode)) {
-                win.selectedMediaNode = win.mediaPlaylistId
-            }
+            if (win.editing)
+                win.listsStale = true
+            else
+                win.followCatalog()
         }
     }
 
@@ -1214,27 +1303,32 @@ Window {
                 // Whether the rows come in sections under captions. If so the rows sit in
                 // from the captions, with room at their left for the tick on a current one.
                 readonly property bool sectioned: items.some(item => item.header !== undefined)
+                // Where in the item it was opened for to open, or null for under it
+                property var at: null
 
-                function show(items, item) {
+                function show(items, item, x, y) {
                     close()
                     menu.items = items
+                    menu.at = x === undefined ? null : Qt.point(x, y)
                     parent = item
                     open()
                 }
 
-                // Under the row it was opened from, or under a small button, ending at the
-                // button's right edge. `margins` then keeps the whole menu inside the
-                // window whatever that works out to, and a menu taller than the window
-                // scrolls.
-                x: parent && parent.width < 60 ? parent.width - width : 24
-                y: parent ? parent.height - 2 : 0
+                // At the point asked for; or under the row it was opened from; or under a
+                // small button, ending at the button's right edge. `margins` then keeps
+                // the whole menu inside the window whatever that works out to, and a menu
+                // taller than the window scrolls.
+                x: at ? at.x : parent && parent.width < 60 ? parent.width - width : 24
+                y: at ? at.y : parent ? parent.height - 2 : 0
                 width: 250
                 margins: 6
                 padding: 6
                 // Takes the keyboard while open, so that Esc closes it.
                 focus: true
                 onClosed: {
-                    if (playlistList.editingPath === "" && mediaList.editingPath === "")
+                    if (win.editing)
+                        editScreen.takeFocus()
+                    else if (playlistList.editingPath === "" && mediaList.editingPath === "")
                         keys.forceActiveFocus()
                 }
 
@@ -1393,6 +1487,9 @@ Window {
                         width: 180
                         height: 28
                         font.pixelSize: 13
+                        // Not while a presentation of this one is being edited
+                        enabled: !win.editing
+                        opacity: enabled ? 1 : 0.5
                         model: win.catalog.workspaces.map(w => w.name)
                         currentIndex: win.catalog.workspaces.findIndex(w => w.path === win.catalog.workspacePath)
                         onActivated: (index) => win.switchWorkspace(win.catalog.workspaces[index].path)
@@ -1509,6 +1606,21 @@ Window {
                 Item {
                     width: 14
                     height: 1
+                }
+
+                // Into the editor for the presentation being viewed, and back out
+                ToolbarIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    kind: "edit"
+                    label: "Edit"
+                    on: win.editing
+                    opacity: win.editing || (win.document !== null && win.currentEntry() !== undefined) ? 1 : 0.4
+                    onClicked: {
+                        if (win.editing)
+                            win.stopEditing()
+                        else
+                            win.startEditing(win.currentEntry())
+                    }
                 }
 
                 ToolbarIcon {
@@ -2456,6 +2568,31 @@ Window {
         }
     }
 
+    Editor {
+        id: editScreen
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        visible: win.editing
+        sidebarWidth: sidebar.width
+        groupColor: (slide) => win.groupColor(slide)
+        backdropFor: (slideId) => win.slideBackdrop(slideId)
+        showMenu: (items, item, x, y) => menu.show(items, item, x, y)
+        onDone: win.stopEditing()
+        // Whatever is on the output can still be cleared while editing.
+        onKeyPassed: (event) => {
+            if (event.key === Qt.Key_F1)
+                win.clearAll()
+            else if (event.key === Qt.Key_F2)
+                win.clearSlide()
+            else if (event.key === Qt.Key_F3)
+                win.clearMedia()
+            else
+                return
+            event.accepted = true
+        }
+    }
+
     SettingsScreen {
         anchors.fill: parent
         anchors.topMargin: toolbar.height
@@ -2466,7 +2603,10 @@ Window {
         onUseX11Edited: (useX11) => win.useX11 = useX11
         onClosed: {
             win.settingsOpen = false
-            keys.forceActiveFocus()
+            if (win.editing)
+                editScreen.takeFocus()
+            else
+                keys.forceActiveFocus()
         }
     }
 

@@ -4,19 +4,6 @@
 
 #include <QStringDecoder>
 
-QString RichText::plainText() const
-{
-    QStringList lines;
-    for (const TextParagraph &paragraph : paragraphs) {
-        QString line;
-        for (const TextRun &run : paragraph.runs)
-            line += run.text;
-        line.replace(QChar::LineSeparator, u'\n');
-        lines << line;
-    }
-    return lines.join(u'\n');
-}
-
 namespace {
 
 // Windows-1252 differs from Latin-1 only in 0x80..0x9F.
@@ -51,7 +38,13 @@ struct State
     int fillColor = 0;
     int strokeColor = 0;
     int strokeWidth = 0; // Cocoa: percent of font size, times 20; negative means stroke and fill
+    bool underline = false;
+    bool strikethrough = false;
+    int expand = 0; // twentieths of a point
+    int superscript = 0;
     Qt::Alignment alignment = Qt::AlignLeft;
+    int lineHeight = 0;
+    bool lineHeightIsMultiple = false;
     int unicodeSkip = 1;
     bool starred = false;
 };
@@ -95,6 +88,15 @@ public:
                 }
                 break;
             }
+        }
+        // Text after the last paragraph break is a paragraph too, even when there is
+        // none: a document that ends with a break ends with an empty line. It takes the
+        // format of the paragraph before it, the groups that set it having closed by now.
+        if (m_paragraph.runs.isEmpty() && !m_result.paragraphs.isEmpty()) {
+            const TextParagraph &before = m_result.paragraphs.last();
+            m_paragraph = before;
+            m_paragraph.runs = {before.runs.last()};
+            m_paragraph.runs.first().text.clear();
         }
         if (!m_paragraph.runs.isEmpty())
             m_result.paragraphs.append(m_paragraph);
@@ -239,14 +241,37 @@ private:
             m_state.unicodeSkip = param;
         } else if (word == "pard") {
             m_state.alignment = Qt::AlignLeft;
+            m_state.lineHeight = 0;
+            m_state.lineHeightIsMultiple = false;
         } else if (word == "plain") {
             const State fresh;
             m_state.font = fresh.font;
             m_state.halfPoints = fresh.halfPoints;
-            m_state.bold = m_state.italic = false;
+            m_state.bold = m_state.italic = m_state.underline = m_state.strikethrough = false;
             m_state.fillColor = m_state.strokeColor = m_state.strokeWidth = 0;
-        } else if (word == "ql" || word == "qj") {
+            m_state.expand = m_state.superscript = 0;
+        } else if (word == "ql") {
             m_state.alignment = Qt::AlignLeft;
+        } else if (word == "qj") {
+            m_state.alignment = Qt::AlignJustify;
+        } else if (word == "sl") {
+            m_state.lineHeight = param;
+        } else if (word == "slmult") {
+            m_state.lineHeightIsMultiple = param != 0;
+        } else if (word == "ulnone") {
+            m_state.underline = false;
+        } else if (word == "ul" || word == "uld" || word == "uldb" || word == "ulth" || word == "ulw") {
+            m_state.underline = on;
+        } else if (word == "strike" || word == "striked") {
+            m_state.strikethrough = on;
+        } else if (word == "expndtw") {
+            m_state.expand = param;
+        } else if (word == "super") {
+            m_state.superscript = on ? 1 : 0;
+        } else if (word == "sub") {
+            m_state.superscript = on ? -1 : 0;
+        } else if (word == "nosupersub") {
+            m_state.superscript = 0;
         } else if (word == "qc") {
             m_state.alignment = Qt::AlignHCenter;
         } else if (word == "qr") {
@@ -340,10 +365,15 @@ private:
         TextRun run;
         const QString fontName = m_fonts.value(m_state.font);
         const ResolvedFont font = resolvePostScriptName(fontName, m_defaults.familyForPostScriptName.value(fontName));
+        run.fontName = fontName;
         run.family = font.family;
         run.bold = font.bold || m_state.bold;
         run.italic = font.italic || m_state.italic;
         run.size = m_state.halfPoints / 2.0;
+        run.underline = m_state.underline;
+        run.strikethrough = m_state.strikethrough;
+        run.kerning = m_state.expand / 20.0;
+        run.superscript = m_state.superscript;
 
         const QColor fill = m_colors.value(m_state.fillColor);
         run.fill = fill.isValid() ? fill : m_defaults.textColor;
@@ -356,18 +386,18 @@ private:
         return run;
     }
 
-    static bool sameFormat(const TextRun &a, const TextRun &b)
+    void setParagraphFormat()
     {
-        return a.family == b.family && a.size == b.size && a.bold == b.bold && a.italic == b.italic
-            && a.fill == b.fill && a.fillVisible == b.fillVisible && a.stroke == b.stroke
-            && a.strokeWidth == b.strokeWidth;
+        m_paragraph.alignment = m_state.alignment;
+        m_paragraph.lineHeight = m_state.lineHeight;
+        m_paragraph.lineHeightIsMultiple = m_state.lineHeightIsMultiple;
     }
 
     void appendText(QChar c)
     {
         TextRun run = currentRun();
-        m_paragraph.alignment = m_state.alignment;
-        if (!m_paragraph.runs.isEmpty() && sameFormat(m_paragraph.runs.last(), run)) {
+        setParagraphFormat();
+        if (!m_paragraph.runs.isEmpty() && m_paragraph.runs.last().sameFormat(run)) {
             m_paragraph.runs.last().text += c;
         } else {
             run.text = c;
@@ -378,7 +408,7 @@ private:
     void endParagraph()
     {
         if (m_paragraph.runs.isEmpty()) {
-            m_paragraph.alignment = m_state.alignment;
+            setParagraphFormat();
             m_paragraph.runs.append(currentRun());
         }
         m_result.paragraphs.append(m_paragraph);

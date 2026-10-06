@@ -43,11 +43,18 @@ qt_add_executable(SimplePresenter
     src/playlistfile.h
     src/playlistimport.cpp
     src/playlistimport.h
+    src/proconvert.cpp
+    src/proconvert.h
     src/prodocument.cpp
     src/prodocument.h
+    src/richtext.cpp
     src/richtext.h
     src/rtf.cpp
     src/rtf.h
+    src/rtfwriter.cpp
+    src/rtfwriter.h
+    src/textlayout.cpp
+    src/textlayout.h
     src/thumbnailprovider.cpp
     src/thumbnailprovider.h
     src/zipreader.cpp
@@ -62,15 +69,24 @@ qt_add_qml_module(SimplePresenter
     VERSION 1.0
     QML_FILES
         qml/AppButton.qml
+        qml/AppCheck.qml
         qml/AppComboBox.qml
         qml/AppSlider.qml
         qml/AppTextField.qml
         qml/AuxWindow.qml
+        qml/ColorButton.qml
+        qml/Editor.qml
+        qml/EditorCanvas.qml
+        qml/EditorInspector.qml
+        qml/FontPicker.qml
+        qml/IconButton.qml
         qml/KineticWheel.qml
         qml/Main.qml
         qml/Output.qml
         qml/Slide.qml
+        qml/SlideElement.qml
         qml/MediaContent.qml
+        qml/NumberField.qml
         qml/ResizeGrips.qml
         qml/RowIcon.qml
         qml/SettingsScreen.qml
@@ -84,6 +100,10 @@ qt_add_qml_module(SimplePresenter
         src/catalog.cpp
         src/framerelay.h
         src/framerelay.cpp
+        src/presentationeditor.h
+        src/presentationeditor.cpp
+        src/richtextbridge.h
+        src/richtextbridge.cpp
         src/strokedtext.h
         src/strokedtext.cpp
 )

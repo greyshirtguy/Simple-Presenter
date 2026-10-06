@@ -1,10 +1,8 @@
 import QtQuick
-import QtQuick.Effects
-import SimplePresenterApp
 
-// One slide, transparent wherever it has no content. Geometry comes in slide units and
-// is multiplied by `u`, so text is rasterised at the output's real resolution rather
-// than scaled up from a fixed-size texture.
+// One slide, transparent wherever it has no content. Slides are authored against their
+// own size (typically 1920x1080) and drawn in units of the output's height over that,
+// so everything is rendered at the output's real resolution.
 Item {
     id: root
 
@@ -15,8 +13,6 @@ Item {
     readonly property real slideWidth: slide?.width ?? 1920
     readonly property real slideHeight: slide?.height ?? 1080
     readonly property real u: Math.min(width / slideWidth, height / slideHeight)
-    // Room for text strokes that overflow their box, in slide units
-    readonly property real textBleed: 40
 
     Item {
         anchors.centerIn: parent
@@ -30,49 +26,16 @@ Item {
             color: root.slide?.backgroundColor ?? "transparent"
         }
 
+        // Elements that are hidden, or that their visibility rules rule out, are not drawn.
         Repeater {
             model: root.slide?.elements ?? []
 
-            delegate: Item {
-                id: element
-
+            delegate: SlideElement {
                 required property var modelData
 
-                x: modelData.x * root.u
-                y: modelData.y * root.u
-                width: modelData.width * root.u
-                height: modelData.height * root.u
-                rotation: modelData.rotation
-                opacity: modelData.opacity
-
-                layer.enabled: modelData.shadowEnabled
-                layer.effect: MultiEffect {
-                    autoPaddingEnabled: true
-                    shadowEnabled: true
-                    shadowColor: element.modelData.shadowColor
-                    shadowHorizontalOffset: element.modelData.shadowOffsetX * root.u
-                    shadowVerticalOffset: element.modelData.shadowOffsetY * root.u
-                    blurMax: 64
-                    shadowBlur: Math.min(1, element.modelData.shadowRadius * root.u / 32)
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    visible: element.modelData.fillEnabled || element.modelData.strokeEnabled
-                    color: element.modelData.fillEnabled ? element.modelData.fillColor : "transparent"
-                    border.color: element.modelData.strokeColor
-                    border.width: element.modelData.strokeEnabled ? element.modelData.strokeWidth * root.u : 0
-                }
-
-                StrokedText {
-                    anchors.fill: parent
-                    anchors.margins: -root.textBleed * root.u
-                    visible: element.modelData.hasText
-                    content: element.modelData.text
-                    unit: root.u
-                    bleed: root.textBleed
-                    verticalAlignment: element.modelData.verticalAlignment
-                }
+                source: modelData
+                unit: root.u
+                visible: modelData.visible
             }
         }
     }

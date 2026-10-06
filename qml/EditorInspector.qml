@@ -1,0 +1,886 @@
+import QtQuick
+import QtQuick.Controls.Basic
+
+// The properties of the element picked in the editor, in two parts as ProPresenter has
+// them: its shape (where it is, its fill, stroke and shadow, and when it shows) and its
+// text (font, colour, alignment, outline, shadow, and where the text comes from).
+// Nothing here changes anything itself: each control reports what it was set to through
+// setProperties or setFormat. Sliders and colours being dragged report as they go, with
+// `interim` set, and settle() when they stop.
+Rectangle {
+    id: inspector
+
+    // The picked element, a map as proconvert describes, or null; and all the elements
+    // of its slide, which are what it can be linked to
+    property var element: null
+    property var elements: []
+    // The format of the text being worked on: a map as RichText::formatAt gives, or null
+    property var format: null
+    // Whether that is a selection in text being edited, rather than all of the text
+    property bool selection: false
+    // The installed font families
+    property var families: []
+    property var setProperties: (changes, interim) => {}
+    property var setFormat: (format, interim) => {}
+    property var settle: () => {}
+    property string tab: "shape"
+
+    // A value was typed in; whoever had the keyboard can have it back.
+    signal finished
+
+    readonly property var others: element ? elements.filter(e => e.id !== element.id) : []
+    // Their names, as a list that only changes when a name does, so that the drop-downs
+    // listing them are not rebuilt by every other change to the slide
+    readonly property string otherNamesJoined: others.map(e => e.name).join("\n")
+    readonly property var otherNames: otherNamesJoined === "" ? [] : otherNamesJoined.split("\n")
+    readonly property var transforms: ["As it is", "On one line", "A word to a line", "A letter to a line"]
+
+    color: "#2b2d31"
+
+    component Caption: Text {
+        width: 72
+        color: "#9a9da3"
+        font.pixelSize: 11
+        font.capitalization: Font.AllUppercase
+        elide: Text.ElideRight
+    }
+
+    // A caption with controls after it, or with no caption, controls from the edge
+    component Line: Item {
+        property alias caption: label.text
+        default property alias controls: row.data
+
+        width: parent.width
+        height: Math.max(30, row.height + 4)
+
+        Caption {
+            id: label
+
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Row {
+            id: row
+
+            x: label.text === "" ? 0 : 78
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+        }
+    }
+
+    // The same with a tick box for a caption
+    component CheckLine: Item {
+        property alias text: check.text
+        property alias checked: check.checked
+        default property alias controls: row.data
+
+        signal toggled(bool checked)
+
+        width: parent.width
+        height: 30
+
+        AppCheck {
+            id: check
+
+            width: 76
+            anchors.verticalCenter: parent.verticalCenter
+            onToggled: (checked) => parent.toggled(checked)
+        }
+
+        Row {
+            id: row
+
+            x: 78
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+        }
+    }
+
+    // A drop-down that shows `choice` and reports another with chosen(). A ComboBox
+    // goes back to its first entry whenever its list changes, and the lists here change
+    // with the slide, so this puts it back.
+    component Choice: AppComboBox {
+        property int choice: 0
+
+        signal chosen(int index)
+
+        height: 28
+        font.pixelSize: 13
+        onChoiceChanged: currentIndex = choice
+        onModelChanged: currentIndex = choice
+        Component.onCompleted: currentIndex = choice
+        // Put back first: reporting the choice may rebuild whatever this is part of.
+        onActivated: (index) => {
+            currentIndex = choice
+            chosen(index)
+        }
+    }
+
+    // A small caption in front of a control, within a Line
+    component Tag: Text {
+        anchors.verticalCenter: parent.verticalCenter
+        color: "#9a9da3"
+        font.pixelSize: 12
+    }
+
+    component Heading: Item {
+        property alias text: title.text
+
+        width: parent.width
+        height: 34
+
+        Rectangle {
+            y: 8
+            width: parent.width
+            height: 1
+            color: "#3f4248"
+        }
+
+        Text {
+            id: title
+
+            y: 15
+            color: "#e6e6e6"
+            font.pixelSize: 12
+            font.bold: true
+        }
+    }
+
+    component Note: Text {
+        width: parent.width
+        wrapMode: Text.Wrap
+        color: "#9a9da3"
+        font.pixelSize: 12
+    }
+
+    // Angle, offset and blur of a shadow whose keys start with `which`
+    component ShadowLine: Line {
+        property string which
+
+        Tag {
+            text: "Angle"
+        }
+
+        NumberField {
+            width: 44
+            from: 0
+            to: 360
+            step: 5
+            value: inspector.element ? inspector.element[which + "Angle"] : 0
+            onEdited: (value) => inspector.setProperties({ [which + "Angle"]: value }, false)
+            onFinished: inspector.finished()
+        }
+
+        Tag {
+            text: "Offset"
+        }
+
+        NumberField {
+            width: 40
+            from: 0
+            to: 500
+            value: inspector.element ? inspector.element[which + "Offset"] : 0
+            onEdited: (value) => inspector.setProperties({ [which + "Offset"]: value }, false)
+            onFinished: inspector.finished()
+        }
+
+        Tag {
+            text: "Blur"
+        }
+
+        NumberField {
+            width: 40
+            from: 0
+            to: 500
+            value: inspector.element ? inspector.element[which + "Radius"] : 0
+            onEdited: (value) => inspector.setProperties({ [which + "Radius"]: value }, false)
+            onFinished: inspector.finished()
+        }
+    }
+
+    // Shape and Text
+    Row {
+        id: tabs
+
+        x: 12
+        y: 10
+        spacing: 6
+
+        Repeater {
+            model: [{ name: "Shape", tab: "shape" }, { name: "Text", tab: "text" }]
+
+            delegate: Rectangle {
+                required property var modelData
+
+                width: (inspector.width - 30) / 2
+                height: 28
+                radius: 6
+                color: inspector.tab === modelData.tab ? "#ff8a1f" : tabMouse.containsMouse ? "#45484e" : "#3a3c42"
+
+                Text {
+                    anchors.centerIn: parent
+                    color: inspector.tab === parent.modelData.tab ? "black" : "#e6e6e6"
+                    font.pixelSize: 13
+                    font.bold: inspector.tab === parent.modelData.tab
+                    text: parent.modelData.name
+                }
+
+                MouseArea {
+                    id: tabMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: inspector.tab = parent.modelData.tab
+                }
+            }
+        }
+    }
+
+    Text {
+        anchors.centerIn: parent
+        width: parent.width - 48
+        visible: inspector.element === null
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.Wrap
+        color: "#9a9da3"
+        font.pixelSize: 13
+        text: "Click an element on the slide, or in the list, to change it."
+    }
+
+    Flickable {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: tabs.bottom
+        anchors.bottom: parent.bottom
+        anchors.topMargin: 8
+        contentHeight: (inspector.tab === "shape" ? shapeTab.height : textTab.height) + 24
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        visible: inspector.element !== null
+
+        ScrollBar.vertical: ScrollBar {}
+
+        KineticWheel {}
+
+        // The shape
+        Column {
+            id: shapeTab
+
+            x: 12
+            width: parent.width - 26
+            visible: inspector.tab === "shape"
+
+            Line {
+                caption: "Name"
+
+                AppTextField {
+                    id: nameField
+
+                    function show() {
+                        text = inspector.element ? inspector.element.name : ""
+                    }
+
+                    width: shapeTab.width - 78
+                    height: 26
+                    font.pixelSize: 12
+                    onEditingFinished: {
+                        const name = text.trim()
+                        if (inspector.element && name !== "" && name !== inspector.element.name)
+                            inspector.setProperties({ name: name }, false)
+                        show()
+                    }
+                    onAccepted: inspector.finished()
+                    Keys.onEscapePressed: {
+                        show()
+                        inspector.finished()
+                    }
+                    Component.onCompleted: show()
+
+                    Connections {
+                        target: inspector
+
+                        function onElementChanged() {
+                            if (!nameField.activeFocus)
+                                nameField.show()
+                        }
+                    }
+                }
+            }
+
+            Line {
+                caption: "Position"
+
+                Tag {
+                    text: "X"
+                }
+
+                NumberField {
+                    decimals: 1
+                    value: inspector.element ? inspector.element.x : 0
+                    onEdited: (value) => inspector.setProperties({ x: value }, false)
+                    onFinished: inspector.finished()
+                }
+
+                Tag {
+                    text: "Y"
+                }
+
+                NumberField {
+                    decimals: 1
+                    value: inspector.element ? inspector.element.y : 0
+                    onEdited: (value) => inspector.setProperties({ y: value }, false)
+                    onFinished: inspector.finished()
+                }
+            }
+
+            Line {
+                caption: "Size"
+
+                Tag {
+                    text: "W"
+                }
+
+                NumberField {
+                    decimals: 1
+                    from: 1
+                    value: inspector.element ? inspector.element.width : 0
+                    onEdited: (value) => inspector.setProperties({ width: value }, false)
+                    onFinished: inspector.finished()
+                }
+
+                Tag {
+                    text: "H"
+                }
+
+                NumberField {
+                    decimals: 1
+                    from: 1
+                    value: inspector.element ? inspector.element.height : 0
+                    onEdited: (value) => inspector.setProperties({ height: value }, false)
+                    onFinished: inspector.finished()
+                }
+            }
+
+            Line {
+                caption: "Opacity"
+
+                AppSlider {
+                    width: shapeTab.width - 78 - 60
+                    anchors.verticalCenter: parent.verticalCenter
+                    from: 0
+                    to: 1
+                    value: inspector.element ? inspector.element.opacity : 1
+                    onMoved: inspector.setProperties({ opacity: Math.round(value * 100) / 100 }, true)
+                    onPressedChanged: {
+                        if (!pressed)
+                            inspector.settle()
+                    }
+                }
+
+                NumberField {
+                    width: 52
+                    from: 0
+                    to: 100
+                    step: 5
+                    suffix: "%"
+                    value: inspector.element ? Math.round(inspector.element.opacity * 100) : 100
+                    onEdited: (value) => inspector.setProperties({ opacity: value / 100 }, false)
+                    onFinished: inspector.finished()
+                }
+            }
+
+            Heading {
+                text: "Fill"
+            }
+
+            CheckLine {
+                text: "Fill"
+                checked: inspector.element ? inspector.element.fillOn : false
+                onToggled: (checked) => inspector.setProperties({ fillOn: checked }, false)
+
+                // Picking a colour turns the fill on, and makes it a plain colour.
+                ColorButton {
+                    value: inspector.element ? inspector.element.fillColor : "black"
+                    onChanging: (value) => inspector.setProperties({ fillColor: value, fillOn: true }, true)
+                    onPicked: (value) => inspector.setProperties({ fillColor: value, fillOn: true }, false)
+                    onClosed: inspector.finished()
+                }
+            }
+
+            AppCheck {
+                width: parent.width
+                text: "Only behind the lines of text"
+                checked: inspector.element ? inspector.element.fillLinesOnly : false
+                onToggled: (checked) => inspector.setProperties({ fillLinesOnly: checked }, false)
+            }
+
+            Note {
+                topPadding: 4
+                visible: inspector.element !== null && inspector.element.fillKind !== "color"
+                         && inspector.element.fillKind !== "none"
+                text: inspector.element && inspector.element.fillKind === "gradient"
+                      ? "This element has a gradient fill, which is not drawn here yet. It is kept as it is unless a colour is picked, which replaces it."
+                      : "This element is filled with something that is not drawn here yet. It is kept as it is unless a colour is picked, which replaces it."
+            }
+
+            Heading {
+                text: "Stroke"
+            }
+
+            CheckLine {
+                text: "Stroke"
+                checked: inspector.element ? inspector.element.strokeOn : false
+                onToggled: (checked) => inspector.setProperties({ strokeOn: checked }, false)
+
+                ColorButton {
+                    value: inspector.element ? inspector.element.strokeColor : "white"
+                    onChanging: (value) => inspector.setProperties({ strokeColor: value, strokeOn: true }, true)
+                    onPicked: (value) => inspector.setProperties({ strokeColor: value, strokeOn: true }, false)
+                    onClosed: inspector.finished()
+                }
+
+                Tag {
+                    text: "Width"
+                }
+
+                NumberField {
+                    width: 46
+                    decimals: 1
+                    from: 0
+                    to: 200
+                    value: inspector.element ? inspector.element.strokeWidth : 0
+                    onEdited: (value) => inspector.setProperties({ strokeWidth: value }, false)
+                    onFinished: inspector.finished()
+                }
+            }
+
+            Heading {
+                text: "Shadow"
+            }
+
+            CheckLine {
+                text: "Shadow"
+                checked: inspector.element ? inspector.element.shadowEnabled : false
+                onToggled: (checked) => inspector.setProperties({ shadowEnabled: checked }, false)
+
+                ColorButton {
+                    value: inspector.element ? inspector.element.shadowColor : "black"
+                    onChanging: (value) => inspector.setProperties({ shadowColor: value, shadowEnabled: true }, true)
+                    onPicked: (value) => inspector.setProperties({ shadowColor: value, shadowEnabled: true }, false)
+                    onClosed: inspector.finished()
+                }
+            }
+
+            ShadowLine {
+                which: "shadow"
+            }
+
+            Heading {
+                text: "Visibility"
+            }
+
+            AppCheck {
+                width: parent.width
+                text: "Show only when…"
+                checked: inspector.element ? inspector.element.visibilityRules : false
+                onToggled: (checked) => {
+                    // Starts with one condition, on the first other element, if there is one.
+                    if (checked && inspector.others.length > 0)
+                        inspector.setProperties({
+                            visibilityRules: true,
+                            visibilityCriterion: 0,
+                            visibilityConditions: [{ kind: "element", elementId: inspector.others[0].id, hasText: true }]
+                        }, false)
+                    else
+                        inspector.setProperties({ visibilityRules: checked }, false)
+                }
+            }
+
+            Column {
+                id: rules
+
+                readonly property var conditions: inspector.element ? inspector.element.visibilityConditions : []
+
+                // The conditions with one of them changed, or with `change` null removed.
+                function edited(index, change) {
+                    const list = []
+                    for (let i = 0; i < conditions.length; ++i) {
+                        if (i !== index)
+                            list.push(conditions[i])
+                        else if (change !== null)
+                            list.push(Object.assign({}, conditions[i], change))
+                    }
+                    return list
+                }
+
+                width: parent.width
+                spacing: 6
+                topPadding: 4
+                visible: inspector.element !== null && inspector.element.visibilityRules
+
+                Choice {
+                    width: parent.width
+                    model: ["all of these are so", "any of these is so", "none of these is so"]
+                    choice: inspector.element ? inspector.element.visibilityCriterion : 0
+                    onChosen: (index) => inspector.setProperties({ visibilityCriterion: index }, false)
+                }
+
+                Repeater {
+                    model: rules.conditions
+
+                    delegate: Row {
+                        id: condition
+
+                        required property var modelData
+                        required property int index
+                        readonly property bool known: modelData.kind === "element"
+                        // The element it is about may have gone from the slide.
+                        readonly property int place: known ? inspector.others.findIndex(e => e.id === modelData.elementId) : -1
+
+                        spacing: 6
+
+                        Choice {
+                            width: rules.width - 110 - 26 - 12
+                            visible: condition.known
+                            model: (condition.place < 0 && condition.known ? ["“" + condition.modelData.elementName + "” (gone)"] : [])
+                                   .concat(inspector.otherNames)
+                            choice: Math.max(0, condition.place)
+                            onChosen: (index) => {
+                                const other = inspector.others[index - (condition.place < 0 ? 1 : 0)]
+                                if (other)
+                                    inspector.setProperties({ visibilityConditions: rules.edited(condition.index, { elementId: other.id }) }, false)
+                            }
+                        }
+
+                        Choice {
+                            width: 110
+                            visible: condition.known
+                            model: ["has text", "is empty"]
+                            choice: condition.modelData.hasText ? 0 : 1
+                            onChosen: (index) => inspector.setProperties(
+                                { visibilityConditions: rules.edited(condition.index, { hasText: index === 0 }) }, false)
+                        }
+
+                        // A condition on something only ProPresenter tracks
+                        Text {
+                            width: rules.width - 26 - 6
+                            height: 28
+                            visible: !condition.known
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                            color: "#9a9da3"
+                            font.pixelSize: 12
+                            text: condition.known ? "" : condition.modelData.label + " (set up in ProPresenter)"
+                        }
+
+                        IconButton {
+                            width: 26
+                            height: 28
+                            text: "✕"
+                            onClicked: inspector.setProperties({ visibilityConditions: rules.edited(condition.index, null) }, false)
+                        }
+                    }
+                }
+
+                AppButton {
+                    height: 28
+                    font.pixelSize: 13
+                    text: "Add a condition"
+                    enabled: inspector.others.length > 0
+                    onClicked: inspector.setProperties({
+                        visibilityConditions: rules.conditions.concat([{ kind: "element", elementId: inspector.others[0].id, hasText: true }])
+                    }, false)
+                }
+
+                Note {
+                    text: "Conditions are checked when the slide is shown. Here the element stays in view so that it can be worked on."
+                }
+            }
+        }
+
+        // The text
+        Column {
+            id: textTab
+
+            x: 12
+            width: parent.width - 26
+            visible: inspector.tab === "text" && inspector.format !== null
+
+            Note {
+                bottomPadding: 6
+                text: inspector.selection ? "Changes apply to the selected text." : "Changes apply to all of the text."
+            }
+
+            Line {
+                caption: "Font"
+
+                FontPicker {
+                    width: textTab.width - 78
+                    family: inspector.format ? inspector.format.family : ""
+                    families: inspector.families
+                    onPicked: (family) => inspector.setFormat({ family: family }, false)
+                    onClosed: inspector.finished()
+                }
+            }
+
+            Line {
+                caption: "Size"
+
+                NumberField {
+                    id: sizeField
+
+                    width: 52
+                    from: 1
+                    to: 2000
+                    value: inspector.format ? inspector.format.size : 0
+                    onEdited: (value) => inspector.setFormat({ size: value }, false)
+                    onFinished: inspector.finished()
+                }
+
+                IconButton {
+                    width: 26
+                    text: "−"
+                    onClicked: inspector.setFormat({ size: Math.max(1, Math.round(sizeField.value) - 2) }, false)
+                }
+
+                IconButton {
+                    width: 26
+                    text: "+"
+                    onClicked: inspector.setFormat({ size: Math.round(sizeField.value) + 2 }, false)
+                }
+
+                ColorButton {
+                    value: inspector.format ? inspector.format.color : "white"
+                    onChanging: (value) => inspector.setFormat({ color: value }, true)
+                    onPicked: (value) => inspector.setFormat({ color: value }, false)
+                    onClosed: inspector.finished()
+                }
+            }
+
+            Line {
+                caption: "Style"
+
+                Repeater {
+                    model: [{ kind: "bold", key: "bold" }, { kind: "italic", key: "italic" },
+                            { kind: "underline", key: "underline" }, { kind: "strike", key: "strikethrough" }]
+
+                    delegate: IconButton {
+                        required property var modelData
+
+                        kind: modelData.kind
+                        on: inspector.format ? inspector.format[modelData.key] === true : false
+                        onClicked: inspector.setFormat({ [modelData.key]: !on }, false)
+                    }
+                }
+            }
+
+            Line {
+                caption: "Align"
+
+                Repeater {
+                    model: [{ kind: "alignLeft", flag: Qt.AlignLeft }, { kind: "alignCenter", flag: Qt.AlignHCenter },
+                            { kind: "alignRight", flag: Qt.AlignRight }, { kind: "alignJustify", flag: Qt.AlignJustify }]
+
+                    delegate: IconButton {
+                        required property var modelData
+
+                        kind: modelData.kind
+                        on: inspector.format ? (inspector.format.alignment & modelData.flag) !== 0 : false
+                        onClicked: inspector.setFormat({ alignment: modelData.flag }, false)
+                    }
+                }
+            }
+
+            Line {
+                caption: "In the box"
+
+                Repeater {
+                    model: [{ kind: "alignTop", flag: Qt.AlignTop }, { kind: "alignMiddle", flag: Qt.AlignVCenter },
+                            { kind: "alignBottom", flag: Qt.AlignBottom }]
+
+                    delegate: IconButton {
+                        required property var modelData
+
+                        kind: modelData.kind
+                        on: inspector.element ? (inspector.element.verticalAlignment & modelData.flag) !== 0 : false
+                        onClicked: inspector.setProperties({ verticalAlignment: modelData.flag }, false)
+                    }
+                }
+            }
+
+            Line {
+                caption: "Capitals"
+
+                Choice {
+                    width: textTab.width - 78
+                    model: ["As typed", "ALL CAPITALS", "Small capitals", "Title Case", "Start case"]
+                    choice: inspector.format ? inspector.format.capitalization : 0
+                    onChosen: (index) => inspector.setFormat({ capitalization: index }, false)
+                }
+            }
+
+            Line {
+                caption: "Spacing"
+
+                NumberField {
+                    width: 52
+                    decimals: 1
+                    from: -100
+                    to: 500
+                    value: inspector.format ? inspector.format.kerning : 0
+                    onEdited: (value) => inspector.setFormat({ kerning: value }, false)
+                    onFinished: inspector.finished()
+                }
+
+                Tag {
+                    text: "between letters"
+                }
+            }
+
+            Heading {
+                text: "Outline"
+            }
+
+            CheckLine {
+                text: "Outline"
+                checked: inspector.format ? inspector.format.strokeWidth > 0 : false
+                // Turned on, it is three hundredths of the text's size, as a start.
+                onToggled: (checked) => inspector.setFormat(
+                    { strokeWidth: checked ? Math.max(1, Math.round(inspector.format.size * 0.03)) : 0 }, false)
+
+                ColorButton {
+                    value: inspector.format ? inspector.format.strokeColor : "black"
+                    onChanging: (value) => inspector.setFormat({ strokeColor: value }, true)
+                    onPicked: (value) => inspector.setFormat(inspector.format.strokeWidth > 0
+                        ? { strokeColor: value }
+                        : { strokeColor: value, strokeWidth: Math.max(1, Math.round(inspector.format.size * 0.03)) }, false)
+                    onClosed: inspector.finished()
+                }
+
+                Tag {
+                    text: "Width"
+                }
+
+                NumberField {
+                    width: 46
+                    decimals: 1
+                    from: 0
+                    to: 200
+                    value: inspector.format ? inspector.format.strokeWidth : 0
+                    onEdited: (value) => inspector.setFormat({ strokeWidth: value }, false)
+                    onFinished: inspector.finished()
+                }
+            }
+
+            Heading {
+                text: "Shadow"
+            }
+
+            CheckLine {
+                text: "Shadow"
+                checked: inspector.element ? inspector.element.textShadowEnabled : false
+                onToggled: (checked) => inspector.setProperties({ textShadowEnabled: checked }, false)
+
+                ColorButton {
+                    value: inspector.element ? inspector.element.textShadowColor : "black"
+                    onChanging: (value) => inspector.setProperties({ textShadowColor: value, textShadowEnabled: true }, true)
+                    onPicked: (value) => inspector.setProperties({ textShadowColor: value, textShadowEnabled: true }, false)
+                    onClosed: inspector.finished()
+                }
+            }
+
+            ShadowLine {
+                which: "textShadow"
+            }
+
+            Heading {
+                text: "Margins"
+            }
+
+            Line {
+                Repeater {
+                    model: [{ tag: "L", key: "marginLeft" }, { tag: "T", key: "marginTop" },
+                            { tag: "R", key: "marginRight" }, { tag: "B", key: "marginBottom" }]
+
+                    delegate: Row {
+                        required property var modelData
+
+                        spacing: 4
+
+                        Tag {
+                            text: parent.modelData.tag
+                        }
+
+                        NumberField {
+                            width: 44
+                            from: 0
+                            to: 2000
+                            value: inspector.element ? inspector.element[parent.modelData.key] : 0
+                            onEdited: (value) => inspector.setProperties({ [parent.modelData.key]: value }, false)
+                            onFinished: inspector.finished()
+                        }
+                    }
+                }
+            }
+
+            Heading {
+                text: "Linked text"
+            }
+
+            // Another element of the slide whose text this one shows, in its own style
+            Column {
+                width: parent.width
+                spacing: 6
+                visible: inspector.element !== null && inspector.element.linkKind !== "other"
+
+                Line {
+                    id: linkLine
+
+                    // The element it is linked to may have gone from the slide.
+                    readonly property bool linked: inspector.element !== null && inspector.element.linkKind === "element"
+                    readonly property int place: linked ? inspector.others.findIndex(e => e.id === inspector.element.linkElementId) : -1
+                    readonly property bool gone: linked && place < 0
+
+                    caption: "Shows"
+
+                    Choice {
+                        width: textTab.width - 78
+                        model: ["its own text"].concat(linkLine.gone ? ["“" + inspector.element.linkElementName + "” (gone)"] : [])
+                                               .concat(inspector.otherNames.map(name => "the text of “" + name + "”"))
+                        choice: !linkLine.linked ? 0 : linkLine.gone ? 1 : linkLine.place + 1
+                        onChosen: (index) => {
+                            const other = inspector.others[index - 1 - (linkLine.gone ? 1 : 0)]
+                            if (index === 0)
+                                inspector.setProperties({ linkKind: "none" }, false)
+                            else if (other)
+                                inspector.setProperties({ linkKind: "element", linkElementId: other.id }, false)
+                        }
+                    }
+                }
+
+                Line {
+                    caption: "Set"
+                    visible: inspector.element !== null && inspector.element.linkKind === "element"
+
+                    Choice {
+                        width: textTab.width - 78
+                        model: inspector.transforms
+                        choice: inspector.element ? inspector.element.linkTransform : 0
+                        onChosen: (index) => inspector.setProperties({ linkTransform: index }, false)
+                    }
+                }
+
+                Note {
+                    visible: inspector.element !== null && inspector.element.linkKind === "element"
+                    text: "The text is the other element's; the font, colour and everything else here are this one's."
+                }
+            }
+
+            Note {
+                visible: inspector.element !== null && inspector.element.linkKind === "other"
+                text: inspector.element ? "This element is linked to a " + inspector.element.linkLabel.toLowerCase()
+                      + " in ProPresenter. That is kept, but is not shown here: the element shows its own text." : ""
+            }
+        }
+    }
+}

@@ -73,3 +73,72 @@ ResolvedFont resolvePostScriptName(const QString &postScriptName, const QString 
     cache.insert(key, font);
     return font;
 }
+
+namespace {
+
+QString styleSuffix(bool bold, bool italic)
+{
+    return bold && italic ? QStringLiteral("-BoldItalic") : bold ? QStringLiteral("-Bold")
+         : italic ? QStringLiteral("-Italic") : QString();
+}
+
+// The PostScript name of the installed face of this family and style, or empty if the
+// family is not installed.
+QString installedPostScriptName(const QString &family, bool bold, bool italic)
+{
+    FcPattern *pattern = FcPatternBuild(nullptr, FC_FAMILY, FcTypeString, family.toUtf8().constData(),
+                                        FC_WEIGHT, FcTypeInteger, bold ? FC_WEIGHT_BOLD : FC_WEIGHT_REGULAR,
+                                        FC_SLANT, FcTypeInteger, italic ? FC_SLANT_ITALIC : FC_SLANT_ROMAN, nullptr);
+    FcConfigSubstitute(nullptr, pattern, FcMatchPattern);
+    FcDefaultSubstitute(pattern);
+    FcResult result = FcResultNoMatch;
+    FcPattern *match = FcFontMatch(nullptr, pattern, &result);
+
+    QString name;
+    if (match) {
+        FcChar8 *matchedFamily = nullptr;
+        FcChar8 *postScriptName = nullptr;
+        // Fontconfig always matches something; it only counts if it is the family asked for.
+        if (FcPatternGetString(match, FC_FAMILY, 0, &matchedFamily) == FcResultMatch
+            && family.compare(QString::fromUtf8(reinterpret_cast<const char *>(matchedFamily)), Qt::CaseInsensitive) == 0
+            && FcPatternGetString(match, FC_POSTSCRIPT_NAME, 0, &postScriptName) == FcResultMatch)
+            name = QString::fromUtf8(reinterpret_cast<const char *>(postScriptName));
+        FcPatternDestroy(match);
+    }
+    FcPatternDestroy(pattern);
+    return name;
+}
+
+} // namespace
+
+QString postScriptNameFor(const QString &family, bool bold, bool italic)
+{
+    const QString installed = installedPostScriptName(family, bold, italic);
+    if (!installed.isEmpty())
+        return installed;
+    QString base = family;
+    base.remove(u' ');
+    return base + styleSuffix(bold, italic);
+}
+
+QString restyledPostScriptName(const QString &postScriptName, const QString &family, bool bold, bool italic)
+{
+    const QString installed = installedPostScriptName(family, bold, italic);
+    if (!installed.isEmpty())
+        return installed;
+    if (postScriptName.isEmpty())
+        return postScriptNameFor(family, bold, italic);
+    // Only the bold and italic parts of the name change: "CMGSans-Light" made bold is
+    // still a guess, but "CMGSans-LightItalic" made upright should stay Light.
+    const qsizetype dash = postScriptName.lastIndexOf(u'-');
+    const QString base = dash > 0 ? postScriptName.left(dash) : postScriptName;
+    QString style = dash > 0 ? postScriptName.mid(dash + 1) : QString();
+    for (const QString &part : {QStringLiteral("BoldItalic"), QStringLiteral("BoldOblique"), QStringLiteral("Bold"),
+                                QStringLiteral("Italic"), QStringLiteral("Oblique"), QStringLiteral("Regular")})
+        style.remove(part);
+    if (bold)
+        style += QStringLiteral("Bold");
+    if (italic)
+        style += QStringLiteral("Italic");
+    return style.isEmpty() ? base : base + u'-' + style;
+}

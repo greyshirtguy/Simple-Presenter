@@ -1,9 +1,10 @@
 #include "prodocument.h"
 
-#include "richtext.h"
-#include "rtf.h"
+#include "proconvert.h"
 
-#include "presentation.pb.h"
+using proconvert::newUuid;
+using proconvert::readPresentation;
+using proconvert::writePresentation;
 
 #include <QColor>
 #include <QDirIterator>
@@ -11,120 +12,10 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QImageReader>
-#include <QSaveFile>
 #include <QUrl>
-#include <QUuid>
 #include <QtMath>
 
 namespace {
-
-QColor toColor(const rv::data::Color &color)
-{
-    const auto unit = [](float v) { return qBound(0.0f, v, 1.0f); };
-    return QColor::fromRgbF(unit(color.red()), unit(color.green()), unit(color.blue()), unit(color.alpha()));
-}
-
-int toQtVerticalAlignment(rv::data::Graphics::Text::VerticalAlignment alignment)
-{
-    switch (alignment) {
-    case rv::data::Graphics::Text::VERTICAL_ALIGNMENT_TOP:
-        return Qt::AlignTop;
-    case rv::data::Graphics::Text::VERTICAL_ALIGNMENT_BOTTOM:
-        return Qt::AlignBottom;
-    default:
-        return Qt::AlignVCenter;
-    }
-}
-
-void addFontHint(RtfDefaults *defaults, const rv::data::Font &font)
-{
-    if (!font.name().empty() && !font.family().empty())
-        defaults->familyForPostScriptName.insert(QString::fromStdString(font.name()), QString::fromStdString(font.family()));
-}
-
-QVariantMap textProperties(const RichText &text, int verticalAlignment)
-{
-    return {
-        {"hasText", !text.paragraphs.isEmpty()},
-        {"text", QVariant::fromValue(text)},
-        {"verticalAlignment", verticalAlignment},
-    };
-}
-
-QVariantMap toElement(const rv::data::Graphics::Element &element)
-{
-    QVariantMap map {
-        {"x", element.bounds().origin().x()},
-        {"y", element.bounds().origin().y()},
-        {"width", element.bounds().size().width()},
-        {"height", element.bounds().size().height()},
-        {"rotation", element.rotation()},
-        {"opacity", element.opacity()},
-        {"fillEnabled", element.fill().enable() && element.fill().has_color()},
-        {"fillColor", toColor(element.fill().color())},
-        {"strokeEnabled", element.stroke().enable() && element.stroke().width() > 0},
-        {"strokeColor", toColor(element.stroke().color())},
-        {"strokeWidth", element.stroke().width()},
-    };
-
-    // Elements carry a shadow of their own and another on their text; honour whichever is on.
-    const rv::data::Graphics::Shadow &shadow =
-        element.text().shadow().enable() ? element.text().shadow() : element.shadow();
-    QColor shadowColor = toColor(shadow.color());
-    shadowColor.setAlphaF(shadowColor.alphaF() * qBound(0.0, shadow.opacity(), 1.0));
-    // The angle is measured anticlockwise with y pointing up; slides have y pointing down.
-    const double angle = qDegreesToRadians(shadow.angle());
-    map.insert("shadowEnabled", shadow.enable());
-    map.insert("shadowColor", shadowColor);
-    map.insert("shadowOffsetX", shadow.offset() * qCos(angle));
-    map.insert("shadowOffsetY", -shadow.offset() * qSin(angle));
-    map.insert("shadowRadius", shadow.radius());
-
-    RichText text;
-    if (element.has_text() && !element.text().rtf_data().empty()) {
-        const rv::data::Graphics::Text::Attributes &attributes = element.text().attributes();
-        RtfDefaults defaults;
-        if (attributes.has_text_solid_fill())
-            defaults.textColor = toColor(attributes.text_solid_fill());
-        addFontHint(&defaults, attributes.font());
-        for (const auto &custom : attributes.custom_attributes()) {
-            if (custom.has_original_font())
-                addFontHint(&defaults, custom.original_font());
-        }
-        text = parseRtf(QByteArray::fromStdString(element.text().rtf_data()), defaults);
-    }
-    map.insert(textProperties(text, toQtVerticalAlignment(element.text().vertical_alignment())));
-    return map;
-}
-
-QVariantMap toSlide(const rv::data::Slide &slide, const QString &label)
-{
-    QVariantList elements;
-    QStringList texts;
-    for (const rv::data::Slide::Element &element : slide.elements()) {
-        if (element.element().hidden())
-            continue;
-        const QVariantMap map = toElement(element.element());
-        const QString text = map.value("text").value<RichText>().plainText().trimmed();
-        if (!text.isEmpty())
-            texts << text;
-        elements.append(map);
-    }
-    const bool hasSize = slide.size().width() > 0 && slide.size().height() > 0;
-    return {
-        {"width", hasSize ? slide.size().width() : 1920.0},
-        {"height", hasSize ? slide.size().height() : 1080.0},
-        {"drawsBackground", slide.draws_background_color()},
-        {"backgroundColor", toColor(slide.background_color())},
-        {"label", label},
-        {"group", QString()},
-        {"groupColor", QString()},
-        {"groupStart", false},
-        {"mediaName", QString()},
-        {"plainText", texts.join(u'\n')},
-        {"elements", elements},
-    };
-}
 
 // Where a media file is on this machine. A document records it by the path it had on
 // the machine that wrote it and, usually, relative to the workspace folder. The relative
@@ -209,41 +100,6 @@ QVariantMap emptySlide(const QString &label)
     };
 }
 
-bool readPresentation(const QString &path, rv::data::Presentation *presentation, QString *error)
-{
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        *error = QStringLiteral("Cannot open %1: %2").arg(QFileInfo(path).fileName(), file.errorString());
-        return false;
-    }
-    const QByteArray data = file.readAll();
-    if (!presentation->ParseFromArray(data.constData(), int(data.size()))) {
-        *error = QStringLiteral("%1 is not a ProPresenter 7 presentation").arg(QFileInfo(path).fileName());
-        return false;
-    }
-    return true;
-}
-
-// Everything in the message, including fields this app does not know about, is written
-// back as it was read. The file is replaced in one step, so a failure part way through
-// leaves the original untouched. Returns an error message, empty on success.
-QString writePresentation(const QString &path, const rv::data::Presentation &presentation)
-{
-    std::string bytes;
-    if (!presentation.SerializeToString(&bytes))
-        return QStringLiteral("Cannot encode %1").arg(QFileInfo(path).fileName());
-    QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly) || file.write(bytes.data(), qint64(bytes.size())) != qint64(bytes.size())
-        || !file.commit())
-        return QStringLiteral("Cannot write %1: %2").arg(QFileInfo(path).fileName(), file.errorString());
-    return {};
-}
-
-std::string newUuid()
-{
-    return QUuid::createUuid().toString(QUuid::WithoutBraces).toUpper().toStdString();
-}
-
 // The arrangement the presentation has selected, or null.
 const rv::data::Presentation::Arrangement *selectedArrangement(const rv::data::Presentation &presentation)
 {
@@ -319,7 +175,7 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
             if (!action.isenabled())
                 continue;
             if (action.has_slide() && action.slide().has_presentation()) {
-                slides.append(toSlide(action.slide().presentation().base_slide(),
+                slides.append(proconvert::toSlideMap(action.slide().presentation().base_slide(),
                                       QString::fromStdString(action.label().text())));
             } else if (isVisualMedia(action) && name.isEmpty()) {
                 name = mediaName(action.media().element());
@@ -360,7 +216,7 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                     QVariantMap slide = entry.toMap();
                     slide.insert("group", QString::fromStdString(group->group().name()));
                     slide.insert("groupColor", group->group().has_color() && color.alpha() > 0
-                                                   ? toColor(color).name() : QString());
+                                                   ? proconvert::toColor(color).name() : QString());
                     slide.insert("groupStart", first);
                     first = false;
                     document.slides.append(slide);

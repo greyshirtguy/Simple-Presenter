@@ -1,37 +1,10 @@
 #include "strokedtext.h"
 
 #include "richtext.h"
+#include "textlayout.h"
 
-#include <QFont>
-#include <QFontMetricsF>
-#include <QGlyphRun>
 #include <QPainter>
-#include <QPainterPath>
 #include <QPen>
-#include <QRawFont>
-#include <QTextLayout>
-#include <QTextOption>
-
-namespace {
-
-QFont fontFor(const TextRun &run)
-{
-    QFont font(run.family);
-    font.setPixelSize(qMax(1, qRound(run.size)));
-    font.setBold(run.bold);
-    font.setItalic(run.italic);
-    // Hinting snaps outlines to the pixel grid, which distorts them once scaled.
-    font.setHintingPreference(QFont::PreferNoHinting);
-    return font;
-}
-
-struct RunOutline
-{
-    QPainterPath path;
-    const TextRun *run;
-};
-
-} // namespace
 
 StrokedText::StrokedText(QQuickItem *parent)
     : QQuickPaintedItem(parent)
@@ -43,6 +16,8 @@ StrokedText::StrokedText(QQuickItem *parent)
     connect(this, &StrokedText::unitChanged, this, repaint);
     connect(this, &StrokedText::bleedChanged, this, repaint);
     connect(this, &StrokedText::verticalAlignmentChanged, this, repaint);
+    connect(this, &StrokedText::insetsChanged, this, repaint);
+    connect(this, &StrokedText::lineFillChanged, this, repaint);
 }
 
 void StrokedText::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
@@ -58,85 +33,50 @@ void StrokedText::paint(QPainter *painter)
     if (content.paragraphs.isEmpty() || m_unit <= 0)
         return;
 
-    const qreal boxWidth = width() / m_unit - 2 * m_bleed;
-    const qreal boxHeight = height() / m_unit - 2 * m_bleed;
+    const qreal boxWidth = width() / m_unit - 2 * m_bleed - m_insetLeft - m_insetRight;
+    const qreal boxHeight = height() / m_unit - 2 * m_bleed - m_insetTop - m_insetBottom;
     if (boxWidth <= 0 || boxHeight <= 0)
         return;
 
-    QTextOption option;
-    option.setWrapMode(QTextOption::WordWrap);
-
-    QList<RunOutline> outlines;
-    qreal y = 0;
-    for (const TextParagraph &paragraph : content.paragraphs) {
-        QString text;
-        QList<QTextLayout::FormatRange> formats;
-        for (const TextRun &run : paragraph.runs) {
-            QTextLayout::FormatRange range;
-            range.start = text.size();
-            range.length = run.text.size();
-            range.format.setFont(fontFor(run));
-            formats.append(range);
-            text += run.text;
-        }
-        if (text.isEmpty()) {
-            if (!paragraph.runs.isEmpty())
-                y += QFontMetricsF(fontFor(paragraph.runs.first())).height();
-            continue;
-        }
-
-        const qreal hFactor = paragraph.alignment & Qt::AlignHCenter ? 0.5
-                            : paragraph.alignment & Qt::AlignRight ? 1.0 : 0.0;
-
-        QTextLayout layout(text, fontFor(paragraph.runs.first()));
-        layout.setTextOption(option);
-        layout.setFormats(formats);
-        layout.beginLayout();
-        while (true) {
-            QTextLine line = layout.createLine();
-            if (!line.isValid())
-                break;
-            line.setLineWidth(boxWidth);
-            line.setPosition(QPointF((boxWidth - line.naturalTextWidth()) * hFactor, y));
-            y += line.height();
-        }
-        layout.endLayout();
-
-        for (qsizetype i = 0; i < paragraph.runs.size(); ++i) {
-            if (formats.at(i).length == 0)
-                continue;
-            // Overlapping glyphs (script faces, tight tracking) must not punch holes in each other.
-            RunOutline outline;
-            outline.run = &paragraph.runs.at(i);
-            outline.path.setFillRule(Qt::WindingFill);
-            const QList<QGlyphRun> glyphRuns = layout.glyphRuns(formats.at(i).start, formats.at(i).length);
-            for (const QGlyphRun &glyphRun : glyphRuns) {
-                const QRawFont rawFont = glyphRun.rawFont();
-                const QList<quint32> glyphs = glyphRun.glyphIndexes();
-                const QList<QPointF> positions = glyphRun.positions();
-                for (qsizetype g = 0; g < glyphs.size(); ++g)
-                    outline.path.addPath(rawFont.pathForGlyph(glyphs.at(g)).translated(positions.at(g)));
-            }
-            outlines.append(outline);
-        }
-    }
-
+    const TextLayoutResult layout = layoutText(content, boxWidth);
     const qreal vFactor = m_vAlign & Qt::AlignVCenter ? 0.5 : m_vAlign & Qt::AlignBottom ? 1.0 : 0.0;
 
     painter->setRenderHint(QPainter::Antialiasing);
     painter->scale(m_unit, m_unit);
-    painter->translate(m_bleed, m_bleed + (boxHeight - y) * vFactor);
+    painter->translate(m_bleed + m_insetLeft, m_bleed + m_insetTop + (boxHeight - layout.height) * vFactor);
+
+    // The bars behind the lines go down first.
+    if (m_lineFill.alpha() > 0) {
+        qreal widest = 0;
+        for (const QRectF &line : layout.lines)
+            widest = qMax(widest, line.width());
+        for (qsizetype i = 0; i < layout.lines.size(); ++i) {
+            QRectF bar = layout.lines.at(i);
+            if (m_lineFillStyle == 0) {
+                bar.setLeft(0);
+                bar.setWidth(boxWidth);
+            } else if (m_lineFillStyle == 2) {
+                bar.setLeft((boxWidth - widest) * layout.lineAlignments.at(i));
+                bar.setWidth(widest);
+            }
+            bar.adjust(-m_lineFillWidthOffset / 2, -m_lineFillHeightOffset / 2,
+                       m_lineFillWidthOffset / 2, m_lineFillHeightOffset / 2);
+            bar.translate(m_lineFillHorizontalOffset, m_lineFillVerticalOffset);
+            if (bar.width() > 0 && bar.height() > 0)
+                painter->fillRect(bar, m_lineFill);
+        }
+    }
 
     // Every stroke goes down before any fill, so one run's stroke never covers its
     // neighbour's fill. The stroke is centred on the outline, as Cocoa draws it.
-    for (const RunOutline &outline : outlines) {
-        if (outline.run->strokeWidth > 0) {
-            painter->strokePath(outline.path, QPen(outline.run->stroke, outline.run->strokeWidth,
+    for (const TextLayoutResult::Outline &outline : layout.outlines) {
+        if (outline.format.strokeWidth > 0) {
+            painter->strokePath(outline.path, QPen(outline.format.stroke, outline.format.strokeWidth,
                                                    Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         }
     }
-    for (const RunOutline &outline : outlines) {
-        if (outline.run->fillVisible)
-            painter->fillPath(outline.path, outline.run->fill);
+    for (const TextLayoutResult::Outline &outline : layout.outlines) {
+        if (outline.format.fillVisible)
+            painter->fillPath(outline.path, outline.format.fill);
     }
 }

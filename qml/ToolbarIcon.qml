@@ -1,8 +1,9 @@
 import QtQuick
+import QtQuick.Shapes
 
 // A toolbar button drawn as a small icon with a caption under it. `kind` picks the icon:
 // "dot" is a status light, green when `on`; "bin" is a window with its bottom pane filled
-// when `on`; "settings" is a set of sliders.
+// when `on`; "settings" is a set of sliders; "edit" is a pencil, orange when `on`.
 Item {
     id: button
 
@@ -58,6 +59,23 @@ Item {
                 color: button.on ? button.ink : "transparent"
                 border.width: 1
                 border.color: button.ink
+            }
+        }
+
+        // A pencil, point down to the left, with a line drawn under it
+        Shape {
+            anchors.fill: parent
+            visible: button.kind === "edit"
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                fillColor: button.on ? "#ff8a1f" : button.ink
+                strokeColor: "transparent"
+
+                PathPolyline {
+                    path: [Qt.point(3, 12.5), Qt.point(4.2, 8.4), Qt.point(11.6, 1), Qt.point(15, 4.4),
+                           Qt.point(7.6, 11.8), Qt.point(3, 12.5)]
+                }
             }
         }
 

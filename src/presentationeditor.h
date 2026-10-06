@@ -1,0 +1,145 @@
+#pragma once
+
+#include "presentation.pb.h"
+
+#include <QAbstractListModel>
+#include <QVariantMap>
+#include <QtQml/qqmlregistration.h>
+
+#include <string>
+
+// A presentation open for editing. The file is held as ProPresenter wrote it, parsed but
+// otherwise untouched; a change alters only the fields it is about, so everything this
+// app does not understand goes back to the file as it came.
+//
+// As a list model it has a row for each slide, in the order the presentation stores
+// them (its arrangements only reorder and repeat these), each with one role, `slide`:
+// the slide as a map, as proconvert describes it, with its `id`, `group`, `groupColor`
+// and `groupStart` as ProDocument describes them.
+//
+// A change is saved to the file as soon as it is made, and can be undone. Before the
+// first change the file is copied aside, so the presentation as it was before an
+// editing session can always be got back.
+class PresentationEditor : public QAbstractListModel
+{
+    Q_OBJECT
+    QML_ELEMENT
+    Q_PROPERTY(QString path READ path NOTIFY documentChanged)
+    Q_PROPERTY(QString name READ name NOTIFY documentChanged)
+    Q_PROPERTY(int count READ count NOTIFY documentChanged)
+    Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
+    Q_PROPERTY(bool canRedo READ canRedo NOTIFY historyChanged)
+    // Whether the file has been changed since it was opened here.
+    Q_PROPERTY(bool changed READ changed NOTIFY historyChanged)
+    // Where the copy made before the first change went, or empty if there is none yet.
+    Q_PROPERTY(QString backupPath READ backupPath NOTIFY historyChanged)
+
+public:
+    enum Roles { SlideRole = Qt::UserRole + 1 };
+
+    explicit PresentationEditor(QObject *parent = nullptr);
+
+    int rowCount(const QModelIndex &parent = {}) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+    QHash<int, QByteArray> roleNames() const override;
+
+    QString path() const { return m_path; }
+    QString name() const { return m_name; }
+    int count() const { return int(m_rows.size()); }
+    bool canUndo() const { return !m_undo.isEmpty(); }
+    bool canRedo() const { return !m_redo.isEmpty(); }
+    bool changed() const { return m_changed; }
+    QString backupPath() const { return m_backupPath; }
+
+    // Opens a presentation file from the workspace folder `workspace`, in place of any
+    // open already. Returns an error message, empty on success.
+    Q_INVOKABLE QString open(const QString &path, const QString &workspace);
+    Q_INVOKABLE void close();
+
+    Q_INVOKABLE QVariantMap slideAt(int row) const;
+    // The row of the slide with this id, or -1.
+    Q_INVOKABLE int rowOf(const QString &slideId) const;
+
+    // Changes to the elements of the slide in a row. Each is saved at once and returns
+    // an error message, empty on success; on an error nothing has changed. `changes`
+    // is as proconvert::applyChanges takes.
+    Q_INVOKABLE QString setProperties(int row, const QString &element, const QVariantMap &changes);
+    // Replaces an element's text with a RichText value.
+    Q_INVOKABLE QString setText(int row, const QString &element, const QVariant &richText);
+    // Applies a format to part of an element's text: see RichText::formatted. To format
+    // all of it, give a range that covers it, such as 0 to a very large number.
+    Q_INVOKABLE QString formatText(int row, const QString &element, int start, int end, const QVariantMap &format);
+    // Adds a text box, its text set like that of the element `like` if there is one.
+    // Returns { id, error }.
+    Q_INVOKABLE QVariantMap addText(int row, const QString &like);
+    // Adds a copy of an element, a little down and right of it. Returns { id, error }.
+    Q_INVOKABLE QVariantMap duplicate(int row, const QString &element);
+    Q_INVOKABLE QString remove(int row, const QString &element);
+    // Moves an element to another place in the order they are drawn in, 0 being the
+    // back.
+    Q_INVOKABLE QString move(int row, const QString &element, int index);
+
+    // The same changes as setProperties and formatText, shown but neither saved nor
+    // undoable yet, for following a slider or a colour being dragged. Any number may
+    // follow one another; commitPreview() then saves the outcome as one change, and
+    // cancelPreview() puts things back as they were.
+    Q_INVOKABLE void previewProperties(int row, const QString &element, const QVariantMap &changes);
+    Q_INVOKABLE void previewFormat(int row, const QString &element, int start, int end, const QVariantMap &format);
+    Q_INVOKABLE QString commitPreview();
+    Q_INVOKABLE void cancelPreview();
+
+    // Each returns an error message, empty on success.
+    Q_INVOKABLE QString undo();
+    Q_INVOKABLE QString redo();
+
+signals:
+    void documentChanged();
+    void historyChanged();
+    // The slide in this row is not as it was.
+    void slideChanged(int row);
+    // An undo or a redo changed the slide in this row.
+    void restored(int row);
+
+private:
+    struct Row
+    {
+        int cue;
+        int action;
+        QString group;
+        QString groupColor;
+        bool groupStart;
+    };
+    // One change: the cue it was made to, as it was before and after.
+    struct Step
+    {
+        int row;
+        std::string before;
+        std::string after;
+    };
+
+    rv::data::Cue *cueAt(int row);
+    rv::data::Slide *slideIn(int row);
+    QVariantMap describe(int row) const;
+    void refresh(int row);
+    template <typename Change>
+    QString change(int row, Change apply);
+    template <typename Change>
+    void preview(int row, Change apply);
+    QString commit(int row, const std::string &before);
+    QString restore(QList<Step> *from, QList<Step> *to, bool forwards);
+    void backUp();
+
+    rv::data::Presentation m_presentation;
+    QString m_path;
+    QString m_name;
+    QString m_workspace;
+    QList<Row> m_rows;
+    QVariantList m_slides;
+    QList<Step> m_undo;
+    QList<Step> m_redo;
+    bool m_changed = false;
+    QString m_backupPath;
+    // The row a preview is under way in, or -1, and its cue as it was before.
+    int m_previewRow = -1;
+    std::string m_previewBefore;
+};

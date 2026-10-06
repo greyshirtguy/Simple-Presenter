@@ -17,8 +17,9 @@
 #include <functional>
 
 // Drives the output through the first media file and slide, a ripple to the next slide,
-// clearing the slide layer and clearing the media layer, saving frames read back from both windows, then quits.
-// Exercises the same readback path that NDI output will need.
+// clearing the slide layer and clearing the media layer, then the editor, saving frames
+// read back from the windows, then quits. Exercises the same readback path that NDI
+// output will need.
 static void runSelfTest(QQuickWindow *operatorWindow, QQuickWindow *output, QQuickWindow *stage, const QString &dir)
 {
     const auto grab = [dir](QQuickWindow *window, const QString &name) {
@@ -98,10 +99,28 @@ static void runSelfTest(QQuickWindow *operatorWindow, QQuickWindow *output, QQui
             operatorWindow->setProperty("sidePanelWidth", 360);
             QMetaObject::invokeMethod(operatorWindow, "openBusiestPlaylist");
         });
+        // Then the editor: up, an element picked, its text being edited, and down
+        // again. Nothing is changed, so nothing is written.
+        const auto editor = [operatorWindow](int step) {
+            QMetaObject::invokeMethod(operatorWindow, "selfTestEditor", Q_ARG(QVariant, step));
+        };
         after(1900, [=] {
             grab(operatorWindow, "operator-5-playlist");
-            QCoreApplication::quit();
+            editor(0);
         });
+        after(2500, [=] {
+            grab(operatorWindow, "operator-6-editor");
+            editor(1);
+        });
+        after(2900, [=] {
+            grab(operatorWindow, "operator-7-editor-picked");
+            editor(2);
+        });
+        after(3400, [=] {
+            grab(operatorWindow, "operator-8-editor-text");
+            editor(3);
+        });
+        after(3700, [=] { QCoreApplication::quit(); });
     });
 }
 
