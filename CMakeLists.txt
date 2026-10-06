@@ -83,26 +83,38 @@ qt_add_qml_module(SimplePresenter
         qml/AppTextField.qml
         qml/AuxWindow.qml
         qml/ColorButton.qml
+        qml/Divider.qml
         qml/Editor.qml
         qml/EditorCanvas.qml
         qml/EditorInspector.qml
+        qml/EmptyNote.qml
         qml/FontPicker.qml
         qml/IconButton.qml
         qml/KineticWheel.qml
+        qml/LiveRing.qml
         qml/Main.qml
+        qml/MediaBin.qml
         qml/Output.qml
+        qml/PopupMenu.qml
+        qml/PreviewPanel.qml
         qml/Slide.qml
         qml/SlideElement.qml
         qml/MediaContent.qml
         qml/NumberField.qml
         qml/ResizeGrips.qml
+        qml/RowDrag.qml
         qml/RowIcon.qml
+        qml/SectionTitle.qml
         qml/SettingsScreen.qml
+        qml/Sidebar.qml
         qml/SidebarList.qml
+        qml/SlideGrid.qml
         qml/Stage.qml
         qml/StageView.qml
+        qml/Toolbar.qml
         qml/ToolbarIcon.qml
         qml/TransitionLayer.qml
+        qml/ZoomButtons.qml
     SOURCES
         src/catalog.h
         src/catalog.cpp
