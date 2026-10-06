@@ -3,17 +3,18 @@
 // The app is three windows and a folder.
 //
 //   The folder is a workspace: libraries of ProPresenter 7 presentations, media files,
-//   two playlists files and the timers, laid out exactly as ProPresenter lays out its
-//   own folder (src/catalog.h, and src/timers.h for the timers). Nothing is imported or
-//   converted; the app works on the files as they are, and writes its changes back into
-//   them.
+//   two playlists files, the timers, the props and the stage layouts, laid out exactly
+//   as ProPresenter lays out its own folder (src/catalog.h; src/timers.h, src/props.h
+//   and src/stagelayouts.h for the last three). Nothing is imported or converted; the
+//   app works on the files as they are, and writes its changes back into them.
 //
 //   The operator window (qml/Main.qml) is where the show is run from: pick a
 //   presentation, click a slide, and it is on the output.
 //
 //   The output window (qml/Output.qml) is what the audience sees: a media layer with a
-//   slide layer over it. The stage window (qml/Stage.qml) is what the people on stage
-//   see: the words of this slide and the next.
+//   slide layer over it, and over both whichever props are on. The stage window
+//   (qml/Stage.qml) is what the people on stage see: the words of this slide and the
+//   next, plainly, or laid out as one of the workspace's stage layouts has them.
 //
 // The two halves of the code.
 //
@@ -46,9 +47,16 @@
 //
 //   A slide's cue may do more than show the slide. It may trigger media, which goes to
 //   the media layer as a background that stays or as a foreground that plays once (see
-//   workspace::MediaBehaviour in src/workspacefiles.h); and it may work a timer. What a
-//   text box linked to a timer shows is the one thing about a slide not settled when
-//   the file is read: SlideElement asks Timers for it as it changes.
+//   workspace::MediaBehaviour in src/workspacefiles.h); and it may work a timer.
+//
+//   What is not settled when a file is read is text that changes while it is on show: a
+//   timer's time, which SlideElement asks Timers for (src/timers.h), and the words of
+//   the slide that is live, which it asks Show for (src/show.h). A prop and a stage
+//   layout are slides too, in files of their own. A prop is laid over the output and
+//   stays until it is turned off; a stage layout is made of boxes linked to what is
+//   live. Both go the same way to the screen as any slide, from step 2 on, and both
+//   are edited by the editor that edits a presentation's slides
+//   (src/presentationeditor.h).
 //
 // Choices made for modest hardware. The app is developed on a 2017 laptop with
 // integrated graphics, and is meant to run a show on one.

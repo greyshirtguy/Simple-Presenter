@@ -11,8 +11,8 @@ folder as it is. It has three goals.
   playlists and its media. A copy of a ProPresenter folder can be opened and run as it
   stands, and what is changed here can be opened there again.
 - **Simple.** The essentials of running a show and little else: slides over media,
-  transitions, an audience output and a stage display, playlists, a media bin, timers
-  and a small editor. There are no props, messages or announcements.
+  transitions, an audience output and a stage display, playlists, a media bin, timers,
+  props and a small editor. There are no messages or announcements.
 - **Lightweight.** Above all it has to perform, even on modest and older computers. It
   is developed and measured on a 2017 laptop with integrated graphics, and the design
   choices are made for that machine first: see
@@ -24,18 +24,22 @@ there are fifty-four: an equivalent of every slide transition ProPresenter has, 
 the names it gives them, and eighteen more. It has two outputs, an audience output and
 a stage display, each in its own window, and a media bin. [Media](#media) plays as a
 background or as a foreground, with a transport for the video that is playing, and
-there are [timers](#timers), whose time a text box on a slide can show. It can import a
+there are [timers](#timers), whose time a text box on a slide can show. [Props](#props)
+are laid over the slides and stay until they are cleared, and the stage display can be
+given a [stage layout](#stage-layouts) of ProPresenter's or of its own. It can import a
 playlist that has been exported from ProPresenter, and it has a simple
-[editor](#editing) for the text boxes on a slide.
+[editor](#editing) for the text boxes on a slide, a prop or a stage layout.
 
 ## TODO
 
 - [ ] **Improve File Compatibility**: render more of what a `.pro` file can hold, such
-      as gradients, shapes other than rectangles, image fills and text that scales to fit.
+      as gradients, shapes other than rectangles and image fills.
       Drawn so far: text with its fonts, colours, outline, shadow, capitals, underline
-      and spacing; plain fills, including one that is only behind the lines of the text;
-      strokes and shadows; elements that show only when another has text; and text
-      linked from another element.
+      and spacing, made smaller or larger to suit its box where it is set to be; plain
+      fills, including one that is only behind the lines of the text; strokes and
+      shadows; elements that show only when another has text, or while a timer runs;
+      and text linked from another element, from a timer, or from the slide that is
+      live.
 - [ ] **Editor**: text boxes can be added, moved, resized and removed, and their text
       and looks changed. Still to do: other kinds of element, adding and removing
       slides, picking several elements at once, rotating, lists and scrolling text.
@@ -45,9 +49,12 @@ playlist that has been exported from ProPresenter, and it has a simple
       media rows.
 - [x] **Import Playlists**: read ProPresenter's exported `.proplaylist` files, bringing
       in the playlist, its presentations and, when the export included it, its media.
-- [ ] **Show Controls**: the timers are there, and text boxes that show them. Props and
-      stage layouts have their tabs and are still to come, as are the clock and a way
-      of giving a slide a timer action here (those a presentation already has are run).
+- [ ] **Show Controls**: the timers, the props and the stage layouts are there. Still
+      to come: more than one stage screen; more of what a stage layout can show (the
+      clock, a slide's notes, pictures of the slides and of the output, stage messages,
+      the time left of a video); a prop's own transition and clearing itself after a
+      time; and a way of giving a slide a timer action here (those a presentation
+      already has are run).
 
 ## Installing
 
@@ -221,21 +228,23 @@ What gets it there:
   a workspace on disk                    C++ (src/)                      QML (qml/)
   -------------------          ---------------------------       --------------------------
   Libraries/*/*.pro    --->    ProDocument, proconvert    --->   Main.qml: what is open,
-  Playlists/Library            PlaylistFile, Timers              what is live, what a key
-  Playlists/Media              (parse, flatten into              or a click does
-  Configuration/Timers         lists and maps)                          |
-  Media/...                                                             | goLive(), showMedia()
+  Playlists/Library            PlaylistFile, Timers,             what is live, what a key
+  Playlists/Media              Props, StageLayouts               or a click does
+  Configuration/Timers,        (parse, flatten into                     |
+    Props, Stage               lists and maps)                          | goLive(), showMedia(),
+  Media/...                                                             | toggleProp()
         ^                      StrokedText, textlayout                  v
         |                      (text laid out and drawn   <---   Output.qml: a media layer
         +--- changes are       with its outline, once)           and a slide layer, each a
-             written back                                        TransitionLayer
-             into the files    ThumbnailProvider, videoframe
+             written back                                        TransitionLayer, and the
+             into the files    ThumbnailProvider, videoframe     props over them
                                (small pictures, cached)   --->   thumbnails in the lists
 ```
 
 The app is three windows and a folder. The folder is the workspace. The operator window
 is where the show is run from; the output window is what the audience sees, a media
-layer with a slide layer over it; the stage window is what the people on stage see.
+layer with a slide layer over it and the props over both; the stage window is what the
+people on stage see.
 
 The code is in two halves. The C++ in `src/` does files and pixels: it reads and writes
 ProPresenter's documents, parses the RTF their text is kept in, lays text out and draws
@@ -256,11 +265,13 @@ Two rules run through all of it.
   every size.
 
 Most of what a slide shows is settled when its file is read. The exception is text that
-changes while the slide is on show, which so far means a timer's time: an element
-linked to a timer is drawn by asking `Timers`, the one object that holds the timers and
-keeps them running, what the time is now, and is drawn again when the answer changes.
-Stage layouts, when they come, will be slides whose text boxes are linked in the same
-way to more such things: the words of the live slide, those of the next, the clock.
+changes while the slide is on show: a timer's time, or the words of the slide that is
+live. An element linked to a timer is drawn by asking `Timers`, the one object that
+holds the timers and keeps them running, what the time is now, and is drawn again when
+the answer changes; one linked to the live slide asks `Show`, which the operator window
+keeps told of what is live. A stage layout is nothing more than a slide made of such
+boxes, and a prop nothing more than a slide laid over the others, so both are drawn by
+what draws every slide and edited by what edits every slide.
 
 A transition is a small fragment shader that is handed the outgoing and incoming
 pictures and a number that goes from 0 to 1; `shaders/dissolve.frag` explains the
@@ -318,13 +329,15 @@ Media/...                         images and videos, in any depth of folders
 Playlists/Library                 playlists and playlist folders, in ProPresenter's format
 Playlists/Media                   media playlists and their folders, in ProPresenter's format
 Configuration/Timers              the timers, in ProPresenter's format
+Configuration/Props               the props and their collections, in ProPresenter's format
+Configuration/Stage               the stage layouts, in ProPresenter's format
 ```
 
 So a copy of a ProPresenter folder, dropped into `WorkSpaces`, is a workspace. It will
 hold more than this (themes, presets, the rest of its configuration), which the app
 leaves alone. Changes made in the app (a new playlist, a presentation added to one, an
-arrangement chosen, media dropped on a slide, a timer set) are written to the files in
-the workspace.
+arrangement chosen, media dropped on a slide, a timer set, a prop made) are written to
+the files in the workspace.
 
 Files are found by their path relative to the workspace first, so a workspace keeps
 working when it is moved or copied from another machine; then by the path recorded for
@@ -365,8 +378,9 @@ dragged from the bin onto a slide starts out on the slide as it was in the bin.
 In the files this is what ProPresenter keeps: the layer a media action is on, and
 whether its video loops. Media set up there behaves here as it was set there.
 
-Under the previews are the three **clears**: everything (F1), the slide (F2) and the
-media (F3), each red while there is something there for it to clear. Under those is the
+Under the previews are the four **clears**: everything (F1), the slide (F2), the media
+(F3) and the props (F4), each red while there is something there for it to clear. Under
+those is the
 **transport**, for the video on the output: how far in it is and how much is left, a
 slider that can be dragged to move it, and buttons to go back to the start, to play or
 pause, and to skip fifteen seconds back or on.
@@ -374,8 +388,9 @@ pause, and to skip fifteen seconds back or on.
 ## Timers
 
 Under the transport are the show controls: a row of tabs, pictures and not words, of
-which the one showing is blue. Timers are the first; props and the stage display have
-their tabs, and nothing behind them yet.
+which the one showing is blue. Timers are the first; [props](#props) and the
+[stage screens](#stage-layouts) are the other two. The `+` under the tabs adds to
+whichever is showing.
 
 A workspace's timers are ProPresenter's, and a workspace with none starts with one, a
 five-minute countdown. There are three kinds:
@@ -414,6 +429,57 @@ An action finds its timer as a link does: by id, and failing that by name. One t
 finds none either way does nothing, and a text box whose timer is not there shows a
 time of nothing; neither is treated as an error.
 
+## Props
+
+A prop is a slide laid over everything else on the output: a logo in a corner, a
+countdown, a name. Props are the second tab of the show controls. A click on one turns
+it on, and it stays on, over whatever slides and media come and go under it, until it
+is turned off by another click or cleared (F4, or the fourth of the clear buttons;
+clearing everything clears the props too). Any number can be on at once, one over
+another in the order they were turned on: the latest is in front.
+
+Props are kept in named collections, one level of them, as ProPresenter keeps them. A
+collection can be set to show **one at a time** (in its right-click menu), and then
+turning one of its props on turns off whichever other of them was on; props of
+different collections are never in each other's way. The `+` adds a prop or a
+collection, and a right click on a prop offers Edit, Rename, Duplicate, moving it to
+another collection, and Remove.
+
+A prop is edited in the same [editor](#editing) as a slide, with everything a slide's
+text box can do, including showing a timer. A prop that is on while it is edited is
+shown as edited once the editor is left. Props come and go with a dissolve, over the
+length of time ProPresenter has for it in the workspace (half a second where it says
+nothing). A workspace's props are ProPresenter's own, in `Configuration/Props`.
+
+## Stage layouts
+
+The third tab lists the stage screens, of which there is one: the stage window. It
+shows either the plain view the app has of its own (the words of the live slide over
+those of the next) or one of the workspace's **stage layouts**, chosen from the
+drop-down in its row. The choice is remembered for each workspace.
+
+A stage layout is a slide whose boxes are linked to what is going on, and it is made
+and changed in the same [editor](#editing) as a slide. A text box of one can show:
+
+- the words of the slide that is live, or of the one after it: all of the slide's
+  text boxes that show, one after another in the order the slide has them (the back
+  one first, which is the reverse of the editor's list), as plain words in the box's
+  own font and colour;
+- the time of a [timer](#timers).
+
+The `+` makes a layout to start from, with a box for each of the two slides, gives it
+to the stage and opens it in the editor. The editor's own list of layouts has a `+`
+too, and a right click there renames, copies or removes one.
+
+ProPresenter's own layouts, in `Configuration/Stage`, are read as they are and can be
+given to the stage. What they have that is shown here: boxes for the words of the live
+and the next slide, including those that take only the text of the slide's elements of
+a given name; timers; and boxes that show only while a timer is running, or has run
+out. What they have that is not shown yet (the clock, a slide's notes, the stage
+message, the time left of a video, pictures of the slides or of an output) is left
+empty on the stage, and in the editor is marked with what it is; the links themselves
+are kept, so the layouts still work in ProPresenter.
+
 ## Editing
 
 **Edit** in the toolbar, or in the right-click menu of a presentation or of a slide,
@@ -426,6 +492,10 @@ On the left are the presentation's slides and, under them, the elements of the s
 being worked on, the one in front first. In the middle is the slide. On the right are
 the properties of the element that is picked, in two parts, as ProPresenter has them:
 **Shape** and **Text**.
+
+The same editor works on the workspace's [props](#props) and [stage layouts](#stage-layouts),
+which are slides too: the list on the left is then of those, and has a `+` to add one
+and a right-click menu to rename, copy or remove one.
 
 - **Picking and arranging.** Click an element on the slide or in the list. Drag it to
   move it, or drag a handle to resize it; both snap to the slide's edges and middle and
@@ -447,7 +517,13 @@ the properties of the element that is picked, in two parts, as ProPresenter has 
   a time: the hours, the minutes, the seconds and the hundredths of a second are each
   hidden, or shown as one digit or as two, or shown that way but hidden while they are
   nothing. A part that is hidden is counted in the next one shown, so seconds alone
-  count past sixty.
+  count past sixty. Or it can show the words of the slide that is live, or of the one
+  after it, which is what the boxes of a stage layout mostly do. A linked box has a
+  yellow outline in the editor, and in small yellow print at its foot what it is
+  linked to.
+- **Scale.** Text can be set, as in ProPresenter, to be made smaller until it fits its
+  box, larger until it fills it, or either. Presentations that have this set in
+  ProPresenter are drawn that way here.
 
 Every change is saved to the presentation file as it is made, and Undo takes it back
 out. Only what was changed is touched: everything else in the file, including whatever
@@ -491,7 +567,7 @@ frames a second but one, Cross Zoom, which manages fifty-seven.
 |---|---|
 | Right, Space / Left | Next / previous slide |
 | Down / Up | Next / previous presentation |
-| F1 / F2 / F3 | Clear all / slide layer / media layer |
+| F1 / F2 / F3 / F4 | Clear all / slide layer / media layer / props |
 | Ctrl+V | Show or hide the media bin |
 | Ctrl+1 / Ctrl+2 | Show or hide the output / stage window |
 | Esc | Close a menu |
@@ -511,7 +587,7 @@ In the editor:
 | Ctrl+Z / Ctrl+Shift+Z, Ctrl+Y | Undo / redo |
 | Shift while dragging | Move in a straight line; resize from a corner in proportion |
 | Ctrl while dragging | No snapping |
-| F1 / F2 / F3 | The clears, as when showing |
+| F1 / F2 / F3 / F4 | The clears, as when showing |
 
 ## Self-test
 
@@ -541,13 +617,15 @@ those.
 | `src/workspacefiles.*` | How documents refer to files, and how those files are found again |
 | `src/prodocument.*` | Reads `.pro` files for showing, and makes the changes show mode can |
 | `src/proconvert.*` | Turns a slide in a `.pro` file into what is drawn, and changes back into the file's terms |
-| `src/presentationeditor.*` | A presentation open in the editor: its changes, undo, saving and backups |
+| `src/presentationeditor.*` | A presentation, the props or the stage layouts open in the editor: its changes, undo, saving and backups |
 | `src/playlistfile.*` | Reads and writes the two playlists files |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
+| `src/props.*`, `src/stagelayouts.*` | The workspace's props and their collections, and its stage layouts: their files, and adding to, renaming and removing them |
+| `src/show.*` | What is live, for the text boxes that show the words of the live slide or the next |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |
-| `src/textlayout.*` | Lays text out, the same for drawing it and for editing it in place |
+| `src/textlayout.*` | Lays text out, the same for drawing it and for editing it in place, and finds the size at which text fits a box |
 | `src/strokedtext.*` | Draws slide text with stroke and fill |
 | `src/richtextbridge.*` | Lets a text box on the slide be typed into |
 | `src/thumbnailprovider.*`, `src/videoframe.*` | Thumbnails of images and videos, made on worker threads and cached |
@@ -557,10 +635,11 @@ those.
 | `src/selftest.*` | The self-test |
 | `qml/Main.qml` | The operator window: the app's state and logic |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
-| `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tab of timers |
+| `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props and stage screens |
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | The output and stage windows |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
+| `qml/PropsLayer.qml` | The props that are on, over the other layers |
 | `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
 | `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions |
