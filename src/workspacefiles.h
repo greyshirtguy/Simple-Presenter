@@ -16,6 +16,9 @@
 namespace rv::data {
 class Action;
 }
+namespace google::protobuf {
+class MessageLite;
+}
 
 // The files of a workspace, as its documents see them.
 //
@@ -82,6 +85,15 @@ QString fileNameOf(const rv::data::URL &reference);
 // a video is set to loop. It is what a slide's media action and a media playlist's row
 // both hold.
 rv::data::Media mediaElement(const QString &file, const QString &workspaceFolder);
+
+// Reads one of ProPresenter's files into the message it holds, and writes one back. The
+// file is replaced in one step, so a failure part way through leaves the original
+// untouched; and since the whole message is written, whatever this app does not know of
+// in it goes back as it came. `what` names the file to the user in an error message
+// ("the props"). Each returns an error message, empty on success. A file that is not
+// there is an error to read: whoever expects it may not be looks first.
+QString readMessage(const QString &path, google::protobuf::MessageLite *message, const QString &what);
+QString writeMessage(const QString &path, const google::protobuf::MessageLite &message, const QString &what);
 
 // How a media action plays what it holds.
 //

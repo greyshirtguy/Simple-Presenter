@@ -28,7 +28,7 @@ set(PRO_PROTO_NAMES
     action alignmentGuide alphaType applicationInfo background collectionElementType color cue
     customOptions digitalAudio effects fileProperties font graphicsData groups hotKey input
     intRange layers messages musicKeyScale planningCenter playlist presentation
-    presentationSlide propresenter propSlide rvtimestamp
+    presentationSlide propDocument propresenter propSlide rvtimestamp
     slide stage templateIdentification timers url uuid version
 )
 list(TRANSFORM PRO_PROTO_NAMES PREPEND ${PRO_PROTO_DIR}/ OUTPUT_VARIABLE PRO_PROTO_FILES)
@@ -154,6 +154,10 @@ qt_add_qml_module(SimplePresenter
         src/strokedtext.cpp
         src/timers.h
         src/timers.cpp
+        src/props.h
+        src/props.cpp
+        src/stagelayouts.h
+        src/stagelayouts.cpp
         src/show.h
         src/show.cpp
 )

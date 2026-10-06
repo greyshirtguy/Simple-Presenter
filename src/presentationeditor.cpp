@@ -38,18 +38,20 @@ int indexOfElement(const rv::data::Slide &slide, const QString &id)
     return -1;
 }
 
-// The first slide a cue shows, as an index into its actions, or -1.
-int slideAction(const rv::data::Cue &cue)
+// The first slide a cue shows, as an index into its actions, or -1: a presentation's
+// slide, or with `prop` a prop's.
+int slideAction(const rv::data::Cue &cue, bool prop = false)
 {
     for (int i = 0; i < cue.actions_size(); ++i) {
         const rv::data::Action &action = cue.actions(i);
-        if (action.isenabled() && action.has_slide() && action.slide().has_presentation())
+        if (prop ? action.has_slide() && action.slide().has_prop()
+                 : action.isenabled() && action.has_slide() && action.slide().has_presentation())
             return i;
     }
     return -1;
 }
 
-const QString gone = QStringLiteral("That slide is no longer in the presentation.");
+const QString gone = QStringLiteral("That is no longer in the file.");
 const QString elementGone = QStringLiteral("That element is no longer on the slide.");
 
 } // namespace
@@ -76,6 +78,48 @@ QHash<int, QByteArray> PresentationEditor::roleNames() const
     return {{SlideRole, "slide"}};
 }
 
+QString PresentationEditor::kind() const
+{
+    return m_kind == Kind::Props ? QStringLiteral("props")
+         : m_kind == Kind::Stage ? QStringLiteral("stage") : QStringLiteral("presentation");
+}
+
+// Opening goes in three steps: the file is read by whichever of the three is being
+// opened, start() clears what was open, the rows are listed, and finishOpening()
+// describes them.
+void PresentationEditor::start(Kind kind, const QString &path, const QString &workspace, const QString &name)
+{
+    beginResetModel();
+    m_kind = kind;
+    m_path = path;
+    m_workspace = workspace;
+    m_name = name;
+    m_undo.clear();
+    m_redo.clear();
+    m_changed = false;
+    m_backupPath.clear();
+    m_previewRow = -1;
+    m_previewBefore.clear();
+    m_rows.clear();
+    if (kind != Kind::Presentation)
+        m_presentation.Clear();
+    if (kind != Kind::Props)
+        m_props.Clear();
+    if (kind != Kind::Stage)
+        m_stage.Clear();
+}
+
+void PresentationEditor::finishOpening()
+{
+    m_slides.clear();
+    for (int row = 0; row < m_rows.size(); ++row)
+        m_slides.append(describe(row));
+    endResetModel();
+
+    emit documentChanged();
+    emit historyChanged();
+}
+
 QString PresentationEditor::open(const QString &path, const QString &workspace)
 {
     rv::data::Presentation presentation;
@@ -83,32 +127,21 @@ QString PresentationEditor::open(const QString &path, const QString &workspace)
     if (!proconvert::readPresentation(path, &presentation, &error))
         return error;
 
-    beginResetModel();
+    start(Kind::Presentation, path, workspace, QFileInfo(path).completeBaseName());
     m_presentation = presentation;
-    m_path = path;
-    m_workspace = workspace;
-    m_name = QFileInfo(path).completeBaseName();
-    m_undo.clear();
-    m_redo.clear();
-    m_changed = false;
-    m_backupPath.clear();
-    m_previewRow = -1;
-    m_previewBefore.clear();
 
     // Every cue that shows a slide, group by group as the presentation stores them,
     // then any cue that no group has.
-    m_rows.clear();
     QHash<std::string, int> cueIndexes;
     for (int i = 0; i < m_presentation.cues_size(); ++i)
         cueIndexes.insert(m_presentation.cues(i).uuid().string(), i);
     QSet<int> placed;
     const auto place = [this, &placed](int cue, const QString &group, const QString &color, bool start) {
         const rv::data::Cue &candidate = m_presentation.cues(cue);
-        const int action = slideAction(candidate);
-        if (placed.contains(cue) || !candidate.isenabled() || action < 0)
+        if (placed.contains(cue) || !candidate.isenabled() || slideAction(candidate) < 0)
             return false;
         placed.insert(cue);
-        m_rows.append({cue, action, group, color, start});
+        m_rows.append({cue, group, color, start});
         return true;
     };
     for (const auto &group : m_presentation.cue_groups()) {
@@ -125,13 +158,59 @@ QString PresentationEditor::open(const QString &path, const QString &workspace)
     for (int i = 0; i < m_presentation.cues_size(); ++i)
         place(i, QString(), QString(), false);
 
-    m_slides.clear();
-    for (int row = 0; row < m_rows.size(); ++row)
-        m_slides.append(describe(row));
-    endResetModel();
+    finishOpening();
+    return {};
+}
 
-    emit documentChanged();
-    emit historyChanged();
+QString PresentationEditor::openProps(const QString &path, const QString &workspace)
+{
+    rv::data::PropDocument props;
+    const QString error = workspace::readMessage(path, &props, QStringLiteral("the props"));
+    if (!error.isEmpty())
+        return error;
+
+    start(Kind::Props, path, workspace, QStringLiteral("Props"));
+    m_props = props;
+
+    // Every cue that is a prop: collection by collection, as they are listed, then any
+    // that no collection has.
+    QHash<std::string, int> cueIndexes;
+    for (int i = 0; i < m_props.cues_size(); ++i)
+        cueIndexes.insert(m_props.cues(i).uuid().string(), i);
+    QSet<int> placed;
+    const auto place = [this, &placed](int cue) {
+        if (placed.contains(cue) || slideAction(m_props.cues(cue), true) < 0)
+            return;
+        placed.insert(cue);
+        m_rows.append({cue, QString(), QString(), false});
+    };
+    for (const auto &collection : m_props.prop_collections()) {
+        for (const auto &item : collection.items()) {
+            const auto cue = cueIndexes.constFind(item.prop_cue_uuid().string());
+            if (cue != cueIndexes.constEnd())
+                place(*cue);
+        }
+    }
+    for (int i = 0; i < m_props.cues_size(); ++i)
+        place(i);
+
+    finishOpening();
+    return {};
+}
+
+QString PresentationEditor::openStageLayouts(const QString &path, const QString &workspace)
+{
+    rv::data::Stage::Document stage;
+    const QString error = workspace::readMessage(path, &stage, QStringLiteral("the stage layouts"));
+    if (!error.isEmpty())
+        return error;
+
+    start(Kind::Stage, path, workspace, QStringLiteral("Stage Layouts"));
+    m_stage = stage;
+    for (int i = 0; i < m_stage.layouts_size(); ++i)
+        m_rows.append({i, QString(), QString(), false});
+
+    finishOpening();
     return {};
 }
 
@@ -139,6 +218,9 @@ void PresentationEditor::close()
 {
     beginResetModel();
     m_presentation.Clear();
+    m_props.Clear();
+    m_stage.Clear();
+    m_kind = Kind::Presentation;
     m_path.clear();
     m_name.clear();
     m_rows.clear();
@@ -163,39 +245,82 @@ int PresentationEditor::rowOf(const QString &slideId) const
 {
     const std::string wanted = slideId.toStdString();
     for (int row = 0; row < m_rows.size(); ++row) {
-        if (m_presentation.cues(m_rows.at(row).cue).uuid().string() == wanted)
+        const int unit = m_rows.at(row).unit;
+        const std::string &id = m_kind == Kind::Stage ? m_stage.layouts(unit).uuid().string()
+                              : m_kind == Kind::Props ? m_props.cues(unit).uuid().string()
+                                                      : m_presentation.cues(unit).uuid().string();
+        if (id == wanted)
             return row;
     }
     return -1;
 }
 
-rv::data::Cue *PresentationEditor::cueAt(int row)
+// What a row's slide is in: the cue, or the stage layout. It is what is kept of the
+// file, before and after, for a change to be undone by.
+google::protobuf::Message *PresentationEditor::unitAt(int row)
 {
-    return row >= 0 && row < m_rows.size() ? m_presentation.mutable_cues(m_rows.at(row).cue) : nullptr;
+    if (row < 0 || row >= m_rows.size())
+        return nullptr;
+    const int unit = m_rows.at(row).unit;
+    switch (m_kind) {
+    case Kind::Props: return m_props.mutable_cues(unit);
+    case Kind::Stage: return m_stage.mutable_layouts(unit);
+    default: return m_presentation.mutable_cues(unit);
+    }
+}
+
+const google::protobuf::Message *PresentationEditor::unitAt(int row) const
+{
+    return const_cast<PresentationEditor *>(this)->unitAt(row);
 }
 
 rv::data::Slide *PresentationEditor::slideIn(int row)
 {
-    rv::data::Cue *cue = cueAt(row);
-    if (!cue)
+    if (row < 0 || row >= m_rows.size())
         return nullptr;
+    const int unit = m_rows.at(row).unit;
+    if (m_kind == Kind::Stage)
+        return m_stage.mutable_layouts(unit)->mutable_slide();
     // A change to the cue undone or redone may have altered its actions.
-    const int action = slideAction(*cue);
-    return action < 0 ? nullptr
-                      : cue->mutable_actions(action)->mutable_slide()->mutable_presentation()->mutable_base_slide();
+    rv::data::Cue *cue = m_kind == Kind::Props ? m_props.mutable_cues(unit) : m_presentation.mutable_cues(unit);
+    const int action = slideAction(*cue, m_kind == Kind::Props);
+    if (action < 0)
+        return nullptr;
+    rv::data::Action::SlideType *slide = cue->mutable_actions(action)->mutable_slide();
+    return m_kind == Kind::Props ? slide->mutable_prop()->mutable_base_slide()
+                                 : slide->mutable_presentation()->mutable_base_slide();
+}
+
+QString PresentationEditor::write()
+{
+    switch (m_kind) {
+    case Kind::Props: return workspace::writeMessage(m_path, m_props, QStringLiteral("the props"));
+    case Kind::Stage: return workspace::writeMessage(m_path, m_stage, QStringLiteral("the stage layouts"));
+    default: return proconvert::writePresentation(m_path, m_presentation);
+    }
 }
 
 QVariantMap PresentationEditor::describe(int row) const
 {
     const Row &place = m_rows.at(row);
-    const rv::data::Cue &cue = m_presentation.cues(place.cue);
-    const int index = slideAction(cue);
-    if (index < 0)
-        return {};
-    const rv::data::Action &action = cue.actions(index);
-    QVariantMap slide = proconvert::toSlideMap(action.slide().presentation().base_slide(),
-                                               QString::fromStdString(action.label().text()));
-    slide.insert("id", QString::fromStdString(cue.uuid().string()));
+    QVariantMap slide;
+    if (m_kind == Kind::Stage) {
+        const rv::data::Stage::Layout &layout = m_stage.layouts(place.unit);
+        slide = proconvert::toSlideMap(layout.slide(), QString::fromStdString(layout.name()));
+        slide.insert("id", QString::fromStdString(layout.uuid().string()));
+    } else {
+        const bool prop = m_kind == Kind::Props;
+        const rv::data::Cue &cue = prop ? m_props.cues(place.unit) : m_presentation.cues(place.unit);
+        const int index = slideAction(cue, prop);
+        if (index < 0)
+            return {};
+        const rv::data::Action &action = cue.actions(index);
+        // A prop goes by its cue's name, a slide by the label of its action.
+        slide = prop ? proconvert::toSlideMap(action.slide().prop().base_slide(), QString::fromStdString(cue.name()))
+                     : proconvert::toSlideMap(action.slide().presentation().base_slide(),
+                                              QString::fromStdString(action.label().text()));
+        slide.insert("id", QString::fromStdString(cue.uuid().string()));
+    }
     slide.insert("group", place.group);
     slide.insert("groupColor", place.groupColor);
     slide.insert("groupStart", place.groupStart);
@@ -231,9 +356,12 @@ void PresentationEditor::backUp()
         qWarning("Cannot create %s", qPrintable(directory.path()));
         return;
     }
+    // Under the file's own name and ending, which the props and the stage layouts do
+    // not have one of.
     const QString base = file.completeBaseName();
+    const QString ending = file.suffix().isEmpty() ? QString() : u'.' + file.suffix();
     const QString target = directory.filePath(base + QDateTime::currentDateTime().toString(QStringLiteral(" yyyy-MM-dd HH.mm.ss"))
-                                              + QStringLiteral(".pro"));
+                                              + ending);
     if (!QFile::exists(target) && !QFile::copy(m_path, target)) {
         qWarning("Cannot copy %s to %s", qPrintable(m_path), qPrintable(target));
         return;
@@ -242,27 +370,27 @@ void PresentationEditor::backUp()
 
     // Their names sort by time, so the oldest come first. The pattern is in pieces only
     // because "??-", written whole, is a trigraph, which the compiler remarks on.
-    const QStringList copies = directory.entryList({base + QStringLiteral(" ????" "-??" "-?? ??.??.??.pro")}, QDir::Files, QDir::Name);
+    const QStringList copies = directory.entryList({base + QStringLiteral(" ????" "-??" "-?? ??.??.??") + ending}, QDir::Files, QDir::Name);
     for (qsizetype i = 0; i < copies.size() - backupsKept; ++i)
         QFile::remove(directory.filePath(copies.at(i)));
 }
 
-// Saves the cue in a row as it now is, as one change from how it was `before`. If the
-// file cannot be written, the cue goes back to how it was.
+// Saves the cue or layout of a row as it now is, as one change from how it was
+// `before`. If the file cannot be written, it goes back to how it was.
 QString PresentationEditor::commit(int row, const std::string &before)
 {
-    rv::data::Cue *cue = cueAt(row);
-    if (!cue)
+    google::protobuf::Message *unit = unitAt(row);
+    if (!unit)
         return gone;
-    const std::string after = cue->SerializeAsString();
+    const std::string after = unit->SerializeAsString();
     if (after == before) {
         refresh(row);
         return {};
     }
     backUp();
-    const QString error = proconvert::writePresentation(m_path, m_presentation);
+    const QString error = write();
     if (!error.isEmpty()) {
-        cue->ParseFromString(before);
+        unit->ParseFromString(before);
         refresh(row);
         return error;
     }
@@ -284,14 +412,14 @@ QString PresentationEditor::change(int row, Change apply)
     // A preview left under way becomes a change of its own first.
     if (m_previewRow >= 0)
         commitPreview();
-    rv::data::Cue *cue = cueAt(row);
+    google::protobuf::Message *unit = unitAt(row);
     rv::data::Slide *slide = slideIn(row);
-    if (!cue || !slide)
+    if (!unit || !slide)
         return gone;
-    const std::string before = cue->SerializeAsString();
+    const std::string before = unit->SerializeAsString();
     const QString error = apply(slide);
     if (!error.isEmpty()) {
-        cue->ParseFromString(before);
+        unit->ParseFromString(before);
         return error;
     }
     return commit(row, before);
@@ -302,13 +430,13 @@ void PresentationEditor::preview(int row, Change apply)
 {
     if (m_previewRow >= 0 && m_previewRow != row)
         commitPreview();
-    rv::data::Cue *cue = cueAt(row);
+    google::protobuf::Message *unit = unitAt(row);
     rv::data::Slide *slide = slideIn(row);
-    if (!cue || !slide)
+    if (!unit || !slide)
         return;
     if (m_previewRow < 0) {
         m_previewRow = row;
-        m_previewBefore = cue->SerializeAsString();
+        m_previewBefore = unit->SerializeAsString();
     }
     apply(slide);
     refresh(row);
@@ -330,8 +458,8 @@ void PresentationEditor::cancelPreview()
     if (m_previewRow < 0)
         return;
     const int row = m_previewRow;
-    if (rv::data::Cue *cue = cueAt(row))
-        cue->ParseFromString(m_previewBefore);
+    if (google::protobuf::Message *unit = unitAt(row))
+        unit->ParseFromString(m_previewBefore);
     m_previewRow = -1;
     m_previewBefore.clear();
     refresh(row);
@@ -457,8 +585,8 @@ QString PresentationEditor::move(int row, const QString &element, int index)
     });
 }
 
-// Takes the last step off one list, puts its cue as it was at the other end of that
-// step, saves, and puts the step on the other list.
+// Takes the last step off one list, puts its cue or layout as it was at the other end
+// of that step, saves, and puts the step on the other list.
 QString PresentationEditor::restore(QList<Step> *from, QList<Step> *to, bool forwards)
 {
     if (m_previewRow >= 0)
@@ -466,13 +594,13 @@ QString PresentationEditor::restore(QList<Step> *from, QList<Step> *to, bool for
     if (from->isEmpty())
         return {};
     const Step step = from->last();
-    rv::data::Cue *cue = cueAt(step.row);
-    if (!cue)
+    google::protobuf::Message *unit = unitAt(step.row);
+    if (!unit)
         return gone;
-    cue->ParseFromString(forwards ? step.after : step.before);
-    const QString error = proconvert::writePresentation(m_path, m_presentation);
+    unit->ParseFromString(forwards ? step.after : step.before);
+    const QString error = write();
     if (!error.isEmpty()) {
-        cue->ParseFromString(forwards ? step.before : step.after);
+        unit->ParseFromString(forwards ? step.before : step.after);
         return error;
     }
     from->removeLast();

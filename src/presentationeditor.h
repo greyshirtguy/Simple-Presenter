@@ -1,6 +1,8 @@
 #pragma once
 
 #include "presentation.pb.h"
+#include "propDocument.pb.h"
+#include "stage.pb.h"
 
 #include <QAbstractListModel>
 #include <QVariantMap>
@@ -20,12 +22,22 @@
 // A change is saved to the file as soon as it is made, and can be undone. Before the
 // first change the file is copied aside, so the presentation as it was before an
 // editing session can always be got back.
+//
+// Two other files of a workspace are made of slides, and are edited as a presentation
+// is: its props, each a slide that is laid over the output, and its stage layouts, each
+// a slide of text boxes linked to what is live (see Props and StageLayouts). Open on
+// one of those, the rows are the props or the layouts, each row's `id` being the prop's
+// or the layout's and its label the name. What differs is only where in the file a
+// row's slide is, and what is kept of the file to undo a change: the cue the slide is
+// in, or the layout.
 class PresentationEditor : public QAbstractListModel
 {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(QString path READ path NOTIFY documentChanged)
     Q_PROPERTY(QString name READ name NOTIFY documentChanged)
+    // What is open: "presentation", "props" or "stage"
+    Q_PROPERTY(QString kind READ kind NOTIFY documentChanged)
     Q_PROPERTY(int count READ count NOTIFY documentChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
     Q_PROPERTY(bool canRedo READ canRedo NOTIFY historyChanged)
@@ -45,6 +57,7 @@ public:
 
     QString path() const { return m_path; }
     QString name() const { return m_name; }
+    QString kind() const;
     int count() const { return int(m_rows.size()); }
     bool canUndo() const { return !m_undo.isEmpty(); }
     bool canRedo() const { return !m_redo.isEmpty(); }
@@ -54,6 +67,10 @@ public:
     // Opens a presentation file from the workspace folder `workspace`, in place of any
     // open already. Returns an error message, empty on success.
     Q_INVOKABLE QString open(const QString &path, const QString &workspace);
+    // Opens the workspace's props, or its stage layouts, in the same way: `path` is the
+    // file they are in.
+    Q_INVOKABLE QString openProps(const QString &path, const QString &workspace);
+    Q_INVOKABLE QString openStageLayouts(const QString &path, const QString &workspace);
     Q_INVOKABLE void close();
 
     Q_INVOKABLE QVariantMap slideAt(int row) const;
@@ -101,15 +118,17 @@ signals:
     void restored(int row);
 
 private:
+    enum class Kind { Presentation, Props, Stage };
+    // Where a row's slide is: which cue of the presentation or of the props, or which
+    // stage layout; and for a presentation's slide, its group.
     struct Row
     {
-        int cue;
-        int action;
+        int unit;
         QString group;
         QString groupColor;
         bool groupStart;
     };
-    // One change: the cue it was made to, as it was before and after.
+    // One change: the cue or layout it was made to, as it was before and after.
     struct Step
     {
         int row;
@@ -117,8 +136,12 @@ private:
         std::string after;
     };
 
-    rv::data::Cue *cueAt(int row);
+    void start(Kind kind, const QString &path, const QString &workspace, const QString &name);
+    void finishOpening();
+    google::protobuf::Message *unitAt(int row);
+    const google::protobuf::Message *unitAt(int row) const;
     rv::data::Slide *slideIn(int row);
+    QString write();
     QVariantMap describe(int row) const;
     void refresh(int row);
     template <typename Change>
@@ -129,7 +152,11 @@ private:
     QString restore(QList<Step> *from, QList<Step> *to, bool forwards);
     void backUp();
 
+    Kind m_kind = Kind::Presentation;
+    // The file, as whichever of the three it is
     rv::data::Presentation m_presentation;
+    rv::data::PropDocument m_props;
+    rv::data::Stage::Document m_stage;
     QString m_path;
     QString m_name;
     QString m_workspace;

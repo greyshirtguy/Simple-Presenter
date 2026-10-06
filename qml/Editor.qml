@@ -9,6 +9,13 @@ import SimplePresenterApp
 //
 // Every change is saved to the presentation file as it is made, and can be undone.
 //
+// The same editor works on the workspace's props and on its stage layouts, which are
+// slides too: the list on the left is then of the props or the layouts in place of a
+// presentation's slides, and has what a presentation's list does not, a way to add one
+// and to rename, copy or remove it (a presentation's slides are added to in
+// ProPresenter). Those are done by what keeps the props and the layouts (Props,
+// StageLayouts), which changes the file; the editor then opens the file again.
+//
 // How it is put together.
 //
 //   PresentationEditor (src/presentationeditor.h) holds the file, parsed, and is the
@@ -47,6 +54,15 @@ Rectangle {
     property bool noticeIsError: true
     // The element being renamed in the list, by id; "" for none
     property string renamingId
+    // The prop or stage layout being renamed in the list on the left, by id; "" for none
+    property string renamingRow
+    // The workspace folder what is open is in
+    property string workspace
+
+    // What is open: "presentation", "props" or "stage"; and what a row of the list on
+    // the left is then called
+    readonly property string kind: editor.kind
+    readonly property string rowWord: kind === "props" ? "Prop" : kind === "stage" ? "Layout" : "Slide"
 
     readonly property alias editor: editor
     readonly property alias canvas: canvas
@@ -62,14 +78,92 @@ Rectangle {
     // Opens a presentation file from a workspace folder, at the slide with the given id
     // if it has one. Returns an error message, empty on success.
     function open(path, workspace, slideId) {
-        const error = editor.open(path, workspace)
+        return opened(editor.open(path, workspace), workspace, slideId)
+    }
+
+    // Opens the props of a workspace, or its stage layouts, at the one with the given
+    // id, or failing that at the given row: `path` is the file they are in.
+    function openProps(path, workspace, id, row) {
+        return opened(editor.openProps(path, workspace), workspace, id, row)
+    }
+
+    function openStage(path, workspace, id, row) {
+        return opened(editor.openStageLayouts(path, workspace), workspace, id, row)
+    }
+
+    // What follows opening any of them: the row with the given id is shown, or failing
+    // that the one at `row`, or the first.
+    function opened(error, workspace, id, row) {
         if (error !== "")
             return error
+        screen.workspace = workspace
         notice = ""
         renamingId = ""
-        canvas.showRow(Math.max(0, slideId ? editor.rowOf(slideId) : 0))
+        renamingRow = ""
+        const found = id ? editor.rowOf(id) : -1
+        canvas.showRow(found >= 0 ? found : Math.max(0, Math.min(row ?? 0, editor.count - 1)))
         slideList.positionViewAtIndex(canvas.row, ListView.Center)
         return ""
+    }
+
+    // Makes a change to which props or stage layouts there are, or to what one is
+    // called: `change` is a call to what keeps them, and answers with an error message
+    // or with { id, error } for something it made. The file is then opened again, at
+    // what was made, or at what was being shown, or at the row that was. Such a change
+    // is not one of the editor's own: it cannot be undone here, and what could be
+    // undone before it no longer can.
+    function restructure(change) {
+        finish()
+        const row = canvas.row
+        const shown = canvas.slide ? canvas.slide.id : ""
+        const result = change()
+        const error = typeof result === "string" ? result : result.error
+        const made = typeof result === "string" ? "" : result.id
+        const reopened = kind === "props" ? openProps(editor.path, workspace, made !== "" ? made : shown, row)
+                                          : openStage(editor.path, workspace, made !== "" ? made : shown, row)
+        report(error !== "" ? error : reopened)
+        takeFocus()
+        return error === "" ? made : ""
+    }
+
+    // Adds a prop, to the collection of the one being shown, or a stage layout.
+    function addRow() {
+        if (kind === "props") {
+            const beside = canvas.slide ? Props.find(canvas.slide.id) : ({})
+            restructure(() => Props.add(beside.collection ?? ""))
+        } else if (kind === "stage") {
+            restructure(() => StageLayouts.add())
+        }
+    }
+
+    // Ends a rename in the list on the left, with the name typed.
+    function renameRow(id, name) {
+        const row = editor.rowOf(id)
+        renamingRow = ""
+        if (row >= 0 && name !== "" && name !== editor.slideAt(row).label)
+            restructure(() => kind === "props" ? Props.rename(id, name) : StageLayouts.rename(id, name))
+        else
+            takeFocus()
+    }
+
+    // The menu of a prop or a stage layout in the list on the left, at a point of the
+    // list. (The list, and not the row, is what it is opened on: the changes it offers
+    // rebuild the rows.)
+    function showRowMenu(slide, x, y) {
+        if (kind === "presentation")
+            return
+        const props = kind === "props"
+        showMenu([
+            { header: slide.label !== "" ? slide.label : rowWord },
+            { label: "Rename", run: () => renamingRow = slide.id },
+            { label: "Duplicate", run: () => restructure(() => props ? Props.duplicate(slide.id)
+                                                                       : StageLayouts.duplicate(slide.id)) },
+            { label: "Remove…", danger: true, run: () => showMenu([
+                { note: "“" + slide.label + "” will be removed. That cannot be undone." },
+                { label: "Remove", danger: true,
+                  run: () => restructure(() => props ? Props.remove(slide.id) : StageLayouts.remove(slide.id)) }
+            ], slideList, x, y) }
+        ], slideList, x, y)
     }
 
     // Finishes whatever is under way, so that all of it is in the file.
@@ -216,7 +310,25 @@ Rectangle {
             id: slidesTitle
 
             color: "#4da3ff"
-            text: "Slides"
+            text: screen.kind === "props" ? "Props" : screen.kind === "stage" ? "Stage Layouts" : "Slides"
+        }
+
+        // Adds a prop or a stage layout. (A presentation's slides are added to in
+        // ProPresenter.)
+        AppButton {
+            objectName: "editorAddRow"
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.verticalCenter: slidesTitle.verticalCenter
+            anchors.verticalCenterOffset: 2
+            width: 26
+            height: 22
+            leftPadding: 0
+            rightPadding: 0
+            font.pixelSize: 14
+            text: "+"
+            visible: screen.kind !== "presentation"
+            onClicked: screen.addRow()
         }
 
         ListView {
@@ -240,6 +352,7 @@ Rectangle {
                 required property var slide
                 required property int index
                 readonly property bool current: index === canvas.row
+                readonly property bool renaming: screen.renamingRow !== "" && screen.renamingRow === slide.id
                 readonly property color frame: screen.groupColor(slide)
                 readonly property bool lightFrame: 0.299 * frame.r + 0.587 * frame.g + 0.114 * frame.b > 0.6
 
@@ -301,6 +414,7 @@ Rectangle {
                         anchors.rightMargin: 7
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
+                        visible: !cell.renaming
                         color: cell.lightFrame ? "black" : "white"
                         font.pixelSize: 11
                         text: (cell.index + 1)
@@ -311,12 +425,66 @@ Rectangle {
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: {
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: (mouse) => {
                         screen.showRow(cell.index)
                         screen.takeFocus()
+                        if (mouse.button === Qt.RightButton) {
+                            const at = mapToItem(slideList, mouse.x, mouse.y)
+                            screen.showRowMenu(cell.slide, at.x, at.y)
+                        }
+                    }
+                    onDoubleClicked: (mouse) => {
+                        if (mouse.button === Qt.LeftButton && screen.kind !== "presentation")
+                            screen.renamingRow = cell.slide.id
                     }
                 }
+
+                // Renaming a prop or a layout where its name is
+                AppTextField {
+                    x: frameRect.x + 3
+                    y: frameRect.y + frameRect.height - 23
+                    width: frameRect.width - 6
+                    height: 22
+                    leftPadding: 5
+                    rightPadding: 5
+                    font.pixelSize: 12
+                    visible: cell.renaming
+                    onVisibleChanged: {
+                        if (visible) {
+                            text = cell.slide.label
+                            forceActiveFocus()
+                            selectAll()
+                        }
+                    }
+                    Component.onCompleted: {
+                        if (visible) {
+                            text = cell.slide.label
+                            forceActiveFocus()
+                            selectAll()
+                        }
+                    }
+                    // One call and nothing after it: the change rebuilds the list,
+                    // and this row with it.
+                    onEditingFinished: {
+                        if (cell.renaming)
+                            screen.renameRow(cell.slide.id, text.trim())
+                    }
+                    Keys.onEscapePressed: screen.renameRow(cell.slide.id, "")
+                }
             }
+        }
+
+        Text {
+            anchors.centerIn: slideList
+            width: slideList.width - 40
+            visible: screen.kind !== "presentation" && editor.count === 0
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            color: "#9a9da3"
+            font.pixelSize: 13
+            text: screen.kind === "props" ? "No props. Add one with the + above."
+                                          : "No stage layouts. Add one with the + above."
         }
 
         // The elements of the slide, the front one first
@@ -518,7 +686,7 @@ Rectangle {
             wrapMode: Text.Wrap
             color: "#9a9da3"
             font.pixelSize: 13
-            text: "This slide has nothing on it. Add a text box with “+ Text”."
+            text: "This " + screen.rowWord.toLowerCase() + " has nothing on it. Add a text box with “+ Text”."
         }
     }
 
@@ -613,7 +781,7 @@ Rectangle {
             elide: Text.ElideRight
             color: "#9a9da3"
             font.pixelSize: 13
-            text: canvas.slide ? "Slide " + (canvas.row + 1) + " of " + editor.count : ""
+            text: canvas.slide ? screen.rowWord + " " + (canvas.row + 1) + " of " + editor.count : ""
         }
 
         AppButton {

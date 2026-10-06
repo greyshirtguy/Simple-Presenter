@@ -3,9 +3,12 @@
 #include "action.pb.h"
 
 #include <QCollator>
+#include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QFileInfo>
 #include <QImageReader>
+#include <QSaveFile>
 #include <QUrl>
 #include <QUuid>
 
@@ -153,6 +156,31 @@ rv::data::Media mediaElement(const QString &file, const QString &workspaceFolder
         recordFile(properties->mutable_file()->mutable_local_url(), file, workspaceFolder);
     }
     return element;
+}
+
+QString readMessage(const QString &path, google::protobuf::MessageLite *message, const QString &what)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return QStringLiteral("Cannot read %1: %2").arg(what, file.errorString());
+    const QByteArray data = file.readAll();
+    if (!message->ParseFromArray(data.constData(), int(data.size())))
+        return QStringLiteral("The file of %1 is not one this app can read").arg(what);
+    return {};
+}
+
+QString writeMessage(const QString &path, const google::protobuf::MessageLite &message, const QString &what)
+{
+    if (!QDir().mkpath(QFileInfo(path).absolutePath()))
+        return QStringLiteral("Cannot make the folder for %1").arg(what);
+    std::string bytes;
+    if (!message.SerializeToString(&bytes))
+        return QStringLiteral("Cannot encode %1").arg(what);
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes.data(), qint64(bytes.size())) != qint64(bytes.size())
+        || !file.commit())
+        return QStringLiteral("Cannot write %1: %2").arg(what, file.errorString());
+    return {};
 }
 
 void MediaBehaviour::describe(QVariantMap *media) const
