@@ -1,8 +1,7 @@
 import QtQuick
 
 // The show controls: what is worked during a show besides the slides and the media, a
-// tab for each kind. Timers and props are here; the stage display has its tab, and is
-// still to come.
+// tab for each kind: the timers, the props, and the stage screens.
 //
 // The tabs are a row of buttons across the whole width, pictures and not words, as
 // ProPresenter's are, and the one whose tab is showing is blue. Under them, at the
@@ -158,8 +157,8 @@ Item {
         }
     }
 
-    // Adds to what the tab holds: a timer, or a prop or a collection of them. Small, and
-    // out of the way of the tabs.
+    // Adds to what the tab holds: a timer, a prop or a collection of them, a stage
+    // layout. Small, and out of the way of the tabs.
     Rectangle {
         id: add
 
@@ -168,9 +167,8 @@ Item {
         anchors.top: buttons.bottom
         anchors.topMargin: 6
         width: 24
-        height: visible ? 20 : 0
+        height: 20
         radius: 5
-        visible: control.tab !== "stage"
         color: addMouse.pressed ? "#50535a" : addMouse.containsMouse ? "#45484e" : "#3a3c42"
 
         Text {
@@ -190,8 +188,10 @@ Item {
                 control.win.takeFocus()
                 if (control.tab === "timers")
                     timers.add()
-                else
+                else if (control.tab === "props")
                     props.showAddMenu(add)
+                else
+                    stage.add()
             }
         }
     }
@@ -219,12 +219,12 @@ Item {
             win: control.win
         }
 
-        EmptyNote {
-            anchors.centerIn: parent
-            width: parent.width - 24
+        StagePanel {
+            id: stage
+
+            anchors.fill: parent
             visible: control.tab === "stage"
-            font.pixelSize: 13
-            text: "Stage layouts are still to come."
+            win: control.win
         }
     }
 }

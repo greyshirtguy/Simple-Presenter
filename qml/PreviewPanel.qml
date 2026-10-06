@@ -5,9 +5,9 @@ import SimplePresenterApp
 
 // The right of the operator window, from the toolbar to the bottom: what the audience
 // is being shown and under it what the stage is, the buttons that clear the output, the
-// transport for a video that is playing, and the show controls (timers and props, and
-// in time the stage display). A line each side of the transport sets the three lots of
-// controls apart.
+// transport for a video that is playing, and the show controls (timers, props and the
+// stage display). A line each side of the transport sets the three lots of controls
+// apart.
 //
 // The previews are built from cheap parts instead of second copies of the outputs. The
 // slide is drawn again at this small size; a still image comes from its cached
@@ -219,11 +219,21 @@ Rectangle {
         border.width: 1
         border.color: "#3a3c42"
 
+        // The layout the stage has, or with none the plain view
         StageView {
             anchors.fill: parent
             anchors.margins: 1
+            visible: sidePanel.win.stageLayout === null
             currentText: sidePanel.win.stageCurrentText
             nextText: sidePanel.win.stageNextText
+        }
+
+        Slide {
+            anchors.fill: parent
+            anchors.margins: 1
+            visible: sidePanel.win.stageLayout !== null
+            slide: sidePanel.win.stageLayout ? sidePanel.win.stageLayout.slide : null
+            effects: false
         }
     }
 

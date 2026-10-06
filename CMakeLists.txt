@@ -130,6 +130,7 @@ qt_add_qml_module(SimplePresenter
         qml/SidebarList.qml
         qml/SlideGrid.qml
         qml/Stage.qml
+        qml/StagePanel.qml
         qml/StageView.qml
         qml/TimeField.qml
         qml/TimersPanel.qml

@@ -42,7 +42,10 @@ import SimplePresenterApp
 //
 // Over the slides are the props: slides of the workspace's own (`Props`, src/props.h)
 // that are turned on and off one by one and stay until they are turned off. Which are
-// on, and in what order, is `liveProps`.
+// on, and in what order, is `liveProps`. The stage display shows either the plain view
+// it has always had or one of the workspace's stage layouts (`StageLayouts`), which is
+// a slide of text boxes linked to what is live; those boxes ask `Show` (src/show.h),
+// which this window keeps told of the live slide and the next.
 Window {
     id: win
 
@@ -176,6 +179,10 @@ Window {
         return liveProps.map(id => all.find(prop => prop.id === id)).filter(prop => prop !== undefined)
                         .map(prop => ({ id: prop.id, slide: prop.slide }))
     }
+    // The stage layout the stage screen has, by id, and the layout itself; "" and null
+    // for the plain view the app has of its own.
+    property string stageLayoutId: ""
+    readonly property var stageLayout: StageLayouts.layouts.find(layout => layout.id === stageLayoutId) ?? null
 
     readonly property bool viewingLive: document !== null && liveDocument !== null
                                         && documentKey === liveKey && playlistId === livePlaylistId
@@ -570,8 +577,8 @@ Window {
         ], item)
     }
 
-    // Brings up the editor on the workspace's props, at the one with the given id: they
-    // are edited as a presentation's slides are.
+    // Brings up the editor on the workspace's props, at the one with the given id, or on
+    // its stage layouts: both are edited as a presentation's slides are.
     function startEditingProps(id) {
         if (editing || !report(editScreen.openProps(Props.path, catalog.workspacePath, id)))
             return
@@ -580,9 +587,17 @@ Window {
         editScreen.takeFocus()
     }
 
+    function startEditingStage(id) {
+        if (editing || !report(editScreen.openStage(StageLayouts.path, catalog.workspacePath, id)))
+            return
+        notice = ""
+        editing = true
+        editScreen.takeFocus()
+    }
+
     // Takes the editor down and shows the presentation as it now is. What is on the
-    // output is left as it is until a slide is next shown; a prop that is on is shown
-    // as it now is at once.
+    // output is left as it is until a slide is next shown; a prop that is on, or the
+    // stage's layout, is shown as it now is at once.
     function stopEditing() {
         if (!editing)
             return
@@ -598,6 +613,10 @@ Window {
         }
         if (kind === "props") {
             report(Props.reload())
+            return
+        }
+        if (kind === "stage") {
+            report(StageLayouts.reload())
             return
         }
         const entry = currentEntry()
@@ -859,9 +878,10 @@ Window {
         clearProps()
     }
 
-    // Reads what else a workspace folder holds for the show: its timers and its props.
+    // Reads what else a workspace folder holds for the show: its timers, its props and
+    // its stage layouts.
     function openShowControls(path) {
-        for (const error of [Timers.open(path, clocksHeld), Props.open(path)]) {
+        for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path)]) {
             if (error !== "")
                 report(error)
         }
@@ -876,6 +896,7 @@ Window {
     // The toolbar is the title bar: it drags the window and carries the window buttons.
     flags: Qt.Window | Qt.FramelessWindowHint
     title: editing && editScreen.editor.kind === "props" ? "Editing Props — SimplePresenter"
+         : editing && editScreen.editor.kind === "stage" ? "Editing Stage Layouts — SimplePresenter"
          : (editing ? "Editing " : "") + (document ? document.name + " — SimplePresenter" : "SimplePresenter")
 
     // Restores the last session where what it refers to is still on disk, and falls back
@@ -966,6 +987,9 @@ Window {
         const firstMediaPlaylist = catalog.mediaPlaylists.find(p => !p.folder)
         openMediaPlaylist(catalog.mediaPlaylists.some(p => p.path === mediaPlaylist && !p.folder) ? mediaPlaylist
                           : firstMediaPlaylist ? firstMediaPlaylist.path : "")
+        // The stage has the layout it had, if the workspace still has that layout.
+        const stageLayout = savedSelection("stageLayout")
+        stageLayoutId = StageLayouts.layouts.some(layout => layout.id === stageLayout) ? stageLayout : ""
     }
 
     // Closes the open workspace and opens another: the output is cleared, everything
@@ -988,9 +1012,10 @@ Window {
         libraryPath = ""
         mediaPlaylistId = ""
         selectedMediaNode = ""
+        stageLayoutId = ""
         notice = ""
         catalog.openWorkspace(path)
-        // The timers and the props are the workspace's too.
+        // The timers, the props and the stage layouts are the workspace's too.
         openShowControls(path)
         restoreSelections()
         restored = true
@@ -1035,6 +1060,7 @@ Window {
     onPlaylistIdChanged: saveSelection("playlist", playlistId)
     onDocumentKeyChanged: saveSelection("presentation", documentKey)
     onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
+    onStageLayoutIdChanged: saveSelection("stageLayout", stageLayoutId)
 
     TransitionCatalogue {
         id: transitionCatalogue
@@ -1139,6 +1165,7 @@ Window {
         owner: win
         remember: win.remember
         shown: win.stageEnabled
+        layout: win.stageLayout ? win.stageLayout.slide : null
         currentText: win.stageCurrentText
         nextText: win.stageNextText
         keyTarget: keys
@@ -1155,7 +1182,8 @@ Window {
         }
     }
 
-    // What is live, for the text boxes that show it (see Show).
+    // What is live, for the text boxes that show it: those of a stage layout, mostly
+    // (see Show).
     Binding {
         target: Show
         property: "currentSlide"
