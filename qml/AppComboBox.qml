@@ -53,6 +53,8 @@ ComboBox {
         // Kept inside the window
         margins: 6
         padding: 4
+        // Takes the keyboard while open, so that Esc closes it.
+        focus: true
 
         // A long list scrolls instead of running down the window.
         contentItem: ListView {

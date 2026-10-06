@@ -1203,6 +1203,8 @@ Window {
                 width: 250
                 margins: 6
                 padding: 6
+                // Takes the keyboard while open, so that Esc closes it.
+                focus: true
                 onClosed: {
                     if (playlistList.editingPath === "" && mediaList.editingPath === "")
                         keys.forceActiveFocus()
@@ -1986,6 +1988,7 @@ Window {
             width: 200
             margins: 6
             padding: 6
+            focus: true
             onClosed: keys.forceActiveFocus()
 
             background: MenuBackground {}

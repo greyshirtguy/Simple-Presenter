@@ -158,6 +158,7 @@ Rectangle {
                             // Kept inside the window
                             margins: 6
                             padding: 10
+                            focus: true
 
                             background: Rectangle {
                                 radius: 8
