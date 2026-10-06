@@ -14,6 +14,13 @@ import SimplePresenterApp
 // the caret and the selection: the text itself goes on being drawn as it will be shown,
 // from what the TextEdit holds, so strokes, shadows and capitals are all there as it is
 // typed. That works because both lay text out the same way (see textlayout.h).
+//
+// An element whose text is linked to something (another element, a timer, the slide
+// that is live) has a yellow outline, and in small yellow print at its foot what it is
+// linked to, as ProPresenter marks them. Where there is nothing of that to show (no
+// slide is live; or it is something this app does not follow, such as the clock) the
+// element is drawn here with its own text, which is then a sample of it to set the
+// look by. Only here: shown for real, such a box has nothing in it.
 Item {
     id: canvas
 
@@ -76,6 +83,29 @@ Item {
         if (error !== "")
             failed(error)
         return error === ""
+    }
+
+    // What an element's text is linked to, in a few words; "" for one whose text is
+    // its own. A timer goes by the name it has now, which may not be the name the link
+    // was made with.
+    function linkCaption(element) {
+        switch (element.linkKind) {
+        case "element":
+            return "Text of " + (element.linkElementName !== "" ? "“" + element.linkElementName + "”" : "another element")
+        case "timer": {
+            const id = Timers.linkedTimer(element.linkTimerId, element.linkTimerName)
+            const timer = Timers.timers.find(candidate => candidate.id === id)
+            return "Timer: " + (timer ? timer.name : element.linkTimerName + " (not here)")
+        }
+        case "slideText":
+            return (element.linkSlideNext ? "Next Slide: " : "Current Slide: ")
+                 + (element.linkSlideSource === Show.Notes ? "Notes"
+                    : element.linkSlideSource === Show.ElementNamed ? "“" + element.linkSlideName + "”" : "Text")
+        case "other":
+            return element.linkLabel
+        default:
+            return ""
+        }
     }
 
     function reload() {
@@ -686,6 +716,46 @@ Item {
             color: "transparent"
             border.width: 1
             border.color: hovered ? "#c0ffffff" : "#30ffffff"
+        }
+    }
+
+    // An element whose text is linked to something: a yellow outline, and in small
+    // print at its foot what it is linked to. It goes with the element as that is
+    // dragged, and stays when the element is picked, inside the frame that shows that.
+    Repeater {
+        model: canvas.elements
+
+        delegate: Rectangle {
+            id: linkMark
+
+            required property var modelData
+            readonly property var box: canvas.dragBox !== null && modelData.id === canvas.selectedId ? canvas.dragBox
+                                                                                                    : modelData
+            readonly property string caption: modelData.linkKind !== "none" ? canvas.linkCaption(modelData) : ""
+
+            objectName: "linkMark"
+            x: canvas.originX + box.x * canvas.u
+            y: canvas.originY + box.y * canvas.u
+            width: box.width * canvas.u
+            height: box.height * canvas.u
+            visible: !modelData.hidden && modelData.linkKind !== "none"
+            color: "transparent"
+            border.width: 1.5
+            border.color: "#ffd400"
+
+            Text {
+                x: 5
+                y: parent.height - height - 3
+                width: parent.width - 10
+                // Not in a box too small to hold it
+                visible: parent.height >= 22 && parent.width >= 40
+                elide: Text.ElideRight
+                color: "#ffd400"
+                style: Text.Outline
+                styleColor: "#c0000000"
+                font.pixelSize: 10
+                text: linkMark.caption
+            }
         }
     }
 
