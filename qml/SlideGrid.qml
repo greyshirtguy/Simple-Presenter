@@ -41,7 +41,7 @@ Item {
         anchors.leftMargin: 16
         anchors.rightMargin: 16
         visible: (slides.win.document !== null && slides.win.document.arrangements.length > 0) || slides.win.notice !== ""
-        height: visible ? 46 : 6
+        height: visible ? 34 : 6
 
         Text {
             anchors.left: parent.left
@@ -58,11 +58,11 @@ Item {
             id: arrangementLabel
 
             anchors.right: arrangementBox.left
-            anchors.rightMargin: 10
+            anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             visible: arrangementBox.visible
             color: slides.win.dimTextColor
-            font.pixelSize: 13
+            font.pixelSize: 12
             text: "Arrangement"
         }
 
@@ -72,9 +72,12 @@ Item {
         AppComboBox {
             id: arrangementBox
 
+            objectName: "arrangementBox"
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            width: 180
+            width: 160
+            height: 24
+            font.pixelSize: 12
             visible: slides.win.document !== null && slides.win.document.arrangements.length > 0
             model: slides.win.document ? ["Master"].concat(slides.win.document.arrangements) : []
             currentIndex: slides.win.document && slides.win.document.arrangement !== ""
