@@ -1,6 +1,6 @@
 # Simple Presenter
 
-![The Simple Presenter operator window: libraries and playlists at the top left with the selected playlist's presentations below them, a grid of slide thumbnails framed in their group colours, output and stage previews on the right, and the media bin along the bottom](docs/screenshot.png)
+![The Simple Presenter operator window: libraries and playlists at the top left with the selected playlist's presentations below them, a grid of slide thumbnails framed in their group colours with the media bin under it, and down the right the output and stage previews, the clear buttons, the transport for the video that is playing and the timers](docs/screenshot.png)
 
 Simple Presenter is an experiment in vibe coding, and my first attempt at building
 something non-trivial that way: a presenter for Linux that works on a ProPresenter 7
