@@ -131,8 +131,9 @@ beside it are then the ones the picker offers. `--help` lists the other options.
 
 ## Editing
 
-**Edit** in the toolbar, or **Edit** in a presentation's right-click menu, swaps the
-slides for the editor; **Done**, or **Edit** again, goes back to showing. The output
+**Edit** in the toolbar, or in the right-click menu of a presentation or of a slide,
+swaps the slides for the editor, at that slide if it was a slide's menu; **Done**, or
+**Edit** again, goes back to showing. The output
 carries on as it was while a presentation is edited, and shows a slide as edited the
 next time that slide is shown.
 

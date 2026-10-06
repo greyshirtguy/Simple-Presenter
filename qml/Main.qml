@@ -447,19 +447,34 @@ Window {
             openPlaylist(busiest)
     }
 
-    // Brings up the editor on a presentation, at the slide that is live if that
-    // presentation is the live one.
-    function startEditing(entry) {
+    // Brings up the editor on a presentation: at the slide with the given id, if one is
+    // given, and otherwise at the slide that is live if that presentation is the live one.
+    function startEditing(entry, slideId) {
         if (editing || !entry || !openable(entry))
             return
         if (documentKey !== entry.path)
             openEntry(entry)
-        const slide = viewingLive && liveIndex >= 0 && liveIndex < document.slides.length ? document.slides[liveIndex].id : ""
+        const slide = slideId ?? (viewingLive && liveIndex >= 0 && liveIndex < document.slides.length
+                                  ? document.slides[liveIndex].id : "")
         if (!report(editScreen.open(entry.file, catalog.workspacePath, slide)))
             return
         notice = ""
         editing = true
         editScreen.takeFocus()
+        // A cue that only triggers media has no slide to work on.
+        if (slide !== "" && editScreen.editor.rowOf(slide) < 0)
+            editScreen.tell(editScreen.editor.count === 0
+                            ? "This presentation's slides only trigger media, so there is nothing on them to edit."
+                            : "That slide only triggers media, so there is nothing on it to edit. This is the first slide that has something.")
+    }
+
+    // Opens the menu for a slide of the grid, at a point of its cell.
+    function showSlideMenu(index, item, x, y) {
+        const slide = document.slides[index]
+        menu.show([
+            { label: "Edit", run: () => startEditing(currentEntry(), slide.id) },
+            { label: "Remove Media", disabled: slide.mediaName === "", run: () => assignMedia(index, null) }
+        ], item, x, y)
     }
 
     // Takes the editor down and shows the presentation as it now is. What is on the
@@ -1293,9 +1308,9 @@ Window {
                 }
             }
 
-            // The one right-click menu of the sidebar. show() takes its rows: a row with
-            // `header` is a caption; any other has a `label` and a `run` function, and
-            // may be marked `current` (ticked) or `danger` (red).
+            // The one right-click menu. show() takes its rows: a row with `header` is a
+            // caption; any other has a `label` and a `run` function, and may be marked
+            // `current` (ticked), `danger` (red) or `disabled` (greyed, and does nothing).
             Popup {
                 id: menu
 
@@ -1354,6 +1369,7 @@ Window {
                                 readonly property bool note: modelData.note !== undefined
                                 readonly property bool heading: modelData.header !== undefined
                                 readonly property bool caption: heading || note
+                                readonly property bool unavailable: modelData.disabled === true
                                 // A gap above each section after the first sets it apart.
                                 readonly property real gap: heading && index > 0 ? 6 : 0
                                 readonly property real indent: menu.sectioned && !caption ? 30 : 12
@@ -1366,7 +1382,7 @@ Window {
                                     anchors.topMargin: row.gap
                                     radius: 4
                                     color: row.heading ? "#484b53"
-                                         : !row.caption && rowMouse.containsMouse ? "#565962" : "transparent"
+                                         : !row.caption && !row.unavailable && rowMouse.containsMouse ? "#565962" : "transparent"
                                 }
 
                                 Text {
@@ -1404,6 +1420,7 @@ Window {
                                     verticalAlignment: Text.AlignVCenter
                                     elide: Text.ElideRight
                                     color: row.heading ? "#d5d7dc"
+                                         : row.unavailable ? "#6c6f75"
                                          : row.modelData.danger ? "#ff6b6b"
                                          : row.modelData.current ? win.accentColor : win.textColor
                                     font.pixelSize: row.heading ? 11 : 14
@@ -1418,7 +1435,7 @@ Window {
                                     anchors.fill: parent
                                     anchors.topMargin: row.gap
                                     hoverEnabled: true
-                                    enabled: !row.caption
+                                    enabled: !row.caption && !row.unavailable
                                     onClicked: {
                                         const run = row.modelData.run
                                         menu.close()
@@ -2036,11 +2053,7 @@ Window {
                         if (mouse.button === Qt.LeftButton) {
                             win.goLive(cell.index)
                         } else {
-                            slideMenu.index = cell.index
-                            slideMenu.parent = cell
-                            slideMenu.x = mouse.x
-                            slideMenu.y = mouse.y
-                            slideMenu.open()
+                            win.showSlideMenu(cell.index, cell, mouse.x, mouse.y)
                         }
                     }
                 }
@@ -2113,53 +2126,6 @@ Window {
                 text: "+"
                 available: win.thumbnailWidth < win.largestThumbnail && grid.columns > 1
                 onClicked: win.zoomThumbnails(1)
-            }
-        }
-
-        // Right-click menu of a slide
-        Popup {
-            id: slideMenu
-
-            property int index: -1
-            readonly property var slide: win.document && index >= 0 && index < win.document.slides.length
-                                         ? win.document.slides[index] : null
-            readonly property bool hasMedia: slide !== null && slide.mediaName !== ""
-
-            width: 200
-            margins: 6
-            padding: 6
-            focus: true
-            onClosed: keys.forceActiveFocus()
-
-            background: MenuBackground {}
-
-            contentItem: Rectangle {
-                implicitHeight: 30
-                radius: 4
-                color: slideMenu.hasMedia && removeMouse.containsMouse ? "#45484e" : "transparent"
-
-                Text {
-                    anchors.fill: parent
-                    anchors.leftMargin: 10
-                    anchors.rightMargin: 10
-                    verticalAlignment: Text.AlignVCenter
-                    color: slideMenu.hasMedia ? win.textColor : "#6c6f75"
-                    font.pixelSize: 14
-                    text: "Remove Media"
-                }
-
-                MouseArea {
-                    id: removeMouse
-
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    enabled: slideMenu.hasMedia
-                    onClicked: {
-                        const index = slideMenu.index
-                        slideMenu.close()
-                        win.assignMedia(index, null)
-                    }
-                }
             }
         }
 
