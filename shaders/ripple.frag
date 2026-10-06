@@ -1,8 +1,8 @@
 #version 440
 
-// Ported from gl-transitions "ripple" (https://gl-transitions.com)
-// Author: gre
-// License: MIT
+// Ripple: what is coming spreads from the middle in a circle, with a swollen rim running
+// ahead of it like the front of a ripple: within the rim what is coming is stretched, and
+// fades into what is going.
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -11,24 +11,31 @@ layout(std140, binding = 0) uniform buf {
     mat4 qt_Matrix;
     float qt_Opacity;
     float progress;
-    float amplitude;
-    float speed;
+    float ratio;
 };
 
 layout(binding = 1) uniform sampler2D fromTex;
 layout(binding = 2) uniform sampler2D toTex;
-
 void main()
 {
-    vec2 uv = qt_TexCoord0;
-    vec2 dir = uv - vec2(0.5);
-    float dist = length(dir);
-    vec2 offset = dir * (sin(progress * dist * amplitude - progress * speed) + 0.5) / 30.0;
+    // Measured so that the circle is round on screen and the corners are 1 from the middle.
+    vec2 fromMiddle = (qt_TexCoord0 - 0.5) * vec2(ratio, 1.0);
+    float corner = 0.5 * length(vec2(ratio, 1.0));
+    float away = length(fromMiddle) / corner;
+    float reach = 1.3 * progress;
+    float rim = 0.5 * progress;
 
-    // Not in the original: ramp the displacement in, because this shader also draws the
-    // resting slide at progress 0 and the original is already displaced there.
-    offset *= min(progress * 8.0, 1.0);
-
-    fragColor = mix(texture(fromTex, uv + offset), texture(toTex, uv),
-                    smoothstep(0.2, 1.0, progress)) * qt_Opacity;
+    vec4 going = texture(fromTex, qt_TexCoord0);
+    vec4 color = going;
+    if (away < reach) {
+        color = texture(toTex, qt_TexCoord0);
+    } else if (away < reach + rim) {
+        float through = (away - reach) / rim;
+        // Within the rim what is coming is drawn from nearer the middle than it is, the
+        // more so the further out.
+        float drawnFrom = reach + rim * through * through;
+        vec2 uv = 0.5 + fromMiddle * (drawnFrom / away) / vec2(ratio, 1.0);
+        color = mix(texture(toTex, uv), going, smoothstep(0.0, 1.0, through));
+    }
+    fragColor = color * qt_Opacity;
 }

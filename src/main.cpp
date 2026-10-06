@@ -40,7 +40,8 @@
 //      a SlideElement for each element, which draws its text with a StrokedText
 //      (src/strokedtext.h).
 //   4. If a transition is chosen, the layer blends the old slide into the new with a
-//      fragment shader (shaders/).
+//      fragment shader (shaders/; qml/TransitionCatalogue.qml lists them, with what
+//      can be adjusted about each).
 //
 // Choices made for modest hardware. The app is developed on a 2017 laptop with
 // integrated graphics, and is meant to run a show on one.

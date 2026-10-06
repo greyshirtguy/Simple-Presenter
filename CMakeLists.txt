@@ -129,7 +129,9 @@ qt_add_qml_module(SimplePresenter
         qml/StageView.qml
         qml/Toolbar.qml
         qml/ToolbarIcon.qml
+        qml/TransitionCatalogue.qml
         qml/TransitionLayer.qml
+        qml/TransitionOptions.qml
         qml/ZoomButtons.qml
     SOURCES
         src/catalog.h
@@ -151,20 +153,52 @@ qt_add_qml_module(SimplePresenter
 qt_add_shaders(SimplePresenter "shaders"
     PREFIX "/"
     FILES
+        shaders/amoeba.frag
+        shaders/colorBurn.frag
+        shaders/colorPush.frag
+        shaders/cube.frag
+        shaders/dispersionBlur.frag
         shaders/dissolve.frag
+        shaders/door.frag
+        shaders/doorWipe.frag
+        shaders/fade.frag
+        shaders/fadeBlack.frag
+        shaders/fadeBright.frag
+        shaders/fadeDark.frag
+        shaders/fadeGray.frag
+        shaders/fadeWhite.frag
+        shaders/flip.frag
+        shaders/flyIn.frag
+        shaders/iris.frag
+        shaders/mosaic.frag
+        shaders/moveIn.frag
+        shaders/noisyZoom.frag
+        shaders/push.frag
+        shaders/randomPixels.frag
+        shaders/randomSquaresFlicker.frag
+        shaders/reveal.frag
         shaders/ripple.frag
+        shaders/swap.frag
+        shaders/wipe.frag
+        shaders/zoomIn.frag
         shaders/gl-transitions/circleopen.frag
+        shaders/gl-transitions/crosshatch.frag
         shaders/gl-transitions/crosswarp.frag
         shaders/gl-transitions/CrossZoom.frag
         shaders/gl-transitions/directionalwarp.frag
         shaders/gl-transitions/Dreamy.frag
+        shaders/gl-transitions/FilmBurn.frag
+        shaders/gl-transitions/flyeye.frag
         shaders/gl-transitions/heart.frag
+        shaders/gl-transitions/kaleidoscope.frag
         shaders/gl-transitions/LinearBlur.frag
         shaders/gl-transitions/pinwheel.frag
         shaders/gl-transitions/pixelize.frag
         shaders/gl-transitions/Radial.frag
         shaders/gl-transitions/randomsquares.frag
+        shaders/gl-transitions/ripple.frag
         shaders/gl-transitions/SimpleZoom.frag
+        shaders/gl-transitions/squareswire.frag
         shaders/gl-transitions/Swirl.frag
         shaders/gl-transitions/WaterDrop.frag
         shaders/gl-transitions/wind.frag

@@ -113,14 +113,66 @@ Rectangle {
                 anchors.centerIn: parent
                 spacing: 6
 
-                AppComboBox {
+                // The chosen transition. A click opens the menu of them all, by category.
+                Rectangle {
+                    id: transitionButton
+
+                    objectName: "transitionButton"
                     anchors.verticalCenter: parent.verticalCenter
                     width: 150
                     height: 28
-                    font.pixelSize: 13
-                    model: toolbar.win.transitions.map(t => t.name)
-                    currentIndex: toolbar.win.transitionIndex
-                    onActivated: (index) => toolbar.win.transitionIndex = index
+                    radius: 6
+                    color: transitionMouse.pressed ? "#50535a" : transitionMouse.containsMouse ? "#45484e" : "#3a3c42"
+
+                    Text {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 22
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                        color: toolbar.win.textColor
+                        font.pixelSize: 13
+                        text: toolbar.win.transition.name
+                    }
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: toolbar.win.dimTextColor
+                        font.pixelSize: 10
+                        text: "▼"
+                    }
+
+                    MouseArea {
+                        id: transitionMouse
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: toolbar.win.showTransitionMenu(transitionButton)
+                    }
+                }
+
+                // What can be adjusted about it, for the transitions that have anything
+                IconButton {
+                    id: optionsButton
+
+                    objectName: "transitionOptionsButton"
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 28
+                    kind: "sliders"
+                    on: options.opened
+                    available: toolbar.win.transition.options.length > 0
+                    onClicked: options.opened ? options.close() : options.open()
+
+                    TransitionOptions {
+                        id: options
+
+                        y: parent.height + 9
+                        x: parent.width - width
+                        win: toolbar.win
+                        onClosed: toolbar.win.takeFocus()
+                    }
                 }
 
                 AppSlider {

@@ -4,8 +4,8 @@ import QtQuick
 // glyph: "bold", "italic", "underline" and "strike" are letters; "alignLeft",
 // "alignCenter", "alignRight" and "alignJustify" are lines of text; "alignTop",
 // "alignMiddle" and "alignBottom" are a block against an edge; "eye" and "lock" are for
-// the rows of a list; anything else shows `text`. `on` draws it as switched on. Never
-// takes keyboard focus.
+// the rows of a list; "sliders" is three sliders, for things to adjust; anything else
+// shows `text`. `on` draws it as switched on. Never takes keyboard focus.
 Rectangle {
     id: button
 
@@ -90,6 +90,41 @@ Rectangle {
             radius: 1
             color: button.ink
             opacity: button.kind === "alignMiddle" ? 0.75 : 1
+        }
+    }
+
+    // Three sliders, their knobs at different places
+    Column {
+        anchors.centerIn: parent
+        spacing: 2.5
+        visible: button.kind === "sliders"
+
+        Repeater {
+            model: [0.2, 0.7, 0.4]
+
+            delegate: Item {
+                id: slider
+
+                required property real modelData
+
+                width: 15
+                height: 3
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width
+                    height: 1.5
+                    color: button.ink
+                }
+
+                Rectangle {
+                    x: slider.modelData * (parent.width - width)
+                    width: 3
+                    height: 3
+                    radius: 1.5
+                    color: button.ink
+                }
+            }
         }
     }
 

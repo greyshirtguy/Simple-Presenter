@@ -34,6 +34,10 @@ Popup {
         menu.at = x === undefined ? null : Qt.point(x, y)
         parent = item
         open()
+        // A menu too long to show whole opens with its current row in view.
+        const current = rows.itemAt(items.findIndex(row => row.current === true))
+        view.contentY = current === null ? 0
+            : Math.max(0, Math.min(current.y - (view.height - current.height) / 2, view.contentHeight - view.height))
     }
 
     // At the point asked for; or under the row it was opened from; or under a
@@ -72,15 +76,23 @@ Popup {
     }
 
     contentItem: Flickable {
+        id: view
+
         implicitHeight: Math.min(menuRows.height, menu.limit)
         contentHeight: menuRows.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
 
+        ScrollBar.vertical: ScrollBar {}
+
+        KineticWheel {}
+
         Column {
             id: menuRows
 
             Repeater {
+                id: rows
+
                 model: menu.items
 
                 delegate: Item {

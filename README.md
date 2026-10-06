@@ -19,10 +19,10 @@ folder as it is. It has three goals.
   [Built for modest hardware](#built-for-modest-hardware).
 
 It shows ProPresenter 7 `.pro` presentations on a slide layer over a media layer.
-Transitions are shaders, which keeps them cheap: a dissolve, a plain cut, and twenty-one
-ported from [gl-transitions](https://gl-transitions.com), such as wipes, warps, zooms
-and a ripple. It has two outputs, an audience output and a stage display, each in its
-own window, and a media bin. It can import a playlist that has been exported from
+[Transitions](#transitions) are shaders, which keeps them cheap. Besides a plain cut
+there are fifty-four: an equivalent of every slide transition ProPresenter has, under
+the names it gives them, and eighteen more. It has two outputs, an audience output and
+a stage display, each in its own window, and a media bin. It can import a playlist that has been exported from
 ProPresenter, and it has a simple [editor](#editing) for the text boxes on a slide.
 
 ## TODO
@@ -236,7 +236,8 @@ Two rules run through all of it.
 
 A transition is a small fragment shader that is handed the outgoing and incoming
 pictures and a number that goes from 0 to 1; `shaders/dissolve.frag` explains the
-pattern, and adding one is a shader file and two lines.
+pattern. Adding one is a shader file, a line for it in the build, and an entry in
+`qml/TransitionCatalogue.qml` that names it and lists what can be adjusted about it.
 
 `src/main.cpp` opens with a longer tour, and the header of each file says how that part
 works.
@@ -351,6 +352,31 @@ Fonts are recorded by name, so text set in a font that is not installed here kee
 font unless another is chosen for it; the editor marks such a font as missing, and a
 substitute is used to draw it.
 
+## Transitions
+
+The transition is chosen in the toolbar, and applies to every change on the output,
+slides and media alike; the slider beside it is how long it takes. The menu has them by
+category, as ProPresenter does: Dissolves, Wipes, Movements, Objects, Color and Blurs,
+and then More, for the ones ProPresenter does not have.
+
+Some transitions can be adjusted: the direction a wipe or a push travels, the colour of
+a burn, the size of the squares. For those, the button with the sliders on it, beside
+the transition, opens a panel with what there is to adjust: a slider for a number, a
+swatch for a colour, and a pad of nine places for a direction, which is where what is
+coming comes from. A change takes effect with the next transition and is remembered for
+that transition; Reset puts it back as it came.
+
+The names, the categories and what can be adjusted are ProPresenter's, so that what is
+known from there is found here. The shaders are not: ProPresenter's are its own. Each
+transition here is either written for this app to give the same kind of change, or
+ported from [gl-transitions](https://gl-transitions.com), from which ProPresenter
+adapted several of its own. So they are equivalents and not copies, and will not match
+ProPresenter's frame for frame.
+
+On the laptop in [Built for modest hardware](#built-for-modest-hardware), with a slide
+and its media changing at once on a full-screen 1080p output, all of them keep sixty
+frames a second but one, Cross Zoom, which manages fifty-seven.
+
 ## Keys
 
 | Key | Action |
@@ -424,8 +450,9 @@ those.
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | The output and stage windows |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
+| `qml/TransitionCatalogue.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
-| `shaders/` | The transitions; `shaders/gl-transitions` holds the ones ported from gl-transitions |
+| `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions |
 | `packaging/` | The launcher, icon and description that an installed copy has |
 | `third_party/ProPresenter7-Proto` | The descriptions of ProPresenter's file formats, as a submodule |
 
@@ -441,8 +468,8 @@ It uses, under their own licences:
 - [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto), under the
   MIT licence.
 - Transitions ported from [gl-transitions](https://gl-transitions.com), under the MIT
-  licence: `shaders/ripple.frag` and everything in `shaders/gl-transitions`, where the
-  licence text is. Each file credits its author.
+  licence: everything in `shaders/gl-transitions`, where the licence text is. Each file
+  credits its author, and says where it departs from the original.
 - Protocol Buffers, fontconfig, zlib and FFmpeg (through Qt Multimedia, and directly
   for video thumbnails), as provided by the system.
 

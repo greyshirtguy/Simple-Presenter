@@ -9,16 +9,27 @@
 //   toTex      what is coming, as a texture
 //   progress   how far along the transition is, 0 at the start and 1 at the end
 // and answers with the colour of that pixel. Here that is a plain mix of the two.
-// Shaders that draw shapes may also declare `float ratio`, the layer's width over its
-// height, to keep circles round; each shader declares in `buf` exactly the uniforms it
-// uses, after the two that Qt always passes.
+//
+// A shader may also declare any of these, in `buf` after `progress`. Each declares
+// exactly the ones it uses.
+//   float ratio       the layer's width over its height, to keep circles round
+//   vec2 resolution   the layer's size in pixels
+//   vec4 options      the numbers that can be adjusted about the transition, in the
+//                     order qml/TransitionCatalogue.qml lists them
+//   vec4 tint         the colour that can be adjusted about it: red, green, blue and
+//                     opacity, not premultiplied
+//   vec2 direction    the way things travel, where that can be chosen: each part -1, 0
+//                     or 1, x to the right and y down
+//
+// Two things every transition has to get right. At 0 it must give exactly what is
+// going, and at 1 exactly what is coming: the layer draws those directly before and
+// after, and any difference shows as a jump. And both textures are transparent wherever
+// their layer has nothing, with their colours premultiplied by that transparency, which
+// has to stay true of what the shader puts out. A transition that moves a picture gives
+// nothing beyond the picture's edges, where a texture would repeat its edge.
 //
 // To add a transition: write the shader, add it to qt_add_shaders in CMakeLists.txt,
-// and add a line for it to `transitions` in qml/Main.qml. Nothing else needs to know.
-//
-// Both textures are transparent wherever their layer has nothing, and their colours
-// are premultiplied by that transparency, which a transition has to keep true of what
-// it puts out.
+// and add an entry for it to qml/TransitionCatalogue.qml. Nothing else needs to know.
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;

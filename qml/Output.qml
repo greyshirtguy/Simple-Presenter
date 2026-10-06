@@ -13,8 +13,12 @@ import QtQuick
 AuxWindow {
     id: win
 
-    // Applied to the next change on either layer: a .qsb url, or "" to cut; milliseconds.
+    // Applied to the next change on either layer: a .qsb url, or "" to cut; what the
+    // shader is handed for the transition's options (see TransitionLayer); milliseconds.
     property string shader: ""
+    property vector4d options
+    property vector4d tint
+    property vector2d direction
     property int duration: 0
     // The QVideoSink of the video on the media layer, or null; lets a preview borrow its frames.
     readonly property var liveVideoSink: mediaLayer.currentItem ? mediaLayer.currentItem.videoSink : null
@@ -55,6 +59,9 @@ AuxWindow {
 
         anchors.fill: parent
         shader: win.shader
+        options: win.options
+        tint: win.tint
+        direction: win.direction
         duration: win.duration
         delegate: MediaContent {}
         // The media layer has stopped waiting, to make its change or because it was
@@ -70,6 +77,9 @@ AuxWindow {
 
         anchors.fill: parent
         shader: win.shader
+        options: win.options
+        tint: win.tint
+        direction: win.direction
         duration: win.duration
         delegate: Slide {}
     }

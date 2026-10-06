@@ -31,7 +31,7 @@ void runSelfTest(QQuickWindow *operatorWindow, QQuickWindow *output, QQuickWindo
     at(2500, [=] {
         grab(operatorWindow, "operator-1");
         grab(output, "output-1-resting");
-        operatorWindow->setProperty("transitionIndex", 2);
+        QMetaObject::invokeMethod(operatorWindow, "selectTransition", Q_ARG(QVariant, "Ripple Wave"));
         operatorWindow->setProperty("transitionDuration", 1.4);
         QMetaObject::invokeMethod(operatorWindow, "step", Q_ARG(QVariant, 1));
     });
@@ -45,7 +45,7 @@ void runSelfTest(QQuickWindow *operatorWindow, QQuickWindow *output, QQuickWindo
     at(5050, [=] {
         grab(operatorWindow, "operator-3-settings");
         operatorWindow->setProperty("settingsOpen", false);
-        operatorWindow->setProperty("transitionIndex", 0);
+        QMetaObject::invokeMethod(operatorWindow, "selectTransition", Q_ARG(QVariant, "Cut"));
         QMetaObject::invokeMethod(operatorWindow, "clearSlide");
     });
     at(5300, [=] {

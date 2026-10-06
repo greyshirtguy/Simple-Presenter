@@ -77,33 +77,17 @@ Window {
     property var liveMedia: null
     property string liveMediaPlaylistId: ""
 
-    // Cut and Dissolve first, then the rest, which are ported from gl-transitions.
-    readonly property var transitions: [
-        { name: "Cut", shader: "" },
-        { name: "Dissolve", shader: "qrc:/shaders/dissolve.frag.qsb" },
-        { name: "Ripple", shader: "qrc:/shaders/ripple.frag.qsb" },
-        { name: "Wipe Left", shader: "qrc:/shaders/gl-transitions/wipeLeft.frag.qsb" },
-        { name: "Wipe Right", shader: "qrc:/shaders/gl-transitions/wipeRight.frag.qsb" },
-        { name: "Wipe Up", shader: "qrc:/shaders/gl-transitions/wipeUp.frag.qsb" },
-        { name: "Wipe Down", shader: "qrc:/shaders/gl-transitions/wipeDown.frag.qsb" },
-        { name: "Circle Open", shader: "qrc:/shaders/gl-transitions/circleopen.frag.qsb" },
-        { name: "Cross Warp", shader: "qrc:/shaders/gl-transitions/crosswarp.frag.qsb" },
-        { name: "Directional Warp", shader: "qrc:/shaders/gl-transitions/directionalwarp.frag.qsb" },
-        { name: "Dreamy", shader: "qrc:/shaders/gl-transitions/Dreamy.frag.qsb" },
-        { name: "Swirl", shader: "qrc:/shaders/gl-transitions/Swirl.frag.qsb" },
-        { name: "Water Drop", shader: "qrc:/shaders/gl-transitions/WaterDrop.frag.qsb" },
-        { name: "Window Slice", shader: "qrc:/shaders/gl-transitions/windowslice.frag.qsb" },
-        { name: "Pinwheel", shader: "qrc:/shaders/gl-transitions/pinwheel.frag.qsb" },
-        { name: "Radial", shader: "qrc:/shaders/gl-transitions/Radial.frag.qsb" },
-        { name: "Cross Zoom", shader: "qrc:/shaders/gl-transitions/CrossZoom.frag.qsb" },
-        { name: "Simple Zoom", shader: "qrc:/shaders/gl-transitions/SimpleZoom.frag.qsb" },
-        { name: "Linear Blur", shader: "qrc:/shaders/gl-transitions/LinearBlur.frag.qsb" },
-        { name: "Pixelize", shader: "qrc:/shaders/gl-transitions/pixelize.frag.qsb" },
-        { name: "Random Squares", shader: "qrc:/shaders/gl-transitions/randomsquares.frag.qsb" },
-        { name: "Wind", shader: "qrc:/shaders/gl-transitions/wind.frag.qsb" },
-        { name: "Heart", shader: "qrc:/shaders/gl-transitions/heart.frag.qsb" }
-    ]
+    // The transitions there are to choose from, with what can be adjusted about each
+    // (see TransitionCatalogue), the one chosen, and what has been chosen for its
+    // options and those of the others: a map of transition names to maps of option names
+    // to values. An option that is not in it is as the catalogue has it.
+    readonly property var transitions: transitionCatalogue.transitions
+    readonly property var transitionCategories: transitionCatalogue.categories
     property int transitionIndex: 1
+    property var transitionChoices: ({})
+    readonly property var transition: transitions[transitionIndex]
+    // What the chosen transition's shader is handed for its options
+    readonly property var transitionUniforms: transitionCatalogue.uniforms(transition, transitionChoices[transition.name])
     // Seconds
     property real transitionDuration: 0.6
     property bool mediaBinVisible: true
@@ -563,6 +547,51 @@ Window {
         }
     }
 
+    // Chooses a transition by name. Two have changed their names to the ones ProPresenter
+    // knows them by, and are still found by the old.
+    function selectTransition(name) {
+        const renamed = { "Cross Warp": "Warp Fade", "Dreamy": "Wave Dissolve" }
+        const index = transitions.findIndex(t => t.name === (renamed[name] ?? name))
+        if (index >= 0)
+            transitionIndex = index
+    }
+
+    // The menu of transitions: Cut, then the rest under their categories, with the
+    // chosen one ticked.
+    function showTransitionMenu(item) {
+        const items = []
+        const rowsOf = category => transitions.forEach((t, index) => {
+            if (t.category === category)
+                items.push({ label: t.name, current: index === transitionIndex, run: () => transitionIndex = index })
+        })
+        rowsOf("")
+        for (const category of transitionCategories) {
+            items.push({ header: category })
+            rowsOf(category)
+        }
+        menu.show(items, item)
+    }
+
+    // What an option of the chosen transition is set to.
+    function transitionOption(option) {
+        return transitionCatalogue.valueOf(option, transitionChoices[transition.name])
+    }
+
+    // Sets an option of the chosen transition, for the next change and from then on.
+    function setTransitionOption(option, value) {
+        const choices = Object.assign({}, transitionChoices)
+        choices[transition.name] = Object.assign({}, choices[transition.name])
+        choices[transition.name][option.name] = value
+        transitionChoices = choices
+    }
+
+    // Puts the options of the chosen transition back as the catalogue has them.
+    function resetTransitionOptions() {
+        const choices = Object.assign({}, transitionChoices)
+        delete choices[transition.name]
+        transitionChoices = choices
+    }
+
     // Puts a slide on the slide layer, and any media its cue triggers on the media layer.
     function goLive(index) {
         if (!document || index < 0 || index >= document.slides.length)
@@ -728,9 +757,14 @@ Window {
         stageEnabled = String(saved("stageEnabled", true)) === "true"
         useX11 = String(saved("useX11", false)) === "true"
         // By name, so the choice survives transitions being added or reordered.
-        const transition = transitions.findIndex(t => t.name === String(saved("transition", "")))
-        if (transition >= 0)
-            transitionIndex = transition
+        selectTransition(String(saved("transition", "")))
+        try {
+            const stored = JSON.parse(String(saved("transitionOptions", "")))
+            if (stored !== null && typeof stored === "object" && !Array.isArray(stored))
+                transitionChoices = stored
+        } catch (e) {
+            // Nothing stored yet, or not readable: every option is as the catalogue has it.
+        }
         const duration = Number(saved("transitionDuration", transitionDuration))
         if (isFinite(duration) && duration >= 0)
             transitionDuration = duration
@@ -841,7 +875,9 @@ Window {
     onStageEnabledChanged: save("stageEnabled", stageEnabled)
     onGroupsChanged: save("groups", JSON.stringify(groups))
     onUseX11Changed: save("useX11", useX11)
+    // Not `transition.name`: that follows the index too, and may not have caught up yet.
     onTransitionIndexChanged: save("transition", transitions[transitionIndex].name)
+    onTransitionChoicesChanged: save("transitionOptions", JSON.stringify(transitionChoices))
     onTransitionDurationChanged: save("transitionDuration", transitionDuration)
     onLibraryPathChanged: {
         refreshLists()
@@ -850,6 +886,10 @@ Window {
     onPlaylistIdChanged: saveSelection("playlist", playlistId)
     onDocumentKeyChanged: saveSelection("presentation", documentKey)
     onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
+
+    TransitionCatalogue {
+        id: transitionCatalogue
+    }
 
     Settings {
         id: settings
@@ -936,7 +976,10 @@ Window {
         remember: win.remember
         shown: win.outputEnabled
         fullScreenOn: win.outputScreen
-        shader: win.transitions[win.transitionIndex].shader
+        shader: transitionCatalogue.shaderUrl(win.transition)
+        options: win.transitionUniforms.options
+        tint: win.transitionUniforms.tint
+        direction: win.transitionUniforms.direction
         duration: Math.round(win.transitionDuration * 1000)
         keyTarget: keys
     }

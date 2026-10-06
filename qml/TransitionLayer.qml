@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 
 // One layer of the output: the media layer, or the slide layer over it.
 //
@@ -32,6 +33,14 @@ Item {
     required property Component delegate
     // Transition shader to use for the next change, or "" to cut.
     property string shader: ""
+    // What that shader is handed besides the two pictures and how far the transition has
+    // got, for whatever about it can be adjusted: up to four numbers, a colour (red,
+    // green, blue and opacity, not premultiplied) and the way things travel (each part
+    // -1, 0 or 1; x to the right, y down). TransitionCatalogue says which transition
+    // makes what of them.
+    property vector4d options
+    property vector4d tint
+    property vector2d direction
     // Milliseconds; 0 also cuts.
     property int duration: 0
 
@@ -51,6 +60,10 @@ Item {
     // none, a ShaderEffect falls back on a shader of Qt's own, which expects a `source`
     // that is not here, and says so.
     property string activeShader: "qrc:/shaders/dissolve.frag.qsb"
+    // What it is handed, fixed for the length of a transition likewise
+    property vector4d activeOptions
+    property vector4d activeTint
+    property vector2d activeDirection
     // The two instances as textures. Nothing draws these but the shader below, so while
     // it is hidden they cost nothing.
     property ShaderEffectSource textureA: ShaderEffectSource {
@@ -96,6 +109,9 @@ Item {
             return
         }
         activeShader = shader
+        activeOptions = options
+        activeTint = tint
+        activeDirection = direction
         transition.duration = duration
         transition.start()
     }
@@ -150,11 +166,13 @@ Item {
         property var fromTex: layer.aIsFront ? layer.textureA : layer.textureB
         property var toTex: layer.aIsFront ? layer.textureB : layer.textureA
         property real progress: layer.progress
-        // Width over height, which the gl-transitions shaders use to keep shapes round
+        // Width over height, which shaders use to keep shapes round, and the size in
+        // pixels, which one uses to work in whole pixels
         property real ratio: height > 0 ? width / height : 1
-        // ripple.frag only
-        property real amplitude: 100
-        property real speed: 50
+        property size resolution: Qt.size(width * Screen.devicePixelRatio, height * Screen.devicePixelRatio)
+        property vector4d options: layer.activeOptions
+        property vector4d tint: layer.activeTint
+        property vector2d direction: layer.activeDirection
 
         anchors.fill: parent
         visible: layer.blending
