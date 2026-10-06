@@ -10,6 +10,12 @@ import SimplePresenterApp
 // what text each shows, was settled when the map was made (src/proconvert.h). The same
 // component is the element on the output, in a thumbnail and under the editor's handles.
 //
+// The one thing not settled then is text that changes while the slide is on show, which
+// an element linked to a timer has: that is asked for here, as `liveLinkText`, and drawn
+// in the element's own style. It is drawn again only when the words change, which for a
+// timer is once a second while it runs, unless the element shows the timer's hundredths:
+// then it is thirty times a second where they can be read, and five in a small picture.
+//
 // A shadow is the one dear thing here. The shape or the text is drawn into a texture of
 // its own, which a blur then turns into the shadow under it: an extra pass, and an extra
 // texture, for each shadow. So nothing is set up for a shadow unless the element has
@@ -30,9 +36,28 @@ Item {
     // Text to draw in place of the element's own: a RichText value, or undefined. The
     // editor draws what is being typed this way.
     property var textOverride: undefined
+    // The words of an element whose words change while it is shown, or undefined for an
+    // element that shows what its map says. A timer's time is the one such thing so far
+    // (see Timers); the others a stage layout needs, such as the words of the live
+    // slide, belong here as further kinds of link.
+    readonly property var liveLinkText: {
+        switch (source.linkKind) {
+        case "timer":
+            // Reading the tick is what has this follow the timers, and reading a beat
+            // what has it follow one whose hundredths it shows.
+            return Timers.tick >= 0 && (source.linkTimerHundredths === 0 || (effects ? Timers.beat : Timers.slowBeat) >= 0)
+                ? Timers.linkedText(source.linkTimerId, source.linkTimerName, source.linkTimerHours,
+                                    source.linkTimerMinutes, source.linkTimerSeconds, source.linkTimerHundredths,
+                                    source.linkTimerHundredthsUnderMinute, source.linkTimerPattern)
+                : ""
+        default:
+            return undefined
+        }
+    }
     // Whether to draw shadows. Each one is an extra texture and a blur, which is nothing
     // for the one slide on the output and adds up for a grid of thumbnails, where a
-    // shadow is a pixel wide and cannot be seen anyway.
+    // shadow is a pixel wide and cannot be seen anyway. It is also taken to say whether
+    // this is a picture large enough to read hundredths of a second in.
     property bool effects: true
     // Room around the box for what the text draws outside it (strokes, the bars of a
     // fill that is only behind the text's lines), in slide units
@@ -77,6 +102,7 @@ Item {
         anchors.margins: -element.textBleed * element.unit
         visible: element.source.hasText || element.textOverride !== undefined
         content: element.textOverride !== undefined ? element.textOverride : element.source.displayText
+        replacement: element.textOverride !== undefined ? undefined : element.liveLinkText
         lineFill: element.source.fillEnabled && element.source.fillLinesOnly ? element.source.fillColor : "transparent"
         lineFillStyle: element.source.lineMaskStyle
         lineFillWidthOffset: element.source.lineMaskWidthOffset

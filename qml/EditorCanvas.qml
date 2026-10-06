@@ -172,6 +172,9 @@ Item {
     function setProperties(changes, interim) {
         if (!selected)
             return
+        // An element given its text from elsewhere has none of its own to go on typing.
+        if (changes.linkKind !== undefined && changes.linkKind !== "none" && editingId === selectedId)
+            finishText()
         if (interim)
             editor.previewProperties(row, selectedId, changes)
         else
@@ -212,9 +215,11 @@ Item {
         if (!element || element.locked || element.hidden)
             return
         if (element.linkKind !== "none") {
-            told("“" + element.name + "” shows the text of " + (element.linkKind === "element"
-                 ? "“" + element.linkElementName + "”" : "a " + element.linkLabel.toLowerCase() + ", set up in ProPresenter")
-                 + ", so it has none of its own to edit. Its font and colour can still be changed.")
+            told((element.name !== "" ? "“" + element.name + "”" : "This element") + " shows "
+                 + (element.linkKind === "element" ? "the text of “" + element.linkElementName + "”"
+                    : element.linkKind === "timer" ? "the timer “" + element.linkTimerName + "”"
+                    : "a " + element.linkLabel.toLowerCase() + ", set up in ProPresenter")
+                 + ", so it has no text of its own to edit. Its font and colour can still be changed.")
             return
         }
         settle()

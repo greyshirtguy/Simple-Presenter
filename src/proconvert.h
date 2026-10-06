@@ -56,8 +56,14 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //     Offset, Radius, and worked out from those OffsetX and OffsetY
 //   text (RichText, as authored), verticalAlignment, marginLeft/Top/Right/Bottom,
 //     textTransform
-//   linkKind ("none", "element" or "other"), linkElementId, linkElementName,
-//     linkTransform, linkLabel: where the element's text comes from, if not its own
+//   linkKind ("none", "element", "timer" or "other"): where the element's text comes
+//     from, if it is not its own. For another element of the slide, linkElementId,
+//     linkElementName and linkTransform. For a timer, linkTimerId and linkTimerName
+//     (it is found by id, or failing that by name); linkTimerHours, linkTimerMinutes,
+//     linkTimerSeconds and linkTimerHundredths (how each part of the time is written,
+//     as Timers::Style), linkTimerHundredthsUnderMinute (the hundredths only show in
+//     the last minute) and linkTimerPattern (text with "${timer}" where the time
+//     goes). For anything else, linkLabel names it
 //   visibilityRules (bool), visibilityCriterion (0 all, 1 any, 2 none),
 //     visibilityConditions: a list of { kind: "element", elementId, elementName, hasText }
 //     and, for conditions on things this app does not track, { kind: "other", index,
@@ -66,6 +72,14 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //   displayText (RichText: the text actually shown, after linking and transforming),
 //   hasText, and visible (false if hidden or if its visibility rules say so).
 // All geometry is in slide units.
+//
+// An element linked to a timer shows something that is not in the slide at all, and
+// that changes while the slide is on show. So its displayText only stands in for it
+// (the timer at nothing, in the element's own style); what draws the element asks for
+// the text as it is at the moment (SlideElement.qml). Stage layouts will be slides
+// whose text boxes are linked the same way to more such things (the words of the live
+// slide and of the next one, the clock), each of which is another linkKind handled in
+// those same two places.
 QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 
 // Changes an element of a slide. `changes` holds new values under the element map's
@@ -76,7 +90,9 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 //   shadowEnabled, shadowColor, shadowAngle, shadowOffset, shadowRadius, and the same
 //     for textShadow...
 //   verticalAlignment, marginLeft, marginTop, marginRight, marginBottom
-//   linkKind ("none" or "element"), linkElementId, linkTransform
+//   linkKind ("none", "element" or "timer"), linkElementId, linkTransform,
+//     linkTimerId, linkTimerName, linkTimerHours, linkTimerMinutes, linkTimerSeconds,
+//     linkTimerHundredths
 //   visibilityRules, visibilityCriterion, visibilityConditions (conditions of kind
 //     "other" are kept as they were, by their index)
 // Renaming an element also renames it where other elements of the slide refer to it.

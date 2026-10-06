@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import SimplePresenterApp
 
 // The properties of the element picked in the editor, in two parts as ProPresenter has
 // them: its shape (where it is, its fill, stroke and shadow, and when it shows) and its
@@ -30,10 +31,34 @@ Rectangle {
 
     readonly property var others: element ? elements.filter(e => e.id !== element.id) : []
     // Their names, as a list that only changes when a name does, so that the drop-downs
-    // listing them are not rebuilt by every other change to the slide
-    readonly property string otherNamesJoined: others.map(e => e.name).join("\n")
-    readonly property var otherNames: otherNamesJoined === "" ? [] : otherNamesJoined.split("\n")
+    // listing them are not rebuilt by every other change to the slide. (An element may
+    // have no name, so whether there are any is counted and not read off the names.)
+    readonly property int otherCount: others.length
+    readonly property string otherNamesJoined: others.map(e => inspector.oneLine(e.name)).join("\n")
+    readonly property var otherNames: otherCount === 0 ? [] : otherNamesJoined.split("\n")
     readonly property var transforms: ["As it is", "On one line", "A word to a line", "A letter to a line"]
+    // The workspace's timers, which are the other thing an element's text can be linked
+    // to, and their names as a list that only changes when a name does
+    readonly property var timers: Timers.timers
+    readonly property string timerNamesJoined: timers.map(t => inspector.oneLine(t.name)).join("\n")
+    readonly property var timerNames: timers.length === 0 ? [] : timerNamesJoined.split("\n")
+    // How a part of a timer's time can be written, in the order ProPresenter offers
+    // them, and the style each is in the file (Timers.Style)
+    readonly property var timerStyleNames: ["Hidden", "Two digits", "One digit", "Two digits, hidden at 0",
+                                            "One digit, hidden at 0"]
+    readonly property var timerStyles: [Timers.None, Timers.Long, Timers.Short, Timers.RemoveLong, Timers.RemoveShort]
+    // The four parts, with the key each is under in an element and how a newly linked
+    // box has it: hours when there are any, then minutes and seconds
+    readonly property var timerParts: [
+        { caption: "Hours", key: "linkTimerHours", usual: Timers.RemoveShort },
+        { caption: "Minutes", key: "linkTimerMinutes", usual: Timers.Long },
+        { caption: "Seconds", key: "linkTimerSeconds", usual: Timers.Long },
+        { caption: "Hundredths", key: "linkTimerHundredths", usual: Timers.None }
+    ]
+
+    function oneLine(name) {
+        return name.replace(/\s+/g, " ").trim()
+    }
 
     color: "#2b2d31"
 
@@ -543,7 +568,7 @@ Rectangle {
                             width: rules.width - 110 - 26 - 12
                             visible: condition.known
                             model: (condition.place < 0 && condition.known ? ["“" + condition.modelData.elementName + "” (gone)"] : [])
-                                   .concat(inspector.otherNames)
+                                   .concat(inspector.otherNames.map(name => name !== "" ? name : "(unnamed)"))
                             choice: Math.max(0, condition.place)
                             onChosen: (index) => {
                                 const other = inspector.others[index - (condition.place < 0 ? 1 : 0)]
@@ -827,7 +852,8 @@ Rectangle {
                 text: "Linked text"
             }
 
-            // Another element of the slide whose text this one shows, in its own style
+            // What this element shows in place of text of its own, in its own style:
+            // the text of another element of the slide, or the time of a timer
             Column {
                 width: parent.width
                 spacing: 6
@@ -836,31 +862,56 @@ Rectangle {
                 Line {
                     id: linkLine
 
-                    // The element it is linked to may have gone from the slide.
-                    readonly property bool linked: inspector.element !== null && inspector.element.linkKind === "element"
-                    readonly property int place: linked ? inspector.others.findIndex(e => e.id === inspector.element.linkElementId) : -1
-                    readonly property bool gone: linked && place < 0
+                    readonly property string kind: inspector.element !== null ? inspector.element.linkKind : "none"
+                    // The element it is linked to may have gone from the slide, and the
+                    // timer may not be one of this workspace's. A timer is found by its
+                    // id or, failing that, by its name; reading the tick has this
+                    // looked up again when the timers change.
+                    readonly property int place: kind === "element"
+                        ? inspector.others.findIndex(e => e.id === inspector.element.linkElementId) : -1
+                    readonly property string timerId: kind === "timer" && Timers.tick >= 0
+                        ? Timers.linkedTimer(inspector.element.linkTimerId, inspector.element.linkTimerName) : ""
+                    readonly property int timerPlace: inspector.timers.findIndex(t => t.id === timerId)
+                    readonly property bool elementGone: kind === "element" && place < 0
+                    readonly property bool timerGone: kind === "timer" && timerPlace < 0
+                    // Where the timers start in the list below
+                    readonly property int firstTimer: 1 + (elementGone ? 1 : 0) + inspector.others.length + (timerGone ? 1 : 0)
 
                     caption: "Shows"
 
                     Choice {
                         width: textTab.width - 78
-                        model: ["its own text"].concat(linkLine.gone ? ["“" + inspector.element.linkElementName + "” (gone)"] : [])
-                                               .concat(inspector.otherNames.map(name => "the text of “" + name + "”"))
-                        choice: !linkLine.linked ? 0 : linkLine.gone ? 1 : linkLine.place + 1
+                        model: ["its own text"]
+                            .concat(linkLine.elementGone ? ["“" + inspector.element.linkElementName + "” (gone)"] : [])
+                            .concat(inspector.otherNames.map(name => name !== "" ? "the text of “" + name + "”"
+                                                                                  : "the text of an unnamed element"))
+                            .concat(linkLine.timerGone ? ["the timer “" + inspector.element.linkTimerName + "” (not here)"] : [])
+                            .concat(inspector.timerNames.map(name => name !== "" ? "the timer “" + name + "”" : "an unnamed timer"))
+                        choice: linkLine.kind === "element" ? (linkLine.elementGone ? 1 : linkLine.place + 1)
+                              : linkLine.kind === "timer" ? linkLine.firstTimer + (linkLine.timerGone ? -1 : linkLine.timerPlace)
+                              : 0
                         onChosen: (index) => {
-                            const other = inspector.others[index - 1 - (linkLine.gone ? 1 : 0)]
-                            if (index === 0)
+                            const other = inspector.others[index - 1 - (linkLine.elementGone ? 1 : 0)]
+                            const timer = index >= linkLine.firstTimer ? inspector.timers[index - linkLine.firstTimer] : undefined
+                            if (index === 0) {
                                 inspector.setProperties({ linkKind: "none" }, false)
-                            else if (other)
+                            } else if (timer) {
+                                // The first time, it is written the usual way; after
+                                // that, the way it was set to be.
+                                const changes = { linkKind: "timer", linkTimerId: timer.id, linkTimerName: timer.name }
+                                if (linkLine.kind !== "timer")
+                                    inspector.timerParts.forEach(part => changes[part.key] = part.usual)
+                                inspector.setProperties(changes, false)
+                            } else if (other) {
                                 inspector.setProperties({ linkKind: "element", linkElementId: other.id }, false)
+                            }
                         }
                     }
                 }
 
                 Line {
                     caption: "Set"
-                    visible: inspector.element !== null && inspector.element.linkKind === "element"
+                    visible: linkLine.kind === "element"
 
                     Choice {
                         width: textTab.width - 78
@@ -870,9 +921,41 @@ Rectangle {
                     }
                 }
 
+                // How each part of the timer's time is written, as ProPresenter has it:
+                // a drop-down for each of the four
+                Repeater {
+                    model: linkLine.kind === "timer" ? inspector.timerParts : []
+
+                    delegate: Line {
+                        id: partLine
+
+                        required property var modelData
+
+                        caption: modelData.caption
+
+                        Choice {
+                            width: textTab.width - 78
+                            model: inspector.timerStyleNames
+                            choice: inspector.element !== null
+                                    ? Math.max(0, inspector.timerStyles.indexOf(inspector.element[partLine.modelData.key])) : 0
+                            onChosen: (index) => inspector.setProperties({ [partLine.modelData.key]: inspector.timerStyles[index] }, false)
+                        }
+                    }
+                }
+
                 Note {
-                    visible: inspector.element !== null && inspector.element.linkKind === "element"
+                    visible: linkLine.kind === "element"
                     text: "The text is the other element's; the font, colour and everything else here are this one's."
+                }
+
+                Note {
+                    visible: linkLine.kind === "timer"
+                    text: linkLine.timerGone
+                          ? "This workspace has no timer of that name, so the time stays at nothing. Add one called “"
+                            + (inspector.element ? inspector.element.linkTimerName : "") + "” to the timers, or choose another."
+                          : "The time is the timer's; the font, colour and everything else here are this element's."
+                            + " A part that is hidden is counted in the next one shown, so seconds alone count past"
+                            + " sixty. Timers are set up and run from the show controls of the main window."
                 }
             }
 

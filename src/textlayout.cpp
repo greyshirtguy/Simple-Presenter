@@ -226,13 +226,13 @@ QFont fontFor(const TextRun &run)
     return font;
 }
 
-TextLayoutResult layoutText(const RichText &content, qreal width)
+TextLayoutResult layoutText(const RichText &content, qreal width, bool byGlyph)
 {
     // Text is drawn on the render thread of whichever window shows it, so several
     // threads can be here at once.
     LayoutCache &cache = layoutCache();
-    const QByteArray key = layoutKey(content, width);
-    {
+    const QByteArray key = byGlyph ? QByteArray() : layoutKey(content, width);
+    if (!byGlyph) {
         const QMutexLocker lock(&cache.mutex);
         if (const TextLayoutResult *known = cache.layouts.object(key))
             return *known;
@@ -292,6 +292,7 @@ TextLayoutResult layoutText(const RichText &content, qreal width)
             outline.format = paragraph.runs.at(i);
             outline.format.text.clear();
             outline.path.setFillRule(Qt::WindingFill);
+            const bool pieces = byGlyph && !outline.format.underline && !outline.format.strikethrough;
             const QList<QGlyphRun> glyphRuns = layout.glyphRuns(formats.at(i).start, formats.at(i).length);
             for (const QGlyphRun &glyphRun : glyphRuns) {
                 const QRawFont rawFont = glyphRun.rawFont();
@@ -299,8 +300,11 @@ TextLayoutResult layoutText(const RichText &content, qreal width)
                 const QList<quint32> glyphs = glyphRun.glyphIndexes();
                 const QList<QPointF> positions = glyphRun.positions();
                 for (qsizetype g = 0; g < glyphs.size(); ++g) {
-                    outline.path.addPath(glyphOutlines().outline(rawFont, fontKey, glyphs.at(g))
-                                             .translated(positions.at(g)));
+                    const QPainterPath placed = glyphOutlines().outline(rawFont, fontKey, glyphs.at(g))
+                                                    .translated(positions.at(g));
+                    outline.path.addPath(placed);
+                    if (pieces)
+                        outline.pieces.append({placed, glyphs.at(g), positions.at(g), placed.controlPointRect()});
                 }
 
                 // Underline and strikethrough run the width of the glyphs, at the
@@ -323,8 +327,10 @@ TextLayoutResult layoutText(const RichText &content, qreal width)
     }
     result.height = y;
 
-    const QMutexLocker lock(&cache.mutex);
-    cache.layouts.insert(key, new TextLayoutResult(result));
+    if (!byGlyph) {
+        const QMutexLocker lock(&cache.mutex);
+        cache.layouts.insert(key, new TextLayoutResult(result));
+    }
     return result;
 }
 

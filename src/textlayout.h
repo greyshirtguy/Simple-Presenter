@@ -21,8 +21,21 @@ struct TextLayoutResult
     // The glyphs of one run, with its underline and strikethrough if it has them.
     struct Outline
     {
+        // One glyph where it stands: its outline, which glyph of its font it is, where
+        // it was put, and what it covers
+        struct Piece
+        {
+            QPainterPath path;
+            quint32 glyph = 0;
+            QPointF position;
+            QRectF bounds;
+        };
+
         QPainterPath path;
         TextRun format;
+        // The same glyph by glyph, if the layout was asked for that way and the run
+        // has no underline or strikethrough, which belong to no one glyph
+        QList<Piece> pieces;
     };
 
     QList<Outline> outlines;
@@ -44,7 +57,12 @@ struct TextLayoutResult
 // laid out for its thumbnail, for the preview and for the output, and again whenever a
 // list it is in is rebuilt. Safe to call from several threads at once, which happens:
 // each window draws on a thread of its own.
-TextLayoutResult layoutText(const RichText &text, qreal width);
+//
+// With `byGlyph` each run's glyphs are also given one by one (Outline::pieces). That is
+// for text that changes many times a second, a timer's, of which only the glyphs that
+// have changed are then drawn again (see StrokedText). Such a layout is not kept: the
+// next one asked for will be for other text.
+TextLayoutResult layoutText(const RichText &text, qreal width, bool byGlyph = false);
 
 // Puts the text into a document that lays out as layoutText() does. Every stretch of the
 // document carries the whole format of its run, so text typed beside it takes that

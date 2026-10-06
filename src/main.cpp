@@ -44,6 +44,12 @@
 //      fragment shader (shaders/; qml/TransitionCatalogue.qml lists them, with what
 //      can be adjusted about each).
 //
+//   A slide's cue may do more than show the slide. It may trigger media, which goes to
+//   the media layer as a background that stays or as a foreground that plays once (see
+//   workspace::MediaBehaviour in src/workspacefiles.h); and it may work a timer. What a
+//   text box linked to a timer shows is the one thing about a slide not settled when
+//   the file is read: SlideElement asks Timers for it as it changes.
+//
 // Choices made for modest hardware. The app is developed on a 2017 laptop with
 // integrated graphics, and is meant to run a show on one.
 //

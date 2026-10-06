@@ -1,5 +1,7 @@
 #pragma once
 
+#include "textlayout.h"
+
 #include <QColor>
 #include <QQuickPaintedItem>
 #include <QVariant>
@@ -22,12 +24,25 @@
 // coordinates, usually 1920 by 1080) and the painter is scaled by `unit` to whatever
 // size the item really is. A line that breaks after a word on the output breaks after
 // the same word in a thumbnail a tenth of the size.
+//
+// The one text that is not drawn once and left. A timer that shows its hundredths
+// changes thirty times a second, and drawing all of it again that often, large, on a
+// full-screen output, took over a quarter of a processor core. Such text arrives as a
+// `replacement`, and is laid out glyph by glyph: when it changes, the glyphs that are
+// the same glyph in the same place as before are left as they are, and only the part of
+// the image under the others is cleared, drawn and sent to the graphics chip again,
+// which for a running clock is its last digit or two.
 class StrokedText : public QQuickPaintedItem
 {
     Q_OBJECT
     QML_ELEMENT
     // A RichText value, as produced by ProDocument.
     Q_PROPERTY(QVariant content MEMBER m_content NOTIFY contentChanged)
+    // Words to draw in place of the content's own, as a string, or undefined to draw
+    // the content. They are set in the style the content starts in, so that an element
+    // whose words come from elsewhere (a timer's time, say) still looks as it was made
+    // to look.
+    Q_PROPERTY(QVariant replacement MEMBER m_replacement NOTIFY replacementChanged)
     // Output pixels per slide unit.
     Q_PROPERTY(qreal unit MEMBER m_unit NOTIFY unitChanged)
     // Slide units by which the item extends beyond the text box on every side, so strokes
@@ -58,6 +73,7 @@ public:
 
 signals:
     void contentChanged();
+    void replacementChanged();
     void unitChanged();
     void bleedChanged();
     void verticalAlignmentChanged();
@@ -68,7 +84,17 @@ protected:
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
 
 private:
+    RichText shown() const;
+    QSizeF box() const;
+    QPointF origin(const TextLayoutResult &layout) const;
+    void replace();
+    QRect changedPart(const TextLayoutResult &before, const TextLayoutResult &after) const;
+
     QVariant m_content;
+    QVariant m_replacement;
+    // The replacement as it was last laid out, and whether that still holds
+    TextLayoutResult m_live;
+    bool m_liveKnown = false;
     qreal m_unit = 1;
     qreal m_bleed = 0;
     int m_vAlign = Qt::AlignVCenter;
