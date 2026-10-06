@@ -57,6 +57,8 @@ qt_add_executable(SimplePresenter
     src/rtf.h
     src/rtfwriter.cpp
     src/rtfwriter.h
+    src/selftest.cpp
+    src/selftest.h
     src/textlayout.cpp
     src/textlayout.h
     src/thumbnailprovider.cpp
