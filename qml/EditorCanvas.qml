@@ -553,9 +553,10 @@ Item {
             delegate: SlideElement {
                 required property var modelData
                 readonly property bool dragged: canvas.dragBox !== null && modelData.id === canvas.selectedId
-                // Linked to something this app does not show: its own text stands in, as
-                // a sample.
+                // Linked to something there is nothing of to show just now: its own
+                // text stands in, as a sample.
                 readonly property bool sampled: modelData.linkKind === "other"
+                                                || (modelData.linkKind === "slideText" && liveLinkText === "")
 
                 source: modelData
                 unit: canvas.u

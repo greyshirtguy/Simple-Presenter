@@ -874,7 +874,8 @@ Rectangle {
             }
 
             // What this element shows in place of text of its own, in its own style:
-            // the text of another element of the slide, or the time of a timer
+            // the text of another element of the slide, the words of the slide that is
+            // live or of the one after it, or the time of a timer
             Column {
                 width: parent.width
                 spacing: 6
@@ -895,8 +896,17 @@ Rectangle {
                     readonly property int timerPlace: inspector.timers.findIndex(t => t.id === timerId)
                     readonly property bool elementGone: kind === "element" && place < 0
                     readonly property bool timerGone: kind === "timer" && timerPlace < 0
-                    // Where the timers start in the list below
-                    readonly property int firstTimer: 1 + (elementGone ? 1 : 0) + inspector.others.length + (timerGone ? 1 : 0)
+                    // Linked to a slide's text, but not to all of it: to its notes, or
+                    // to its elements of some name. Those are ProPresenter's to set
+                    // up; one that is there is listed, so that what it is can be seen.
+                    readonly property bool slidePart: kind === "slideText" && inspector.element.linkSlideSource !== Show.Words
+                    readonly property string slidePartName: !slidePart ? ""
+                        : (inspector.element.linkSlideNext ? "the next slide's " : "the current slide's ")
+                          + (inspector.element.linkSlideSource === Show.Notes
+                             ? "notes" : "“" + inspector.element.linkSlideName + "” text")
+                    // Where the two slides start in the list below, and the timers
+                    readonly property int firstSlide: 1 + (elementGone ? 1 : 0) + inspector.others.length
+                    readonly property int firstTimer: firstSlide + 2 + (slidePart ? 1 : 0) + (timerGone ? 1 : 0)
 
                     caption: "Shows"
 
@@ -906,16 +916,30 @@ Rectangle {
                             .concat(linkLine.elementGone ? ["“" + inspector.element.linkElementName + "” (gone)"] : [])
                             .concat(inspector.otherNames.map(name => name !== "" ? "the text of “" + name + "”"
                                                                                   : "the text of an unnamed element"))
+                            .concat(["the current slide's text", "the next slide's text"])
+                            .concat(linkLine.slidePart ? [linkLine.slidePartName] : [])
                             .concat(linkLine.timerGone ? ["the timer “" + inspector.element.linkTimerName + "” (not here)"] : [])
                             .concat(inspector.timerNames.map(name => name !== "" ? "the timer “" + name + "”" : "an unnamed timer"))
                         choice: linkLine.kind === "element" ? (linkLine.elementGone ? 1 : linkLine.place + 1)
                               : linkLine.kind === "timer" ? linkLine.firstTimer + (linkLine.timerGone ? -1 : linkLine.timerPlace)
+                              : linkLine.kind === "slideText" ? linkLine.firstSlide + (linkLine.slidePart ? 2
+                                                                : inspector.element.linkSlideNext ? 1 : 0)
                               : 0
                         onChosen: (index) => {
                             const other = inspector.others[index - 1 - (linkLine.elementGone ? 1 : 0)]
                             const timer = index >= linkLine.firstTimer ? inspector.timers[index - linkLine.firstTimer] : undefined
+                            // (A row that only says what the element is linked to
+                            // already, or was, is none of these: nothing to change.)
                             if (index === 0) {
                                 inspector.setProperties({ linkKind: "none" }, false)
+                            } else if (index < linkLine.firstSlide) {
+                                if (other)
+                                    inspector.setProperties({ linkKind: "element", linkElementId: other.id }, false)
+                            } else if (index <= linkLine.firstSlide + 1) {
+                                // All of the slide's words: of the one that is live,
+                                // or of the one after it
+                                inspector.setProperties({ linkKind: "slideText", linkSlideNext: index > linkLine.firstSlide,
+                                                          linkSlideSource: Show.Words }, false)
                             } else if (timer) {
                                 // The first time, it is written the usual way; after
                                 // that, the way it was set to be.
@@ -923,8 +947,6 @@ Rectangle {
                                 if (linkLine.kind !== "timer")
                                     inspector.timerParts.forEach(part => changes[part.key] = part.usual)
                                 inspector.setProperties(changes, false)
-                            } else if (other) {
-                                inspector.setProperties({ linkKind: "element", linkElementId: other.id }, false)
                             }
                         }
                     }
@@ -932,7 +954,7 @@ Rectangle {
 
                 Line {
                     caption: "Set"
-                    visible: linkLine.kind === "element"
+                    visible: linkLine.kind === "element" || linkLine.kind === "slideText"
 
                     Choice {
                         width: textTab.width - 78
@@ -967,6 +989,16 @@ Rectangle {
                 Note {
                     visible: linkLine.kind === "element"
                     text: "The text is the other element's; the font, colour and everything else here are this one's."
+                }
+
+                Note {
+                    visible: linkLine.kind === "slideText"
+                    text: inspector.element !== null && inspector.element.linkSlideSource === Show.Notes
+                          ? "This app does not read a slide's notes, so there is nothing for this element to show."
+                          : "The words are those of the slide that is " + (inspector.element !== null && inspector.element.linkSlideNext
+                                                                          ? "to come next" : "live")
+                            + " while this is shown, without their formatting: the font, colour and everything else here"
+                            + " are this element's. Until a slide is live, the element's own text stands in for them here."
                 }
 
                 Note {

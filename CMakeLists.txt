@@ -154,6 +154,8 @@ qt_add_qml_module(SimplePresenter
         src/strokedtext.cpp
         src/timers.h
         src/timers.cpp
+        src/show.h
+        src/show.cpp
 )
 
 # The transitions. Compiled by qsb for every graphics backend Qt can draw with, and loaded

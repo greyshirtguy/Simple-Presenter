@@ -32,6 +32,10 @@ QString writePresentation(const QString &path, const rv::data::Presentation &pre
 QColor toColor(const rv::data::Color &color);
 void setColor(rv::data::Color *target, const QColor &color);
 
+// What linking to other text can do to it on the way, `transform` being one of the
+// file format's choices: nothing, onto one line, a word to a line, a letter to a line.
+QString linkTransformed(const QString &text, int transform);
+
 // The text of a text element: its RTF, together with the capitalisation that the file
 // keeps beside the RTF because RTF cannot express it.
 RichText readText(const rv::data::Graphics::Text &text);
@@ -60,16 +64,19 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //     smaller if it does not fit, 3 made larger if there is room, 4 either; see
 //     StrokedText),
 //     textTransform
-//   linkKind ("none", "element", "timer" or "other"): where the element's text comes
-//     from, if it is not its own. For another element of the slide, linkElementId,
-//     linkElementName and linkTransform. For a timer, linkTimerId and linkTimerName
-//     (it is found by id, or failing that by name); linkTimerHours, linkTimerMinutes,
-//     linkTimerSeconds and linkTimerHundredths (how each part of the time is written,
-//     as Timers::Style), linkTimerHundredthsUnderMinute (the hundredths only show in
-//     the last minute) and linkTimerPattern (text with "${timer}" where the time
-//     goes). For anything else, which this app does not show, linkLabel names it and
-//     linkPicture says whether it is a picture or a colour that it puts in the
-//     element, in place of its fill, and not words
+//   linkKind ("none", "element", "timer", "slideText" or "other"): where the element's
+//     text comes from, if it is not its own. For another element of the slide,
+//     linkElementId, linkElementName and linkTransform. For a timer, linkTimerId and
+//     linkTimerName (it is found by id, or failing that by name); linkTimerHours,
+//     linkTimerMinutes, linkTimerSeconds and linkTimerHundredths (how each part of the
+//     time is written, as Timers::Style), linkTimerHundredthsUnderMinute (the
+//     hundredths only show in the last minute) and linkTimerPattern (text with
+//     "${timer}" where the time goes). For the text of the slide that is live,
+//     linkSlideNext (it is the one after it instead), linkSlideSource (which of its
+//     text, as Show::Source), linkSlideName (the name of the elements whose text it
+//     is, if it goes by name) and linkTransform. For anything else, which this app
+//     does not show, linkLabel names it and linkPicture says whether it is a picture or
+//     a colour that it puts in the element, in place of its fill, and not words
 //   visibilityRules (bool), visibilityCriterion (0 all, 1 any, 2 none),
 //     visibilityTimed (one of the conditions is about a timer, so whether the element
 //     shows is not settled until it is drawn: see Slide.qml),
@@ -81,13 +88,13 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //   hasText, and visible (false if hidden or if its visibility rules say so).
 // All geometry is in slide units.
 //
-// An element linked to a timer shows something that is not in the slide at all, and
-// that changes while the slide is on show. So its displayText only stands in for it
-// (the timer at nothing, in the element's own style); what draws the element asks for
-// the text as it is at the moment (SlideElement.qml). Stage layouts will be slides
-// whose text boxes are linked the same way to more such things (the words of the live
-// slide and of the next one, the clock), each of which is another linkKind handled in
-// those same two places.
+// An element linked to a timer, or to the text of the slide that is live, shows
+// something that is not in the slide at all, and that changes while the slide is on
+// show. So its displayText only stands in for it (the timer at nothing, or no words,
+// in the element's own style); what draws the element asks for the text as it is at
+// the moment (SlideElement.qml). A stage layout is a slide made of text boxes like
+// that. Another such thing, the clock say, is another linkKind handled in those same
+// two places.
 //
 // An element linked to something this app does not show (linkKind "other") has no
 // displayText at all. The text such an element has of its own is only a sample of the
@@ -103,9 +110,10 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 //   shadowEnabled, shadowColor, shadowAngle, shadowOffset, shadowRadius, and the same
 //     for textShadow...
 //   verticalAlignment, textScale, marginLeft, marginTop, marginRight, marginBottom
-//   linkKind ("none", "element" or "timer"), linkElementId, linkTransform,
-//     linkTimerId, linkTimerName, linkTimerHours, linkTimerMinutes, linkTimerSeconds,
-//     linkTimerHundredths
+//   linkKind ("none", "element", "timer" or "slideText"), linkElementId,
+//     linkTransform, linkTimerId, linkTimerName, linkTimerHours, linkTimerMinutes,
+//     linkTimerSeconds, linkTimerHundredths, linkSlideNext, linkSlideSource,
+//     linkSlideName
 //   visibilityRules, visibilityCriterion, visibilityConditions (conditions of kind
 //     "other" are kept as they were, by their index)
 // Renaming an element also renames it where other elements of the slide refer to it.

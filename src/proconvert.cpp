@@ -164,7 +164,8 @@ QString onePerLine(const QString &text, bool words)
     return parts.join(u'\n');
 }
 
-// What linking to another element's text can do to it on the way.
+} // namespace
+
 QString linkTransformed(const QString &text, int transform)
 {
     using Link = DataLink::AlternateElementText;
@@ -179,6 +180,8 @@ QString linkTransformed(const QString &text, int transform)
         return text;
     }
 }
+
+namespace {
 
 // What a text element can do to its own text, however it came by it.
 QString elementTransformed(const QString &text, int transform, const QString &delimiter)
@@ -226,7 +229,6 @@ QString otherLinkLabel(const DataLink &link)
     case DataLink::kStageMessage: return QStringLiteral("Stage message");
     case DataLink::kVideoCountdown: return QStringLiteral("Video countdown");
     case DataLink::kSlideImage: return QStringLiteral("Slide image");
-    case DataLink::kSlideText: return QStringLiteral("Slide text");
     case DataLink::kCcliText: return QStringLiteral("CCLI");
     case DataLink::kGroupName: return QStringLiteral("Group name");
     case DataLink::kGroupColor: return QStringLiteral("Group colour");
@@ -351,6 +353,9 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     map.insert("linkTimerHundredths", 0);
     map.insert("linkTimerHundredthsUnderMinute", false);
     map.insert("linkTimerPattern", QString());
+    map.insert("linkSlideNext", false);
+    map.insert("linkSlideSource", 0);
+    map.insert("linkSlideName", QString());
     map.insert("linkLabel", QString());
     map.insert("linkPicture", false);
     map.insert("visibilityRules", false);
@@ -375,6 +380,13 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("linkTimerHundredths", int(timer.timer_format().millisecond()));
             map.insert("linkTimerHundredthsUnderMinute", timer.timer_format().show_milliseconds_under_minute_only());
             map.insert("linkTimerPattern", QString::fromStdString(timer.timer_format_string()));
+        } else if (link.has_slide_text()) {
+            const DataLink::SlideText &words = link.slide_text();
+            map.insert("linkKind", QStringLiteral("slideText"));
+            map.insert("linkSlideNext", words.source_slide() == DataLink::SLIDE_SOURCE_TYPE_NEXT_SLIDE);
+            map.insert("linkSlideSource", int(words.source_option()));
+            map.insert("linkSlideName", QString::fromStdString(words.name_to_match()));
+            map.insert("linkTransform", int(words.element_text_transform()));
         } else if (link.has_visibility_link()) {
             QVariantList conditions;
             for (int index = 0; index < link.visibility_link().conditions_size(); ++index) {
@@ -418,12 +430,13 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
 }
 
 // Whether what an element shows is not text of the slide's but something that changes
-// while the slide is on show. A timer is the one such thing so far; the clock, and the
-// words of the slide that is live or of the one after it, which a stage layout shows,
-// are others the file format has.
+// while the slide is on show: a timer's time, or the words of the slide that is live or
+// of the one after it, which is what a stage layout shows. (The clock is another the
+// file format has.)
 bool isLive(const QVariantMap &element)
 {
-    return element.value("linkKind").toString() == QLatin1String("timer");
+    const QString kind = element.value("linkKind").toString();
+    return kind == QLatin1String("timer") || kind == QLatin1String("slideText");
 }
 
 // The element a link or a visibility rule refers to: by id, or failing that by name,
@@ -723,7 +736,7 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
                 const QString text = elements.at(source).toMap().value("text").value<RichText>().plainText();
                 display = restyled(linkTransformed(text, element.value("linkTransform").toInt()));
             }
-        } else if (isLive(element)) {
+        } else if (element.value("linkKind").toString() == QLatin1String("timer")) {
             // What it shows changes while the slide is on show, so it is not known here:
             // whatever draws the element puts it in (see SlideElement.qml). This stands
             // in for it, as text of the same shape: the timer at nothing.
@@ -732,6 +745,9 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
                                          element.value("linkTimerHundredths").toInt(),
                                          element.value("linkTimerHundredthsUnderMinute").toBool()};
             display = restyled(Timers::linked(0, true, format, element.value("linkTimerPattern").toString()));
+        } else if (isLive(element)) {
+            // The words of whatever slide is live when this one is shown: none, here.
+            display = restyled(QString());
         } else if (element.value("linkKind").toString() == QLatin1String("other")) {
             // Something this app does not follow, the clock say. The text the element
             // has of its own is then only a sample of it ("1:23 PM"), which shown would
@@ -790,7 +806,8 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
             }
         }
         element.insert("displayText", QVariant::fromValue(shown.at(i)));
-        element.insert("hasText", !shown.at(i).isEmpty());
+        // One whose text comes while it is shown has text, as far as drawing it goes.
+        element.insert("hasText", !shown.at(i).isEmpty() || isLive(element));
         element.insert("visible", visible);
         elements[i] = element;
         // The slide's words are those of the elements that show, once each: an element
@@ -912,10 +929,12 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
     if (changes.contains("marginBottom"))
         element->mutable_text()->mutable_margins()->set_bottom(qMax(0.0, number("marginBottom")));
 
-    // Where the text comes from: the element itself, another element of the slide, or
-    // a timer. It is one of them, so making it one takes away the link for another.
+    // Where the text comes from: the element itself, another element of the slide, a
+    // timer, or the slide that is live or the one after it. It is one of them, so making
+    // it one takes away the link for another.
     static const char *const linkKeys[] = {"linkKind", "linkElementId", "linkTransform", "linkTimerId", "linkTimerName",
-                                           "linkTimerHours", "linkTimerMinutes", "linkTimerSeconds", "linkTimerHundredths"};
+                                           "linkTimerHours", "linkTimerMinutes", "linkTimerSeconds", "linkTimerHundredths",
+                                           "linkSlideNext", "linkSlideSource", "linkSlideName"};
     const bool linkChanges = std::any_of(std::begin(linkKeys), std::end(linkKeys),
                                          [&changes](const char *key) { return changes.contains(QLatin1String(key)); });
     if (linkChanges) {
@@ -926,28 +945,33 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
             }
             return nullptr;
         };
-        DataLink *alternateLink = existing(&DataLink::has_alternate_text);
-        DataLink *timerLink = existing(&DataLink::has_timer_text);
-        const QString kind = changes.value("linkKind", alternateLink ? QStringLiteral("element")
-                                                     : timerLink ? QStringLiteral("timer") : QStringLiteral("none")).toString();
+        const QString was = existing(&DataLink::has_alternate_text) ? QStringLiteral("element")
+                          : existing(&DataLink::has_timer_text) ? QStringLiteral("timer")
+                          : existing(&DataLink::has_slide_text) ? QStringLiteral("slideText") : QStringLiteral("none");
+        const QString kind = changes.value("linkKind", was).toString();
+        // The links of the other kinds go first, which may move the one that stays.
+        removeLinks(slideElement, [&kind](const DataLink &link) {
+            return (link.has_alternate_text() && kind != QLatin1String("element"))
+                || (link.has_timer_text() && kind != QLatin1String("timer"))
+                || (link.has_slide_text() && kind != QLatin1String("slideText"));
+        });
+        const auto transform = [&changes] {
+            return DataLink::AlternateElementText::TextTransformOption(qBound(0, changes.value("linkTransform").toInt(), 3));
+        };
         if (kind == QLatin1String("element")) {
-            removeLinks(slideElement, [](const DataLink &link) { return link.has_timer_text(); });
-            // Taking a link away may have moved the other one.
-            alternateLink = existing(&DataLink::has_alternate_text);
-            auto *alternate = (alternateLink ? alternateLink : slideElement->add_data_links())->mutable_alternate_text();
+            DataLink *link = existing(&DataLink::has_alternate_text);
+            auto *alternate = (link ? link : slideElement->add_data_links())->mutable_alternate_text();
             if (changes.contains("linkElementId")) {
                 const QString source = changes.value("linkElementId").toString();
                 alternate->mutable_other_element_uuid()->set_string(source.toStdString());
                 alternate->set_other_element_name(name(source));
             }
             if (changes.contains("linkTransform"))
-                alternate->set_text_transform(DataLink::AlternateElementText::TextTransformOption(
-                    qBound(0, changes.value("linkTransform").toInt(), 3)));
+                alternate->set_text_transform(transform());
         } else if (kind == QLatin1String("timer")) {
-            removeLinks(slideElement, [](const DataLink &link) { return link.has_alternate_text(); });
-            timerLink = existing(&DataLink::has_timer_text);
-            const bool fresh = timerLink == nullptr;
-            DataLink::TimerText *timer = (fresh ? slideElement->add_data_links() : timerLink)->mutable_timer_text();
+            DataLink *link = existing(&DataLink::has_timer_text);
+            const bool fresh = link == nullptr;
+            DataLink::TimerText *timer = (fresh ? slideElement->add_data_links() : link)->mutable_timer_text();
             // The link names the timer as well as identifying it, which is what finds
             // it in a workspace where the same timer was made separately.
             if (changes.contains("linkTimerId"))
@@ -968,8 +992,18 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
             // What ProPresenter writes for a link that shows the time and nothing else
             if (fresh)
                 timer->set_timer_format_string("${timer}");
-        } else if (kind == QLatin1String("none")) {
-            removeLinks(slideElement, [](const DataLink &link) { return link.has_alternate_text() || link.has_timer_text(); });
+        } else if (kind == QLatin1String("slideText")) {
+            DataLink *link = existing(&DataLink::has_slide_text);
+            DataLink::SlideText *words = (link ? link : slideElement->add_data_links())->mutable_slide_text();
+            if (changes.contains("linkSlideNext"))
+                words->set_source_slide(changes.value("linkSlideNext").toBool() ? DataLink::SLIDE_SOURCE_TYPE_NEXT_SLIDE
+                                                                                : DataLink::SLIDE_SOURCE_TYPE_CURRENT_SLIDE);
+            if (changes.contains("linkSlideSource"))
+                words->set_source_option(DataLink::SlideText::TextSourceOption(qBound(0, changes.value("linkSlideSource").toInt(), 2)));
+            if (changes.contains("linkSlideName"))
+                words->set_name_to_match(changes.value("linkSlideName").toString().toStdString());
+            if (changes.contains("linkTransform"))
+                words->set_element_text_transform(transform());
         }
     }
 

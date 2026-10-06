@@ -1076,6 +1076,19 @@ Window {
         keyTarget: keys
     }
 
+    // What is live, for the text boxes that show it (see Show).
+    Binding {
+        target: Show
+        property: "currentSlide"
+        value: win.liveSlide ?? ({})
+    }
+
+    Binding {
+        target: Show
+        property: "nextSlide"
+        value: win.nextSlide ?? ({})
+    }
+
     Item {
         id: keys
 
