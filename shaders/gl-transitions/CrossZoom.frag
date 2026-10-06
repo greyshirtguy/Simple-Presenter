@@ -2,7 +2,8 @@
 
 // Ported from gl-transitions "CrossZoom" (https://gl-transitions.com), under the MIT licence
 // in the LICENSE file beside this one. Its parameters are fixed at their defaults. What
-// follows the declarations is the original, whose credit is:
+// follows the declarations is the original, but for the one change marked, and its credit
+// is:
 // License: MIT
 // Author: rectalogic
 // ported by gre from https://gist.github.com/rectalogic/b86b90161503a0023231
@@ -75,8 +76,11 @@ vec4 transition(vec2 uv) {
     /* randomize the lookup values to hide the fixed number of samples */
     float offset = rand(uv);
 
-    for (float t = 0.0; t <= 40.0; t++) {
-        float percent = (t + offset) / 40.0;
+    // Not as in the original, which takes 40 samples here: on integrated graphics that
+    // halves the frame rate of a full-screen output. The lookups are randomized, as the
+    // comment above says, so fewer of them show as a finer grain and not as bands.
+    for (float t = 0.0; t <= 14.0; t++) {
+        float percent = (t + offset) / 14.0;
         float weight = 4.0 * (percent - percent * percent);
         color += crossFade(texCoord + toCenter * percent * strength, dissolve) * weight;
         total += weight;

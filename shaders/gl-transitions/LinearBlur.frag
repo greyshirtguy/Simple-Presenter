@@ -1,8 +1,11 @@
 #version 440
 
 // Ported from gl-transitions "LinearBlur" (https://gl-transitions.com), under the MIT licence
-// in the LICENSE file beside this one. Its parameters are fixed at their defaults. What
-// follows the declarations is the original, whose credit is:
+// in the LICENSE file beside this one. Its parameters are fixed at their defaults, but
+// for `passes`, which is 4 where the original has 6: sixteen samples of each picture
+// where it took thirty-six, which on integrated graphics could not keep a full-screen
+// output at its frame rate. What follows the declarations is otherwise the original,
+// whose credit is:
 // Author: gre
 // License: MIT
 
@@ -24,7 +27,7 @@ vec4 getFromColor(vec2 uv) { return texture(fromTex, vec2(uv.x, 1.0 - uv.y)); }
 vec4 getToColor(vec2 uv) { return texture(toTex, vec2(uv.x, 1.0 - uv.y)); }
 
 const float intensity = 0.1;
-const int passes = 6;
+const int passes = 4;
 
 vec4 transition(vec2 uv) {
     vec4 c1 = vec4(0.0);

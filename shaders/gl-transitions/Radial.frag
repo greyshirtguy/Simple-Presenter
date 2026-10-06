@@ -2,7 +2,8 @@
 
 // Ported from gl-transitions "Radial" (https://gl-transitions.com), under the MIT licence
 // in the LICENSE file beside this one. Its parameters are fixed at their defaults. What
-// follows the declarations is the original, whose credit is:
+// follows the declarations is the original, but for the one change marked, and its credit
+// is:
 // License: MIT
 // Author: Xaychru
 // ported by gre from https://gist.github.com/Xaychru/ce1d48f0ce00bb379750
@@ -33,7 +34,9 @@ vec4 transition(vec2 p) {
   return mix(
     getToColor(p),
     getFromColor(p),
-    smoothstep(0., smoothness, atan(rp.y,rp.x) - (progress-.5) * PI * 2.5)
+    // Not as in the original, which has 2.5 here: with that the soft edge is already a
+    // little way into the picture before the transition has begun, and shows.
+    smoothstep(0., smoothness, atan(rp.y,rp.x) - (progress-.5) * PI * 2.7)
   );
 }
 
