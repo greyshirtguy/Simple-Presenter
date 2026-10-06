@@ -8,6 +8,30 @@ import SimplePresenterApp
 // their text edited in place; on the right are the picked element's properties.
 //
 // Every change is saved to the presentation file as it is made, and can be undone.
+//
+// How it is put together.
+//
+//   PresentationEditor (src/presentationeditor.h) holds the file, parsed, and is the
+//   only thing that changes it; it is also the list model of the slides. A change is a
+//   call to it, which alters the one slide, writes the file, and describes that slide
+//   afresh for whatever draws it. Undo is a list of that slide's cue as it was before
+//   and after each change.
+//
+//   EditorCanvas draws the slide being worked on with the same SlideElement that draws
+//   the output, and lays over it what editing needs: the handles, the lines snapped
+//   to, and a TextEdit for typing into a text box where it stands.
+//
+//   EditorInspector shows the properties of the picked element and reports what its
+//   controls are set to. It changes nothing itself.
+//
+//   This file joins them: the lists on the left, the menus and the keys, and handing
+//   what the inspector reports to the canvas, which applies it to the picked element.
+//
+// Dragging something (an element, a slider, a colour) would save a change and leave a
+// step to undo for every pixel of the way. So a change comes in two kinds: one that is
+// shown but not saved ("interim" here, a preview in PresentationEditor), of which any
+// number may follow one another, and settling, which saves where it ended up as one
+// change.
 Rectangle {
     id: screen
 
@@ -264,6 +288,7 @@ Rectangle {
                         Slide {
                             anchors.fill: parent
                             slide: cell.slide
+                            effects: false
                         }
                     }
 

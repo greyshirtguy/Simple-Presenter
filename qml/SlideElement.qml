@@ -5,6 +5,15 @@ import SimplePresenterApp
 // One element of a slide: its shape (fill and stroke), with its text over it, each with
 // its own shadow. Geometry comes in slide units and is multiplied by `unit`, so text is
 // rasterised at the size it is shown at rather than scaled up from a fixed-size texture.
+//
+// It draws what the element map says and works nothing out: which elements show, and
+// what text each shows, was settled when the map was made (src/proconvert.h). The same
+// component is the element on the output, in a thumbnail and under the editor's handles.
+//
+// A shadow is the one dear thing here. The shape or the text is drawn into a texture of
+// its own, which a blur then turns into the shadow under it: an extra pass, and an extra
+// texture, for each shadow. So nothing is set up for a shadow unless the element has
+// one, and `effects` turns them off altogether where they would not be seen.
 Item {
     id: element
 
@@ -21,6 +30,10 @@ Item {
     // Text to draw in place of the element's own: a RichText value, or undefined. The
     // editor draws what is being typed this way.
     property var textOverride: undefined
+    // Whether to draw shadows. Each one is an extra texture and a blur, which is nothing
+    // for the one slide on the output and adds up for a grid of thumbnails, where a
+    // shadow is a pixel wide and cannot be seen anyway.
+    property bool effects: true
     // Room around the box for what the text draws outside it (strokes, the bars of a
     // fill that is only behind the text's lines), in slide units
     readonly property real textBleed: 60
@@ -53,7 +66,7 @@ Item {
         border.color: element.source.strokeColor
         border.width: element.source.strokeEnabled ? element.source.strokeWidth * element.unit : 0
 
-        layer.enabled: element.source.shadowEnabled
+        layer.enabled: element.effects && element.source.shadowEnabled
         layer.effect: Shadow {
             which: "shadow"
         }
@@ -78,7 +91,7 @@ Item {
         insetRight: element.source.marginRight
         insetBottom: element.source.marginBottom
 
-        layer.enabled: element.source.textShadowEnabled
+        layer.enabled: element.effects && element.source.textShadowEnabled
         layer.effect: Shadow {
             which: "textShadow"
         }

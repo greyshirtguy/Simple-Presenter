@@ -886,8 +886,7 @@ Window {
         title: "Add Media"
         fileMode: FileDialog.OpenFiles
         currentFolder: "file://" + win.catalog.mediaDirectory
-        nameFilters: ["Images and videos (*.mp4 *.mov *.m4v *.mkv *.webm *.avi *.jpg *.jpeg *.png *.webp *.bmp *.gif)",
-                      "All files (*)"]
+        nameFilters: [win.catalog.mediaDialogFilter, "All files (*)"]
         onAccepted: win.report(win.catalog.addMedia(win.mediaPlaylistId, selectedFiles))
     }
 
@@ -1136,6 +1135,7 @@ Window {
                         SidebarList {
                             id: libraryList
 
+                            objectName: "libraryList"
                             width: parent.width
                             height: contentHeight
                             interactive: false
@@ -1163,6 +1163,7 @@ Window {
                             Rectangle {
                                 id: addButton
 
+                                objectName: "addPlaylistButton"
                                 anchors.right: parent.right
                                 anchors.rightMargin: 12
                                 anchors.bottom: parent.bottom
@@ -1193,6 +1194,7 @@ Window {
                         SidebarList {
                             id: playlistList
 
+                            objectName: "playlistList"
                             width: parent.width
                             height: contentHeight
                             interactive: false
@@ -1284,6 +1286,7 @@ Window {
 
             // In a playlist, rows can be dragged up and down to reorder them.
             SidebarList {
+                objectName: "presentationList"
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: presentationsHeader.bottom
@@ -1759,6 +1762,7 @@ Window {
                     Slide {
                         anchors.fill: parent
                         slide: win.liveSlide
+                        effects: false
                     }
                 }
             }
@@ -1976,6 +1980,7 @@ Window {
                         Slide {
                             anchors.fill: parent
                             slide: cell.modelData
+                            effects: false
                         }
 
                         // Marks a slide that triggers media: two stacked layers, the back
@@ -2275,6 +2280,7 @@ Window {
             Rectangle {
                 id: mediaAddButton
 
+                objectName: "addMediaButton"
                 x: sidebar.width - width - 12
                 anchors.bottom: mediaTitle.bottom
                 anchors.bottomMargin: 3
@@ -2306,6 +2312,7 @@ Window {
             SidebarList {
                 id: mediaList
 
+                objectName: "mediaPlaylistList"
                 anchors.left: parent.left
                 anchors.top: mediaTitle.bottom
                 anchors.bottom: parent.bottom
@@ -2331,6 +2338,7 @@ Window {
             GridView {
                 id: mediaGrid
 
+                objectName: "mediaGrid"
                 readonly property real labelHeight: 24
                 readonly property int columns: Math.max(1, Math.floor(width / win.mediaThumbnailWidth))
 
