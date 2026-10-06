@@ -67,7 +67,9 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //     linkTimerSeconds and linkTimerHundredths (how each part of the time is written,
 //     as Timers::Style), linkTimerHundredthsUnderMinute (the hundredths only show in
 //     the last minute) and linkTimerPattern (text with "${timer}" where the time
-//     goes). For anything else, linkLabel names it
+//     goes). For anything else, which this app does not show, linkLabel names it and
+//     linkPicture says whether it is a picture or a colour that it puts in the
+//     element, in place of its fill, and not words
 //   visibilityRules (bool), visibilityCriterion (0 all, 1 any, 2 none),
 //     visibilityTimed (one of the conditions is about a timer, so whether the element
 //     shows is not settled until it is drawn: see Slide.qml),
@@ -86,6 +88,11 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 // whose text boxes are linked the same way to more such things (the words of the live
 // slide and of the next one, the clock), each of which is another linkKind handled in
 // those same two places.
+//
+// An element linked to something this app does not show (linkKind "other") has no
+// displayText at all. The text such an element has of its own is only a sample of the
+// real thing ("1:23 PM" for the clock), which would pass for it if it were shown; the
+// editor, where a sample is what is wanted, draws it from `text` (EditorCanvas.qml).
 QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 
 // Changes an element of a slide. `changes` holds new values under the element map's

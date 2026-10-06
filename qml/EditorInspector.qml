@@ -982,8 +982,10 @@ Rectangle {
 
             Note {
                 visible: inspector.element !== null && inspector.element.linkKind === "other"
-                text: inspector.element ? "This element is linked to a " + inspector.element.linkLabel.toLowerCase()
-                      + " in ProPresenter. That is kept, but is not shown here: the element shows its own text." : ""
+                text: !inspector.element ? ""
+                      : "In ProPresenter this element shows something this app does not: " + inspector.element.linkLabel.toLowerCase()
+                        + ". The link is kept. Shown, the element has nothing in it; here it has "
+                        + (inspector.element.linkPicture ? "the fill" : "the text") + " it was left with, to place it and set its look by."
             }
         }
     }

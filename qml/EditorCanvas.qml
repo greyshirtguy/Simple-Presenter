@@ -553,6 +553,9 @@ Item {
             delegate: SlideElement {
                 required property var modelData
                 readonly property bool dragged: canvas.dragBox !== null && modelData.id === canvas.selectedId
+                // Linked to something this app does not show: its own text stands in, as
+                // a sample.
+                readonly property bool sampled: modelData.linkKind === "other"
 
                 source: modelData
                 unit: canvas.u
@@ -561,8 +564,9 @@ Item {
                 boxY: dragged ? canvas.dragBox.y : modelData.y
                 boxWidth: dragged ? canvas.dragBox.width : modelData.width
                 boxHeight: dragged ? canvas.dragBox.height : modelData.height
-                textOverride: modelData.id === canvas.editingId ? canvas.liveText : undefined
+                textOverride: modelData.id === canvas.editingId ? canvas.liveText : sampled ? modelData.text : undefined
                 fitted: modelData.id !== canvas.editingId
+                standIns: true
             }
         }
     }

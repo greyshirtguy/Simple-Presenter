@@ -39,6 +39,12 @@ Item {
     // Whether text that is set to suit its size to its box does. Not while it is being
     // typed, when each letter has to stand where the caret believes it is.
     property bool fitted: true
+    // Whether an element linked to a picture this app does not show (of a slide, of an
+    // output) is drawn with the fill it has in the file, which is only there to stand
+    // in for the picture. In the editor it is, so that the element can be seen and
+    // placed; shown for real, a block of colour where a picture was meant would be
+    // worse than nothing.
+    property bool standIns: false
     // The words of an element whose words change while it is shown, or undefined for an
     // element that shows what its map says. A timer's time is the one such thing so far
     // (see Timers); the others a stage layout needs, such as the words of the live
@@ -66,7 +72,7 @@ Item {
     // fill that is only behind the text's lines), in slide units
     readonly property real textBleed: 60
     // A fill that is only behind the lines of the text is drawn with the text.
-    readonly property bool boxFilled: source.fillEnabled && !source.fillLinesOnly
+    readonly property bool boxFilled: source.fillEnabled && !source.fillLinesOnly && (standIns || !source.linkPicture)
 
     component Shadow: MultiEffect {
         property string which

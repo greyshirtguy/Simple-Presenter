@@ -219,17 +219,62 @@ QString otherLinkLabel(const DataLink &link)
     switch (link.PropertyType_case()) {
     case DataLink::kTicker: return QStringLiteral("Ticker");
     case DataLink::kClockText: return QStringLiteral("Clock");
+    case DataLink::kChordChart: return QStringLiteral("Chord chart");
+    case DataLink::kOutputScreen: return QStringLiteral("Output screen");
+    case DataLink::kPcoLive: return QStringLiteral("Planning Center Live");
+    case DataLink::kAlternateFill: return QStringLiteral("Fill of another element");
+    case DataLink::kStageMessage: return QStringLiteral("Stage message");
+    case DataLink::kVideoCountdown: return QStringLiteral("Video countdown");
+    case DataLink::kSlideImage: return QStringLiteral("Slide image");
     case DataLink::kSlideText: return QStringLiteral("Slide text");
     case DataLink::kCcliText: return QStringLiteral("CCLI");
     case DataLink::kGroupName: return QStringLiteral("Group name");
+    case DataLink::kGroupColor: return QStringLiteral("Group colour");
     case DataLink::kPresentationNotes: return QStringLiteral("Presentation notes");
     case DataLink::kPlaylistItem: return QStringLiteral("Playlist item");
-    case DataLink::kVideoCountdown: return QStringLiteral("Video countdown");
-    case DataLink::kAudioCountdown: return QStringLiteral("Audio countdown");
-    case DataLink::kStageMessage: return QStringLiteral("Stage message");
+    case DataLink::kAutoAdvanceTimeRemaining: return QStringLiteral("Auto advance time");
+    case DataLink::kCaptureStatusText: return QStringLiteral("Capture status");
+    case DataLink::kCaptureStatusColor: return QStringLiteral("Capture status colour");
     case DataLink::kSlideCount: return QStringLiteral("Slide count");
+    case DataLink::kAudioCountdown: return QStringLiteral("Audio countdown");
+    case DataLink::kPresentation: return QStringLiteral("Presentation");
     case DataLink::kSlideLabelText: return QStringLiteral("Slide label");
+    case DataLink::kSlideLabelColor: return QStringLiteral("Slide label colour");
+    case DataLink::kRssFeed: return QStringLiteral("RSS feed");
+    case DataLink::kFileFeed: return QStringLiteral("File feed");
+    case DataLink::kChordProChart: return QStringLiteral("Chord chart");
+    case DataLink::kPlaybackMarkerText: return QStringLiteral("Playback marker");
+    case DataLink::kPlaybackMarkerColor: return QStringLiteral("Playback marker colour");
+    case DataLink::kTimecodeText: return QStringLiteral("Timecode");
+    case DataLink::kTimecodeStatus: return QStringLiteral("Timecode status");
+    case DataLink::kMessageText: return QStringLiteral("Message");
+    case DataLink::kKeyValueText: return QStringLiteral("Key value text");
+    case DataLink::kKeyValueFill: return QStringLiteral("Key value fill");
+    case DataLink::kZone: return QStringLiteral("Zone");
     default: return QString();
+    }
+}
+
+// Whether what a link puts in an element is not words but a picture or a colour, which
+// takes the place of the element's fill: a picture of a slide or of an output, say.
+// The fill such an element has in the file is then only a stand-in for it.
+bool linkIsPicture(const DataLink &link)
+{
+    switch (link.PropertyType_case()) {
+    case DataLink::kChordChart:
+    case DataLink::kOutputScreen:
+    case DataLink::kAlternateFill:
+    case DataLink::kSlideImage:
+    case DataLink::kGroupColor:
+    case DataLink::kCaptureStatusColor:
+    case DataLink::kPresentation:
+    case DataLink::kSlideLabelColor:
+    case DataLink::kChordProChart:
+    case DataLink::kPlaybackMarkerColor:
+    case DataLink::kKeyValueFill:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -307,6 +352,7 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     map.insert("linkTimerHundredthsUnderMinute", false);
     map.insert("linkTimerPattern", QString());
     map.insert("linkLabel", QString());
+    map.insert("linkPicture", false);
     map.insert("visibilityRules", false);
     map.insert("visibilityCriterion", 0);
     map.insert("visibilityConditions", QVariantList());
@@ -365,6 +411,7 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
         } else if (!otherLinkLabel(link).isEmpty()) {
             map.insert("linkKind", QStringLiteral("other"));
             map.insert("linkLabel", otherLinkLabel(link));
+            map.insert("linkPicture", linkIsPicture(link));
         }
     }
     return map;
@@ -685,6 +732,12 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
                                          element.value("linkTimerHundredths").toInt(),
                                          element.value("linkTimerHundredthsUnderMinute").toBool()};
             display = restyled(Timers::linked(0, true, format, element.value("linkTimerPattern").toString()));
+        } else if (element.value("linkKind").toString() == QLatin1String("other")) {
+            // Something this app does not follow, the clock say. The text the element
+            // has of its own is then only a sample of it ("1:23 PM"), which shown would
+            // pass for the real thing; so it shows nothing, and the editor, where a
+            // sample is what is wanted, draws the element's own text itself.
+            display = restyled(QString());
         }
         const int transform = element.value("textTransform").toInt();
         if (transform != Text::TRANSFORM_NONE)
