@@ -5,12 +5,23 @@
 #include <QVariant>
 #include <QtQml/qqmlregistration.h>
 
-// Styled text rasterised once on the CPU into a texture: each run's glyph outlines are
-// laid out (see textlayout.h), stroked, then filled, with any underline or strikethrough
-// drawn as part of the outline so that it is stroked and filled the same way. Layout
-// happens in slide units and the painter is scaled by `unit`, so line breaks are
-// identical at every output size. Repaints only when a property or the item size
-// changes.
+// The text of a slide element.
+//
+// Why it is drawn this way. Slide text is big, often outlined, and has to look the same
+// on a 4K output as in a thumbnail. The usual way of drawing text in Qt Quick, from a
+// texture of pre-rendered glyphs, cannot outline it. So this takes the outline of every
+// glyph as a path (see textlayout.h), strokes the paths and then fills them, on the
+// CPU, into an image that becomes a texture. Underline and strikethrough are added to
+// the paths, so they are stroked and filled like the letters.
+//
+// Why that is cheap enough. It happens once, when the text or the size of the item
+// changes; from then on the text is a texture like any picture, and showing it costs
+// the GPU one rectangle. Nothing is drawn again while a slide just sits on the output.
+//
+// Why line breaks never move. The layout is always done in slide units (the slide's own
+// coordinates, usually 1920 by 1080) and the painter is scaled by `unit` to whatever
+// size the item really is. A line that breaks after a word on the output breaks after
+// the same word in a thumbnail a tenth of the size.
 class StrokedText : public QQuickPaintedItem
 {
     Q_OBJECT

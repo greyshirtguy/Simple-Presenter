@@ -39,6 +39,7 @@ protobuf_generate(
 target_include_directories(proproto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/proto)
 target_link_libraries(proproto PUBLIC protobuf::libprotobuf)
 
+# The plain C++: files, text and thumbnails. None of this is seen from QML directly.
 qt_add_executable(SimplePresenter
     src/main.cpp
     src/fontresolver.cpp
@@ -72,6 +73,8 @@ qt_add_executable(SimplePresenter
 )
 target_include_directories(SimplePresenter PRIVATE src)
 
+# The QML, and the C++ classes that QML uses by name (SOURCES): each of those is a type
+# that QML files can create or be handed, declared with QML_ELEMENT in its header.
 qt_add_qml_module(SimplePresenter
     # Not the program's own name: the module is built into a folder named after its URI,
     # which would collide with the executable.
@@ -132,7 +135,8 @@ qt_add_qml_module(SimplePresenter
         src/strokedtext.cpp
 )
 
-# Compiled by qsb for every RHI backend; loaded as qrc:/shaders/<name>.frag.qsb
+# The transitions. Compiled by qsb for every graphics backend Qt can draw with, and loaded
+# as qrc:/shaders/<name>.frag.qsb. shaders/dissolve.frag says what a transition is.
 qt_add_shaders(SimplePresenter "shaders"
     PREFIX "/"
     FILES

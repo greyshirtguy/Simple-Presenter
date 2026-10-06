@@ -6,9 +6,14 @@
 #include <QString>
 #include <QVariantMap>
 
-// Styled text as the renderer and the editor work with it. All lengths are in slide
-// units (the coordinate space of the slide's own size, typically 1920x1080), which are
-// also the points ProPresenter measures text in; they are not output pixels.
+// Styled text as the renderer and the editor work with it: a list of paragraphs, each a
+// list of runs, a run being a stretch of text in one format. It is what the RTF in a
+// slide is parsed into (rtf.h) and written back from (rtfwriter.h), what is laid out
+// and drawn (textlayout.h, strokedtext.h), and what the editor changes.
+//
+// All lengths are in slide units (the coordinate space of the slide's own size,
+// typically 1920x1080), which are also the points ProPresenter measures text in; they
+// are not output pixels.
 
 struct TextRun
 {

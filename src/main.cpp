@@ -1,3 +1,70 @@
+// SimplePresenter: where to start reading.
+//
+// The app is three windows and a folder.
+//
+//   The folder is a workspace: libraries of ProPresenter 7 presentations, media files,
+//   and two playlists files, laid out exactly as ProPresenter lays out its own folder
+//   (src/catalog.h). Nothing is imported or converted; the app works on the files as
+//   they are, and writes its changes back into them.
+//
+//   The operator window (qml/Main.qml) is where the show is run from: pick a
+//   presentation, click a slide, and it is on the output.
+//
+//   The output window (qml/Output.qml) is what the audience sees: a media layer with a
+//   slide layer over it. The stage window (qml/Stage.qml) is what the people on stage
+//   see: the words of this slide and the next.
+//
+// The two halves of the code.
+//
+//   src/ is C++, and does the things QML cannot: reading and writing ProPresenter's
+//   documents (which are Protocol Buffers), reading and writing the RTF their text is
+//   kept in, laying text out and drawing it with an outline, taking a frame from a
+//   video for a thumbnail.
+//
+//   qml/ is QML, and is everything on screen and all of the app's behaviour: what is
+//   live, what a click or a key does, how the windows are laid out.
+//
+//   What passes between them is plain data: lists and maps. A presentation crosses over
+//   as a list of slides, each slide a map of everything needed to draw it. QML never
+//   sees a file format, and C++ never decides what is on the output.
+//
+// A slide's way from the file to the screen.
+//
+//   1. Catalog::open() has ProDocument::load() (src/prodocument.h) parse the .pro file
+//      and walk the chosen arrangement into a flat list of slides.
+//   2. proconvert::toSlideMap() (src/proconvert.h) turns each slide into a map: its
+//      size, its elements, and each element's box, fill, stroke, shadows and text. The
+//      text is parsed from RTF (src/rtf.h) into runs of styled text (src/richtext.h).
+//   3. In QML, goLive() in Main.qml hands that map to the output window, whose slide
+//      layer (qml/TransitionLayer.qml) gives it to a Slide (qml/Slide.qml), which makes
+//      a SlideElement for each element, which draws its text with a StrokedText
+//      (src/strokedtext.h).
+//   4. If a transition is chosen, the layer blends the old slide into the new with a
+//      fragment shader (shaders/).
+//
+// Choices made for modest hardware. The app is developed on a 2017 laptop with
+// integrated graphics, and is meant to run a show on one.
+//
+//   - Text is drawn once, on the CPU, into a texture, when a slide is shown; after that
+//     a slide costs the GPU one textured rectangle for each element.
+//   - A transition is one shader over two textures. When none is running, nothing is
+//     blended: the output is drawn directly (see TransitionLayer.qml).
+//   - Video is decoded by the graphics hardware when a driver for it is there (Qt
+//     Multimedia, through FFmpeg). The preview does not decode it a second time: it
+//     borrows frames from the output (src/framerelay.h).
+//   - Media files are never read on the thread that runs the windows. Thumbnails are
+//     made on worker threads, once, and kept on disk (src/thumbnailprovider.h); a
+//     still put on the output is read on another thread and brought in when it is
+//     ready (qml/MediaContent.qml).
+//   - Nothing runs when nothing changes. With a still slide up, the app uses no
+//     processor time at all.
+//
+// Never losing what is in a file. ProPresenter's files hold far more than this app
+// understands. Every change is made the same way: parse the whole file, alter only the
+// fields the change is about, and write the whole thing back, in one step, to a
+// temporary file that then replaces the original. Whatever the app does not know about
+// goes back exactly as it came.
+
 #include "catalog.h"
 #include "selftest.h"
 #include "thumbnailprovider.h"
