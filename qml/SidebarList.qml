@@ -47,6 +47,16 @@ ListView {
         return text.replace(/&/g, "&amp;").replace(/</g, "&lt;")
     }
 
+    // Ends a rename in place. `name` is what was typed, or "" if it was abandoned. Done
+    // here, not in the row: reporting the new name has the list rebuilt, and the row
+    // that asked is then gone before it could say that it has finished.
+    function finishRename(entry, name) {
+        editingPath = ""
+        editingEnded()
+        if (name !== "" && name !== entry.name)
+            renamed(entry, name)
+    }
+
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     // A new model starts scrolled to the top; bring the selected entry back into view.
@@ -249,15 +259,7 @@ ListView {
                 property bool cancelled: false
 
                 text: entry.modelData.name
-                onEditingFinished: {
-                    const name = text.trim()
-                    const changed = !cancelled && name !== "" && name !== entry.modelData.name
-                    const edited = entry.modelData
-                    list.editingPath = ""
-                    if (changed)
-                        list.renamed(edited, name)
-                    list.editingEnded()
-                }
+                onEditingFinished: list.finishRename(entry.modelData, cancelled ? "" : text.trim())
                 Keys.onEscapePressed: {
                     cancelled = true
                     editingFinished()
