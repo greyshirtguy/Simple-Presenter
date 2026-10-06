@@ -334,6 +334,54 @@ TextLayoutResult layoutText(const RichText &content, qreal width, bool byGlyph)
     return result;
 }
 
+RichText scaledText(RichText text, qreal by)
+{
+    for (TextParagraph &paragraph : text.paragraphs) {
+        for (TextRun &run : paragraph.runs)
+            run.size *= by;
+    }
+    return text;
+}
+
+qreal fittingScale(const RichText &text, const QSizeF &room, int fit)
+{
+    const bool smaller = fit == 2 || fit == 4;
+    const bool larger = fit == 3 || fit == 4;
+    if ((!smaller && !larger) || room.width() <= 0 || room.height() <= 0 || text.plainText().trimmed().isEmpty())
+        return 1;
+
+    const auto fits = [&text, &room](qreal by) {
+        const TextLayoutResult layout = layoutText(scaledText(text, by), room.width());
+        if (layout.height > room.height() + 0.5)
+            return false;
+        for (const QRectF &line : layout.lines) {
+            if (line.width() > room.width() + 0.5)
+                return false;
+        }
+        return true;
+    };
+    // The largest size that fits, between two of which the smaller does and the larger
+    // does not, near enough.
+    const auto largest = [&fits](qreal fitting, qreal tooLarge) {
+        for (int step = 0; step < 9; ++step) {
+            const qreal middle = (fitting + tooLarge) / 2;
+            (fits(middle) ? fitting : tooLarge) = middle;
+        }
+        return fitting;
+    };
+    if (!fits(1)) {
+        // Down to a twentieth and no further: smaller than that says nothing.
+        return !smaller ? 1 : fits(0.05) ? largest(0.05, 1) : 0.05;
+    }
+    if (!larger)
+        return 1;
+    // Up by doubling until it no longer fits, then back to what does.
+    qreal fitting = 1;
+    while (fitting < 64 && fits(fitting * 2))
+        fitting *= 2;
+    return fitting >= 64 ? fitting : largest(fitting, fitting * 2);
+}
+
 void toDocument(const RichText &text, QTextDocument *document)
 {
     document->clear();

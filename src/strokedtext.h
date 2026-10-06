@@ -25,6 +25,12 @@
 // size the item really is. A line that breaks after a word on the output breaks after
 // the same word in a thumbnail a tenth of the size.
 //
+// Text that suits its size to its box. A box can be set to make its text smaller until
+// it fits, larger until it fills the box, or either (`fit`). What a box of a stage layout
+// shows is whatever is live, a line of a song or six, so such boxes are mostly set that
+// way; a slide's own text can be too. The size that suits is found by laying the text
+// out at one size after another, which is done once for each text the box is given.
+//
 // The one text that is not drawn once and left. A timer that shows its hundredths
 // changes thirty times a second, and drawing all of it again that often, large, on a
 // full-screen output, took over a quarter of a processor core. Such text arrives as a
@@ -50,6 +56,10 @@ class StrokedText : public QQuickPaintedItem
     Q_PROPERTY(qreal bleed MEMBER m_bleed NOTIFY bleedChanged)
     // Qt.AlignTop / Qt.AlignVCenter / Qt.AlignBottom
     Q_PROPERTY(int verticalAlignment MEMBER m_vAlign NOTIFY verticalAlignmentChanged)
+    // Whether the text's size is changed to suit the box, as ProPresenter's files number
+    // it: 2 smaller if it does not fit, 3 larger if there is room, 4 either; anything
+    // else, drawn at the size it has.
+    Q_PROPERTY(int fit MEMBER m_fit NOTIFY fitChanged)
     // Slide units the text keeps clear of each edge of its box.
     Q_PROPERTY(qreal insetLeft MEMBER m_insetLeft NOTIFY insetsChanged)
     Q_PROPERTY(qreal insetTop MEMBER m_insetTop NOTIFY insetsChanged)
@@ -77,6 +87,7 @@ signals:
     void unitChanged();
     void bleedChanged();
     void verticalAlignmentChanged();
+    void fitChanged();
     void insetsChanged();
     void lineFillChanged();
 
@@ -85,6 +96,7 @@ protected:
 
 private:
     RichText shown() const;
+    RichText fitted() const;
     QSizeF box() const;
     QPointF origin(const TextLayoutResult &layout) const;
     void replace();
@@ -98,6 +110,13 @@ private:
     qreal m_unit = 1;
     qreal m_bleed = 0;
     int m_vAlign = Qt::AlignVCenter;
+    int m_fit = 0;
+    // The last text a size was found for, the box it was found for, and the size, as
+    // a multiple of the text's own: see fitted()
+    mutable RichText m_fitShape;
+    mutable QSizeF m_fitRoom;
+    mutable int m_fitKind = 0;
+    mutable qreal m_fitScale = 1;
     qreal m_insetLeft = 0;
     qreal m_insetTop = 0;
     qreal m_insetRight = 0;

@@ -55,6 +55,10 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //   shadow... and textShadow...: Enabled, Color (as drawn, opacity included), Angle,
 //     Offset, Radius, and worked out from those OffsetX and OffsetY
 //   text (RichText, as authored), verticalAlignment, marginLeft/Top/Right/Bottom,
+//   textScale (whether the text's size is changed to suit its box, as the file has it:
+//     0 no, 1 the box's height suits the text instead, which is not done here, 2 made
+//     smaller if it does not fit, 3 made larger if there is room, 4 either; see
+//     StrokedText),
 //     textTransform
 //   linkKind ("none", "element", "timer" or "other"): where the element's text comes
 //     from, if it is not its own. For another element of the slide, linkElementId,
@@ -89,7 +93,7 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 //   strokeOn, strokeColor, strokeWidth
 //   shadowEnabled, shadowColor, shadowAngle, shadowOffset, shadowRadius, and the same
 //     for textShadow...
-//   verticalAlignment, marginLeft, marginTop, marginRight, marginBottom
+//   verticalAlignment, textScale, marginLeft, marginTop, marginRight, marginBottom
 //   linkKind ("none", "element" or "timer"), linkElementId, linkTransform,
 //     linkTimerId, linkTimerName, linkTimerHours, linkTimerMinutes, linkTimerSeconds,
 //     linkTimerHundredths

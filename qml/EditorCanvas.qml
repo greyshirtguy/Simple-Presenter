@@ -562,6 +562,7 @@ Item {
                 boxWidth: dragged ? canvas.dragBox.width : modelData.width
                 boxHeight: dragged ? canvas.dragBox.height : modelData.height
                 textOverride: modelData.id === canvas.editingId ? canvas.liveText : undefined
+                fitted: modelData.id !== canvas.editingId
             }
         }
     }

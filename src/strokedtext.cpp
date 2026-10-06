@@ -36,6 +36,7 @@ StrokedText::StrokedText(QQuickItem *parent)
     connect(this, &StrokedText::unitChanged, this, repaint);
     connect(this, &StrokedText::bleedChanged, this, repaint);
     connect(this, &StrokedText::verticalAlignmentChanged, this, repaint);
+    connect(this, &StrokedText::fitChanged, this, repaint);
     connect(this, &StrokedText::insetsChanged, this, repaint);
     connect(this, &StrokedText::lineFillChanged, this, repaint);
     connect(this, &StrokedText::replacementChanged, this, &StrokedText::replace);
@@ -58,6 +59,39 @@ RichText StrokedText::shown() const
         return content;
     return RichText::plain(m_replacement.toString(), content.firstRun(),
                            content.paragraphs.isEmpty() ? Qt::AlignHCenter : content.paragraphs.first().alignment);
+}
+
+// What there is to draw at the size it is drawn at: as it is, or made smaller or larger
+// to suit the box, if the box is set to do that.
+//
+// The size is found for the shape of the text and not for the text itself: with every
+// digit taken for a nought. A timer's time then keeps one size while it runs, and does
+// not shiver as a 1 gives way to a 0; it changes size only when it gains or loses a
+// digit. (It also means the search is made once for a running timer, and not thirty
+// times a second for one that shows its hundredths.)
+RichText StrokedText::fitted() const
+{
+    const RichText text = shown();
+    const QSizeF room = box();
+    if (m_fit < 2 || m_fit > 4 || room.width() <= 0 || room.height() <= 0)
+        return text;
+
+    RichText shape = text;
+    for (TextParagraph &paragraph : shape.paragraphs) {
+        for (TextRun &run : paragraph.runs) {
+            for (QChar &character : run.text) {
+                if (character.isDigit())
+                    character = u'0';
+            }
+        }
+    }
+    if (m_fitKind != m_fit || m_fitRoom != room || !(m_fitShape == shape)) {
+        m_fitScale = fittingScale(shape, room, m_fit);
+        m_fitShape = shape;
+        m_fitRoom = room;
+        m_fitKind = m_fit;
+    }
+    return m_fitScale == 1 ? text : scaledText(text, m_fitScale);
 }
 
 // The box the text is laid out in, in slide units: empty if there is no room for any.
@@ -83,7 +117,7 @@ void StrokedText::replace()
     const bool live = m_replacement.typeId() == QMetaType::QString && box().width() > 0 && box().height() > 0;
     const TextLayoutResult before = m_live;
     const bool known = m_liveKnown;
-    m_live = live ? layoutText(shown(), box().width(), true) : TextLayoutResult();
+    m_live = live ? layoutText(fitted(), box().width(), true) : TextLayoutResult();
     m_liveKnown = live;
 
     const QRect changed = known && live ? changedPart(before, m_live) : QRect();
@@ -139,7 +173,7 @@ void StrokedText::paint(QPainter *painter)
     // A replacement's layout is worked out when it is set, where it is needed to know
     // what has changed; if that is not to hand, it is done here.
     const bool live = m_replacement.typeId() == QMetaType::QString;
-    const TextLayoutResult layout = live && m_liveKnown ? m_live : layoutText(shown(), room.width(), live);
+    const TextLayoutResult layout = live && m_liveKnown ? m_live : layoutText(fitted(), room.width(), live);
     if (layout.outlines.isEmpty() && layout.lines.isEmpty())
         return;
 

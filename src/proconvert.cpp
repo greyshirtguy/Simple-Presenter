@@ -286,6 +286,7 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     const Text &text = element.text();
     map.insert("text", QVariant::fromValue(readText(text)));
     map.insert("verticalAlignment", toQtVerticalAlignment(text.vertical_alignment()));
+    map.insert("textScale", int(text.scale_behavior()));
     map.insert("marginLeft", text.margins().left());
     map.insert("marginTop", text.margins().top());
     map.insert("marginRight", text.margins().right());
@@ -820,6 +821,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
     if (anyKeyStartsWith(changes, QStringLiteral("textShadow")))
         applyShadow(element->mutable_text()->mutable_shadow(), QStringLiteral("textShadow"), changes);
 
+    if (changes.contains("textScale"))
+        element->mutable_text()->set_scale_behavior(Text::ScaleBehavior(qBound(0, changes.value("textScale").toInt(), 4)));
     if (changes.contains("verticalAlignment")) {
         const int alignment = changes.value("verticalAlignment").toInt();
         element->mutable_text()->set_vertical_alignment(alignment & Qt::AlignTop ? Text::VERTICAL_ALIGNMENT_TOP

@@ -36,6 +36,9 @@ Item {
     // Text to draw in place of the element's own: a RichText value, or undefined. The
     // editor draws what is being typed this way.
     property var textOverride: undefined
+    // Whether text that is set to suit its size to its box does. Not while it is being
+    // typed, when each letter has to stand where the caret believes it is.
+    property bool fitted: true
     // The words of an element whose words change while it is shown, or undefined for an
     // element that shows what its map says. A timer's time is the one such thing so far
     // (see Timers); the others a stage layout needs, such as the words of the live
@@ -112,6 +115,7 @@ Item {
         unit: element.unit
         bleed: element.textBleed
         verticalAlignment: element.source.verticalAlignment
+        fit: element.fitted ? element.source.textScale : 0
         insetLeft: element.source.marginLeft
         insetTop: element.source.marginTop
         insetRight: element.source.marginRight

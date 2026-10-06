@@ -64,6 +64,17 @@ struct TextLayoutResult
 // next one asked for will be for other text.
 TextLayoutResult layoutText(const RichText &text, qreal width, bool byGlyph = false);
 
+// The text with every size in it multiplied by `by`.
+RichText scaledText(RichText text, qreal by);
+
+// What to multiply the sizes in a text by for it to suit a box, in the way ProPresenter
+// can set a text box to: `fit` is 2 for smaller if the text does not fit, 3 for larger
+// if there is room for it to be, 4 for either, and anything else for no change, as the
+// file format numbers them. Text fits if it is no taller than the box when broken into
+// lines at the box's width, and none of its lines (a word too long to break) is wider.
+// It is found by laying the text out at one size after another, a dozen or so times.
+qreal fittingScale(const RichText &text, const QSizeF &room, int fit);
+
 // Puts the text into a document that lays out as layoutText() does. Every stretch of the
 // document carries the whole format of its run, so text typed beside it takes that
 // format and nothing of it is lost on the way back out. The document is for editing

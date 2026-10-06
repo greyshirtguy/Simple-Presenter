@@ -733,6 +733,27 @@ Rectangle {
                 }
             }
 
+            // Whether the text's size is changed to suit the box, in ProPresenter's
+            // words for it. (ProPresenter can also have the box's height suit the text,
+            // which this app does not do: a box set that way is listed as it is, and
+            // drawn at the size the text has.)
+            Line {
+                id: scaleLine
+
+                readonly property int scale: inspector.element ? inspector.element.textScale : 0
+                readonly property var values: scale === 1 ? [0, 1, 2, 3, 4] : [0, 2, 3, 4]
+                readonly property var names: ["None", "Adjust Container Height", "Scale Font Down", "Scale Font Up", "Scale Font Up/Down"]
+
+                caption: "Scale"
+
+                Choice {
+                    width: textTab.width - 78
+                    model: scaleLine.values.map(value => scaleLine.names[value])
+                    choice: Math.max(0, scaleLine.values.indexOf(scaleLine.scale))
+                    onChosen: (index) => inspector.setProperties({ textScale: scaleLine.values[index] }, false)
+                }
+            }
+
             Line {
                 caption: "Capitals"
 
