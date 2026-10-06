@@ -32,7 +32,7 @@ AuxWindow {
         slideLayer.show(slide)
     }
 
-    // `media` is { source, video }; null clears the layer.
+    // `media` is { source, video, loops }; null clears the layer.
     function showMedia(media) {
         mediaLayer.show(media)
     }
@@ -45,6 +45,16 @@ AuxWindow {
         // A slide still held for other media has been passed over.
         heldSlide = undefined
         mediaLayer.show(media)
+        if (mediaLayer.waiting)
+            heldSlide = slide
+        else
+            showSlide(slide)
+    }
+
+    // A slide whose media is the media already there, which is left as it is. If that
+    // media is still being waited for, having only just been asked for, the slide waits
+    // with it as the slide that asked for it would have.
+    function showSlideOverMedia(slide) {
         if (mediaLayer.waiting)
             heldSlide = slide
         else

@@ -126,15 +126,22 @@ public:
     Q_INVOKABLE QString moveMediaPlaylist(const QString &id, const QString &target, const QString &where);
     Q_INVOKABLE QString addMedia(const QString &playlist, const QList<QUrl> &files);
     Q_INVOKABLE QString removeMediaItem(const QString &item);
+    // Makes a media playlist's row a background or a foreground. It is the row's own:
+    // the same file on a slide, or in another row, keeps the behaviour it has there.
+    Q_INVOKABLE QString setMediaItemForeground(const QString &item, bool foreground);
     Q_INVOKABLE QString moveMediaItem(const QString &item, const QString &target, bool after);
 
     // Selects the named arrangement in the presentation file, or none for "", and saves
     // the file. Returns an error message, empty on success.
     Q_INVOKABLE QString setArrangement(const QString &path, const QString &arrangement);
-    // Makes a slide (by its `id`) trigger the given media file, replacing any media it
-    // triggered before, and saves the presentation file. Returns an error message, empty
-    // on success.
-    Q_INVOKABLE QString setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath);
+    // Makes a slide (by its `id`) trigger the given media file, as a background or a
+    // foreground, replacing any media it triggered before, and saves the presentation
+    // file. Returns an error message, empty on success.
+    Q_INVOKABLE QString setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath,
+                                      bool foreground);
+    // Makes the media a slide triggers a background or a foreground (see
+    // workspace::MediaBehaviour), and saves the presentation file.
+    Q_INVOKABLE QString setSlideMediaForeground(const QString &path, const QString &slideId, bool foreground);
     // Stops a slide triggering media, and saves the presentation file.
     Q_INVOKABLE QString removeSlideMedia(const QString &path, const QString &slideId);
 

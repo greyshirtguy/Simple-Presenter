@@ -31,6 +31,12 @@ import SimplePresenterApp
 // and hands that slide's map to the output window's slide layer; showMedia() does the
 // same for the media layer. The output draws what it is handed (Output.qml,
 // TransitionLayer.qml); the previews here draw the same maps again, small.
+//
+// What a slide's cue does besides showing the slide happens in goLive() too. Its media
+// goes to the media layer as a background, which stays while other slides come and go
+// and is not started again by a slide that brings the same one, or as a foreground,
+// which the next slide takes off (alreadyPlaying() and goLive() are all there is to
+// that).
 Window {
     id: win
 
@@ -72,8 +78,9 @@ Window {
     property string liveKey: ""
     property string livePlaylistId: ""
     property bool cleared: true
-    // What is on the media layer: { name, path, source, video }, or null, and the media
-    // playlist it was triggered from, "" if a slide triggered it
+    // What is on the media layer: { name, path, source, video, foreground, loops,
+    // retriggers }, or null, and the media playlist it was triggered from, "" if a slide
+    // triggered it. The last three are how it behaves (see goLive() and alreadyPlaying()).
     property var liveMedia: null
     property string liveMediaPlaylistId: ""
 
@@ -261,18 +268,38 @@ Window {
     function assignMedia(index, media) {
         const path = document.path
         const id = document.slides[index].id
-        const error = media ? catalog.setSlideMedia(path, id, media.path) : catalog.removeSlideMedia(path, id)
-        if (!report(error))
-            return
+        // It behaves on the slide as it did where it was dragged from, until changed.
+        const error = media ? catalog.setSlideMedia(path, id, media.path, media.foreground === true)
+                            : catalog.removeSlideMedia(path, id)
+        if (report(error))
+            reloadDocument()
+    }
+
+    // Makes the media a slide triggers a background or a foreground.
+    function setSlideMediaForeground(index, foreground) {
+        if (report(catalog.setSlideMediaForeground(document.path, document.slides[index].id, foreground)))
+            reloadDocument()
+    }
+
+    // Reads the presentation being viewed again after a change to it that leaves it the
+    // same slides in the same order: the grid can stay where it is scrolled to, and the
+    // live slide keeps its index.
+    function reloadDocument() {
         notice = ""
-        // Same slides in the same order, so the grid can stay where it is scrolled to
-        // and the live slide keeps its index.
         const scrolledTo = grid.contentY
         const reloaded = load(currentEntry())
         if (viewingLive)
             liveDocument = reloaded
         document = reloaded
         grid.contentY = scrolledTo
+    }
+
+    // Makes a row of the media playlist being browsed a background or a foreground. The
+    // media bin stays scrolled where it was, as when a row is moved.
+    function setMediaItemForeground(id, foreground) {
+        const scrolledTo = mediaBin.contentY
+        report(catalog.setMediaItemForeground(id, foreground))
+        mediaBin.contentY = scrolledTo
     }
 
     // A thumbnail width one step larger (+1) or smaller (-1) than `current`, for a grid
@@ -490,10 +517,27 @@ Window {
     // Opens the menu for a slide of the grid, at a point of its cell.
     function showSlideMenu(index, item, x, y) {
         const slide = document.slides[index]
+        const none = slide.mediaName === ""
         menu.show([
             { label: "Edit", run: () => startEditing(currentEntry(), slide.id) },
-            { label: "Remove Media", disabled: slide.mediaName === "", run: () => assignMedia(index, null) }
+            { header: "Media" },
+            { label: "Background", current: !none && !slide.mediaForeground, disabled: none,
+              run: () => setSlideMediaForeground(index, false) },
+            { label: "Foreground", current: !none && slide.mediaForeground, disabled: none,
+              run: () => setSlideMediaForeground(index, true) },
+            { label: "Remove Media", disabled: none, run: () => assignMedia(index, null) }
         ], item, x, y)
+    }
+
+    // The menu of a file in the media bin.
+    function showMediaItemMenu(media, item) {
+        menu.show([
+            { header: "Behaviour" },
+            { label: "Background", current: !media.foreground, run: () => setMediaItemForeground(media.id, false) },
+            { label: "Foreground", current: media.foreground, run: () => setMediaItemForeground(media.id, true) },
+            { header: "Playlist" },
+            { label: "Remove from Playlist", run: () => report(catalog.removeMediaItem(media.id)) }
+        ], item)
     }
 
     // Takes the editor down and shows the presentation as it now is. What is on the
@@ -602,22 +646,37 @@ Window {
         liveKey = documentKey
         livePlaylistId = playlistId
         cleared = false
-        if (slide.media) {
+        if (!slide.media) {
+            // A foreground is for the moment it was triggered in: a slide that brings no
+            // media of its own ends it. A background plays on.
+            if (liveMedia !== null && liveMedia.foreground)
+                clearMedia()
+            output.showSlide(slide)
+        } else if (alreadyPlaying(slide.media)) {
+            output.showSlideOverMedia(slide)
+        } else {
             liveMedia = slide.media
             liveMediaPlaylistId = ""
             output.showSlideWithMedia(slide, slide.media)
-        } else {
-            output.showSlide(slide)
         }
         grid.positionViewAtIndex(index, GridView.Contain)
+    }
+
+    // Whether this media is a background that is the one already playing, which is then
+    // left to play on and not started again (unless it is set always to start again).
+    function alreadyPlaying(media) {
+        return liveMedia !== null && !liveMedia.foreground && !media.foreground && !media.retriggers
+               && media.path === liveMedia.path
     }
 
     // Puts media on the media layer. `playlist` is the media playlist it was picked
     // from, if it was.
     function showMedia(media, playlist = "") {
+        const playing = alreadyPlaying(media)
         liveMedia = media
         liveMediaPlaylistId = playlist
-        output.showMedia(media)
+        if (!playing)
+            output.showMedia(media)
     }
 
     function openMediaPlaylist(id) {

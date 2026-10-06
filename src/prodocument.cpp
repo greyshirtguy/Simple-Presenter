@@ -16,18 +16,22 @@ using workspace::newUuid;
 
 namespace {
 
-// Empty if the file cannot be found.
-QVariantMap toMedia(const rv::data::Media &media, workspace::FileFinder *finder)
+// The media of a media action, with how it is to be played. Empty if the file cannot be
+// found.
+QVariantMap toMedia(const rv::data::Action &action, workspace::FileFinder *finder)
 {
+    const rv::data::Media &media = action.media().element();
     const QString path = finder->find(media.url());
     if (path.isEmpty())
         return {};
-    return {
+    QVariantMap map {
         {"name", QFileInfo(path).fileName()},
         {"path", path},
         {"source", QUrl::fromLocalFile(path)},
         {"video", media.has_video()},
     };
+    workspace::mediaBehaviour(action).describe(&map);
+    return map;
 }
 
 bool isVisualMedia(const rv::data::Action &action)
@@ -45,6 +49,7 @@ QVariantMap emptySlide(const QString &label)
         {"groupColor", QString()},
         {"groupStart", false},
         {"mediaName", QString()},
+        {"mediaForeground", false},
         {"plainText", QString()},
         {"elements", QVariantList()},
     };
@@ -121,8 +126,10 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
         if (!cue.isenabled())
             return slides;
         const QString id = QString::fromStdString(cue.uuid().string());
-        // The cue's media action, if it has one: its file's name, and the file if found.
+        // The cue's media action, if it has one: its file's name, whether it is a
+        // foreground, and the file if found.
         QString name;
+        bool foreground = false;
         QVariantMap media;
         for (const rv::data::Action &action : cue.actions()) {
             if (!action.isenabled())
@@ -132,7 +139,8 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                                       QString::fromStdString(action.label().text())));
             } else if (isVisualMedia(action) && name.isEmpty()) {
                 name = workspace::fileNameOf(action.media().element().url());
-                media = toMedia(action.media().element(), &mediaFinder);
+                foreground = workspace::mediaBehaviour(action).foreground;
+                media = toMedia(action, &mediaFinder);
             }
         }
         if (slides.isEmpty() && !name.isEmpty())
@@ -140,6 +148,7 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
         if (!slides.isEmpty() && !name.isEmpty()) {
             QVariantMap first = slides.first().toMap();
             first.insert("mediaName", name);
+            first.insert("mediaForeground", foreground);
             if (!media.isEmpty())
                 first.insert("media", media);
             slides.first() = first;
@@ -250,7 +259,7 @@ QString ProDocument::setArrangement(const QString &path, const QString &name)
     return writePresentation(path, presentation);
 }
 
-QString ProDocument::setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath,
+QString ProDocument::setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool foreground,
                                  const QString &workspace)
 {
     rv::data::Presentation presentation;
@@ -289,8 +298,31 @@ QString ProDocument::setCueMedia(const QString &path, const QString &cueId, cons
     action->clear_duration();
 
     *action->mutable_media()->mutable_element() = workspace::mediaElement(mediaPath, workspace);
+    workspace::setMediaForeground(action, foreground);
 
     return writePresentation(path, presentation);
+}
+
+QString ProDocument::setCueMediaForeground(const QString &path, const QString &cueId, bool foreground)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+
+    for (rv::data::Cue &cue : *presentation.mutable_cues()) {
+        if (QString::fromStdString(cue.uuid().string()) != cueId)
+            continue;
+        // The same action the slide's media is read from: the first image or video one.
+        for (rv::data::Action &action : *cue.mutable_actions()) {
+            if (action.isenabled() && isVisualMedia(action)) {
+                workspace::setMediaForeground(&action, foreground);
+                return writePresentation(path, presentation);
+            }
+        }
+        return QStringLiteral("That slide has no media");
+    }
+    return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
 }
 
 QString ProDocument::removeCueMedia(const QString &path, const QString &cueId)

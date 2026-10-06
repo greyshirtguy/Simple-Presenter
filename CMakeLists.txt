@@ -109,6 +109,7 @@ qt_add_qml_module(SimplePresenter
         qml/KineticWheel.qml
         qml/LiveRing.qml
         qml/Main.qml
+        qml/MediaBadge.qml
         qml/MediaBin.qml
         qml/Output.qml
         qml/PopupMenu.qml

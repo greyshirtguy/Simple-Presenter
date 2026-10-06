@@ -9,8 +9,13 @@
 #include <QList>
 #include <QString>
 #include <QStringList>
+#include <QVariantMap>
 
 #include <string>
+
+namespace rv::data {
+class Action;
+}
 
 // The files of a workspace, as its documents see them.
 //
@@ -77,5 +82,31 @@ QString fileNameOf(const rv::data::URL &reference);
 // a video is set to loop. It is what a slide's media action and a media playlist's row
 // both hold.
 rv::data::Media mediaElement(const QString &file, const QString &workspaceFolder);
+
+// How a media action plays what it holds.
+//
+// ProPresenter has two behaviours for media. A background goes on behind the slides and
+// stays there from one slide to the next, going round again when it ends. A foreground
+// is for one moment of the show: it plays once, and gives way as soon as another slide
+// is shown. Each slide's media action and each row of a media playlist has a behaviour
+// of its own, and the file keeps its two halves in different places: which of the two
+// it is belongs to the action, and whether a video goes round again belongs to the
+// media in it.
+struct MediaBehaviour
+{
+    bool foreground = false;
+    // Whether a video starts again when it reaches its end. A still does neither.
+    bool loops = false;
+    // Whether triggering it starts it again even when it is what is already playing
+    bool retriggers = false;
+
+    // For the maps the views are handed: `foreground`, `loops` and `retriggers`.
+    void describe(QVariantMap *media) const;
+};
+MediaBehaviour mediaBehaviour(const rv::data::Action &action);
+
+// Makes a media action a background or a foreground, as ProPresenter sets one up: a
+// background video loops and a foreground one plays once.
+void setMediaForeground(rv::data::Action *action, bool foreground);
 
 } // namespace workspace

@@ -1,5 +1,7 @@
 #include "workspacefiles.h"
 
+#include "action.pb.h"
+
 #include <QCollator>
 #include <QDirIterator>
 #include <QFile>
@@ -151,6 +153,39 @@ rv::data::Media mediaElement(const QString &file, const QString &workspaceFolder
         recordFile(properties->mutable_file()->mutable_local_url(), file, workspaceFolder);
     }
     return element;
+}
+
+void MediaBehaviour::describe(QVariantMap *media) const
+{
+    media->insert("foreground", foreground);
+    media->insert("loops", loops);
+    media->insert("retriggers", retriggers);
+}
+
+MediaBehaviour mediaBehaviour(const rv::data::Action &action)
+{
+    using Transport = rv::data::Media::TransportProperties;
+    MediaBehaviour behaviour;
+    behaviour.foreground = action.media().layer_type() == rv::data::Action::LAYER_TYPE_FOREGROUND;
+    behaviour.retriggers = action.media().always_retrigger();
+    if (action.media().element().has_video()) {
+        const Transport &transport = action.media().element().video().transport();
+        // Looping a number of times, or for a length of time, is looping here.
+        behaviour.loops = transport.playback_behavior() != Transport::PLAYBACK_BEHAVIOR_STOP;
+        behaviour.retriggers = behaviour.retriggers || transport.retrigger() == Transport::RETRIGGER_SETTING_ALWAYS;
+    }
+    return behaviour;
+}
+
+void setMediaForeground(rv::data::Action *action, bool foreground)
+{
+    using Transport = rv::data::Media::TransportProperties;
+    action->mutable_media()->set_layer_type(foreground ? rv::data::Action::LAYER_TYPE_FOREGROUND
+                                                       : rv::data::Action::LAYER_TYPE_BACKGROUND);
+    if (action->media().element().has_video()) {
+        action->mutable_media()->mutable_element()->mutable_video()->mutable_transport()->set_playback_behavior(
+            foreground ? Transport::PLAYBACK_BEHAVIOR_STOP : Transport::PLAYBACK_BEHAVIOR_LOOP);
+    }
 }
 
 } // namespace workspace

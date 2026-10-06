@@ -3,7 +3,10 @@ import QtQuick.Window
 import QtMultimedia
 import SimplePresenterApp
 
-// What the media layer shows: an image or a looping, silent video, scaled to fit.
+// What the media layer shows: an image or a silent video, scaled to fit. A video goes
+// round again at its end if the media says it loops, as a background does, and
+// otherwise plays once and stays on its last frame, as a foreground does (see
+// workspace::MediaBehaviour in src/workspacefiles.h).
 //
 // The image or the video is made when there is content and unmade when there is none,
 // so that a layer with nothing on it holds no decoder and no picture. That is how a
@@ -21,7 +24,7 @@ import SimplePresenterApp
 Item {
     id: root
 
-    // { source, video }, or null for nothing
+    // { source, video, loops }, or null for nothing
     property var content: null
     // Whether what there is to show can be shown yet
     readonly property bool ready: loader.item === null || loader.item.ready
@@ -83,7 +86,7 @@ Item {
             MediaPlayer {
                 source: root.content?.source ?? ""
                 videoOutput: output
-                loops: MediaPlayer.Infinite
+                loops: root.content?.loops === false ? 1 : MediaPlayer.Infinite
                 onErrorOccurred: (error, errorString) => {
                     console.warn("Media layer:", errorString)
                     clip.failed = true
@@ -96,6 +99,9 @@ Item {
 
                 anchors.fill: parent
                 fillMode: VideoOutput.PreserveAspectFit
+                // A video that has played once stays on its last frame until it is
+                // cleared or something replaces it.
+                endOfStreamPolicy: VideoOutput.KeepLastFrame
             }
 
             FirstFrame {

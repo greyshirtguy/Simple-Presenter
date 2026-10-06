@@ -200,6 +200,14 @@ Rectangle {
                         font.pixelSize: 12
                         text: "missing"
                     }
+
+                    // Whether it plays as a background or a foreground
+                    MediaBadge {
+                        x: 3
+                        y: 3
+                        foreground: mediaCell.modelData.foreground
+                        missing: mediaCell.modelData.missing
+                    }
                 }
 
                 Text {
@@ -286,10 +294,10 @@ Rectangle {
                         dragging = false
                         bin.dropMedia()
                     } else if (mouse.button === Qt.RightButton) {
-                        const id = mediaCell.modelData.id
-                        bin.win.showMenu([{ label: "Remove from Playlist",
-                                            run: () => bin.win.report(bin.win.catalog.removeMediaItem(id)) }], mediaCell)
+                        bin.win.showMediaItemMenu(mediaCell.modelData, mediaCell)
                     } else if (!mediaCell.modelData.missing) {
+                        // The keyboard comes back to the show, as with a click on a slide.
+                        bin.win.takeFocus()
                         bin.win.showMedia(mediaCell.modelData, bin.win.mediaPlaylistId)
                     }
                 }

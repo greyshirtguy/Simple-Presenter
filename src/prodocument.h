@@ -19,13 +19,17 @@
 // ProPresenter calls Master.
 //
 // What this makes of it: a presentation flattened into what the QML slide renderer
-// consumes, a list of slides in display order. Each is a map of `id` (its cue's, so the same slide can be found again
-// after rearranging), size, background, label, plain text and a list of elements, plus
-// its group: `group` (name), `groupColor` (the document's own colour for
-// it as "#rrggbb", or empty) and `groupStart` (true on the first slide of each run of the
-// group). Element text is a RichText value. All geometry is in slide units. A slide whose
-// cue also triggers media has that file's name as `mediaName`, and where the file can be
-// found here, carries it as `media`: { name, path, source, video }.
+// consumes, a list of slides in display order. Each is a map of `id` (its cue's, so the
+// same slide can be found again after rearranging), size, background, label, plain text
+// and a list of elements, plus its group: `group` (name), `groupColor` (the document's
+// own colour for it as "#rrggbb", or empty) and `groupStart` (true on the first slide of
+// each run of the group). Element text is a RichText value. All geometry is in slide
+// units.
+//
+// A slide whose cue also triggers media has that file's name as `mediaName` and whether
+// it is a foreground as `mediaForeground`, and, where the file can be found here, the
+// media itself as `media`: { name, path, source, video, foreground, loops, retriggers }
+// (the last three as workspace::MediaBehaviour describes).
 struct ProDocument
 {
     QString name;
@@ -50,12 +54,16 @@ struct ProDocument
     // The id of the arrangement of that name, or empty.
     static QString arrangementId(const QString &path, const QString &name);
     static QString setArrangement(const QString &path, const QString &name);
-    // Makes the cue with this id trigger the given image or video file as its media,
-    // replacing the media it triggered before if any, and writes the file back. The
-    // media is recorded relative to `workspace` as well as by its path, if it is inside.
-    // Returns an error message, empty on success.
-    static QString setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath,
+    // Makes the cue with this id trigger the given image or video file as its media, as
+    // a background or a foreground (see workspace::MediaBehaviour), replacing the media
+    // it triggered before if any, and writes the file back. The media is recorded
+    // relative to `workspace` as well as by its path, if it is inside. Returns an error
+    // message, empty on success.
+    static QString setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool foreground,
                                const QString &workspace);
+    // Makes the media the cue triggers a background or a foreground, and writes the
+    // file back.
+    static QString setCueMediaForeground(const QString &path, const QString &cueId, bool foreground);
     // Removes the media the cue triggers, if any, and writes the file back.
     static QString removeCueMedia(const QString &path, const QString &cueId);
 };

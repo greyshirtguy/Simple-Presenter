@@ -248,9 +248,14 @@ QString Catalog::setArrangement(const QString &path, const QString &arrangement)
     return error;
 }
 
-QString Catalog::setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath)
+QString Catalog::setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath, bool foreground)
 {
-    return ProDocument::setCueMedia(path, slideId, mediaPath, m_root);
+    return ProDocument::setCueMedia(path, slideId, mediaPath, foreground, m_root);
+}
+
+QString Catalog::setSlideMediaForeground(const QString &path, const QString &slideId, bool foreground)
+{
+    return ProDocument::setCueMediaForeground(path, slideId, foreground);
 }
 
 QString Catalog::removeSlideMedia(const QString &path, const QString &slideId)
@@ -345,6 +350,11 @@ QString Catalog::addMedia(const QString &playlist, const QList<QUrl> &files)
 QString Catalog::removeMediaItem(const QString &item)
 {
     return afterChange(PlaylistFile::removeItem(m_root, PlaylistFile::Media, item));
+}
+
+QString Catalog::setMediaItemForeground(const QString &item, bool foreground)
+{
+    return afterChange(PlaylistFile::setMediaForeground(m_root, item, foreground));
 }
 
 QString Catalog::moveMediaItem(const QString &item, const QString &target, bool after)

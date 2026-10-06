@@ -37,9 +37,10 @@ struct PlaylistFile
     // "header", "presentation" or "other". A playlist row carries its own choice of
     // arrangement, "" being every group in stored order.
     //
-    // For a media playlist: { id, name, path, source, video, missing }, where `id` is the
-    // row's own id and `path` the media file on this machine, empty with `missing` set
-    // if it cannot be found.
+    // For a media playlist: { id, name, path, source, video, missing, foreground, loops,
+    // retriggers }, where `id` is the row's own id and `path` the media file on this
+    // machine, empty with `missing` set if it cannot be found. The last three are how
+    // the row's media behaves, as workspace::MediaBehaviour describes.
     QHash<QString, QVariantList> items;
 
     // An absent file is an empty set of playlists, not an error.
@@ -91,6 +92,8 @@ struct PlaylistFile
 
     // Appends image and video files to a media playlist, in the order given.
     static QString addMedia(const QString &root, const QString &playlistId, const QStringList &files);
+    // Makes a row a background or a foreground (see workspace::MediaBehaviour).
+    static QString setMediaForeground(const QString &root, const QString &itemId, bool foreground);
     // If there is no media playlists file yet, writes one that mirrors the folders under
     // <root>/Media: a playlist for each folder of media, inside playlist folders that
     // follow the folders on disk. Does nothing if the file exists.

@@ -168,43 +168,18 @@ Item {
                         effects: false
                     }
 
-                    // Marks a slide that triggers media: two stacked layers, the back
-                    // one filled. Amber when the media file cannot be found, in which
-                    // case there is no thumbnail behind the slide either. Only made for
-                    // the slides that have media.
+                    // Marks a slide that triggers media, and says whether as a background
+                    // or a foreground; amber when the media file cannot be found, in which
+                    // case there is no thumbnail behind the slide either. Only made for the
+                    // slides that have media.
                     Loader {
                         x: 4
                         y: 4
                         active: cell.modelData.mediaName !== ""
 
-                        sourceComponent: Rectangle {
-                            readonly property color ink: cell.modelData.media !== undefined ? "#e6e6e6" : "#ffb300"
-
-                            width: 24
-                            height: 20
-                            radius: 4
-                            color: "#c0000000"
-
-                            Rectangle {
-                                x: 4
-                                y: 4
-                                width: 12
-                                height: 9
-                                radius: 1
-                                color: parent.ink
-                                opacity: 0.6
-                            }
-
-                            Rectangle {
-                                x: 8
-                                y: 7
-                                width: 12
-                                height: 9
-                                radius: 1
-                                color: "#c0000000"
-                                border.width: 1.5
-                                border.color: parent.ink
-                            }
+                        sourceComponent: MediaBadge {
+                            foreground: cell.modelData.mediaForeground
+                            missing: cell.modelData.media === undefined
                         }
                     }
                 }
@@ -245,6 +220,9 @@ Item {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onClicked: (mouse) => {
                     if (mouse.button === Qt.LeftButton) {
+                        // The keyboard comes back to the show, from whatever box of the
+                        // window was being typed in.
+                        slides.win.takeFocus()
                         slides.win.goLive(cell.index)
                     } else {
                         slides.win.showSlideMenu(cell.index, cell, mouse.x, mouse.y)
