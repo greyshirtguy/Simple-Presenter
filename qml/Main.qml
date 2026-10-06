@@ -6,12 +6,13 @@ import SimplePresenterApp
 
 // The operator window, and the heart of the app.
 //
-// What is on screen. A toolbar across the top stands in for the title bar; below it are
-// libraries, playlists and their presentations on the left (Sidebar), the slides of the
-// presentation being viewed as a grid of thumbnails in the middle (SlideGrid), the
-// previews and clear buttons on the right (PreviewPanel), and the media bin along the
-// bottom (MediaBin). In editor mode everything below the toolbar gives way to the
-// editor (Editor). The output and stage windows belong to this one too.
+// What is on screen. A toolbar across the top stands in for the title bar (Toolbar).
+// Below it are libraries, playlists and their presentations on the left (Sidebar); the
+// slides of the presentation being viewed as a grid of thumbnails in the middle
+// (SlideGrid), with the media bin under those two (MediaBin); and down the whole of the
+// right the previews, the clear buttons, the transport and the show controls
+// (PreviewPanel). In editor mode everything below the toolbar gives way to the editor
+// (Editor). The output and stage windows belong to this one too.
 //
 // How it is organised. This file is the state and the logic; the files named above are
 // the views. Everything the app knows about the show is a property here: what is being
@@ -157,6 +158,8 @@ Window {
     readonly property bool viewingLive: document !== null && liveDocument !== null
                                         && documentKey === liveKey && playlistId === livePlaylistId
                                         && document.arrangement === liveDocument.arrangement
+    // The item the pop-up menu is open for, or null while it is shut
+    readonly property var menuItem: menu.opened ? menu.parent : null
 
     readonly property color panelColor: "#1e1f22"
     readonly property color surfaceColor: "#2b2d31"
@@ -618,7 +621,9 @@ Window {
             items.push({ header: category })
             rowsOf(category)
         }
-        menu.show(items, item)
+        // Upwards, as far as the toolbar: the transition's controls are at the bottom of
+        // the slides.
+        menu.showAbove(items, item, toolbar.height)
     }
 
     // What an option of the chosen transition is set to.
@@ -1145,12 +1150,14 @@ Window {
             win: win
         }
 
+        // Down the whole of the right, to the bottom of the window: the media bin stops
+        // at it, and does not take from it.
         PreviewPanel {
             id: sidePanel
 
             anchors.right: parent.right
             anchors.top: toolbar.bottom
-            anchors.bottom: mediaBin.top
+            anchors.bottom: parent.bottom
             width: Math.max(250, Math.min(win.sidePanelWidth, win.width - 160 - 260))
             win: win
             liveVideoSink: output.liveVideoSink
@@ -1242,7 +1249,7 @@ Window {
             vertical: false
             anchors.verticalCenter: mediaBin.top
             anchors.left: parent.left
-            anchors.right: parent.right
+            anchors.right: sidePanel.left
             visible: win.mediaBinVisible
             onMoved: (delta) => win.mediaBinHeight = mediaBin.height - delta
             onReleased: win.takeFocus()
@@ -1252,7 +1259,7 @@ Window {
             id: mediaBin
 
             anchors.left: parent.left
-            anchors.right: parent.right
+            anchors.right: sidePanel.left
             anchors.bottom: parent.bottom
             height: visible ? Math.max(120, Math.min(win.mediaBinHeight, win.height - toolbar.height - 160)) : 0
             visible: win.mediaBinVisible

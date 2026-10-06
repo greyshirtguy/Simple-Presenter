@@ -135,6 +135,7 @@ qt_add_qml_module(SimplePresenter
         qml/ToolbarIcon.qml
         qml/Transport.qml
         qml/TransitionCatalogue.qml
+        qml/TransitionControls.qml
         qml/TransitionLayer.qml
         qml/TransitionOptions.qml
         qml/ZoomButtons.qml

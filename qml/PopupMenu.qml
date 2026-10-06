@@ -21,31 +21,56 @@ Popup {
 
     // The tallest it may be; past that its rows scroll
     property real limit: 10000
+    // The tallest it may be this time, which for a menu that opens upwards is no more
+    // than the room there is over what it opens from
+    property real room: limit
     property var items: []
     // Whether the rows come in sections under captions. If so the rows sit in
     // from the captions, with room at their left for the tick on a current one.
     readonly property bool sectioned: items.some(item => item.header !== undefined)
     // Where in the item it was opened for to open, or null for under it
     property var at: null
+    // Whether it opens over the item it was opened for, from that item's left edge
+    property bool upward: false
 
     function show(items, item, x, y) {
         close()
         menu.items = items
         menu.at = x === undefined ? null : Qt.point(x, y)
+        upward = false
+        room = Qt.binding(() => limit)
         parent = item
         open()
-        // A menu too long to show whole opens with its current row in view.
+        showCurrent()
+    }
+
+    // The same, for an item at the bottom of the window: the menu opens over it, and
+    // reaches no higher in the window than `top`.
+    function showAbove(items, item, top) {
+        close()
+        menu.items = items
+        menu.at = null
+        upward = true
+        room = Math.min(limit, item.mapToItem(null, 0, 0).y - top - 2 * padding - 10)
+        parent = item
+        open()
+        showCurrent()
+    }
+
+    // A menu too long to show whole opens with its current row in view.
+    function showCurrent() {
         const current = rows.itemAt(items.findIndex(row => row.current === true))
         view.contentY = current === null ? 0
             : Math.max(0, Math.min(current.y - (view.height - current.height) / 2, view.contentHeight - view.height))
     }
 
     // At the point asked for; or under the row it was opened from; or under a
-    // small button, ending at the button's right edge. `margins` then keeps
-    // the whole menu inside the window whatever that works out to, and a menu
-    // taller than the window scrolls.
-    x: at ? at.x : parent && parent.width < 60 ? parent.width - width : 24
-    y: at ? at.y : parent ? parent.height - 2 : 0
+    // small button, ending at the button's right edge; or, opening upwards, over
+    // what it was opened from. `margins` then keeps the whole menu inside the
+    // window whatever that works out to, and a menu taller than the window
+    // scrolls.
+    x: upward ? 0 : at ? at.x : parent && parent.width < 60 ? parent.width - width : 24
+    y: upward ? -height - 4 : at ? at.y : parent ? parent.height - 2 : 0
     width: 250
     margins: 6
     padding: 6
@@ -78,7 +103,7 @@ Popup {
     contentItem: Flickable {
         id: view
 
-        implicitHeight: Math.min(menuRows.height, menu.limit)
+        implicitHeight: Math.min(menuRows.height, menu.room)
         contentHeight: menuRows.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds

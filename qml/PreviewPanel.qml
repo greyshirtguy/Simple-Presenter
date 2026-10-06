@@ -1,10 +1,13 @@
 import QtQuick
+import QtQuick.Shapes
 import QtMultimedia
 import SimplePresenterApp
 
-// The right of the operator window: what the audience and the stage are being shown, the
-// buttons that clear it, the transport for a video that is playing, and the show
-// controls (timers, and in time props and the stage display).
+// The right of the operator window, from the toolbar to the bottom: what the audience
+// is being shown and under it what the stage is, the buttons that clear the output, the
+// transport for a video that is playing, and the show controls (timers, and in time
+// props and the stage display). A line each side of the transport sets the three lots
+// of controls apart.
 //
 // The previews are built from cheap parts instead of second copies of the outputs. The
 // slide is drawn again at this small size; a still image comes from its cached
@@ -27,30 +30,108 @@ Rectangle {
 
     color: "black"
 
+    // The space between one thing and the next, and at the panel's edges
+    readonly property real gap: 12
     // Both previews are 16:9 and as wide as the panel, unless the panel is too short
     // for that with everything under them, in which case they shrink to fit and stay
     // centred. What they shrink for is the show controls, which are left room for four
     // timers; but previews too small to make anything out in are no use, so below a
     // width that is still worth having it is the show controls that give way, down to
     // room for two.
-    readonly property real showControlRoom: 210
-    readonly property real leastShowControlRoom: 130
+    readonly property real showControlRoom: 216
+    readonly property real leastShowControlRoom: 136
     readonly property real leastUsefulPreview: 150
     readonly property real previewWidth: Math.max(80, Math.min(
-        width - 24, Math.max(previewWidthLeaving(showControlRoom),
-                             Math.min(leastUsefulPreview, previewWidthLeaving(leastShowControlRoom)))))
+        width - 2 * gap, Math.max(previewWidthLeaving(showControlRoom),
+                                  Math.min(leastUsefulPreview, previewWidthLeaving(leastShowControlRoom)))))
 
     // How wide the previews can be if this much height is to be left under everything
     // else for the show controls.
     function previewWidthLeaving(room) {
-        return (height - 2 * outputTitle.height - clearButtons.height - transport.height - room - 72) / 2 * 16 / 9
+        const others = 8 + clearButtons.height + transport.height + 2 * line.height + 7 * gap
+        return (height - others - room) / 2 * 16 / 9
     }
 
-    SectionTitle {
-        id: outputTitle
+    // A line across the panel, between one lot of controls and the next
+    component Rule: Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.topMargin: sidePanel.gap
+        height: 1
+        color: "#3a3c42"
+    }
 
-        anchors.top: parent.top
-        text: "Output"
+    // A button that clears a layer of the output, or all of them: red while there is
+    // something there for it to clear, and grey once there is not. What it clears is
+    // drawn on it in thin lines, which leave the red to be seen.
+    component ClearButton: Rectangle {
+        id: clearButton
+
+        // "all", "slide" or "media"
+        property string kind
+        property bool live: false
+        readonly property color ink: live ? "#ececec" : "#6c6f75"
+
+        signal clicked
+
+        width: (clearButtons.width - 2 * clearButtons.spacing) / 3
+        height: 30
+        radius: 6
+        color: !live ? "#2b2d31" : clearMouse.pressed ? "#e25555" : clearMouse.containsMouse ? "#d84343" : "#c62828"
+
+        Shape {
+            anchors.centerIn: parent
+            width: 18
+            height: 16
+            preferredRendererType: Shape.CurveRenderer
+
+            // All: a cross in a circle
+            ShapePath {
+                strokeColor: clearButton.kind === "all" ? clearButton.ink : "transparent"
+                strokeWidth: 1.5
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+
+                PathSvg {
+                    path: "M 9 1 A 7 7 0 1 1 8.99 1 Z M 6.3 5.3 L 11.7 10.7 M 11.7 5.3 L 6.3 10.7"
+                }
+            }
+
+            // The slide: a square with three lines of words in it
+            ShapePath {
+                strokeColor: clearButton.kind === "slide" ? clearButton.ink : "transparent"
+                strokeWidth: 1.5
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+
+                PathSvg {
+                    path: "M 2.5 1 L 15.5 1 L 15.5 15 L 2.5 15 Z M 5.5 4.8 L 12.5 4.8 M 5.5 8 L 12.5 8 M 5.5 11.2 L 10.5 11.2"
+                }
+            }
+
+            // The media: two mountains, and the sun over them
+            ShapePath {
+                strokeColor: clearButton.kind === "media" ? clearButton.ink : "transparent"
+                strokeWidth: 1.5
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+
+                PathSvg {
+                    path: "M 0.8 14.5 L 6.2 5.5 L 9.6 11.2 L 11.8 7.6 L 17.2 14.5 Z M 14.2 1.4 A 1.5 1.5 0 1 1 14.19 1.4 Z"
+                }
+            }
+        }
+
+        MouseArea {
+            id: clearMouse
+
+            anchors.fill: parent
+            hoverEnabled: true
+            enabled: clearButton.live
+            onClicked: clearButton.clicked()
+        }
     }
 
     // The output, small: its media with its slide over it
@@ -58,7 +139,8 @@ Rectangle {
         id: preview
 
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: outputTitle.bottom
+        anchors.top: parent.top
+        anchors.topMargin: sidePanel.gap
         width: sidePanel.previewWidth
         height: width * 9 / 16
         color: "black"
@@ -101,18 +183,13 @@ Rectangle {
         }
     }
 
-    SectionTitle {
-        id: stageTitle
-
-        anchors.top: preview.bottom
-        text: "Stage"
-    }
-
+    // The stage display, small
     Rectangle {
         id: stagePreview
 
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: stageTitle.bottom
+        anchors.top: preview.bottom
+        anchors.topMargin: 8
         width: sidePanel.previewWidth
         height: width * 9 / 16
         color: "black"
@@ -127,62 +204,43 @@ Rectangle {
         }
     }
 
-    // Sized for five buttons.
+    // The clears, across the width like the tabs of the show controls: everything (F1),
+    // the slide (F2), the media (F3)
     Row {
         id: clearButtons
-
-        readonly property real buttonWidth: (width - 4 * spacing) / 5
 
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: stagePreview.bottom
-        anchors.margins: 12
-        spacing: 6
-
-        // The key hints are dropped from all the buttons together when the widest
-        // label would no longer fit.
-        readonly property bool showHints: widestLabel.width + 8 <= buttonWidth
-
-        TextMetrics {
-            id: widestLabel
-
-            font.pixelSize: 12
-            text: "F3 Media"
-        }
-
-        component ClearButton: AppButton {
-            property string hint
-            property string name
-
-            width: clearButtons.buttonWidth
-            leftPadding: 2
-            rightPadding: 2
-            font.pixelSize: 12
-            text: clearButtons.showHints ? hint + " " + name : name
-            // Red while its layer has something on it, grey once cleared.
-            alert: true
-        }
+        anchors.margins: sidePanel.gap
+        spacing: 4
 
         ClearButton {
-            enabled: !sidePanel.win.cleared || sidePanel.win.liveMedia !== null
-            hint: "F1"
-            name: "All"
+            objectName: "clearAll"
+            kind: "all"
+            live: !sidePanel.win.cleared || sidePanel.win.liveMedia !== null
             onClicked: sidePanel.win.clearAll()
         }
 
         ClearButton {
-            enabled: !sidePanel.win.cleared
-            hint: "F2"
-            name: "Slide"
+            objectName: "clearSlide"
+            kind: "slide"
+            live: !sidePanel.win.cleared
             onClicked: sidePanel.win.clearSlide()
         }
 
         ClearButton {
-            enabled: sidePanel.win.liveMedia !== null
-            hint: "F3"
-            name: "Media"
+            objectName: "clearMedia"
+            kind: "media"
+            live: sidePanel.win.liveMedia !== null
             onClicked: sidePanel.win.clearMedia()
         }
+    }
+
+    Rule {
+        id: line
+
+        anchors.top: clearButtons.bottom
     }
 
     Transport {
@@ -190,11 +248,17 @@ Rectangle {
 
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: clearButtons.bottom
-        anchors.margins: 12
+        anchors.top: line.bottom
+        anchors.margins: sidePanel.gap
         player: sidePanel.livePlayer
         media: sidePanel.win.liveMedia
         pulse: relay
+    }
+
+    Rule {
+        id: secondLine
+
+        anchors.top: transport.bottom
     }
 
     ShowControl {
@@ -202,9 +266,9 @@ Rectangle {
 
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: transport.bottom
+        anchors.top: secondLine.bottom
         anchors.bottom: parent.bottom
-        anchors.margins: 12
+        anchors.margins: sidePanel.gap
         win: sidePanel.win
     }
 }

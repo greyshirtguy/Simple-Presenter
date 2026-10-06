@@ -3,9 +3,11 @@ import QtQuick.Window
 
 // The toolbar across the top of the operator window, which stands in for the title bar
 // the window does not have: drag it to move the window, double-click it to maximise.
-// From the left it holds the workspace picker, the name of what is open, the transition
-// and its length, the buttons that switch things on and off (the editor, the media bin,
-// the output and stage windows, the settings screen), and the window's own buttons.
+// From the left it holds the workspace picker, the name of what is open, the buttons
+// that switch things on and off (the editor, the media bin, the output and stage
+// windows, the settings screen), and the window's own buttons. What works the show
+// itself is not here but beside what it works: the transition under the slides, the
+// clears, the transport and the timers under the previews.
 Rectangle {
     id: toolbar
 
@@ -77,12 +79,15 @@ Rectangle {
         }
     }
 
+    // What is open, and the app: in the middle of the window where there is room for it
+    // there, and otherwise in what room there is between the picker and the buttons
     Text {
-        anchors.left: workspacePicker.right
-        anchors.leftMargin: 14
-        anchors.right: toolbarControls.left
-        anchors.rightMargin: 16
+        readonly property real from: workspacePicker.x + workspacePicker.width + 14
+        readonly property real to: toolbarControls.x - 16
+
+        x: Math.max(from, Math.min((parent.width - width) / 2, to - width))
         anchors.verticalCenter: parent.verticalCenter
+        width: Math.max(0, Math.min(implicitWidth, to - from))
         elide: Text.ElideRight
         color: toolbar.win.textColor
         font.pixelSize: 15
@@ -96,149 +101,6 @@ Rectangle {
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
-
-        // The transition and its length, grouped on a panel of their own
-        Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: transitionControls.width + 12
-            height: 38
-            radius: 8
-            color: "#23252b"
-            border.width: 1
-            border.color: "#3a3c42"
-
-            Row {
-                id: transitionControls
-
-                anchors.centerIn: parent
-                spacing: 6
-
-                // The chosen transition. A click opens the menu of them all, by category.
-                Rectangle {
-                    id: transitionButton
-
-                    objectName: "transitionButton"
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 150
-                    height: 28
-                    radius: 6
-                    color: transitionMouse.pressed ? "#50535a" : transitionMouse.containsMouse ? "#45484e" : "#3a3c42"
-
-                    Text {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12
-                        anchors.rightMargin: 22
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
-                        color: toolbar.win.textColor
-                        font.pixelSize: 13
-                        text: toolbar.win.transition.name
-                    }
-
-                    Text {
-                        anchors.right: parent.right
-                        anchors.rightMargin: 8
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: toolbar.win.dimTextColor
-                        font.pixelSize: 10
-                        text: "▼"
-                    }
-
-                    MouseArea {
-                        id: transitionMouse
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: toolbar.win.showTransitionMenu(transitionButton)
-                    }
-                }
-
-                // What can be adjusted about it, for the transitions that have anything
-                IconButton {
-                    id: optionsButton
-
-                    objectName: "transitionOptionsButton"
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: 28
-                    kind: "sliders"
-                    on: options.opened
-                    available: toolbar.win.transition.options.length > 0
-                    onClicked: options.opened ? options.close() : options.open()
-
-                    TransitionOptions {
-                        id: options
-
-                        y: parent.height + 9
-                        x: parent.width - width
-                        win: toolbar.win
-                        onClosed: toolbar.win.takeFocus()
-                    }
-                }
-
-                AppSlider {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 100
-                    from: 0
-                    to: 3
-                    stepSize: 0.05
-                    enabled: toolbar.win.transitionIndex !== 0
-                    value: Math.min(toolbar.win.transitionDuration, to)
-                    onMoved: toolbar.win.transitionDuration = Math.round(value * 100) / 100
-                }
-
-                // Seconds; accepts any value from 0 up, beyond the slider's range.
-                AppTextField {
-                    id: durationField
-
-                    function reset() {
-                        text = Number(toolbar.win.transitionDuration.toFixed(2)).toString()
-                    }
-
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 42
-                    height: 28
-                    leftPadding: 4
-                    rightPadding: 6
-                    font.pixelSize: 13
-                    horizontalAlignment: TextInput.AlignRight
-                    enabled: toolbar.win.transitionIndex !== 0
-                    onEditingFinished: {
-                        const seconds = Number(text.replace(",", "."))
-                        if (text.trim() !== "" && isFinite(seconds) && seconds >= 0)
-                            toolbar.win.transitionDuration = seconds
-                        reset()
-                        toolbar.win.takeFocus()
-                    }
-                    Keys.onEscapePressed: {
-                        reset()
-                        toolbar.win.takeFocus()
-                    }
-                    Component.onCompleted: reset()
-
-                    Connections {
-                        target: toolbar.win
-
-                        function onTransitionDurationChanged() {
-                            durationField.reset()
-                        }
-                    }
-                }
-
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    rightPadding: 2
-                    color: toolbar.win.dimTextColor
-                    font.pixelSize: 12
-                    text: "s"
-                }
-            }
-        }
-
-        // Sets the transition controls apart from the buttons that follow
-        Item {
-            width: 14
-            height: 1
-        }
 
         // Into the editor for the presentation being viewed, and back out
         ToolbarIcon {
@@ -284,6 +146,7 @@ Rectangle {
             onClicked: toolbar.win.settingsOpen = true
         }
 
+        // Sets the switches apart from the window's own buttons
         Item {
             width: 8
             height: 1

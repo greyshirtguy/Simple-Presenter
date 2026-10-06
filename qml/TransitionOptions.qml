@@ -2,9 +2,10 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Effects
 
-// What can be adjusted about the chosen transition, as a panel that opens under the
-// button for it in the toolbar: a slider for each number, a swatch for a colour, and a
-// pad of nine for a direction (see TransitionCatalogue for what an option is).
+// What can be adjusted about the chosen transition, as a panel that opens from the
+// button for it (see TransitionControls): a slider for each number, a swatch for a
+// colour, and a pad of nine for a direction (see TransitionCatalogue for what an option
+// is).
 //
 // A change takes effect with the next transition and is remembered for that transition;
 // nothing here stores anything itself. Reset puts the transition back as it comes.

@@ -101,6 +101,11 @@ Item {
         anchors.rightMargin: 4
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        // Room under the last row for what sits over the bottom corners, so that the
+        // last slides can be scrolled clear of it
+        footer: Item {
+            height: 40
+        }
         cellWidth: Math.floor((width - 12) / columns)
         cellHeight: (cellWidth - 12 - 2 * frameWidth) * 9 / 16 + frameWidth + labelHeight + 12
         // One row beyond what is in view is kept ready, so that scrolling does not wait for
@@ -242,6 +247,15 @@ Item {
                 }
             }
         }
+    }
+
+    // The transition, over the bottom left corner of the slides
+    TransitionControls {
+        anchors.left: grid.left
+        anchors.bottom: grid.bottom
+        anchors.leftMargin: 8
+        anchors.bottomMargin: 10
+        win: slides.win
     }
 
     // Thumbnail size, over the bottom right corner of the slides
