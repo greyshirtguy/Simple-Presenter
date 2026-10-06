@@ -4,6 +4,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
@@ -178,7 +179,7 @@ private:
 
 QQuickImageResponse *ThumbnailProvider::requestImageResponse(const QString &id, const QSize &)
 {
-    const QString path = QUrl::fromPercentEncoding(id.toUtf8());
+    const QString path = QUrl::fromPercentEncoding(id.section(u'?', 0, 0).toUtf8());
     auto *response = new Response;
 
     const bool isVideo = videoSuffixes.contains(QFileInfo(path).suffix().toLower());
@@ -198,4 +199,13 @@ QQuickImageResponse *ThumbnailProvider::requestImageResponse(const QString &id, 
         response->finish(image);
     });
     return response;
+}
+
+void ThumbnailProvider::discard(const QStringList &paths)
+{
+    for (const QString &path : paths) {
+        const QString base = cacheFileFor(path);
+        QFile::remove(base + ".jpg");
+        QFile::remove(base + ".png");
+    }
 }

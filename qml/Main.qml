@@ -300,6 +300,16 @@ Window {
             openEntry(rows[next])
     }
 
+    // The url of the thumbnail of a media file.
+    function thumbnailUrl(path) {
+        return "image://thumbnail/" + encodeURIComponent(path) + "?" + catalog.thumbnailRevision
+    }
+
+    // The media files the slides of a presentation trigger, as paths.
+    function mediaOf(file) {
+        return catalog.open(file).slides.filter(s => s.media !== undefined).map(s => s.media.path)
+    }
+
     // Shows an error from a change to the playlists, if there was one.
     function report(error) {
         notice = error
@@ -375,6 +385,10 @@ Window {
             items.push({ header: "Playlist" })
             items.push({ label: "Remove from Playlist", run: () => report(catalog.removePlaylistItem(entry.path)) })
         }
+        if (openable(entry)) {
+            items.push({ header: "Presentation" })
+            items.push({ label: "Rebuild Thumbnails", run: () => catalog.rebuildThumbnails(mediaOf(entry.file)) })
+        }
         if (items.length > 0)
             menu.show(items, item)
     }
@@ -388,6 +402,14 @@ Window {
             items.push({ label: "New Folder Here", run: () => newPlaylistNode(true, node.path) })
         }
         items.push({ label: "Rename", run: () => playlistList.editingPath = node.path })
+        if (!node.folder) {
+            // Every media file that any of the playlist's presentations triggers
+            items.push({
+                label: "Rebuild Thumbnails",
+                run: () => catalog.rebuildThumbnails(catalog.playlistItems(node.path).filter(openable)
+                                                            .flatMap(row => mediaOf(row.file)))
+            })
+        }
         // Removing asks once more, by swapping the menu for a confirmation.
         items.push({
             label: node.folder ? "Remove Folder…" : "Remove Playlist…",
@@ -486,6 +508,12 @@ Window {
             items.push({ label: "New Folder Here", run: () => newMediaNode(true, node.path) })
         }
         items.push({ label: "Rename", run: () => mediaList.editingPath = node.path })
+        if (!node.folder) {
+            items.push({
+                label: "Rebuild Thumbnails",
+                run: () => catalog.rebuildThumbnails(catalog.mediaIn(node.path).filter(m => !m.missing).map(m => m.path))
+            })
+        }
         items.push({
             label: node.folder ? "Remove Folder…" : "Remove Playlist…",
             run: () => menu.show([
@@ -1580,7 +1608,7 @@ Window {
                     Image {
                         anchors.fill: parent
                         visible: win.liveMedia !== null && !win.liveMedia.video
-                        source: visible ? "image://thumbnail/" + encodeURIComponent(win.liveMedia.path) : ""
+                        source: visible ? win.thumbnailUrl(win.liveMedia.path) : ""
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
                     }
@@ -1811,7 +1839,7 @@ Window {
                         Image {
                             anchors.fill: parent
                             visible: cell.modelData.media !== undefined
-                            source: visible ? "image://thumbnail/" + encodeURIComponent(cell.modelData.media.path) : ""
+                            source: visible ? win.thumbnailUrl(cell.modelData.media.path) : ""
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
                         }
@@ -2056,7 +2084,7 @@ Window {
                 Image {
                     anchors.fill: parent
                     anchors.margins: 2
-                    source: mediaDrag.media ? "image://thumbnail/" + encodeURIComponent(mediaDrag.media.path) : ""
+                    source: mediaDrag.media ? win.thumbnailUrl(mediaDrag.media.path) : ""
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
                 }
@@ -2283,7 +2311,7 @@ Window {
                             Image {
                                 anchors.fill: parent
                                 source: mediaCell.modelData.missing ? ""
-                                      : "image://thumbnail/" + encodeURIComponent(mediaCell.modelData.path)
+                                      : win.thumbnailUrl(mediaCell.modelData.path)
                                 fillMode: Image.PreserveAspectFit
                                 asynchronous: true
                             }

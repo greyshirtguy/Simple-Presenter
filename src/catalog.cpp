@@ -2,6 +2,7 @@
 
 #include "playlistimport.h"
 #include "prodocument.h"
+#include "thumbnailprovider.h"
 
 #include <QCollator>
 #include <QDir>
@@ -319,4 +320,11 @@ QString Catalog::removeMediaItem(const QString &item)
 QString Catalog::moveMediaItem(const QString &item, const QString &target, bool after)
 {
     return afterChange(PlaylistFile::moveItem(m_root, PlaylistFile::Media, item, target, after));
+}
+
+void Catalog::rebuildThumbnails(const QStringList &paths)
+{
+    ThumbnailProvider::discard(paths);
+    ++m_thumbnailRevision;
+    emit thumbnailsDiscarded();
 }

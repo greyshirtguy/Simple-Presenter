@@ -41,6 +41,9 @@ class Catalog : public QObject
     Q_PROPERTY(QVariantList mediaPlaylists READ mediaPlaylists NOTIFY changed)
     // Goes up whenever anything on disk changed; bind to it to re-query the folder contents.
     Q_PROPERTY(int revision READ revision NOTIFY changed)
+    // Goes up when cached thumbnails have been discarded. Thumbnail urls carry it, so the
+    // views ask for theirs again.
+    Q_PROPERTY(int thumbnailRevision READ thumbnailRevision NOTIFY thumbnailsDiscarded)
     // Whether an import is still copying files.
     Q_PROPERTY(bool importing READ importing NOTIFY importingChanged)
 
@@ -61,6 +64,11 @@ public:
     QVariantList mediaPlaylists() const { return m_mediaPlaylists.nodes; }
     int revision() const { return m_revision; }
     bool importing() const { return m_importing; }
+    int thumbnailRevision() const { return m_thumbnailRevision; }
+
+    // Discards the cached thumbnails of these media files; they are made again as the
+    // views next show them.
+    Q_INVOKABLE void rebuildThumbnails(const QStringList &paths);
 
     // A row for each presentation directly in a library folder, sorted by name, in the
     // shape PlaylistFile describes for playlist rows: here `path` and `file` are both the
@@ -122,6 +130,7 @@ signals:
     void changed();
     void workspaceChanged();
     void importingChanged();
+    void thumbnailsDiscarded();
     // `error` is empty on success, when `summary` says what was brought in and
     // `playlist` is the id of the first playlist added.
     void importFinished(const QString &error, const QString &summary, const QString &playlist);
@@ -140,5 +149,6 @@ private:
     PlaylistFile m_mediaPlaylists;
     int m_revision = 0;
     bool m_importing = false;
+    int m_thumbnailRevision = 0;
     QFileSystemWatcher m_watcher;
 };
