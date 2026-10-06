@@ -114,6 +114,8 @@ qt_add_qml_module(SimplePresenter
         qml/Output.qml
         qml/PopupMenu.qml
         qml/PreviewPanel.qml
+        qml/PropsLayer.qml
+        qml/PropsPanel.qml
         qml/Slide.qml
         qml/SlideElement.qml
         qml/MediaContent.qml

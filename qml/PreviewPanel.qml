@@ -5,9 +5,9 @@ import SimplePresenterApp
 
 // The right of the operator window, from the toolbar to the bottom: what the audience
 // is being shown and under it what the stage is, the buttons that clear the output, the
-// transport for a video that is playing, and the show controls (timers, and in time
-// props and the stage display). A line each side of the transport sets the three lots
-// of controls apart.
+// transport for a video that is playing, and the show controls (timers and props, and
+// in time the stage display). A line each side of the transport sets the three lots of
+// controls apart.
 //
 // The previews are built from cheap parts instead of second copies of the outputs. The
 // slide is drawn again at this small size; a still image comes from its cached
@@ -27,6 +27,9 @@ Rectangle {
     property var livePlayer: null
     // Which tab of the show controls is showing
     property alias showControlTab: showControl.tab
+    // Whether something in the show controls is being renamed in place, and so has the
+    // keyboard
+    readonly property bool renaming: showControl.renaming
 
     color: "black"
 
@@ -67,14 +70,14 @@ Rectangle {
     component ClearButton: Rectangle {
         id: clearButton
 
-        // "all", "slide" or "media"
+        // "all", "slide", "media" or "props"
         property string kind
         property bool live: false
         readonly property color ink: live ? "#ececec" : "#6c6f75"
 
         signal clicked
 
-        width: (clearButtons.width - 2 * clearButtons.spacing) / 3
+        width: (clearButtons.width - 3 * clearButtons.spacing) / 4
         height: 30
         radius: 6
         color: !live ? "#2b2d31" : clearMouse.pressed ? "#e25555" : clearMouse.containsMouse ? "#d84343" : "#c62828"
@@ -122,6 +125,19 @@ Rectangle {
                     path: "M 0.8 14.5 L 6.2 5.5 L 9.6 11.2 L 11.8 7.6 L 17.2 14.5 Z M 14.2 1.4 A 1.5 1.5 0 1 1 14.19 1.4 Z"
                 }
             }
+
+            // The props: the picture, with something laid over its corner
+            ShapePath {
+                strokeColor: clearButton.kind === "props" ? clearButton.ink : "transparent"
+                strokeWidth: 1.5
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+
+                PathSvg {
+                    path: "M 1 2 L 17 2 L 17 14 L 1 14 Z M 9 7.5 L 14 7.5 L 14 11 L 9 11 Z"
+                }
+            }
         }
 
         MouseArea {
@@ -134,7 +150,7 @@ Rectangle {
         }
     }
 
-    // The output, small: its media with its slide over it
+    // The output, small: its media with its slide over it, and the props over both
     Rectangle {
         id: preview
 
@@ -180,6 +196,13 @@ Rectangle {
                 slide: sidePanel.win.liveSlide
                 effects: false
             }
+
+            PropsLayer {
+                anchors.fill: parent
+                props: sidePanel.win.shownProps
+                duration: Math.round(Props.transitionDuration * 1000)
+                effects: false
+            }
         }
     }
 
@@ -205,7 +228,7 @@ Rectangle {
     }
 
     // The clears, across the width like the tabs of the show controls: everything (F1),
-    // the slide (F2), the media (F3)
+    // the slide (F2), the media (F3), the props (F4)
     Row {
         id: clearButtons
 
@@ -218,7 +241,7 @@ Rectangle {
         ClearButton {
             objectName: "clearAll"
             kind: "all"
-            live: !sidePanel.win.cleared || sidePanel.win.liveMedia !== null
+            live: !sidePanel.win.cleared || sidePanel.win.liveMedia !== null || sidePanel.win.liveProps.length > 0
             onClicked: sidePanel.win.clearAll()
         }
 
@@ -234,6 +257,13 @@ Rectangle {
             kind: "media"
             live: sidePanel.win.liveMedia !== null
             onClicked: sidePanel.win.clearMedia()
+        }
+
+        ClearButton {
+            objectName: "clearProps"
+            kind: "props"
+            live: sidePanel.win.liveProps.length > 0
+            onClicked: sidePanel.win.clearProps()
         }
     }
 

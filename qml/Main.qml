@@ -39,6 +39,10 @@ import SimplePresenterApp
 // which the next slide takes off (alreadyPlaying() and goLive() are all there is to
 // that). And what it does to a timer is passed to the timers (`Timers`, src/timers.h),
 // which belong to no window: whatever shows a timer asks them.
+//
+// Over the slides are the props: slides of the workspace's own (`Props`, src/props.h)
+// that are turned on and off one by one and stay until they are turned off. Which are
+// on, and in what order, is `liveProps`.
 Window {
     id: win
 
@@ -157,6 +161,21 @@ Window {
                                      ? liveDocument.slides[liveIndex + 1] : null
     readonly property string stageCurrentText: liveSlide ? liveSlide.plainText : ""
     readonly property string stageNextText: nextSlide ? nextSlide.plainText : ""
+
+    // The props that are on, by id, in the order they were turned on: the last is in
+    // front. And the same as what the output is handed, [{ id, slide }], which follows
+    // the props themselves: one that is edited changes where it is shown, and one that
+    // is removed goes.
+    property var liveProps: []
+    readonly property var shownProps: {
+        const all = []
+        for (const collection of Props.collections) {
+            for (const prop of collection.props)
+                all.push(prop)
+        }
+        return liveProps.map(id => all.find(prop => prop.id === id)).filter(prop => prop !== undefined)
+                        .map(prop => ({ id: prop.id, slide: prop.slide }))
+    }
 
     readonly property bool viewingLive: document !== null && liveDocument !== null
                                         && documentKey === liveKey && playlistId === livePlaylistId
@@ -551,19 +570,35 @@ Window {
         ], item)
     }
 
+    // Brings up the editor on the workspace's props, at the one with the given id: they
+    // are edited as a presentation's slides are.
+    function startEditingProps(id) {
+        if (editing || !report(editScreen.openProps(Props.path, catalog.workspacePath, id)))
+            return
+        notice = ""
+        editing = true
+        editScreen.takeFocus()
+    }
+
     // Takes the editor down and shows the presentation as it now is. What is on the
-    // output is left as it is until a slide is next shown.
+    // output is left as it is until a slide is next shown; a prop that is on is shown
+    // as it now is at once.
     function stopEditing() {
         if (!editing)
             return
         editScreen.finish()
         const changed = editScreen.editor.changed
+        const kind = editScreen.editor.kind
         editScreen.close()
         editing = false
         keys.forceActiveFocus()
         if (listsStale) {
             listsStale = false
             followCatalog()
+        }
+        if (kind === "props") {
+            report(Props.reload())
+            return
         }
         const entry = currentEntry()
         if (changed && entry) {
@@ -797,9 +832,39 @@ Window {
         output.showMedia(null)
     }
 
+    // Turns a prop on, over whatever else is on the output and in front of the props
+    // that are on already, or off if it is on. A collection set to show one prop at a
+    // time gives up whichever of its others is on.
+    function toggleProp(id) {
+        if (liveProps.includes(id)) {
+            liveProps = liveProps.filter(other => other !== id)
+            return
+        }
+        const prop = Props.find(id)
+        if (prop.id === undefined)
+            return
+        const collection = Props.collections.find(candidate => candidate.id === prop.collection)
+        const rivals = prop.single && collection ? collection.props.map(other => other.id) : []
+        liveProps = liveProps.filter(other => !rivals.includes(other)).concat([id])
+    }
+
+    function clearProps() {
+        if (liveProps.length > 0)
+            liveProps = []
+    }
+
     function clearAll() {
         clearSlide()
         clearMedia()
+        clearProps()
+    }
+
+    // Reads what else a workspace folder holds for the show: its timers and its props.
+    function openShowControls(path) {
+        for (const error of [Timers.open(path, clocksHeld), Props.open(path)]) {
+            if (error !== "")
+                report(error)
+        }
     }
 
     width: 1400
@@ -810,7 +875,8 @@ Window {
     color: panelColor
     // The toolbar is the title bar: it drags the window and carries the window buttons.
     flags: Qt.Window | Qt.FramelessWindowHint
-    title: (editing ? "Editing " : "") + (document ? document.name + " — SimplePresenter" : "SimplePresenter")
+    title: editing && editScreen.editor.kind === "props" ? "Editing Props — SimplePresenter"
+         : (editing ? "Editing " : "") + (document ? document.name + " — SimplePresenter" : "SimplePresenter")
 
     // Restores the last session where what it refers to is still on disk, and falls back
     // to the first library and presentation and the top media folder where it is not.
@@ -855,7 +921,7 @@ Window {
         const tab = String(saved("showControlTab", "timers"))
         if (["timers", "props", "stage"].includes(tab))
             sidePanel.showControlTab = tab
-        report(Timers.open(catalog.workspacePath, clocksHeld))
+        openShowControls(catalog.workspacePath)
         restoreSelections()
         restored = true
         save("workspace", catalog.workspacePath)
@@ -924,8 +990,8 @@ Window {
         selectedMediaNode = ""
         notice = ""
         catalog.openWorkspace(path)
-        // The timers are the workspace's too.
-        report(Timers.open(path, clocksHeld))
+        // The timers and the props are the workspace's too.
+        openShowControls(path)
         restoreSelections()
         restored = true
         save("workspace", path)
@@ -1064,6 +1130,8 @@ Window {
         tint: win.transitionUniforms.tint
         direction: win.transitionUniforms.direction
         duration: Math.round(win.transitionDuration * 1000)
+        props: win.shownProps
+        propsDuration: Math.round(Props.transitionDuration * 1000)
         keyTarget: keys
     }
 
@@ -1074,6 +1142,17 @@ Window {
         currentText: win.stageCurrentText
         nextText: win.stageNextText
         keyTarget: keys
+    }
+
+    // A prop that is no longer there is no longer on.
+    Connections {
+        target: Props
+
+        function onChanged() {
+            const there = id => Props.find(id).id !== undefined
+            if (!win.liveProps.every(there))
+                win.liveProps = win.liveProps.filter(there)
+        }
     }
 
     // What is live, for the text boxes that show it (see Show).
@@ -1140,6 +1219,9 @@ Window {
                 break
             case Qt.Key_F3:
                 win.clearMedia()
+                break
+            case Qt.Key_F4:
+                win.clearProps()
                 break
             default:
                 return
@@ -1306,7 +1388,7 @@ Window {
             // Back to the keys that drive the show, unless a rename in place has just
             // been started from the menu and has the keyboard.
             onClosed: {
-                if (!sidebar.renaming && !mediaBin.renaming)
+                if (!sidebar.renaming && !mediaBin.renaming && !sidePanel.renaming)
                     win.takeFocus()
             }
         }
@@ -1331,6 +1413,8 @@ Window {
                 win.clearSlide()
             else if (event.key === Qt.Key_F3)
                 win.clearMedia()
+            else if (event.key === Qt.Key_F4)
+                win.clearProps()
             else
                 return
             event.accepted = true

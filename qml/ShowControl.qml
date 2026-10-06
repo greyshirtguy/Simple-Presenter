@@ -1,8 +1,8 @@
 import QtQuick
 
 // The show controls: what is worked during a show besides the slides and the media, a
-// tab for each kind. Timers are here; props and the stage display have their tabs, and
-// are still to come.
+// tab for each kind. Timers and props are here; the stage display has its tab, and is
+// still to come.
 //
 // The tabs are a row of buttons across the whole width, pictures and not words, as
 // ProPresenter's are, and the one whose tab is showing is blue. Under them, at the
@@ -14,6 +14,8 @@ Item {
     required property var win
     // Which tab is showing: "timers", "props" or "stage"
     property string tab: "timers"
+    // Whether something here is being renamed in place, and so has the keyboard
+    readonly property bool renaming: props.renaming !== ""
     readonly property var tabs: [
         { id: "timers", name: "Timers" },
         { id: "props", name: "Props" },
@@ -156,18 +158,19 @@ Item {
         }
     }
 
-    // Adds a timer. Small, and out of the way of the tabs.
+    // Adds to what the tab holds: a timer, or a prop or a collection of them. Small, and
+    // out of the way of the tabs.
     Rectangle {
         id: add
 
-        objectName: "addTimerButton"
+        objectName: "showControlAdd"
         anchors.right: parent.right
         anchors.top: buttons.bottom
         anchors.topMargin: 6
         width: 24
         height: visible ? 20 : 0
         radius: 5
-        visible: control.tab === "timers"
+        visible: control.tab !== "stage"
         color: addMouse.pressed ? "#50535a" : addMouse.containsMouse ? "#45484e" : "#3a3c42"
 
         Text {
@@ -183,7 +186,13 @@ Item {
 
             anchors.fill: parent
             hoverEnabled: true
-            onClicked: timers.add()
+            onClicked: {
+                control.win.takeFocus()
+                if (control.tab === "timers")
+                    timers.add()
+                else
+                    props.showAddMenu(add)
+            }
         }
     }
 
@@ -202,12 +211,20 @@ Item {
             win: control.win
         }
 
+        PropsPanel {
+            id: props
+
+            anchors.fill: parent
+            visible: control.tab === "props"
+            win: control.win
+        }
+
         EmptyNote {
             anchors.centerIn: parent
             width: parent.width - 24
-            visible: control.tab !== "timers"
+            visible: control.tab === "stage"
             font.pixelSize: 13
-            text: control.tab === "props" ? "Props are still to come." : "Stage layouts are still to come."
+            text: "Stage layouts are still to come."
         }
     }
 }

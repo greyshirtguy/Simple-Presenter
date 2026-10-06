@@ -1,12 +1,14 @@
 import QtQuick
 
-// The audience output: the media layer with the slide layer over it, on black.
+// The audience output: the media layer, the slide layer over it and the props over
+// both, on black.
 //
 // Layers are what make a presenter more than a slide show. A background video on the
 // media layer keeps playing while the slides over it change, and either layer can be
 // changed or cleared without touching the other. Each is a TransitionLayer, so each
 // makes its own transition; the slide layer is transparent wherever a slide has
-// nothing, and the media shows through.
+// nothing, and the media shows through. The props are not one thing shown in place of
+// another but any number at once, each coming and going by itself (see PropsLayer).
 //
 // The window knows nothing about presentations. It is handed things to show (a slide
 // map, or a media file) and shows them; what is live is the operator window's business.
@@ -24,6 +26,10 @@ AuxWindow {
     readonly property var liveVideoSink: mediaLayer.currentItem ? mediaLayer.currentItem.videoSink : null
     // The MediaPlayer of the video on the media layer, or null; lets a transport control work it.
     readonly property var livePlayer: mediaLayer.currentItem ? mediaLayer.currentItem.player : null
+    // The props that are on, the first at the bottom: [{ id, slide }]; and how long one
+    // takes to come or go, in milliseconds
+    property alias props: propsLayer.props
+    property alias propsDuration: propsLayer.duration
     // A slide held back until the media that goes with it can be shown: see
     // showSlideWithMedia(). Undefined when none is; null is a slide layer to be cleared.
     property var heldSlide: undefined
@@ -94,5 +100,11 @@ AuxWindow {
         direction: win.direction
         duration: win.duration
         delegate: Slide {}
+    }
+
+    PropsLayer {
+        id: propsLayer
+
+        anchors.fill: parent
     }
 }
