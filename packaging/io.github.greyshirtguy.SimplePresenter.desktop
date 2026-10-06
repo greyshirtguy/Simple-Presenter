@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Simple Presenter
+GenericName=Presentation Software
+Comment=Run ProPresenter presentations and media on a second screen
+Exec=SimplePresenter
+Icon=io.github.greyshirtguy.SimplePresenter
+Terminal=false
+Categories=Office;Presentation;Qt;
+Keywords=ProPresenter;worship;lyrics;slides;church;projector;
+# The windows announce themselves by the program's name, which is how the desktop ties
+# them to this launcher and its icon.
+StartupWMClass=SimplePresenter

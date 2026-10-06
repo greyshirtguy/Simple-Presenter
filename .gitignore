@@ -2,6 +2,9 @@
 /build/
 /build-*/
 
+# Packages made by cpack
+/dist/
+
 # Qt Creator
 /.qtcreator/
 CMakeLists.txt.user*

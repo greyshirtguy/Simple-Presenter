@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.greyshirtguy.SimplePresenter</id>
+  <name>Simple Presenter</name>
+  <summary>Run ProPresenter presentations and media on a second screen</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LGPL-3.0-only</project_license>
+  <developer id="io.github.greyshirtguy">
+    <name>greyshirtguy</name>
+  </developer>
+  <description>
+    <p>
+      A simple, lightweight presenter for Linux that works on ProPresenter 7 folders as
+      they are: its presentations, playlists and media. Slides go on a slide layer over a
+      media layer, with shader transitions, an audience output and a stage display.
+    </p>
+    <p>
+      It is a native application, made to run a show comfortably on modest and older
+      computers. It is an independent project, not affiliated with Renewed Vision.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.greyshirtguy.SimplePresenter.desktop</launchable>
+  <url type="homepage">https://github.com/greyshirtguy/Simple-Presenter</url>
+  <url type="bugtracker">https://github.com/greyshirtguy/Simple-Presenter/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The operator window</caption>
+      <image>https://raw.githubusercontent.com/greyshirtguy/Simple-Presenter/main/docs/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+  <provides>
+    <binary>SimplePresenter</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-06">
+      <description>
+        <p>The first release: showing presentations and media, playlists, and an editor for text boxes.</p>
+      </description>
+    </release>
+  </releases>
+</component>
