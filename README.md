@@ -11,8 +11,8 @@ folder as it is. It has three goals.
   playlists and its media. A copy of a ProPresenter folder can be opened and run as it
   stands, and what is changed here can be opened there again.
 - **Simple.** The essentials of running a show and little else: slides over media,
-  transitions, an audience output and a stage display, playlists, a media bin and a
-  small editor. There are no props, messages or announcements.
+  transitions, an audience output and a stage display, playlists, a media bin, timers
+  and a small editor. There are no props, messages or announcements.
 - **Lightweight.** Above all it has to perform, even on modest and older computers. It
   is developed and measured on a 2017 laptop with integrated graphics, and the design
   choices are made for that machine first: see
@@ -22,8 +22,11 @@ It shows ProPresenter 7 `.pro` presentations on a slide layer over a media layer
 [Transitions](#transitions) are shaders, which keeps them cheap. Besides a plain cut
 there are fifty-four: an equivalent of every slide transition ProPresenter has, under
 the names it gives them, and eighteen more. It has two outputs, an audience output and
-a stage display, each in its own window, and a media bin. It can import a playlist that has been exported from
-ProPresenter, and it has a simple [editor](#editing) for the text boxes on a slide.
+a stage display, each in its own window, and a media bin. [Media](#media) plays as a
+background or as a foreground, with a transport for the video that is playing, and
+there are [timers](#timers), whose time a text box on a slide can show. It can import a
+playlist that has been exported from ProPresenter, and it has a simple
+[editor](#editing) for the text boxes on a slide.
 
 ## TODO
 
@@ -42,6 +45,9 @@ ProPresenter, and it has a simple [editor](#editing) for the text boxes on a sli
       media rows.
 - [x] **Import Playlists**: read ProPresenter's exported `.proplaylist` files, bringing
       in the playlist, its presentations and, when the export included it, its media.
+- [ ] **Show Controls**: the timers are there, and text boxes that show them. Props and
+      stage layouts have their tabs and are still to come, as are the clock and a way
+      of giving a slide a timer action here (those a presentation already has are run).
 
 ## Installing
 
@@ -193,6 +199,21 @@ What gets it there:
   small, without their shadows, which cannot be seen at that size and are the dear part.
 - **Lists are only rebuilt when they change.** The app notices when a workspace changes
   on disk, but rebuilds what is on screen only if what it shows is different.
+- **What follows something moving is drawn with it, and seldom.** A player says where
+  its video has got to twenty times a second. A transport drawn straight from that
+  redrew the operator window twenty times a second, and cost over half as much again as
+  playing a 4K video did. So the transport looks at the player a few times a second,
+  and does it when the preview beside it is about to be redrawn for a new frame: the
+  window is drawn once for both, and the transport costs nothing that can be measured.
+  A timer that is stopped costs nothing, and one that is running a redraw a second: a
+  third of a percent of a core, or half a percent when a slide on the output shows it.
+- **Text that changes fast is drawn a digit at a time.** A timer set to show its
+  hundredths changes thirty times a second, which is not what slide text is drawn for:
+  drawing all of it again that often, large, on a full-screen output, took over a
+  quarter of a core. Such text is laid out glyph by glyph, and only the glyphs that
+  have changed are cleared, drawn and sent to the graphics chip again, which brings it
+  to about a tenth of a core. In the thumbnails, where hundredths cannot be read, it
+  is five times a second.
 
 ## How it works
 
@@ -200,10 +221,10 @@ What gets it there:
   a workspace on disk                    C++ (src/)                      QML (qml/)
   -------------------          ---------------------------       --------------------------
   Libraries/*/*.pro    --->    ProDocument, proconvert    --->   Main.qml: what is open,
-  Playlists/Library            PlaylistFile                      what is live, what a key
+  Playlists/Library            PlaylistFile, Timers              what is live, what a key
   Playlists/Media              (parse, flatten into              or a click does
-  Media/...                    lists and maps)                          |
-                                                                        | goLive(), showMedia()
+  Configuration/Timers         lists and maps)                          |
+  Media/...                                                             | goLive(), showMedia()
         ^                      StrokedText, textlayout                  v
         |                      (text laid out and drawn   <---   Output.qml: a media layer
         +--- changes are       with its outline, once)           and a slide layer, each a
@@ -233,6 +254,13 @@ Two rules run through all of it.
   thumbnail, in the preview and in the editor, from the same data. Layout is done in
   the slide's own coordinates and scaled, so a line of text breaks at the same word at
   every size.
+
+Most of what a slide shows is settled when its file is read. The exception is text that
+changes while the slide is on show, which so far means a timer's time: an element
+linked to a timer is drawn by asking `Timers`, the one object that holds the timers and
+keeps them running, what the time is now, and is drawn again when the answer changes.
+Stage layouts, when they come, will be slides whose text boxes are linked in the same
+way to more such things: the words of the live slide, those of the next, the clock.
 
 A transition is a small fragment shader that is handed the outgoing and incoming
 pictures and a number that goes from 0 to 1; `shaders/dissolve.frag` explains the
@@ -289,12 +317,14 @@ Libraries/<library name>/*.pro    presentations, one flat folder per library
 Media/...                         images and videos, in any depth of folders
 Playlists/Library                 playlists and playlist folders, in ProPresenter's format
 Playlists/Media                   media playlists and their folders, in ProPresenter's format
+Configuration/Timers              the timers, in ProPresenter's format
 ```
 
 So a copy of a ProPresenter folder, dropped into `WorkSpaces`, is a workspace. It will
-hold more than this (themes, presets, configuration), which the app leaves alone.
-Changes made in the app (a new playlist, a presentation added to one, an arrangement
-chosen, media dropped on a slide) are written to the files in the workspace.
+hold more than this (themes, presets, the rest of its configuration), which the app
+leaves alone. Changes made in the app (a new playlist, a presentation added to one, an
+arrangement chosen, media dropped on a slide, a timer set) are written to the files in
+the workspace.
 
 Files are found by their path relative to the workspace first, so a workspace keeps
 working when it is moved or copied from another machine; then by the path recorded for
@@ -310,6 +340,79 @@ below ProPresenter's own `Media` folder; files already there are left as they ar
 
 `--workspace <dir>` opens a particular workspace folder, wherever it is; the folders
 beside it are then the ones the picker offers. `--help` lists the other options.
+
+## Media
+
+Media is triggered with a slide, when the slide's cue has some, or by a click in the
+media bin. How it then behaves is one of two things, as in ProPresenter:
+
+- A **background** stays. It plays on under whatever slides come next, and a video
+  starts again when it reaches its end. Triggering it while it is already what is
+  playing leaves it playing; it is not started again. So every slide of a song can
+  carry the song's background.
+- A **foreground** is for the moment. A video plays once and stops on its last frame,
+  and the next slide that is triggered takes it off, whether or not that slide has
+  media of its own.
+
+Either gives way to the next media that is triggered, of either kind.
+
+Which of the two it is belongs to the place the media is used, so a slide's media and
+the same file in the media bin are set separately. A right click on the slide, or on
+the file in the bin, sets it, and the mark on the thumbnail shows which it is: two
+layers, the one behind solid for a background, the one in front for a foreground. Media
+dragged from the bin onto a slide starts out on the slide as it was in the bin.
+
+In the files this is what ProPresenter keeps: the layer a media action is on, and
+whether its video loops. Media set up there behaves here as it was set there.
+
+Under the previews are the three **clears**: everything (F1), the slide (F2) and the
+media (F3), each red while there is something there for it to clear. Under those is the
+**transport**, for the video on the output: how far in it is and how much is left, a
+slider that can be dragged to move it, and buttons to go back to the start, to play or
+pause, and to skip fifteen seconds back or on.
+
+## Timers
+
+Under the transport are the show controls: a row of tabs, pictures and not words, of
+which the one showing is blue. Timers are the first; props and the stage display have
+their tabs, and nothing behind them yet.
+
+A workspace's timers are ProPresenter's, and a workspace with none starts with one, a
+five-minute countdown. There are three kinds:
+
+- a **countdown** runs from a length of time down to nothing;
+- a **countdown to a time** runs down to a time of day. It needs no starting: it shows
+  how long it is until then, and stopping it holds it where it is. A time that went by
+  less than six hours ago counts as gone by; any other is the next time it is that time;
+- an **elapsed time** counts up, from nothing or from a time, to an end if it is given
+  one.
+
+Each stops when it gets there, unless it is set to overrun. Then it runs on past its
+end: a countdown carries on below nothing, as a negative time, in red.
+
+A timer is a row: its name, its time, and buttons to put it back at its start and to
+start or stop it. A click on the row opens it, to change its name, its kind, its time
+and whether it overruns. The `+` adds a timer;
+Remove, or a right click, takes one away. Lengths of time are typed as hours, minutes
+and seconds and read from the right, so `90`, `1:30` and `0:01:30` are all a minute
+and a half; a time of day is typed on the 24-hour clock, as `10:30`.
+
+The audience sees a timer through a text box that is [linked to it](#editing): the box
+shows the timer's time, in the box's own font and colour, on the output, in the
+thumbnails and in the editor. The link finds its timer by the id ProPresenter gave it
+and, failing that, by its name, which is what still holds when a presentation was made
+on another machine.
+
+A slide can also work a timer when it is triggered: start it, stop it, put it back,
+and set it up first, which is how one timer is a minute's countdown on one slide and
+three on another. Presentations made in ProPresenter that do this, such as a slide
+that starts its own countdown, do it here too. What a slide sets a timer up as is not
+written to the workspace until the timers are next changed by hand. Such actions
+cannot yet be added or changed here.
+
+An action finds its timer as a link does: by id, and failing that by name. One that
+finds none either way does nothing, and a text box whose timer is not there shows a
+time of nothing; neither is treated as an error.
 
 ## Editing
 
@@ -339,7 +442,12 @@ the properties of the element that is picked, in two parts, as ProPresenter has 
   have text, or have none: all, any or none of a list of conditions.
 - **Linked text.** A text box can show the text of another element of the slide, in
   its own font and colour, as it is or run together onto one line, or broken into a
-  word or a letter to a line.
+  word or a letter to a line. Or it can show the time of one of the workspace's
+  [timers](#timers). How the time is written is set as ProPresenter sets it, a part at
+  a time: the hours, the minutes, the seconds and the hundredths of a second are each
+  hidden, or shown as one digit or as two, or shown that way but hidden while they are
+  nothing. A part that is hidden is counted in the next one shown, so seconds alone
+  count past sixty.
 
 Every change is saved to the presentation file as it is made, and Undo takes it back
 out. Only what was changed is touched: everything else in the file, including whatever
@@ -354,10 +462,10 @@ substitute is used to draw it.
 
 ## Transitions
 
-The transition is chosen in the toolbar, and applies to every change on the output,
-slides and media alike; the slider beside it is how long it takes. The menu has them by
-category, as ProPresenter does: Dissolves, Wipes, Movements, Objects, Color and Blurs,
-and then More, for the ones ProPresenter does not have.
+The transition is chosen at the bottom left of the slides, and applies to every change
+on the output, slides and media alike; the slider beside it is how long it takes. The
+menu has them by category, as ProPresenter does: Dissolves, Wipes, Movements, Objects,
+Color and Blurs, and then More, for the ones ProPresenter does not have.
 
 Some transitions can be adjusted: the direction a wipe or a push travels, the colour of
 a burn, the size of the squares. For those, the button with the sliders on it, beside
@@ -415,8 +523,9 @@ drives the app through a fixed sequence (a slide, a transition, the clears, a si
 trackpad swipe, then the editor brought up on a presentation with an element picked and
 its text being edited), saves frames from each window into `<dir>` as PNGs, and quits.
 It changes nothing in the workspace, neither reads nor changes saved settings, and opens
-the first workspace unless `--workspace` names one. Run it before and after a change to
-anything that draws, and compare the frames.
+the first workspace unless `--workspace` names one. The timers and the transport are
+held still for it, so that what they show does not depend on when it is run. Run it
+before and after a change to anything that draws, and compare the frames.
 
 With `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software` in front of it, it runs
 without putting windows on the screen, and every run gives the same frames; that way of
@@ -434,6 +543,7 @@ those.
 | `src/proconvert.*` | Turns a slide in a `.pro` file into what is drawn, and changes back into the file's terms |
 | `src/presentationeditor.*` | A presentation open in the editor: its changes, undo, saving and backups |
 | `src/playlistfile.*` | Reads and writes the two playlists files |
+| `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |
@@ -447,10 +557,11 @@ those.
 | `src/selftest.*` | The self-test |
 | `qml/Main.qml` | The operator window: the app's state and logic |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
+| `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tab of timers |
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | The output and stage windows |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
-| `qml/TransitionCatalogue.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, and the panel for adjusting it |
+| `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
 | `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions |
 | `packaging/` | The launcher, icon and description that an installed copy has |
