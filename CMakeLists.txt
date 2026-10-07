@@ -6,7 +6,7 @@
 #                    beside the one executable
 #   the package      a .deb, made by `cpack` (see the end of this file)
 cmake_minimum_required(VERSION 3.21)
-project(SimplePresenter VERSION 0.1.0 LANGUAGES CXX)
+project(SimplePresenter VERSION 0.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -228,6 +228,8 @@ qt_add_shaders(SimplePresenter "shaders"
 
 target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia proproto Fontconfig::Fontconfig ZLIB::ZLIB
                       PkgConfig::FFmpeg)
+# The version, for the window's title and for the log.
+target_compile_definitions(SimplePresenter PRIVATE APP_VERSION="${PROJECT_VERSION}")
 
 # Installing, and the package.
 #

@@ -895,9 +895,11 @@ Window {
     color: panelColor
     // The toolbar is the title bar: it drags the window and carries the window buttons.
     flags: Qt.Window | Qt.FramelessWindowHint
-    title: editing && editScreen.editor.kind === "props" ? "Editing Props — SimplePresenter"
-         : editing && editScreen.editor.kind === "stage" ? "Editing Stage Layouts — SimplePresenter"
-         : (editing ? "Editing " : "") + (document ? document.name + " — SimplePresenter" : "SimplePresenter")
+    // The app and its version, then in brackets what is open or being edited
+    title: "Simple Presenter " + Qt.application.version
+           + (editing && editScreen.editor.kind === "props" ? " [Editing Props]"
+              : editing && editScreen.editor.kind === "stage" ? " [Editing Stage Layouts]"
+              : document ? " [" + (editing ? "Editing " : "") + document.name + "]" : "")
 
     // Restores the last session where what it refers to is still on disk, and falls back
     // to the first library and presentation and the top media folder where it is not.

@@ -134,6 +134,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QGuiApplication::setOrganizationName("SimplePresenter");
     QGuiApplication::setApplicationName("SimplePresenter");
+    QGuiApplication::setApplicationVersion(QStringLiteral(APP_VERSION));
 
     // Workspaces are folders side by side in here; each holds everything for one setup.
     const QString workspacesDirectory =
@@ -142,6 +143,7 @@ int main(int argc, char *argv[])
     QCommandLineParser parser;
     parser.setApplicationDescription("Shows ProPresenter 7 presentations and media on a second window or screen.");
     parser.addHelpOption();
+    parser.addVersionOption();
     const QCommandLineOption listOption("list-screens", "List the available screens and exit.");
     const QCommandLineOption workspaceOption({"w", "workspace"}, "Workspace folder to open, holding Libraries/, Media/ and Playlists/. "
                                              "Default: the one used last, else the first in " + workspacesDirectory + ".", "dir");

@@ -33,6 +33,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2" date="2026-10-07">
+      <description>
+        <p>
+          Media as a background or a foreground, with a transport for the video that is playing; timers, and
+          text boxes that show them; props; stage layouts; text that scales to fit its box; and a log of
+          each run, for working out what happened when something goes wrong.
+        </p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-06">
       <description>
         <p>The first release: showing presentations and media, playlists, and an editor for text boxes.</p>

@@ -60,17 +60,17 @@ playlist that has been exported from ProPresenter, and it has a simple
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download
-`simplepresenter_0.1.0_amd64.deb` from the
+`simplepresenter_0.2_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.1.0_amd64.deb
+sudo apt install ./simplepresenter_0.2_amd64.deb
 ```
 
 That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
 among the applications. `sudo apt remove simplepresenter` takes it off again.
 
-The package holds only this program, and is under 2 MB. Qt, FFmpeg and the video
+The package holds only this program, and is about 2 MB. Qt, FFmpeg and the video
 drivers are the system's own, which is why it is small, why video is decoded by whatever
 the machine's drivers can do (see [Hardware video decoding](#hardware-video-decoding)),
 and also why it is tied to one release: it is built against the Qt that Ubuntu 26.04
