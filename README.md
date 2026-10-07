@@ -710,8 +710,9 @@ frames a second but one, Cross Zoom, which manages fifty-seven.
 The audience output and the stage display are windows of their own, switched on and off
 by the pair of buttons at the right of the toolbar (or Ctrl+1 and Ctrl+2). Each is
 either a small window with a slim title bar that floats over the operator window, or
-fills a screen: double-click its title bar to have it fill the screen it is on, and
-move the mouse over it there for the control that brings it back. The output starts
+fills a screen. The small window is moved by dragging any part of it, and resized by
+its edges; double-click its title bar to have it fill the screen it is on, and move
+the mouse over it there for the control that brings it back. The output starts
 out filling a second screen if there is one (`--screen`, with a screen's number or
 name, says which; `--list-screens` says what there are), and each window comes back
 the way it was left.

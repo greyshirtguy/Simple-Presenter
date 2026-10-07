@@ -6,6 +6,9 @@ import SimplePresenterApp
 // Base for the output and stage windows: a small floating window that stays in front of
 // the operator window, with a slim title bar of its own in place of the desktop's (drag
 // it to move, drag the edges to resize), or fullscreen with nothing but its content.
+// The floating window can be moved by dragging any part of it, not only the title bar:
+// a desktop places a window where it sees fit, and that can be with the top of it under
+// something else, where the title bar cannot be got at.
 // Moving the mouse over a fullscreen window brings up a control to leave fullscreen.
 // Remembers its size, position and fullscreen state under its objectName.
 Window {
@@ -212,6 +215,16 @@ Window {
         focus: true
         Keys.forwardTo: win.keyTarget ? [win.keyTarget] : []
         Keys.onEscapePressed: if (win.fullScreen) win.setFullScreen(false)
+
+        // The picture is a handle to move the floating window by, as the title bar is.
+        // Nothing in it is there to be clicked, so a drag that starts on it can only
+        // mean that.
+        DragHandler {
+            objectName: "bodyDrag"
+            target: null
+            enabled: !win.fullScreen
+            onActiveChanged: if (active) win.startSystemMove()
+        }
     }
 
     // While fullscreen: mouse movement shows the control and the pointer; both go away
