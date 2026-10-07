@@ -45,18 +45,23 @@ Item {
         anchors.top: parent.top
         anchors.leftMargin: 16
         anchors.rightMargin: 16
-        visible: (slides.win.document !== null && slides.win.document.arrangements.length > 0) || slides.win.notice !== ""
+        // In Simple View it is always there, and says which presentation this is when
+        // there is nothing else to say: the toolbar and the lists that would are gone.
+        readonly property bool named: !slides.win.chromeShown && slides.win.document !== null
+
+        visible: (slides.win.document !== null && slides.win.document.arrangements.length > 0) || slides.win.notice !== "" || named
         height: visible ? 34 : 6
 
         Text {
+            objectName: "gridNotice"
             anchors.left: parent.left
             anchors.right: arrangementLabel.left
             anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
-            color: slides.win.noticeIsError ? "#ff6b6b" : slides.win.dimTextColor
+            color: slides.win.notice !== "" && slides.win.noticeIsError ? "#ff6b6b" : slides.win.dimTextColor
             font.pixelSize: 13
-            text: slides.win.notice
+            text: slides.win.notice !== "" ? slides.win.notice : gridHeader.named ? slides.win.document.name : ""
         }
 
         Text {

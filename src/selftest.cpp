@@ -11,9 +11,9 @@
 #include <functional>
 
 // Drives the output through the first media file and slide, a ripple to the next slide,
-// clearing the slide layer and clearing the media layer, then the editor, saving frames
-// read back from the windows, then quits. Exercises the same readback path that NDI
-// output will need.
+// clearing the slide layer and clearing the media layer, then the editor and Simple
+// View, saving frames read back from the windows, then quits. Exercises the same
+// readback path that NDI output will need.
 void runSelfTest(QQuickWindow *operatorWindow, QQuickWindow *output, QQuickWindow *stage, const QString &dir)
 {
     const auto grab = [dir](QQuickWindow *window, const QString &name) {
@@ -118,6 +118,12 @@ void runSelfTest(QQuickWindow *operatorWindow, QQuickWindow *output, QQuickWindo
             grab(operatorWindow, "operator-8-editor-text");
             editor(3);
         });
-        after(3700, [=] { QCoreApplication::quit(); });
+        // Last, Simple View: the panes gone and the slides filling the window, with the
+        // button that leads back still making itself known.
+        after(3700, [=] {
+            QMetaObject::invokeMethod(operatorWindow, "setSimpleView", Q_ARG(QVariant, true), Q_ARG(QVariant, "the self-test"));
+        });
+        after(4500, [=] { grab(operatorWindow, "operator-9-simple-view"); });
+        after(4600, [=] { QCoreApplication::quit(); });
     });
 }

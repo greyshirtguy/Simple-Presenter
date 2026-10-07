@@ -33,7 +33,8 @@ folder as it is. It has three goals.
   stands, and what is changed here can be opened there again.
 - **Simple.** The essentials of running a show and little else: slides over media,
   transitions, an audience output and a stage display, playlists, a media bin, timers,
-  props and a small editor. There are no messages or announcements.
+  props and a small editor. There are no messages or announcements. And when even that
+  is in the way, [Simple View](#simple-view) leaves the slides and nothing else.
 - **Lightweight.** Above all it has to perform, even on modest and older computers. It
   is developed and measured on a 2017 laptop with integrated graphics, and the design
   choices are made for that machine first: see
@@ -226,6 +227,7 @@ with Intel HD 620 graphics. On it, at the time of writing:
 | Sitting with a still slide on the output | next to nothing: three hundredths of a percent of one processor core, which is the app being asked once a second whether it is still answering (see [Log](#log)) |
 | A 4K video under lyrics, full screen at 1080p | the graphics chip a third busy (it is a quarter busy with only the desktop on screen); 5 to 7% of one processor core |
 | Showing the slides of a presentation just picked | about 70 ms |
+| Going into [Simple View](#simple-view) | a third of a second: the panes slide off in a fifth, at sixty frames a second, and the slides fill the window a tenth later |
 | Thumbnails for 112 videos, 47 of them 4K, the first time they are seen | 2.5 seconds, while the window stays responsive |
 | Putting a still on the output, even one of 8000 by 4500 | read in the background; the window is not held up |
 | Memory, with a workspace open | about 260 MB, of which 160 MB is what Qt needs for any window; up to 400 MB while a 4K video plays |
@@ -405,6 +407,43 @@ below ProPresenter's own `Media` folder; files already there are left as they ar
 
 `--workspace <dir>` opens a particular workspace folder, wherever it is; the folders
 beside it are then the ones the picker offers. `--help` lists the other options.
+
+## Simple View
+
+Running a show is mostly finding the next slide and clicking it, and there are never
+enough slides on the screen at once. Making the thumbnails smaller shows more of them,
+until the words on them can no longer be read. Simple View goes at it the other way: it
+takes away everything round the slides, which is the toolbar, the lists on the left,
+the previews and controls on the right and the media bin, and gives the slides the
+whole window.
+
+Nothing about the show changes with it. Slides are clicked as ever, the arrow keys step
+through them and from one presentation to the next, F1 to F4 are the clears, and media
+can still be dropped on a slide or between two. A line over the slides says which
+presentation this is.
+
+It is switched on and off in three ways:
+
+- The **Simple View** button in the toolbar.
+- The small button that floats over the slides while the view is on. It is in the place
+  where the toolbar's button was, so the same spot on the screen switches the view both
+  ways, and a second click undoes the first.
+- The **~ key, held down** for seven tenths of a second. Only pressing it does nothing:
+  the key is one that is easily brushed, and a view that takes everything familiar away
+  should not be one a stray key can land in. A line under the button counts the hold as
+  it goes, and the view switches when the line is full, without the key being let go.
+
+So that nobody is left stranded in it, the floating button makes itself known when the
+view is entered. For five seconds it is large and bright and says in words how to go
+back; then it shrinks to a small, faint button, which comes up in full under the
+pointer and says again what it does.
+
+Going in, the panes slide off the edges of the window and the slides are then laid out
+afresh to fill it; coming back, the slides make room first and the panes slide in.
+Only the panes are animated. Moving them costs next to nothing, where laying the slides
+out again for every frame of the way would cost more than all the rest, and the app is
+meant to stay quick on a slow machine. The editor and the settings screen need the
+toolbar, and bring it back for as long as they are up.
 
 ## Media
 
@@ -697,6 +736,7 @@ depends on what the app is run through:
 | Right, Space / Left | Next / previous slide |
 | Down / Up | Next / previous presentation |
 | F1 / F2 / F3 / F4 | Clear all / slide layer / media layer / props |
+| ~, held for most of a second | [Simple View](#simple-view) on or off |
 | Ctrl+V | Show or hide the media bin |
 | Ctrl+1 / Ctrl+2 | Show or hide the output / stage window |
 | Esc | Close a menu |
@@ -825,6 +865,7 @@ those.
 | `src/sessionlog.*` | The log of a run: what the app is running on, what it did, a crash's last lines, and the watch for the app not answering |
 | `qml/Main.qml` | The operator window: the app's state and logic |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
+| `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props and stage screens |
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | The output and stage windows |

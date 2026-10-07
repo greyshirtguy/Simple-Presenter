@@ -14,6 +14,15 @@ import SimplePresenterApp
 // (PreviewPanel). In editor mode everything below the toolbar gives way to the editor
 // (Editor). The output and stage windows belong to this one too.
 //
+// Simple View is the same window with everything round the slides taken away, the
+// toolbar included, so that as many slides as will fit can be seen at once. Nothing
+// about the show changes with it, only what is in the way of seeing it: the panes
+// slide off the edges of the window and the grid then takes their room. It is switched
+// by a button in the toolbar, by the small button that floats over the slides while it
+// is on (SimpleViewToggle), and by holding the ~ key down: held, not pressed, because
+// a view that takes everything familiar away must not be one that a stray key can
+// land in. `simpleView` and the properties after it are all there is to it.
+//
 // How it is organised. This file is the state and the logic; the files named above are
 // the views. Everything the app knows about the show is a property here: what is being
 // browsed, which presentation is open, what is live on each layer of the output, the
@@ -123,6 +132,31 @@ Window {
     // Whether the editor is up, in place of the slides, working on the presentation
     // being viewed
     property bool editing: false
+    // Simple View: whether it has been asked for, and whether it is what is showing,
+    // which it is not while the editor or the settings screen is up: they need the
+    // toolbar, and the view is there again when they are done with.
+    property bool simpleView: false
+    readonly property bool simple: simpleView && !editing && !settingsOpen
+    // How far the panes round the slides are in their places: 1 when they are, 0 when
+    // they are out of sight, and for a moment between the two as they slide off the
+    // edges of the window or back on. That is all that is animated, and it is cheap:
+    // the panes are only moved, nothing is laid out again for it. The slides are laid
+    // out afresh once, when the panes have gone (or before they come back), since
+    // doing that for every frame of the slide would cost more than the whole of it.
+    property real chrome: simple ? 0 : 1
+    // Milliseconds the panes take; 0 would be a plain cut
+    readonly property int chromeDuration: 180
+    // How far out of their places the panes are, from 0 to 1, for moving them by: they
+    // gather speed as they leave and lose it as they come back
+    readonly property real chromeAway: (1 - chrome) * (1 - chrome)
+    // Whether the panes are there at all, in place or on their way. When they are not,
+    // the slides have the whole window.
+    readonly property bool chromeShown: !simple || chrome > 0
+    // How long the ~ key has to be held to switch Simple View, in milliseconds: long
+    // enough that brushing it does nothing, and short enough not to be a wait. And how
+    // far a hold of it has got, from 0 to 1, for the buttons that show it.
+    readonly property int simpleViewHold: 700
+    property real holdProgress: 0
     // Set if the workspace changed on disk while the editor was up: the lists are
     // brought up to date when it comes down, not after every change it saves.
     property bool listsStale: false
@@ -282,6 +316,40 @@ Window {
 
     function counted(count, one, many) {
         return count + " " + (count === 1 ? one : many)
+    }
+
+    // Switches Simple View on or off. `how` says what asked, for the log.
+    function setSimpleView(on, how) {
+        if (on === simpleView)
+            return
+        simpleView = on
+        Log.note("view", "Simple View " + (on ? "on" : "off") + ", by " + how
+                 + (on && !simple ? "; it shows when the " + (editing ? "editor" : "settings screen") + " is done with" : ""))
+        // The keyboard is the show's, as after a click on a slide.
+        takeFocus()
+    }
+
+    // Whether a key event is of the key that switches Simple View when held: the one
+    // left of the 1, which on most keyboards gives ` and ~. It is known by either of
+    // those, and also by where it is on the keyboard, for the keyboards on which it
+    // gives something else.
+    function isSimpleViewKey(event) {
+        return (event.key === Qt.Key_QuoteLeft || event.key === Qt.Key_AsciiTilde || event.nativeScanCode === 49)
+               && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+    }
+
+    // The key has gone down, and has come up again (or the window has lost the
+    // keyboard). Simple View is switched when it has been down for long enough, and
+    // then not again until it has been let go and pressed afresh.
+    function beginHold() {
+        holdTimer.restart()
+        holdShown.restart()
+    }
+
+    function endHold() {
+        holdTimer.stop()
+        holdShown.stop()
+        holdProgress = 0
     }
 
     // What the workspace holds, and how the app is set, said once when each is known.
@@ -1269,6 +1337,40 @@ Window {
     onOutputEnabledChanged: save("outputEnabled", outputEnabled)
     onStageEnabledChanged: save("stageEnabled", stageEnabled)
     onGroupsChanged: save("groups", JSON.stringify(groups))
+    onSimpleChanged: {
+        if (simple)
+            simpleToggle.announce()
+    }
+
+    Behavior on chrome {
+        NumberAnimation { duration: win.chromeDuration }
+    }
+
+    Timer {
+        id: holdTimer
+
+        interval: win.simpleViewHold
+        onTriggered: {
+            win.endHold()
+            win.setSimpleView(!win.simpleView, "the ~ key, held")
+        }
+    }
+
+    // What shows a hold of the key shows nothing for the first moment of it, so that a
+    // key only brushed does not set something flickering.
+    SequentialAnimation {
+        id: holdShown
+
+        PauseAnimation { duration: 150 }
+        NumberAnimation {
+            target: win
+            property: "holdProgress"
+            from: 150 / win.simpleViewHold
+            to: 1
+            duration: win.simpleViewHold - 150
+        }
+    }
+
     onUseX11Changed: {
         save("useX11", useX11)
         if (restored)
@@ -1439,10 +1541,30 @@ Window {
         anchors.fill: parent
         focus: true
 
+        // A hold of the key is over when the keyboard goes elsewhere: its being let go
+        // would not be heard of here.
+        onActiveFocusChanged: {
+            if (!activeFocus)
+                win.endHold()
+        }
+        Keys.onReleased: (event) => {
+            if (!win.isSimpleViewKey(event))
+                return
+            // (A key held down is reported as let go and pressed again, over and over.)
+            if (!event.isAutoRepeat)
+                win.endHold()
+            event.accepted = true
+        }
         Keys.onPressed: (event) => {
             if (win.settingsOpen) {
                 if (event.key === Qt.Key_Escape)
                     win.settingsOpen = false
+                return
+            }
+            if (win.isSimpleViewKey(event)) {
+                if (!event.isAutoRepeat)
+                    win.beginHold()
+                event.accepted = true
                 return
             }
             if (event.modifiers & Qt.ControlModifier) {
@@ -1501,6 +1623,11 @@ Window {
             anchors.top: toolbar.bottom
             anchors.bottom: mediaBin.top
             width: Math.max(160, Math.min(win.sidebarWidth, win.width - sidePanel.width - 260))
+            // For Simple View each pane goes off its own edge of the window, and is
+            // not drawn once it is out of sight. Only where it is drawn changes: its
+            // place in the layout is kept, for the slides to come back to.
+            visible: win.chromeShown
+            transform: Translate { x: -win.chromeAway * sidebar.width }
             win: win
             presentationDrag: presentationDrag
             playlistDrag: playlistDrag
@@ -1512,6 +1639,8 @@ Window {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
+            visible: win.chromeShown
+            transform: Translate { y: -win.chromeAway * toolbar.height }
             win: win
         }
 
@@ -1524,20 +1653,38 @@ Window {
             anchors.top: toolbar.bottom
             anchors.bottom: parent.bottom
             width: Math.max(250, Math.min(win.sidePanelWidth, win.width - 160 - 260))
+            visible: win.chromeShown
+            transform: Translate { x: win.chromeAway * sidePanel.width }
             win: win
             liveVideoSink: output.liveVideoSink
             livePlayer: win.clocksHeld ? null : output.livePlayer
             onShowControlTabChanged: win.save("showControlTab", showControlTab)
         }
 
+        // Between the panes while they are there, and the whole window in Simple View
+        // once they have gone.
         SlideGrid {
             id: grid
 
-            anchors.left: sidebar.right
-            anchors.right: sidePanel.left
-            anchors.top: toolbar.bottom
-            anchors.bottom: mediaBin.top
+            anchors.left: win.chromeShown ? sidebar.right : parent.left
+            anchors.right: win.chromeShown ? sidePanel.left : parent.right
+            anchors.top: win.chromeShown ? toolbar.bottom : parent.top
+            anchors.bottom: win.chromeShown ? mediaBin.top : parent.bottom
             win: win
+        }
+
+        // The way back out of Simple View, where the toolbar's button for it is: the
+        // same place on the screen switches the view on and off.
+        SimpleViewToggle {
+            id: simpleToggle
+
+            objectName: "simpleViewToggle"
+            x: toolbar.simpleViewCentre + 15 - width
+            y: 4
+            z: 60
+            visible: win.simple
+            progress: win.holdProgress
+            onClicked: win.setSimpleView(false, "the button over the slides")
         }
 
         // What is being dragged out of the media bin: a point that follows the pointer,
@@ -1594,10 +1741,12 @@ Window {
 
         // Dividers. Each starts from the pane's current, clamped size, so dragging back
         // from a limit responds at once.
+        // (None of them is there while the panes are away, or on their way.)
         Divider {
             anchors.horizontalCenter: sidebar.right
             anchors.top: sidebar.top
             anchors.bottom: sidebar.bottom
+            visible: win.chrome === 1
             onMoved: (delta) => win.sidebarWidth = sidebar.width + delta
             onReleased: win.takeFocus()
         }
@@ -1606,6 +1755,7 @@ Window {
             anchors.horizontalCenter: sidePanel.left
             anchors.top: sidePanel.top
             anchors.bottom: sidePanel.bottom
+            visible: win.chrome === 1
             onMoved: (delta) => win.sidePanelWidth = sidePanel.width - delta
             onReleased: win.takeFocus()
         }
@@ -1615,7 +1765,7 @@ Window {
             anchors.verticalCenter: mediaBin.top
             anchors.left: parent.left
             anchors.right: sidePanel.left
-            visible: win.mediaBinVisible
+            visible: win.mediaBinVisible && win.chrome === 1
             onMoved: (delta) => win.mediaBinHeight = mediaBin.height - delta
             onReleased: win.takeFocus()
         }
@@ -1626,7 +1776,7 @@ Window {
             x: mediaBin.x + mediaBin.listWidth - width / 2
             anchors.top: mediaBin.top
             anchors.bottom: mediaBin.bottom
-            visible: win.mediaBinVisible
+            visible: win.mediaBinVisible && win.chrome === 1
             onMoved: (delta) => win.mediaListWidth = mediaBin.listWidth + delta
             onReleased: win.takeFocus()
         }
@@ -1638,7 +1788,8 @@ Window {
             anchors.right: sidePanel.left
             anchors.bottom: parent.bottom
             height: visible ? Math.max(120, Math.min(win.mediaBinHeight, win.height - toolbar.height - 160)) : 0
-            visible: win.mediaBinVisible
+            visible: win.mediaBinVisible && win.chromeShown
+            transform: Translate { y: win.chromeAway * mediaBin.height }
             win: win
             listWidth: Math.max(140, Math.min(win.mediaListWidth, width - 220))
             playlistDrag: mediaPlaylistDrag

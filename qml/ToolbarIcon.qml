@@ -3,13 +3,18 @@ import QtQuick.Shapes
 
 // A toolbar button drawn as a small icon with a caption under it. `kind` picks the icon:
 // "dot" is a status light, green when `on`; "bin" is a window with its bottom pane filled
-// when `on`; "settings" is a set of sliders; "edit" is a pencil, orange when `on`.
+// when `on`; "settings" is a set of sliders; "edit" is a pencil, orange when `on`;
+// "expand" is four corners turned outwards, the sign for filling the screen, orange
+// when `on`.
 Item {
     id: button
 
     property string kind: "dot"
     property string label
     property bool on: false
+    // For a button whose work can also be done by holding a key: how far the hold has
+    // got, from 0 to 1, shown as a line growing along the foot of the button
+    property real progress: 0
 
     signal clicked
 
@@ -79,6 +84,30 @@ Item {
             }
         }
 
+        // Four corners turned outwards
+        Shape {
+            anchors.fill: parent
+            visible: button.kind === "expand"
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: button.on ? "#ff8a1f" : button.ink
+                strokeWidth: 1.6
+                capStyle: ShapePath.FlatCap
+                joinStyle: ShapePath.MiterJoin
+
+                PathMultiline {
+                    paths: [
+                        [Qt.point(2, 5), Qt.point(2, 1), Qt.point(6, 1)],
+                        [Qt.point(12, 1), Qt.point(16, 1), Qt.point(16, 5)],
+                        [Qt.point(2, 9), Qt.point(2, 13), Qt.point(6, 13)],
+                        [Qt.point(12, 13), Qt.point(16, 13), Qt.point(16, 9)]
+                    ]
+                }
+            }
+        }
+
         Repeater {
             model: button.kind === "settings" ? [0.25, 0.7, 0.4] : []
 
@@ -118,6 +147,16 @@ Item {
         color: "#c9cbd0"
         font.pixelSize: 10
         text: button.label
+    }
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 4
+        width: (parent.width - 8) * button.progress
+        height: 2
+        visible: button.progress > 0
+        color: "#ff8a1f"
     }
 
     MouseArea {

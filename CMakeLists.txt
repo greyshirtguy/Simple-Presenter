@@ -128,6 +128,7 @@ qt_add_qml_module(SimplePresenter
         qml/RowIcon.qml
         qml/SectionTitle.qml
         qml/SettingsScreen.qml
+        qml/SimpleViewToggle.qml
         qml/ShowControl.qml
         qml/Sidebar.qml
         qml/SidebarList.qml

@@ -5,17 +5,21 @@ import QtQuick.Window
 // the window does not have: drag it to move the window, double-click it to maximise.
 // On the left it holds what decides what is being worked on: the workspace picker, and
 // the button into the editor and back out. Then the name of what is open. On the right,
-// the buttons that switch things on and off (the media bin; the output and stage
-// windows, which are a pair and are drawn as one; the settings screen), and the
-// window's own buttons. What works the show itself is not here but beside what it
-// works: the transition under the slides, the clears, the transport and the timers
-// under the previews.
+// the buttons that switch things on and off (Simple View, which has the slides take
+// the whole window, this bar included; the media bin; the output and stage windows,
+// which are a pair and are drawn as one; the settings screen), and the window's own
+// buttons. What works the show itself is not here but beside what it works: the
+// transition under the slides, the clears, the transport and the timers under the
+// previews.
 Rectangle {
     id: toolbar
 
     // The operator window: what this shows is its state, and what the controls here do is
     // call its functions.
     required property var win
+    // Where the middle of the button for Simple View is, from the left of the bar: the
+    // button that leaves that view is put in the same place (see SimpleViewToggle).
+    readonly property real simpleViewCentre: toolbarControls.x + simpleViewButton.x + simpleViewButton.width / 2
 
     component WindowButton: AppButton {
         width: 34
@@ -124,6 +128,25 @@ Rectangle {
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
+
+        // The slides and nothing else: see Simple View in Main.qml. Not while the editor
+        // is up, which has the window to itself.
+        ToolbarIcon {
+            id: simpleViewButton
+
+            objectName: "simpleViewButton"
+            anchors.verticalCenter: parent.verticalCenter
+            width: 64
+            kind: "expand"
+            label: "Simple View"
+            on: toolbar.win.simpleView
+            progress: toolbar.win.holdProgress
+            opacity: toolbar.win.editing ? 0.4 : 1
+            onClicked: {
+                if (!toolbar.win.editing)
+                    toolbar.win.setSimpleView(!toolbar.win.simpleView, "its button in the toolbar")
+            }
+        }
 
         ToolbarIcon {
             anchors.verticalCenter: parent.verticalCenter
