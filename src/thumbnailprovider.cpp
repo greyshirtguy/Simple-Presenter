@@ -21,6 +21,10 @@ namespace {
 
 // Wide enough for the largest thumbnail the views show, on a screen scaled to 150%.
 const int thumbnailWidth = 480;
+// Which way of choosing a video's picture the cached thumbnails were made by: to be
+// changed whenever grabVideoFrame() would give a different picture for the same file.
+// (The first way, with no mark at all, took the very first frame.)
+const QLatin1StringView videoFrameChoice("|five seconds in");
 
 // Set as the app closes: whatever has not been started is then not worth starting.
 QAtomicInt closing;
@@ -52,7 +56,9 @@ private:
 
 // Thumbnails are kept on disk under the user's cache folder, keyed by the file's full
 // path and modification time: an edited or replaced file gets a new key and so a new
-// thumbnail. Stale entries are never removed.
+// thumbnail. A video's key also says which way of choosing its picture made it (see
+// videoframe.h), so that when that changes the pictures made the old way are not the
+// ones shown. Stale entries are never removed.
 QString cacheFileFor(const QString &path)
 {
     static const QString directory = [] {
@@ -62,7 +68,7 @@ QString cacheFileFor(const QString &path)
     }();
     const QFileInfo info(path);
     const QString key = info.absoluteFilePath() + u'|' + QString::number(info.lastModified().toMSecsSinceEpoch())
-        + u'|' + QString::number(thumbnailWidth);
+        + u'|' + QString::number(thumbnailWidth) + (workspace::isVideo(path) ? videoFrameChoice : QLatin1StringView());
     return directory + u'/' + QString::fromLatin1(QCryptographicHash::hash(key.toUtf8(), QCryptographicHash::Sha1).toHex());
 }
 

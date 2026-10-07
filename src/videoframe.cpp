@@ -19,6 +19,24 @@ namespace {
 const qint64 patience = 10000;
 // How many packets to read looking for a frame before giving up.
 const int packetLimit = 3000;
+// How far into a video its picture is taken from, in seconds: far enough to be past a
+// fade in from black, which is how a great many begin. A video too short for that to
+// make sense gives its middle.
+const double wantedAt = 5;
+// How much later than that the picture may be from, when a keyframe is being looked for
+// to take as it stands, or a picture that is not dark; and how far through the video at
+// most, so that it is not a picture of the ending.
+const double window = 10;
+const double latestShare = 0.7;
+// A picture this dim on the whole, black being 0 and white 1, says no more than a black
+// one, and a later one is looked for: no more than this many keyframes are tried, each
+// at least a second after the last.
+const double dark = 0.1;
+const int keyframesTried = 6;
+// How long may be spent decoding up to the moment wanted when there is no keyframe to
+// take, in milliseconds. A large video on a small processor does not get all the way in
+// that, and gives the picture it had got to.
+const qint64 decodingBudget = 2500;
 
 int outOfPatience(void *started)
 {
@@ -31,11 +49,15 @@ struct Video
     AVFormatContext *format = nullptr;
     AVCodecContext *decoder = nullptr;
     AVPacket *packet = av_packet_alloc();
+    // The frame that is being kept, and where one comes out of the decoder before it is
+    // known to be worth keeping
     AVFrame *frame = av_frame_alloc();
+    AVFrame *scratch = av_frame_alloc();
     int stream = -1;
 
     ~Video()
     {
+        av_frame_free(&scratch);
         av_frame_free(&frame);
         av_packet_free(&packet);
         avcodec_free_context(&decoder);
@@ -66,6 +88,163 @@ bool nextFrame(Video *video, bool keyframesOnly)
     // The end of the file: whatever the decoder is still holding.
     avcodec_send_packet(video->decoder, nullptr);
     return avcodec_receive_frame(video->decoder, video->frame) >= 0;
+}
+
+// A frame as a picture of the given size. `method` is how swscale is to go about it.
+QImage toImage(const AVFrame *frame, int width, int height, int method)
+{
+    const AVPixFmtDescriptor *description = av_pix_fmt_desc_get(AVPixelFormat(frame->format));
+    const bool hasAlpha = description && (description->flags & AV_PIX_FMT_FLAG_ALPHA);
+    QImage image(width, height, hasAlpha ? QImage::Format_ARGB32 : QImage::Format_RGB32);
+    if (image.isNull())
+        return {};
+    SwsContext *scaler = sws_getContext(frame->width, frame->height, AVPixelFormat(frame->format), width, height,
+                                        AV_PIX_FMT_RGB32, method, nullptr, nullptr, nullptr);
+    if (!scaler)
+        return {};
+    // High-definition video keeps its colours by a different rule from standard
+    // definition's; a file that does not say which is taken by its size.
+    const bool hd = frame->colorspace == AVCOL_SPC_BT709
+                    || (frame->colorspace == AVCOL_SPC_UNSPECIFIED && frame->height >= 720);
+    const int *coefficients = sws_getCoefficients(hd ? SWS_CS_ITU709 : SWS_CS_ITU601);
+    sws_setColorspaceDetails(scaler, coefficients, frame->color_range == AVCOL_RANGE_JPEG,
+                             sws_getCoefficients(SWS_CS_DEFAULT), 1, 0, 1 << 16, 1 << 16);
+    uint8_t *lines[4] = {image.bits(), nullptr, nullptr, nullptr};
+    int strides[4] = {int(image.bytesPerLine()), 0, 0, 0};
+    sws_scale(scaler, frame->data, frame->linesize, 0, frame->height, lines, strides);
+    sws_freeContext(scaler);
+    return image;
+}
+
+// How bright a frame is on the whole, from 0 for black to 1 for white: the average over
+// a few hundred points of it. A frame it cannot be told of counts as bright, and is
+// taken as it is.
+double brightnessOf(const AVFrame *frame)
+{
+    const QImage points = toImage(frame, 32, 18, SWS_POINT);
+    if (points.isNull())
+        return 1;
+    int sum = 0;
+    for (int y = 0; y < points.height(); ++y) {
+        for (int x = 0; x < points.width(); ++x)
+            sum += qGray(points.pixel(x, y));
+    }
+    return sum / (255.0 * points.width() * points.height());
+}
+
+// Reads on to the next keyframe of the video and says when it is to be shown, in the
+// stream's own units, leaving it in video->packet for whoever asked to decode or to
+// drop. False if none comes, or it does not say when.
+bool nextKeyframe(Video *video, int64_t *at)
+{
+    for (int read = 0; read < packetLimit && av_read_frame(video->format, video->packet) >= 0; ++read) {
+        if (video->packet->stream_index == video->stream && (video->packet->flags & AV_PKT_FLAG_KEY)) {
+            *at = video->packet->pts != AV_NOPTS_VALUE ? video->packet->pts : video->packet->dts;
+            return *at != AV_NOPTS_VALUE;
+        }
+        av_packet_unref(video->packet);
+    }
+    return false;
+}
+
+// Decodes the one keyframe that nextKeyframe() found, into video->scratch.
+bool decodeKeyframe(Video *video)
+{
+    avcodec_flush_buffers(video->decoder);
+    const bool sent = avcodec_send_packet(video->decoder, video->packet) >= 0;
+    av_packet_unref(video->packet);
+    // Nothing more is coming, so that the decoder gives the frame up at once.
+    avcodec_send_packet(video->decoder, nullptr);
+    return sent && avcodec_receive_frame(video->decoder, video->scratch) >= 0;
+}
+
+// Makes the frame in video->scratch the one kept, in video->frame.
+void keep(Video *video)
+{
+    av_frame_unref(video->frame);
+    av_frame_move_ref(video->frame, video->scratch);
+}
+
+// The cheap way to a picture from `from` or soon after (both in the stream's own
+// units, as is `last`, the latest it may be from): a keyframe is a whole picture by
+// itself, and one that comes in that stretch is taken as it stands. If it is dark the
+// next is tried, a second or more further on, and so on for a few; the brightest of
+// those tried is what is left in video->frame. False if there is no keyframe in the
+// stretch at all, which leaves the other way.
+bool keyframeFrom(Video *video, int64_t from, int64_t last, int64_t second)
+{
+    double best = -1;
+    for (int tried = 0; tried < keyframesTried; ++tried) {
+        int64_t at = 0;
+        if (av_seek_frame(video->format, video->stream, from, 0) < 0 || !nextKeyframe(video, &at))
+            break;
+        if (at < from || at > last) {
+            av_packet_unref(video->packet);
+            break;
+        }
+        if (!decodeKeyframe(video))
+            break;
+        const double brightness = brightnessOf(video->scratch);
+        if (brightness > best) {
+            best = brightness;
+            keep(video);
+        }
+        if (brightness >= dark)
+            break;
+        from = at + second;
+    }
+    return best >= 0;
+}
+
+// The other way: from the keyframe before the moment, every frame up to it, which is
+// what a player does to show an exact moment. The file having been sought to that
+// keyframe, this decodes on until the frame for `target` comes out and leaves it in
+// video->frame; if that frame is dark it goes on, looking at one every `step`, as far
+// as `last`, and what is left is the brightest it looked at. If `budget` milliseconds
+// of `clock` run out before the moment is reached, or the file ends, what is left is
+// the latest frame there was. False if no frame came out at all.
+bool frameAt(Video *video, int64_t target, int64_t last, int64_t step, const QElapsedTimer &clock, qint64 budget)
+{
+    bool got = false;
+    bool ended = false;
+    // Negative until a frame has been looked at for how bright it is
+    double best = -1;
+    int64_t next = target;
+    for (int read = 0; read < packetLimit && !ended; ++read) {
+        if (av_read_frame(video->format, video->packet) >= 0) {
+            if (video->packet->stream_index == video->stream)
+                avcodec_send_packet(video->decoder, video->packet);
+            av_packet_unref(video->packet);
+        } else {
+            // The end of the file: whatever the decoder is still holding.
+            avcodec_send_packet(video->decoder, nullptr);
+            ended = true;
+        }
+        while (avcodec_receive_frame(video->decoder, video->scratch) >= 0) {
+            const int64_t at = video->scratch->best_effort_timestamp;
+            if (at != AV_NOPTS_VALUE && at < next) {
+                // Not there yet. Until there is a frame from the moment itself, the
+                // one got to is the one to have.
+                if (best < 0) {
+                    keep(video);
+                    got = true;
+                }
+                continue;
+            }
+            const double brightness = brightnessOf(video->scratch);
+            if (brightness > best) {
+                best = brightness;
+                keep(video);
+                got = true;
+            }
+            if (brightness >= dark || at == AV_NOPTS_VALUE || at >= last)
+                return true;
+            next = at + step;
+        }
+        if (clock.elapsed() > budget)
+            break;
+    }
+    return got;
 }
 
 // How far the video is to be turned to be upright, in degrees clockwise: a phone
@@ -129,16 +308,44 @@ QImage grabVideoFrame(const QString &path, int width)
     // One frame is wanted, and several files are done at once: threads within a
     // decoder would only get in each other's way.
     video.decoder->thread_count = 1;
-    video.decoder->skip_frame = AVDISCARD_NONKEY;
     if (avcodec_open2(video.decoder, codec, nullptr) < 0)
         return {};
 
-    // A tenth of the way in, five seconds at most; from the start if the length is not known.
+    // How long the video is, and where its clock starts. The file as a whole only says
+    // once its streams have been looked into, which was passed over above where it
+    // could be; the video's own stream says at once.
+    int64_t duration = video.format->duration;
+    if (duration <= 0 && stream->duration > 0)
+        duration = av_rescale_q(stream->duration, stream->time_base, AV_TIME_BASE_Q);
+    int64_t start = video.format->start_time;
+    if (start == AV_NOPTS_VALUE)
+        start = stream->start_time != AV_NOPTS_VALUE ? av_rescale_q(stream->start_time, stream->time_base, AV_TIME_BASE_Q) : 0;
+
+    // Five seconds in, or half way through a video shorter than ten; from the start if
+    // the length is not known.
     bool got = false;
-    if (video.format->duration > 0) {
-        const int64_t target = qMin<int64_t>(video.format->duration / 10, 5 * AV_TIME_BASE);
-        if (av_seek_frame(video.format, -1, target, AVSEEK_FLAG_BACKWARD) >= 0)
-            got = nextFrame(&video, true);
+    if (duration > 0) {
+        const AVRational units = stream->time_base;
+        const auto inUnits = [units](double seconds) {
+            return av_rescale_q(int64_t(seconds * AV_TIME_BASE), AV_TIME_BASE_Q, units);
+        };
+        const double length = duration / double(AV_TIME_BASE);
+        const double wanted = qMin(wantedAt, length / 2);
+        const int64_t first = av_rescale_q(start, AV_TIME_BASE_Q, units);
+        const int64_t target = first + inUnits(wanted);
+        const int64_t last = first + inUnits(qMax(wanted, qMin(wanted + window, length * latestShare)));
+
+        got = keyframeFrom(&video, target, last, inUnits(1));
+        if (!got) {
+            avcodec_flush_buffers(video.decoder);
+            // Frames that nothing after them is built from can be passed over.
+            video.decoder->skip_frame = AVDISCARD_NONREF;
+            if (av_seek_frame(video.format, video.stream, target, AVSEEK_FLAG_BACKWARD) >= 0) {
+                QElapsedTimer decoding;
+                decoding.start();
+                got = frameAt(&video, target, last, inUnits(0.5), decoding, decodingBudget);
+            }
+        }
     }
     if (!got) {
         // Not every file marks its keyframes, or can be sought in. From the top, then,
@@ -164,29 +371,11 @@ QImage grabVideoFrame(const QString &path, int width)
     const int scaledWidth = qMax(1, qRound(shownWidth * scale));
     const int scaledHeight = qMax(1, qRound(frame->height * scale));
 
-    const AVPixFmtDescriptor *description = av_pix_fmt_desc_get(AVPixelFormat(frame->format));
-    const bool hasAlpha = description && (description->flags & AV_PIX_FMT_FLAG_ALPHA);
-    QImage image(scaledWidth, scaledHeight, hasAlpha ? QImage::Format_ARGB32 : QImage::Format_RGB32);
-    if (image.isNull())
-        return {};
-
     // Averaging over the area each new pixel covers is the right way to make a picture
     // much smaller, and quick.
-    SwsContext *scaler = sws_getContext(frame->width, frame->height, AVPixelFormat(frame->format), scaledWidth,
-                                        scaledHeight, AV_PIX_FMT_RGB32, SWS_AREA, nullptr, nullptr, nullptr);
-    if (!scaler)
+    const QImage image = toImage(frame, scaledWidth, scaledHeight, SWS_AREA);
+    if (image.isNull())
         return {};
-    // High-definition video keeps its colours by a different rule from standard
-    // definition's; a file that does not say which is taken by its size.
-    const bool hd = frame->colorspace == AVCOL_SPC_BT709
-                    || (frame->colorspace == AVCOL_SPC_UNSPECIFIED && frame->height >= 720);
-    const int *coefficients = sws_getCoefficients(hd ? SWS_CS_ITU709 : SWS_CS_ITU601);
-    sws_setColorspaceDetails(scaler, coefficients, frame->color_range == AVCOL_RANGE_JPEG,
-                             sws_getCoefficients(SWS_CS_DEFAULT), 1, 0, 1 << 16, 1 << 16);
-    uint8_t *lines[4] = {image.bits(), nullptr, nullptr, nullptr};
-    int strides[4] = {int(image.bytesPerLine()), 0, 0, 0};
-    sws_scale(scaler, frame->data, frame->linesize, 0, frame->height, lines, strides);
-    sws_freeContext(scaler);
 
     return rotation == 0 ? image : image.transformed(QTransform().rotate(rotation));
 }

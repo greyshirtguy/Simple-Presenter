@@ -423,6 +423,11 @@ dragged from the bin onto a slide starts out on the slide as it was in the bin.
 In the files this is what ProPresenter keeps: the layer a media action is on, and
 whether its video loops. Media set up there behaves here as it was set there.
 
+A video's thumbnail is a picture from about five seconds into it (or from the middle of
+one shorter than ten seconds), and a little later than that if the picture there is
+nearly black: a great many videos fade in from black, and their first frame says
+nothing about which video it is.
+
 Under the previews are the four **clears**: everything (F1), the slide (F2), the media
 (F3) and the props (F4), each red while there is something there for it to clear. Under
 those is the
