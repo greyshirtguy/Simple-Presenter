@@ -38,6 +38,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3" date="2026-10-07">
+      <description>
+        <p>
+          A foreground video is played with its sound. Media can be dragged in from the file manager: onto a
+          slide, between two slides, where it gets a slide of its own, or into the media bin. A video's
+          thumbnail is a picture from a little way into it, not its first frame. The output and stage
+          windows are kept out of Alt+Tab.
+        </p>
+      </description>
+    </release>
     <release version="0.2" date="2026-10-07">
       <description>
         <p>
