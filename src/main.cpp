@@ -72,10 +72,15 @@
 //     made on worker threads, once, and kept on disk (src/thumbnailprovider.h); a
 //     still put on the output is read on another thread and brought in when it is
 //     ready (qml/MediaContent.qml).
-//   - Nothing runs when nothing changes. With a still slide up, the app uses no
-//     processor time at all; a running timer has what shows it drawn again once a
-//     second, and the transport is drawn with the preview's frames, not by itself
+//   - Nothing is drawn when nothing changes. With a still slide up, the app does
+//     nothing but answer, once a second, the question of whether it is still answering
+//     (src/sessionlog.h); a running timer has what shows it drawn again once a second,
+//     and the transport is drawn with the preview's frames, not by itself
 //     (qml/Transport.qml).
+//
+// What happened last. Each run keeps a log (src/sessionlog.h) of what it is running on
+// and what it did, a line for each thing done, for when something goes wrong and there
+// is a question to ask. It is written as things happen and never as they are drawn.
 //
 // Never losing what is in a file. ProPresenter's files hold far more than this app
 // understands. Every change is made the same way: parse the whole file, alter only the
@@ -85,6 +90,7 @@
 
 #include "catalog.h"
 #include "selftest.h"
+#include "sessionlog.h"
 #include "thumbnailprovider.h"
 
 #include <QCommandLineParser>
@@ -131,10 +137,14 @@ static void chooseWindowSystem(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     chooseWindowSystem(argc, argv);
+    // The log is opened before anything else is tried, so that whatever goes wrong in
+    // starting up, down to there being no way to put a window on the screen, is in it.
+    SessionLog::start(argc, argv, QStringLiteral(APP_VERSION));
     QGuiApplication app(argc, argv);
     QGuiApplication::setOrganizationName("SimplePresenter");
     QGuiApplication::setApplicationName("SimplePresenter");
     QGuiApplication::setApplicationVersion(QStringLiteral(APP_VERSION));
+    SessionLog::describeDisplay();
 
     // Workspaces are folders side by side in here; each holds everything for one setup.
     const QString workspacesDirectory =
@@ -174,6 +184,8 @@ int main(int argc, char *argv[])
         outputScreen = findScreen(parser.value(screenOption));
         if (outputScreen < 0) {
             err << "No such screen: " << parser.value(screenOption) << " (try --list-screens)\n";
+            SessionLog::write("PROBLEM", QStringLiteral("No such screen as the one asked for, \"%1\". The app stops here.").arg(parser.value(screenOption)));
+            SessionLog::finish();
             return 1;
         }
     } else {
@@ -189,15 +201,20 @@ int main(int argc, char *argv[])
     // else the first there is, else a new one. The self-test ignores the one used last,
     // so that it does not depend on the user's saved session.
     QString workspace = parser.value(workspaceOption);
+    QString chosenAs = QStringLiteral("the one asked for on the command line");
     if (workspace.isEmpty() && !parser.isSet(selfTestOption)) {
         const QString last = QSettings("SimplePresenter", "SimplePresenter").value("workspace").toString();
-        if (!last.isEmpty() && QDir(last).exists())
+        if (!last.isEmpty() && QDir(last).exists()) {
             workspace = last;
+            chosenAs = QStringLiteral("the one used last");
+        }
     }
     if (workspace.isEmpty()) {
         const QStringList existing = QDir(workspacesDirectory).entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
         workspace = workspacesDirectory + "/" + (existing.isEmpty() ? QStringLiteral("Default") : existing.first());
+        chosenAs = existing.isEmpty() ? QStringLiteral("a new one, there being none") : QStringLiteral("the first there is");
     }
+    SessionLog::write("workspace", QStringLiteral("opening %1 (%2)").arg(workspace, chosenAs));
     Catalog catalog(workspace);
 
     QQmlApplicationEngine engine;
@@ -215,8 +232,11 @@ int main(int argc, char *argv[])
     engine.loadFromModule("SimplePresenterApp", "Main");
 
     auto *operatorWindow = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0));
-    if (!operatorWindow)
+    if (!operatorWindow) {
+        SessionLog::write("PROBLEM", QStringLiteral("The app's window could not be made: see what Qt says above. The app stops here."));
+        SessionLog::finish();
         return 1;
+    }
 
     if (parser.isSet(selfTestOption)) {
         QQuickWindow *output = nullptr;
@@ -228,10 +248,15 @@ int main(int argc, char *argv[])
             else if (window->objectName() == "stage")
                 stage = qobject_cast<QQuickWindow *>(window);
         }
-        if (!output || !stage)
+        if (!output || !stage) {
+            SessionLog::finish();
             return 1;
+        }
         runSelfTest(operatorWindow, output, stage, parser.value(selfTestOption));
     }
 
-    return app.exec();
+    SessionLog::watchForStalls();
+    const int result = app.exec();
+    SessionLog::finish();
+    return result;
 }

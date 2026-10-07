@@ -163,6 +163,8 @@ qt_add_qml_module(SimplePresenter
         src/stagelayouts.cpp
         src/show.h
         src/show.cpp
+        src/sessionlog.h
+        src/sessionlog.cpp
 )
 
 # The transitions. Compiled by qsb for every graphics backend Qt can draw with, and loaded

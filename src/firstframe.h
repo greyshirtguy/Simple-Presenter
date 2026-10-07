@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QVideoFrame>
 #include <QVideoSink>
 #include <QtQml/qqmlregistration.h>
 
@@ -21,6 +22,10 @@ class FirstFrame : public QObject
     QML_ELEMENT
     Q_PROPERTY(QObject *sink READ sink WRITE setSink NOTIFY sinkChanged)
     Q_PROPERTY(bool arrived READ arrived NOTIFY arrivedChanged)
+    // What the first picture was, for the log: its size, how its colours are kept, and
+    // whether it came as a texture, which is how a video decoded by the graphics chip
+    // arrives, or in memory. Empty until it has arrived.
+    Q_PROPERTY(QString description READ description NOTIFY arrivedChanged)
 
 public:
     using QObject::QObject;
@@ -28,15 +33,17 @@ public:
     QObject *sink() const { return m_sink; }
     void setSink(QObject *sink);
     bool arrived() const { return m_arrived; }
+    QString description() const { return m_description; }
 
 signals:
     void sinkChanged();
     void arrivedChanged();
 
 private:
-    void setArrived(bool arrived);
+    void setArrived(bool arrived, const QVideoFrame &frame = {});
 
     QPointer<QVideoSink> m_sink;
     QMetaObject::Connection m_listening;
     bool m_arrived = false;
+    QString m_description;
 };

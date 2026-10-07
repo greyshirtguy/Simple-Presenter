@@ -1,6 +1,7 @@
 #include "playlistfile.h"
 
 #include "prodocument.h"
+#include "sessionlog.h"
 #include "workspacefiles.h"
 
 #include "propresenter.pb.h"
@@ -140,6 +141,7 @@ QString write(const QString &root, Kind kind, const rv::data::PlaylistDocument &
     if (!file.open(QIODevice::WriteOnly) || file.write(bytes.data(), qint64(bytes.size())) != qint64(bytes.size())
         || !file.commit())
         return QStringLiteral("Cannot write the playlists: %1").arg(file.errorString());
+    SessionLog::write("saved", pathOf(root, kind));
     return {};
 }
 

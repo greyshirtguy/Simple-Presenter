@@ -1,6 +1,7 @@
 import QtCore
 import QtQuick
 import QtQuick.Window
+import SimplePresenterApp
 
 // Base for the output and stage windows: a small floating window that stays in front of
 // the operator window, with a slim title bar of its own in place of the desktop's (drag
@@ -90,6 +91,8 @@ Window {
             wantFullScreen = true
         }
         restored = true
+        // What draws it, and when it is shown, hidden or moved, goes into the log.
+        Log.watch(win, title.toLowerCase() + " window")
         present()
     }
     onShownChanged: if (restored) present()

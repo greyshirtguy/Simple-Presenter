@@ -3,6 +3,7 @@
 #include "fontresolver.h"
 #include "rtf.h"
 #include "rtfwriter.h"
+#include "sessionlog.h"
 #include "timers.h"
 #include "workspacefiles.h"
 
@@ -526,6 +527,7 @@ QString writePresentation(const QString &path, const rv::data::Presentation &pre
     if (!file.open(QIODevice::WriteOnly) || file.write(bytes.data(), qint64(bytes.size())) != qint64(bytes.size())
         || !file.commit())
         return QStringLiteral("Cannot write %1: %2").arg(QFileInfo(path).fileName(), file.errorString());
+    SessionLog::write("saved", path);
     return {};
 }
 

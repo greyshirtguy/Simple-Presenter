@@ -168,7 +168,18 @@ that is drawn has moved.
 cd build && cpack
 ```
 
-writes the same `.deb` as on the Releases page.
+writes the same `.deb` as on the Releases page. The program in it has had its names
+taken out, which is most of what keeps it small, so a crash's account of where the app
+was (see [Log](#log)) gives the places inside the app as numbers. The list that turns
+those numbers back into names is made from the program as it was built, and belongs
+with the package it was made for:
+
+```
+nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.2_symbols.txt.xz
+```
+
+A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of
+that list whose number is not greater than `8ae5ac`.
 
 ## Built for modest hardware
 
@@ -178,7 +189,7 @@ with Intel HD 620 graphics. On it, at the time of writing:
 | | |
 |---|---|
 | Starting, to the first frame on screen | 0.7 to 0.9 seconds |
-| Sitting with a still slide on the output | no processor time at all |
+| Sitting with a still slide on the output | next to nothing: three hundredths of a percent of one processor core, which is the app being asked once a second whether it is still answering (see [Log](#log)) |
 | A 4K video under lyrics, full screen at 1080p | the graphics chip a third busy (it is a quarter busy with only the desktop on screen); 5 to 7% of one processor core |
 | Showing the slides of a presentation just picked | about 70 ms |
 | Thumbnails for 112 videos, 47 of them 4K, the first time they are seen | 2.5 seconds, while the window stays responsive |
@@ -188,8 +199,8 @@ with Intel HD 620 graphics. On it, at the time of writing:
 What gets it there:
 
 - **Nothing is drawn twice.** A slide's text is turned into a picture once, when the
-  slide is shown, and from then on costs the graphics chip one rectangle. Nothing runs
-  while nothing changes.
+  slide is shown, and from then on costs the graphics chip one rectangle. Nothing is
+  drawn while nothing changes.
 - **A transition costs only while it runs.** It is one shader blending two textures.
   Between transitions nothing is blended and the output is drawn directly; going
   through the blend all the time, as the app once did, kept the graphics chip twice as
@@ -221,6 +232,9 @@ What gets it there:
   have changed are cleared, drawn and sent to the graphics chip again, which brings it
   to about a tenth of a core. In the thumbnails, where hundredths cannot be read, it
   is five times a second.
+- **The log is written when something happens, never when something is drawn.** A line
+  of it costs four millionths of a second and is handed to the system at once: nothing
+  waits for the disk, and nothing is written for a frame. See [Log](#log).
 
 ## How it works
 
@@ -309,6 +323,10 @@ QT_LOGGING_RULES="qt.multimedia.ffmpeg*=true" ./build/SimplePresenter 2>&1 | gre
 `Checking HW context: vaapi` followed by `Using above hw context` means that method is
 available, and `Selected format ... for hw` means a video is being decoded with it.
 `Could not create hw context` for every method means CPU decoding.
+
+The app's own [log](#log) has a line for each video that is played which says how its
+frames arrive: as textures, which is a video decoded by the graphics chip, or in
+memory, which is one decoded by the processor.
 
 The lines FFmpeg prints at startup about VDPAU or Vulkan failing are it trying methods
 the machine does not have, and are harmless.
@@ -589,6 +607,63 @@ In the editor:
 | Ctrl while dragging | No snapping |
 | F1 / F2 / F3 / F4 | The clears, as when showing |
 
+## Log
+
+Each run of the app keeps a log: a text file in `~/Documents/SimplePresenter/Logs`,
+named for when the app was started. It is there for working out what happened when
+something has gone wrong. It is written to be read by a person, and to be handed to an
+AI model, which makes good sense of one. The twenty most recent are kept, so the one
+from the time it went wrong is still there after the app has been started again.
+
+A log starts with what the app is running on: its version and Qt's, the system, the
+processor and memory, the screens, and what draws the windows, which is the graphics
+chip and its driver. After that there is a line for each thing that was done or that
+happened, with the time and the kind of thing it is:
+
+```
+10:03:18.915  open        "Move Of God" [Default], 43 slides, from the library "Demo"
+10:03:18.940  live        slide 1 of 43 of "Move Of God"; with its background video "Hopeful Horizon Bliss - 4K.mp4", looping
+10:03:19.045  media       video "Hopeful Horizon Bliss - 4K.mp4": first picture after 105 ms; 3840x2160, NV12, frames arriving as textures (decoded by the graphics chip); H264, 30 frames a second, 30.0 s long
+10:03:19.052  transition  media layer: Dissolve over 0.60 s, shaders/dissolve.frag.qsb
+10:03:19.645  transition  media layer: Dissolve done: 36 frames in 0.59 s, 61 a second
+```
+
+So it has slides going live, media and what each video turned out to be, transitions
+and how many frames each managed, clears, props, timers, the editor, files being saved,
+windows shown, hidden or moved to another screen, screens connected and disconnected,
+fonts that a presentation uses and the machine does not have, and whatever Qt itself
+says. Every five minutes a line says how much of a processor and how much memory the
+app has been using. It holds the names of files, presentations and playlists, and where
+they are on the disk, and nothing of what is in them: no words of any slide.
+
+A line whose second column is in capitals is something that went wrong:
+
+- `WARNING`, `ERROR`: what Qt, or a library under it, has complained of;
+- `PROBLEM`: something the app could not do, including every error it showed;
+- `STALLED`: the app has not answered for two seconds, because it is busy or stuck.
+  A `recovered` line follows when it answers again, with how long it was;
+- `CRASH`: the app has stopped, with what stopped it and where it was at the time.
+
+The case it is for above all is the app stopping dead, which leaves nothing else to
+go on. A transition's shader is run by the graphics driver, and a driver that does not
+agree with one can take the app down with it. So a transition goes into the log before
+its shader is used, by name and by file: if nothing follows that line, it says which
+transition it was. A crash writes its own last lines: what stopped the app, and where
+it was at the time, as a list of places. Those in Qt, in the graphics driver and in the
+other libraries come with the names those libraries give out; those in the app itself
+are numbers, which the list of names made with each release turns back into names (see
+[Building from source](#building-from-source)). And the next run's log begins by saying
+so if the run before it crashed, was killed, or is still running.
+
+Keeping the log costs nothing that can be noticed. It is written when something
+happens, a few lines for a click, and never for a frame; each line is handed to the
+system as it is made, which takes four millionths of a second and waits for no disk,
+and is why the last line before a crash is in the file. What Qt says is kept within
+bounds: a message that repeats is counted and not written again, and of a flood one a
+second gets through. A log that grows past 2 MB carries on in a new file and keeps the
+one before, so a session's log is never more than twice that. The one thing done by
+the clock is the question put to the app once a second, to see that it is answering.
+
 ## Self-test
 
 ```
@@ -599,7 +674,8 @@ drives the app through a fixed sequence (a slide, a transition, the clears, a si
 trackpad swipe, then the editor brought up on a presentation with an element picked and
 its text being edited), saves frames from each window into `<dir>` as PNGs, and quits.
 It changes nothing in the workspace, neither reads nor changes saved settings, and opens
-the first workspace unless `--workspace` names one. The timers and the transport are
+the first workspace unless `--workspace` names one. Its [log](#log) goes into `<dir>`
+with the pictures, and not into Documents. The timers and the transport are
 held still for it, so that what they show does not depend on when it is run. Run it
 before and after a change to anything that draws, and compare the frames.
 
@@ -633,6 +709,7 @@ those.
 | `src/firstframe.*` | Says when a video has its first picture, so that it is not put on the output before |
 | `src/fontresolver.*` | Finds fonts by PostScript name through fontconfig |
 | `src/selftest.*` | The self-test |
+| `src/sessionlog.*` | The log of a run: what the app is running on, what it did, a crash's last lines, and the watch for the app not answering |
 | `qml/Main.qml` | The operator window: the app's state and logic |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props and stage screens |

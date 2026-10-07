@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Window
+import SimplePresenterApp
 
 // One layer of the output: the media layer, or the slide layer over it.
 //
@@ -26,11 +27,20 @@ import QtQuick.Window
 // delegate like that has a `ready` property, and a change to content that is not ready
 // waits for it: the layer goes on showing what it showed, with the incoming instance
 // out of sight, and the cut or the transition is made when the content can be seen.
+//
+// A shader is the one part of the app that is handed to the graphics driver to run, and
+// a driver that does not agree with one can take the whole app down with it. So each
+// transition is put in the log before its shader is used, by name and by file, and
+// again when it is over, with how many frames it was drawn in: the first says what was
+// being tried if nothing follows it, and the second how well the hardware keeps up.
 Item {
     id: layer
 
     // An Item with a `content` property; null content must render as nothing.
     required property Component delegate
+    // What the layer is called in the log, and what the transition is that `shader` is
+    property string name: "layer"
+    property string shaderName: ""
     // Transition shader to use for the next change, or "" to cut.
     property string shader: ""
     // What that shader is handed besides the two pictures and how far the transition has
@@ -64,6 +74,11 @@ Item {
     property vector4d activeOptions
     property vector4d activeTint
     property vector2d activeDirection
+    // For the log: what the transition under way is called, and when it began and how
+    // many frames the window had shown by then
+    property string activeName: ""
+    property double beganAt: 0
+    property int framesBefore: 0
     // The two instances as textures. Nothing draws these but the shader below, so while
     // it is hidden they cost nothing.
     property ShaderEffectSource textureA: ShaderEffectSource {
@@ -80,7 +95,7 @@ Item {
     function show(content) {
         if (transition.running) {
             transition.stop()
-            commit()
+            commit("cut short at " + Math.round(progress * 100) + "% by the next change")
         }
         // Whatever was being waited for is given up for this.
         patience.stop()
@@ -105,9 +120,15 @@ Item {
         waiting = false
         currentItem = (aIsFront ? holderB : holderA).item
         if (!animated) {
-            commit()
+            commit("")
             return
         }
+        // Into the log first, and only then to the graphics driver.
+        activeName = shaderName !== "" ? shaderName : "a transition"
+        beganAt = Date.now()
+        framesBefore = Log.frames(Window.window)
+        Log.note("transition", name + ": " + activeName + " over " + (duration / 1000).toFixed(2) + " s, " + shader.replace("qrc:/", "")
+                 + adjustments())
         activeShader = shader
         activeOptions = options
         activeTint = tint
@@ -116,7 +137,28 @@ Item {
         transition.start()
     }
 
-    function commit() {
+    // What the transition has been set to, where that is anything but nothing, for the log
+    function adjustments() {
+        const plain = (numbers) => numbers.map(number => +number.toFixed(3)).join(", ")
+        const parts = []
+        if (options.x !== 0 || options.y !== 0 || options.z !== 0 || options.w !== 0)
+            parts.push("options " + plain([options.x, options.y, options.z, options.w]))
+        if (tint.x !== 0 || tint.y !== 0 || tint.z !== 0 || tint.w !== 0)
+            parts.push("colour " + plain([tint.x, tint.y, tint.z, tint.w]))
+        if (direction.x !== 0 || direction.y !== 0)
+            parts.push("direction " + plain([direction.x, direction.y]))
+        return parts.length > 0 ? "; " + parts.join("; ") : ""
+    }
+
+    // Makes the incoming instance the one on show. `how` says how a transition came to
+    // its end, for the log, or is "" if there was none.
+    function commit(how) {
+        if (how !== "") {
+            const frames = Log.frames(Window.window) - framesBefore
+            const seconds = (Date.now() - beganAt) / 1000
+            Log.note("transition", name + ": " + activeName + " " + how + ": " + frames + " frames in " + seconds.toFixed(2) + " s"
+                     + (seconds >= 0.1 ? ", " + Math.round(frames / seconds) + " a second" : ""))
+        }
         const outgoing = aIsFront ? holderA : holderB
         aIsFront = !aIsFront
         progress = 0
@@ -159,7 +201,10 @@ Item {
         id: patience
 
         interval: 1000
-        onTriggered: layer.begin()
+        onTriggered: {
+            Log.note("media", layer.name + ": what was asked for has no picture after a second, and is not waited for any longer")
+            layer.begin()
+        }
     }
 
     ShaderEffect {
@@ -177,6 +222,10 @@ Item {
         anchors.fill: parent
         visible: layer.blending
         fragmentShader: layer.activeShader
+        onStatusChanged: {
+            if (status === ShaderEffect.Error)
+                Log.problem(layer.name + ": the graphics driver would not take the shader " + layer.activeShader + ". It says: " + log)
+        }
     }
 
     NumberAnimation {
@@ -187,6 +236,6 @@ Item {
         from: 0
         to: 1
         easing.type: Easing.InOutQuad
-        onFinished: layer.commit()
+        onFinished: layer.commit("done")
     }
 }

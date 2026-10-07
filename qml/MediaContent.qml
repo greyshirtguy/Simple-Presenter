@@ -51,6 +51,11 @@ Item {
             Image {
                 id: picture
 
+                onStatusChanged: {
+                    if (status === Image.Error)
+                        Log.problem("The picture \"" + (root.content?.name ?? source) + "\" could not be read")
+                }
+
                 // What the picture is scaled by to fit, keeping its shape. Worked out here
                 // and not left to fillMode, which would also have a small picture decoded
                 // *up* to the size below.
@@ -86,6 +91,9 @@ Item {
             // to play
             readonly property bool ready: firstFrame.arrived || failed
             property bool failed: false
+            // For the log: what the file is called, and when it was asked for
+            readonly property string name: root.content?.name ?? ""
+            readonly property double askedAt: Date.now()
 
             MediaPlayer {
                 id: mediaPlayer
@@ -94,8 +102,13 @@ Item {
                 videoOutput: output
                 loops: root.content?.loops === false ? 1 : MediaPlayer.Infinite
                 onErrorOccurred: (error, errorString) => {
-                    console.warn("Media layer:", errorString)
+                    Log.problem("The video \"" + clip.name + "\" will not play: " + errorString)
                     clip.failed = true
+                }
+                // Only a video that plays once comes to an end.
+                onMediaStatusChanged: {
+                    if (mediaStatus === MediaPlayer.EndOfMedia)
+                        Log.note("media", "video \"" + clip.name + "\" has played to its end")
                 }
                 Component.onCompleted: play()
             }
@@ -114,6 +127,18 @@ Item {
                 id: firstFrame
 
                 sink: output.videoSink
+                // What the video turned out to be, which is what there is to go on when
+                // one stutters: how large it is, how it is encoded, and whether the
+                // graphics chip is decoding it.
+                onArrivedChanged: {
+                    if (!arrived)
+                        return
+                    const codec = mediaPlayer.metaData.stringValue(MediaMetaData.VideoCodec)
+                    const rate = Number(mediaPlayer.metaData.value(MediaMetaData.VideoFrameRate))
+                    Log.note("media", "video \"" + clip.name + "\": first picture after " + Math.round(Date.now() - clip.askedAt) + " ms; "
+                             + description + (codec ? "; " + codec : "") + (rate > 0 ? ", " + (+rate.toFixed(2)) + " frames a second" : "")
+                             + (mediaPlayer.duration > 0 ? ", " + (mediaPlayer.duration / 1000).toFixed(1) + " s long" : ""))
+                }
             }
         }
     }

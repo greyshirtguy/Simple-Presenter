@@ -1,5 +1,9 @@
 #include "fontresolver.h"
 
+#include "sessionlog.h"
+
+#include <QFont>
+#include <QFontInfo>
 #include <QHash>
 #include <QRegularExpression>
 
@@ -68,8 +72,15 @@ ResolvedFont resolvePostScriptName(const QString &postScriptName, const QString 
         return *cached;
 
     ResolvedFont font;
-    if (postScriptName.isEmpty() || !lookUpInstalled(postScriptName, &font))
+    if (postScriptName.isEmpty() || !lookUpInstalled(postScriptName, &font)) {
         font = guessFromName(postScriptName, familyHint);
+        // Said once for each font, which is how often it gets here: text set in a font
+        // that is missing is drawn in another, and does not look or fit as it was made to.
+        if (!postScriptName.isEmpty()) {
+            SessionLog::write("font", QStringLiteral("\"%1\" is not installed; text set in it is drawn in \"%2\"")
+                                          .arg(postScriptName, QFontInfo(QFont(font.family)).family()));
+        }
+    }
     cache.insert(key, font);
     return font;
 }

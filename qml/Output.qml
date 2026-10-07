@@ -22,6 +22,8 @@ AuxWindow {
     property vector4d tint
     property vector2d direction
     property int duration: 0
+    // What that transition is called, for the log
+    property string transitionName: ""
     // The QVideoSink of the video on the media layer, or null; lets a preview borrow its frames.
     readonly property var liveVideoSink: mediaLayer.currentItem ? mediaLayer.currentItem.videoSink : null
     // The MediaPlayer of the video on the media layer, or null; lets a transport control work it.
@@ -76,6 +78,8 @@ AuxWindow {
         id: mediaLayer
 
         anchors.fill: parent
+        name: "media layer"
+        shaderName: win.transitionName
         shader: win.shader
         options: win.options
         tint: win.tint
@@ -94,6 +98,8 @@ AuxWindow {
         id: slideLayer
 
         anchors.fill: parent
+        name: "slide layer"
+        shaderName: win.transitionName
         shader: win.shader
         options: win.options
         tint: win.tint

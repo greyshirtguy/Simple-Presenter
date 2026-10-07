@@ -184,8 +184,10 @@ Rectangle {
     function report(error) {
         notice = error
         noticeIsError = true
-        if (error !== "")
+        if (error !== "") {
             noticeTimer.restart()
+            Log.problem("Shown in the editor: " + error)
+        }
         return error === ""
     }
 

@@ -46,6 +46,11 @@ import SimplePresenterApp
 // it has always had or one of the workspace's stage layouts (`StageLayouts`), which is
 // a slide of text boxes linked to what is live; those boxes ask `Show` (src/show.h),
 // which this window keeps told of the live slide and the next.
+//
+// What is done here goes into the session's log as it is done (`Log`,
+// src/sessionlog.h): a line for a slide going live, for media, for a clear, for an
+// error shown, and so on. That is all a line costs, so there is one wherever knowing
+// what happened last could help, and none in anything that runs for every frame.
 Window {
     id: win
 
@@ -237,11 +242,58 @@ Window {
     }
 
     function openEntry(entry) {
-        if (!openable(entry))
+        if (!openable(entry)) {
+            if (entry.kind === "presentation")
+                Log.problem("The presentation " + quoted(entry.name) + " is listed in " + browsing() + " but its file is not in the workspace")
             return
+        }
         documentKey = entry.path
         document = load(entry)
         grid.positionViewAtBeginning()
+        Log.note("open", quoted(document.name) + (document.arrangement !== "" ? " [" + document.arrangement + "]" : "") + ", "
+                 + counted(document.slides.length, "slide", "slides") + ", from " + browsing())
+        if (document.error !== "")
+            Log.problem("Opening " + quoted(document.name) + ": " + document.error)
+    }
+
+    // For the log: a name in quotes; what is being browsed; and media in a few words.
+    function quoted(name) {
+        return "\"" + name + "\""
+    }
+
+    function browsing() {
+        const playlist = catalog.playlists.find(p => p.path === playlistId)
+        const library = catalog.libraries.find(l => l.path === libraryPath)
+        return playlist ? "the playlist " + quoted(playlist.name) : library ? "the library " + quoted(library.name) : "nowhere"
+    }
+
+    function mediaWords(media) {
+        return (media.foreground ? "foreground " : "background ") + (media.video ? "video " : "picture ") + quoted(media.name)
+               + (media.video && media.loops ? ", looping" : "")
+    }
+
+    function counted(count, one, many) {
+        return count + " " + (count === 1 ? one : many)
+    }
+
+    // What the workspace holds, and how the app is set, said once when each is known.
+    function logWorkspace() {
+        const props = Props.collections.reduce((count, collection) => count + collection.props.length, 0)
+        Log.note("workspace", quoted(catalog.workspaceName) + " at " + catalog.workspacePath + ": "
+                 + counted(catalog.libraries.length, "library", "libraries") + ", "
+                 + counted(catalog.playlists.filter(p => !p.folder).length, "playlist", "playlists") + ", "
+                 + counted(catalog.mediaPlaylists.filter(p => !p.folder).length, "media playlist", "media playlists") + ", "
+                 + counted(Timers.timers.length, "timer", "timers") + ", " + counted(props, "prop", "props") + ", "
+                 + counted(StageLayouts.layouts.length, "stage layout", "stage layouts"))
+    }
+
+    function logSettings() {
+        Log.note("settings", "transition " + quoted(transition.name) + " over " + transitionDuration + " s; output window "
+                 + (outputEnabled ? "on" : "off") + (outputScreen >= 0 ? ", fullscreen on screen " + outputScreen : "")
+                 + "; stage window " + (stageEnabled ? "on" : "off") + ", with "
+                 + (stageLayout ? "the layout " + quoted(stageLayout.name) : "the plain view") + "; media bin "
+                 + (mediaBinVisible ? "shown" : "hidden") + "; this window " + width + "x" + height
+                 + (useX11 ? "; set to run through X11" : "") + (remember ? "" : "; settings neither read nor saved"))
     }
 
     function openDocument(key) {
@@ -412,6 +464,8 @@ Window {
     function report(error) {
         notice = error
         noticeIsError = true
+        if (error !== "")
+            Log.problem("Shown to the user: " + error)
         return error === ""
     }
 
@@ -544,6 +598,7 @@ Window {
         notice = ""
         editing = true
         editScreen.takeFocus()
+        Log.note("edit", "the editor opened on " + quoted(entry.name) + ", slide " + (editScreen.canvas.row + 1))
         // A cue that only triggers media has no slide to work on.
         if (slide !== "" && editScreen.editor.rowOf(slide) < 0)
             editScreen.tell(editScreen.editor.count === 0
@@ -585,6 +640,7 @@ Window {
         notice = ""
         editing = true
         editScreen.takeFocus()
+        Log.note("edit", "the editor opened on the props, prop " + (editScreen.canvas.row + 1) + " of " + editScreen.editor.count)
     }
 
     function startEditingStage(id) {
@@ -593,6 +649,7 @@ Window {
         notice = ""
         editing = true
         editScreen.takeFocus()
+        Log.note("edit", "the editor opened on the stage layouts, layout " + (editScreen.canvas.row + 1) + " of " + editScreen.editor.count)
     }
 
     // Takes the editor down and shows the presentation as it now is. What is on the
@@ -606,6 +663,7 @@ Window {
         const kind = editScreen.editor.kind
         editScreen.close()
         editing = false
+        Log.note("edit", "the editor closed; " + (changed ? "what was changed was saved as it was made" : "nothing was changed"))
         keys.forceActiveFocus()
         if (listsStale) {
             listsStale = false
@@ -713,6 +771,17 @@ Window {
         liveKey = documentKey
         livePlaylistId = playlistId
         cleared = false
+        Log.note("live", "slide " + (index + 1) + " of " + document.slides.length + " of " + quoted(document.name)
+                 + (slide.label !== "" ? " (" + slide.label + ")" : "")
+                 + (slide.media ? (alreadyPlaying(slide.media) ? "; its " + mediaWords(slide.media) + " is playing already"
+                                                                : "; with its " + mediaWords(slide.media))
+                    : slide.mediaName !== "" ? "; its media " + quoted(slide.mediaName) + " was not found"
+                    : liveMedia !== null && liveMedia.foreground ? "; which takes off the foreground media" : "")
+                 + (slide.timerActions.length > 0 ? "; and does " + slide.timerActions.length + " thing"
+                                                    + (slide.timerActions.length === 1 ? "" : "s") + " to a timer" : ""))
+        if (!slide.media && slide.mediaName !== "")
+            Log.problem("The media " + quoted(slide.mediaName) + " of slide " + (index + 1) + " of " + quoted(document.name)
+                        + " was not found in the workspace, so the slide is shown without it")
         // What the slide's cue does to timers, such as starting the countdown it shows
         for (const action of slide.timerActions)
             Timers.act(action)
@@ -743,6 +812,7 @@ Window {
     // from, if it was.
     function showMedia(media, playlist = "") {
         const playing = alreadyPlaying(media)
+        Log.note("media", mediaWords(media) + (playing ? ", which is playing already and is left to" : ""))
         liveMedia = media
         liveMediaPlaylistId = playlist
         if (!playing)
@@ -839,6 +909,7 @@ Window {
     function clearSlide() {
         if (cleared)
             return
+        Log.note("clear", "the slide")
         cleared = true
         output.showSlide(null)
     }
@@ -846,6 +917,7 @@ Window {
     function clearMedia() {
         if (liveMedia === null)
             return
+        Log.note("clear", "the media, " + quoted(liveMedia.name))
         liveMedia = null
         liveMediaPlaylistId = ""
         output.showMedia(null)
@@ -855,24 +927,31 @@ Window {
     // that are on already, or off if it is on. A collection set to show one prop at a
     // time gives up whichever of its others is on.
     function toggleProp(id) {
+        const prop = Props.find(id)
         if (liveProps.includes(id)) {
             liveProps = liveProps.filter(other => other !== id)
+            Log.note("prop", quoted(prop.name ?? "") + " off; " + liveProps.length + " on")
             return
         }
-        const prop = Props.find(id)
         if (prop.id === undefined)
             return
         const collection = Props.collections.find(candidate => candidate.id === prop.collection)
         const rivals = prop.single && collection ? collection.props.map(other => other.id) : []
+        const before = liveProps.length
         liveProps = liveProps.filter(other => !rivals.includes(other)).concat([id])
+        Log.note("prop", quoted(prop.name) + " on" + (liveProps.length <= before ? ", in place of another of its collection" : "")
+                 + "; " + liveProps.length + " on")
     }
 
     function clearProps() {
-        if (liveProps.length > 0)
-            liveProps = []
+        if (liveProps.length === 0)
+            return
+        Log.note("clear", "the props, " + liveProps.length + " of them")
+        liveProps = []
     }
 
     function clearAll() {
+        Log.note("clear", "everything asked for")
         clearSlide()
         clearMedia()
         clearProps()
@@ -945,9 +1024,12 @@ Window {
         if (["timers", "props", "stage"].includes(tab))
             sidePanel.showControlTab = tab
         openShowControls(catalog.workspacePath)
+        Log.watch(win, "operator window")
+        logWorkspace()
         restoreSelections()
         restored = true
         save("workspace", catalog.workspacePath)
+        logSettings()
     }
 
     // What is selected is remembered for each workspace by name. Paths inside the
@@ -1000,6 +1082,7 @@ Window {
     function switchWorkspace(path) {
         if (path === catalog.workspacePath)
             return
+        Log.note("workspace", "changing to " + path)
         clearAll()
         // Nothing is saved while the selections are in between the two workspaces.
         restored = false
@@ -1019,6 +1102,7 @@ Window {
         catalog.openWorkspace(path)
         // The timers, the props and the stage layouts are the workspace's too.
         openShowControls(path)
+        logWorkspace()
         restoreSelections()
         restored = true
         save("workspace", path)
@@ -1050,9 +1134,17 @@ Window {
     onOutputEnabledChanged: save("outputEnabled", outputEnabled)
     onStageEnabledChanged: save("stageEnabled", stageEnabled)
     onGroupsChanged: save("groups", JSON.stringify(groups))
-    onUseX11Changed: save("useX11", useX11)
+    onUseX11Changed: {
+        save("useX11", useX11)
+        if (restored)
+            Log.note("settings", "set to run through " + (useX11 ? "X11" : "Wayland") + " from the next start")
+    }
     // Not `transition.name`: that follows the index too, and may not have caught up yet.
-    onTransitionIndexChanged: save("transition", transitions[transitionIndex].name)
+    onTransitionIndexChanged: {
+        save("transition", transitions[transitionIndex].name)
+        if (restored)
+            Log.note("transition", "chosen: " + transitions[transitionIndex].name)
+    }
     onTransitionChoicesChanged: save("transitionOptions", JSON.stringify(transitionChoices))
     onTransitionDurationChanged: save("transitionDuration", transitionDuration)
     onLibraryPathChanged: {
@@ -1062,7 +1154,13 @@ Window {
     onPlaylistIdChanged: saveSelection("playlist", playlistId)
     onDocumentKeyChanged: saveSelection("presentation", documentKey)
     onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
-    onStageLayoutIdChanged: saveSelection("stageLayout", stageLayoutId)
+    onStageLayoutIdChanged: {
+        saveSelection("stageLayout", stageLayoutId)
+        // (Found here, and not read from `stageLayout`, which may not have followed yet.)
+        const layout = StageLayouts.layouts.find(candidate => candidate.id === stageLayoutId)
+        if (restored)
+            Log.note("stage", layout ? "the stage has the layout " + quoted(layout.name) : "the stage has the plain view")
+    }
 
     TransitionCatalogue {
         id: transitionCatalogue
@@ -1119,6 +1217,7 @@ Window {
         function onImportFinished(error, summary, playlist) {
             if (!win.report(error))
                 return
+            Log.note("import", "done: " + summary)
             win.notice = "Imported " + summary + "."
             win.noticeIsError = false
             if (playlist !== "")
@@ -1158,6 +1257,7 @@ Window {
         tint: win.transitionUniforms.tint
         direction: win.transitionUniforms.direction
         duration: Math.round(win.transitionDuration * 1000)
+        transitionName: win.transition.name
         props: win.shownProps
         propsDuration: Math.round(Props.transitionDuration * 1000)
         keyTarget: keys

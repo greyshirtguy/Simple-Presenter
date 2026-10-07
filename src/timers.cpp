@@ -1,5 +1,6 @@
 #include "timers.h"
 
+#include "sessionlog.h"
 #include "workspacefiles.h"
 
 #include <QDir>
@@ -161,6 +162,7 @@ QString Timers::write(const rv::data::TimersDocument &document)
     if (!file.open(QIODevice::WriteOnly) || file.write(data.data(), qint64(data.size())) != qint64(data.size())
         || !file.commit())
         return QStringLiteral("Cannot write the timers: %1").arg(file.errorString());
+    SessionLog::write("saved", path());
     // What slides had set is in the file now.
     m_setBySlides.clear();
     return {};
@@ -397,6 +399,7 @@ void Timers::start(const QString &id)
     run.shown = shownSeconds(*timer, now);
     if (!m_clock.isActive())
         m_clock.start();
+    SessionLog::write("timer", QStringLiteral("\"%1\" started, at %2").arg(QString::fromStdString(timer->name()), state(id).value("text").toString()));
     bump();
 }
 
@@ -408,6 +411,7 @@ void Timers::stop(const QString &id)
     Run &run = m_runs[id];
     run.base = seconds(*timer, run);
     run.running = false;
+    SessionLog::write("timer", QStringLiteral("\"%1\" stopped, at %2").arg(QString::fromStdString(timer->name()), state(id).value("text").toString()));
     bump();
 }
 
@@ -415,15 +419,22 @@ void Timers::reset(const QString &id)
 {
     m_runs.remove(id);
     startClockTimers();
+    if (const rv::data::Timer *timer = find(id))
+        SessionLog::write("timer", QStringLiteral("\"%1\" put back to its start").arg(QString::fromStdString(timer->name())));
     bump();
 }
 
 void Timers::act(const QVariantMap &action)
 {
     const rv::data::Timer *found = find(action.value("timerId").toString(), action.value("timerName").toString());
-    if (!found)
+    if (!found) {
+        // Nothing is said of it to whoever is running the show, but here it is worth a line.
+        SessionLog::write("timer", QStringLiteral("a slide's action is for a timer that is not here, \"%1\": nothing done")
+                                       .arg(action.value("timerName").toString()));
         return;
+    }
     const QString id = QString::fromStdString(found->uuid().string());
+    const QString name = QString::fromStdString(found->name());
 
     // Set up as the action says, if it says and the timer is not so already. That is
     // a change to the timer like one made by hand, except that nothing is written.
@@ -436,6 +447,7 @@ void Timers::act(const QVariantMap &action)
         *findIn(&document, id)->mutable_configuration() = configuration;
         m_runs.remove(id);
         show(document);
+        SessionLog::write("timer", QStringLiteral("\"%1\" set up anew by a slide's action").arg(name));
     }
 
     switch (action.value("action").toInt()) {
@@ -464,6 +476,7 @@ void Timers::act(const QVariantMap &action)
         run.fresh = false;
         if (run.running)
             run.since.start();
+        SessionLog::write("timer", QStringLiteral("\"%1\" given %2 seconds more by a slide's action").arg(name).arg(action.value("amount").toDouble()));
         bump();
         break;
     }

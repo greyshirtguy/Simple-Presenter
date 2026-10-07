@@ -2,6 +2,7 @@
 
 #include "playlistimport.h"
 #include "prodocument.h"
+#include "sessionlog.h"
 #include "thumbnailprovider.h"
 #include "workspacefiles.h"
 
@@ -279,6 +280,7 @@ void Catalog::importPlaylist(const QUrl &archive, const QString &library, const 
         return;
     m_importing = true;
     emit importingChanged();
+    SessionLog::write("import", QStringLiteral("started: ") + archive.toLocalFile());
 
     // With no library to put the presentations in, they get one of their own.
     const QString destination = library.isEmpty() ? QDir(m_librariesDirectory).absoluteFilePath("Imported") : library;
