@@ -2,6 +2,27 @@
 
 ![The Simple Presenter operator window: libraries and playlists at the top left with the selected playlist's presentations below them, a grid of slide thumbnails framed in their group colours with the media bin under it, and down the right the output and stage previews, the clear buttons, the transport for the video that is playing and the timers](docs/screenshot.png)
 
+> [!WARNING]
+> **This is a personal experiment, not a product.**
+>
+> Simple Presenter is one person's hobby project, and it is *vibe coded*: I describe
+> what it should do to an AI model (Claude), and the model writes the code. It exists
+> to find out how far that goes.
+>
+> So please take it for what it is:
+>
+> - **Nobody supports it.** There is no one to answer questions, fix bugs or add
+>   features, and no promise that anything here works, or will go on working.
+> - **It comes with no warranty** of any kind. Using it is at your own risk, and in
+>   front of a room full of people most of all.
+> - **It has been tried on one laptop**, with one person's ProPresenter files.
+> - **It changes the files it opens.** Give it a copy of your ProPresenter folder,
+>   never your only one.
+> - **It has nothing to do with Renewed Vision**, the makers of ProPresenter.
+>
+> You are very welcome to try it, read it, take it apart, fork it and borrow from it.
+> Just do not count on it.
+
 Simple Presenter is an experiment in vibe coding, and my first attempt at building
 something non-trivial that way: a presenter for Linux that works on a ProPresenter 7
 folder as it is. It has three goals.
@@ -32,6 +53,9 @@ playlist that has been exported from ProPresenter, and it has a simple
 
 ## TODO
 
+What is not there yet. It is a list of ideas, not of promises: see the note at the top
+of this page.
+
 - [ ] **Improve File Compatibility**: render more of what a `.pro` file can hold, such
       as gradients, shapes other than rectangles and image fills.
       Drawn so far: text with its fonts, colours, outline, shadow, capitals, underline
@@ -57,6 +81,9 @@ playlist that has been exported from ProPresenter, and it has a simple
       already has are run).
 
 ## Installing
+
+Being packaged does not make it a product. The note at the top of this page holds for
+the package as much as for the code: it is an experiment, passed on as it is.
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download
@@ -612,8 +639,10 @@ In the editor:
 Each run of the app keeps a log: a text file in `~/Documents/SimplePresenter/Logs`,
 named for when the app was started. It is there for working out what happened when
 something has gone wrong. It is written to be read by a person, and to be handed to an
-AI model, which makes good sense of one. The twenty most recent are kept, so the one
-from the time it went wrong is still there after the app has been started again.
+AI model, which makes good sense of one. It is not a line to a support desk: there is
+none. The twenty most recent are kept, so the one from the time it went wrong is still
+there after the app has been started again. The About section of the settings says
+which file is this run's, and has a button that opens the folder.
 
 A log starts with what the app is running on: its version and Qt's, the system, the
 processor and memory, the screens, and what draws the windows, which is the graphics
@@ -727,7 +756,8 @@ those.
 
 SimplePresenter is free software, licensed under the GNU Lesser General Public License
 version 3. See `COPYING.LESSER`, and `COPYING` for the GNU General Public License it
-builds on.
+builds on. It comes with no warranty: the licence says so at length, and the note at
+the top of this page in short.
 
 It uses, under their own licences:
 

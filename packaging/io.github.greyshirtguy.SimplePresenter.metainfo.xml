@@ -18,6 +18,11 @@
       It is a native application, made to run a show comfortably on modest and older
       computers. It is an independent project, not affiliated with Renewed Vision.
     </p>
+    <p>
+      This is a personal experiment in vibe coding, not a product: it was built by
+      describing it to an AI model, which wrote the code. Nobody supports it, and it comes
+      with no warranty of any kind.
+    </p>
   </description>
   <launchable type="desktop-id">io.github.greyshirtguy.SimplePresenter.desktop</launchable>
   <url type="homepage">https://github.com/greyshirtguy/Simple-Presenter</url>

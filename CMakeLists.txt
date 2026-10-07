@@ -258,7 +258,8 @@ set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Run ProPresenter presentations and media on a second screen")
 set(CPACK_PACKAGE_DESCRIPTION "A simple, lightweight presenter that works on ProPresenter 7 folders as they
 are: presentations, playlists and media, with a slide layer over a media layer, shader
-transitions, an audience output and a stage display.")
+transitions, an audience output and a stage display. A personal experiment in vibe
+coding, not a product: nobody supports it, and it comes with no warranty.")
 set(CPACK_PACKAGE_CONTACT "greyshirtguy <greyshirtguy@users.noreply.github.com>")
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/greyshirtguy/Simple-Presenter")
 set(CPACK_DEBIAN_PACKAGE_SECTION video)

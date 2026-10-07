@@ -1,9 +1,12 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import SimplePresenterApp
 
 // The settings screen, laid over the operator window: sections on the left, the selected
 // section's settings on the right. Edits are reported as they are made; nothing here
-// stores anything.
+// stores anything. The last section sets nothing: it says what the app is (an
+// experiment, and not a product, which whoever is using it should not have to find out
+// from anywhere else), which version this is, and where the log is.
 Rectangle {
     id: screen
 
@@ -20,8 +23,8 @@ Rectangle {
     // What the app is running on now: "wayland", "xcb" (X11), "windows", "cocoa", ...
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
-        ? [{ name: "Groups", path: "groups" }, { name: "Windows", path: "windows" }]
-        : [{ name: "Groups", path: "groups" }]
+        ? [{ name: "Groups", path: "groups" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
+        : [{ name: "Groups", path: "groups" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -309,6 +312,76 @@ Rectangle {
                     + "work for the graphics hardware and slightly softens the output.\n\n"
                     + "Takes effect the next time the app starts. Running now on: "
                     + (screen.platform === "xcb" ? "X11" : screen.platform === "wayland" ? "Wayland" : screen.platform) + "."
+            }
+        }
+
+        // About: what this is, which version, and where the log is
+        Column {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            spacing: 14
+            visible: screen.section === "about"
+
+            Text {
+                color: "#e6e6e6"
+                font.pixelSize: 17
+                text: "Simple Presenter " + Qt.application.version
+            }
+
+            // What it is, where it cannot be missed
+            Rectangle {
+                objectName: "whatThisIs"
+                width: parent.width
+                height: whatThisIs.implicitHeight + 24
+                radius: 6
+                color: "#2b2318"
+                border.width: 1
+                border.color: "#ff8a1f"
+
+                Text {
+                    id: whatThisIs
+
+                    x: 12
+                    y: 12
+                    width: parent.width - 24
+                    wrapMode: Text.Wrap
+                    textFormat: Text.StyledText
+                    color: "#e6e6e6"
+                    font.pixelSize: 14
+                    text: "<b>This is a personal experiment, not a product.</b><br><br>"
+                        + "Simple Presenter is one person's hobby project, and it is vibe coded: it was built by "
+                        + "describing it to an AI model, which wrote the code. Nobody supports it, nothing about "
+                        + "it is promised, and it comes with no warranty of any kind. Use it at your own risk, "
+                        + "and give it a copy of your ProPresenter folder, never your only one."
+                }
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: "It is free software, under the GNU Lesser General Public License, version 3, and has "
+                    + "nothing to do with Renewed Vision, the makers of ProPresenter.\n\n"
+                    + "Each time the app runs it keeps a log: a text file that says what it was running on and "
+                    + "what it did, for working out what happened when something has gone wrong. It holds the "
+                    + "names of files, presentations and playlists, and nothing of what is in them. The twenty "
+                    + "most recent are kept.\n\n"
+                    + (Log.path !== "" ? "This run's log is “" + Log.path.substring(Log.path.lastIndexOf("/") + 1) + "”, in "
+                                         + Log.folder + "."
+                                       : "No log is being kept this time: the folder for it could not be written to.")
+            }
+
+            AppButton {
+                objectName: "showLogsFolder"
+                height: 30
+                font.pixelSize: 13
+                text: "Show the Logs Folder"
+                enabled: Log.folder !== ""
+                onClicked: Log.showFolder()
             }
         }
     }
