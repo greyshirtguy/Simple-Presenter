@@ -44,8 +44,9 @@ It shows ProPresenter 7 `.pro` presentations on a slide layer over a media layer
 there are fifty-four: an equivalent of every slide transition ProPresenter has, under
 the names it gives them, and eighteen more. It has two outputs, an audience output and
 a stage display, each in its own window, and a media bin. [Media](#media) plays as a
-background or as a foreground, with a transport for the video that is playing, and
-there are [timers](#timers), whose time a text box on a slide can show. [Props](#props)
+background or as a foreground, a foreground video with its sound, with a transport for
+the video that is playing, and there are [timers](#timers), whose time a text box on a
+slide can show. [Props](#props)
 are laid over the slides and stay until they are cleared, and the stage display can be
 given a [stage layout](#stage-layouts) of ProPresenter's or of its own. It can import a
 playlist that has been exported from ProPresenter, and it has a simple
@@ -73,6 +74,10 @@ of this page.
       media rows.
 - [x] **Import Playlists**: read ProPresenter's exported `.proplaylist` files, bringing
       in the playlist, its presentations and, when the export included it, its media.
+- [ ] **Media Inspector**: somewhere to see and set how one piece of media plays: how
+      loud, whether it goes round again, where it starts and stops. For now that is
+      settled by a rule: a background video is silent and loops, a foreground one
+      plays once with its sound.
 - [ ] **Show Controls**: the timers, the props and the stage layouts are there. Still
       to come: more than one stage screen; more of what a stage layout can show (the
       clock, a slide's notes, pictures of the slides and of the output, stage messages,
@@ -422,6 +427,14 @@ dragged from the bin onto a slide starts out on the slide as it was in the bin.
 
 In the files this is what ProPresenter keeps: the layer a media action is on, and
 whether its video loops. Media set up there behaves here as it was set there.
+
+**Sound.** A foreground video is played with its sound, through the system's audio
+output, at the volume ProPresenter has for it (full, unless it was turned down there).
+A background video is silent, whatever sound its file has: it is there to be looked at
+behind the words. The sound follows the picture through a transition, fading in or
+out with a dissolve and starting or stopping at once with a cut. There is nowhere yet
+to set this for one piece of media (see the TODO list); until there is, making a video
+a foreground or a background is what gives it its sound or takes it away.
 
 A video's thumbnail is a picture from about five seconds into it (or from the middle of
 one shorter than ten seconds), and a little later than that if the picture there is

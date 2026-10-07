@@ -29,8 +29,8 @@
 // What else a slide's cue does when it is triggered goes with the slide:
 //   - media: the file's name as `mediaName` and whether it is a foreground as
 //     `mediaForeground`, and, where the file can be found here, the media itself as
-//     `media`: { name, path, source, video, foreground, loops, retriggers } (the last
-//     three as workspace::MediaBehaviour describes);
+//     `media`: { name, path, source, video, foreground, loops, retriggers, volume }
+//     (the last four as workspace::MediaBehaviour describes);
 //   - timers: `timerActions`, a list of what to do to which timer, each a map as
 //     Timers::act() takes.
 struct ProDocument

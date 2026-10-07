@@ -28,6 +28,11 @@ import SimplePresenterApp
 // waits for it: the layer goes on showing what it showed, with the incoming instance
 // out of sight, and the cut or the transition is made when the content can be seen.
 //
+// Some content is more than a picture: a video has sound, which no shader mixes. A
+// delegate like that has a `level` property, and the layer keeps it at how much of the
+// instance is on show: 1 for the one that is, 0 for the other, and while a transition
+// runs, falling from 1 to 0 for the outgoing one as it rises for the incoming.
+//
 // A shader is the one part of the app that is handed to the graphics driver to run, and
 // a driver that does not agree with one can take the whole app down with it. So each
 // transition is put in the log before its shader is used, by name and by file, and
@@ -36,7 +41,8 @@ import SimplePresenterApp
 Item {
     id: layer
 
-    // An Item with a `content` property; null content must render as nothing.
+    // An Item with a `content` property; null content must render as nothing. It may
+    // have a `ready` property and a `level` property, as described above.
     required property Component delegate
     // What the layer is called in the log, and what the transition is that `shader` is
     property string name: "layer"
@@ -61,6 +67,13 @@ Item {
     property bool blending: false
     // Whether the incoming instance has been given content that it cannot show yet
     property bool waiting: false
+    // How much of each instance is on show, from 0 to 1, for the delegates that want to
+    // know. The one on show is all there until a transition takes it away, and the
+    // other is not there at all until one brings it in, however long it has been ready
+    // and waiting. They are set together, at each step of a transition and when it is
+    // over, so that neither is ever heard at a level it is not shown at.
+    property real levelA: 1
+    property real levelB: 0
     // The delegate instance holding the content most recently shown, from the moment its
     // transition starts; null until something is shown.
     property Item currentItem: null
@@ -161,6 +174,8 @@ Item {
         }
         const outgoing = aIsFront ? holderA : holderB
         aIsFront = !aIsFront
+        levelA = aIsFront ? 1 : 0
+        levelB = aIsFront ? 0 : 1
         progress = 0
         // Release what is no longer shown, so an outgoing video stops decoding.
         outgoing.item.content = null
@@ -182,6 +197,27 @@ Item {
         anchors.fill: parent
         visible: !layer.aIsFront || !layer.waiting
         sourceComponent: layer.delegate
+    }
+
+    onProgressChanged: {
+        if (!blending)
+            return
+        levelA = aIsFront ? 1 - progress : progress
+        levelB = aIsFront ? progress : 1 - progress
+    }
+
+    Binding {
+        target: holderA.item
+        property: "level"
+        when: holderA.item !== null && holderA.item.level !== undefined
+        value: layer.levelA
+    }
+
+    Binding {
+        target: holderB.item
+        property: "level"
+        when: holderB.item !== null && holderB.item.level !== undefined
+        value: layer.levelB
     }
 
     // The incoming instance saying that it can show what it was given

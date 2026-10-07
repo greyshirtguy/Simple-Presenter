@@ -191,6 +191,7 @@ void MediaBehaviour::describe(QVariantMap *media) const
     media->insert("foreground", foreground);
     media->insert("loops", loops);
     media->insert("retriggers", retriggers);
+    media->insert("volume", volume);
 }
 
 MediaBehaviour mediaBehaviour(const rv::data::Action &action)
@@ -204,6 +205,10 @@ MediaBehaviour mediaBehaviour(const rv::data::Action &action)
         // Looping a number of times, or for a length of time, is looping here.
         behaviour.loops = transport.playback_behavior() != Transport::PLAYBACK_BEHAVIOR_STOP;
         behaviour.retriggers = behaviour.retriggers || transport.retrigger() == Transport::RETRIGGER_SETTING_ALWAYS;
+        // A video that says nothing about its sound has it at full.
+        const rv::data::Media::VideoTypeProperties &video = action.media().element().video();
+        const double stored = video.has_audio() ? video.audio().volume() : 1;
+        behaviour.volume = behaviour.foreground ? qBound(0.0, stored, 1.0) : 0;
     }
     return behaviour;
 }

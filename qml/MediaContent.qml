@@ -3,10 +3,19 @@ import QtQuick.Window
 import QtMultimedia
 import SimplePresenterApp
 
-// What the media layer shows: an image or a silent video, scaled to fit. A video goes
-// round again at its end if the media says it loops, as a background does, and
-// otherwise plays once and stays on its last frame, as a foreground does (see
-// workspace::MediaBehaviour in src/workspacefiles.h).
+// What the media layer shows: an image or a video, scaled to fit. A video goes round
+// again at its end if the media says it loops, as a background does, and otherwise
+// plays once and stays on its last frame, as a foreground does; and it is played with
+// its sound if the media gives it a volume, and silently if not. How a piece of media
+// is to play is all decided where it is read (workspace::MediaBehaviour in
+// src/workspacefiles.h), and what is here only does as it is told.
+//
+// A video's sound goes to the system's own audio output. It rises and falls with the
+// picture: the layer says how much of this instance is on show (`level`), which a
+// transition takes from nothing to all of it or back, and the sound is played that
+// much quieter. So a video dissolving in or out fades in or out to the ear as well,
+// and one that is cut to or from starts or stops at once. A video with no sound to
+// play is given no audio output at all, and costs nothing for it.
 //
 // The image or the video is made when there is content and unmade when there is none,
 // so that a layer with nothing on it holds no decoder and no picture. That is how a
@@ -24,8 +33,11 @@ import SimplePresenterApp
 Item {
     id: root
 
-    // { source, video, loops }, or null for nothing
+    // { source, video, loops, volume }, or null for nothing
     property var content: null
+    // How much of this instance is on show, from 0 to 1: kept by the layer it is in
+    // (see TransitionLayer), and all of it when it is used by itself
+    property real level: 1
     // Whether what there is to show can be shown yet
     readonly property bool ready: loader.item === null || loader.item.ready
     // The QVideoSink frames are delivered to while a video is showing, else null
@@ -83,7 +95,9 @@ Item {
         id: video
 
         Item {
-            id: clip
+            // (Not called `clip`: what is made inside the Loader below would find the
+            // Loader's own property of that name first.)
+            id: movie
 
             readonly property var videoSink: output.videoSink
             readonly property var player: mediaPlayer
@@ -94,23 +108,38 @@ Item {
             // For the log: what the file is called, and when it was asked for
             readonly property string name: root.content?.name ?? ""
             readonly property double askedAt: Date.now()
+            // How loud its sound is to be, 0 being not at all
+            readonly property real volume: Math.max(0, Math.min(1, Number(root.content?.volume ?? 0)))
 
             MediaPlayer {
                 id: mediaPlayer
 
                 source: root.content?.source ?? ""
                 videoOutput: output
+                audioOutput: sound.item
                 loops: root.content?.loops === false ? 1 : MediaPlayer.Infinite
                 onErrorOccurred: (error, errorString) => {
-                    Log.problem("The video \"" + clip.name + "\" will not play: " + errorString)
-                    clip.failed = true
+                    Log.problem("The video \"" + movie.name + "\" will not play: " + errorString)
+                    movie.failed = true
                 }
                 // Only a video that plays once comes to an end.
                 onMediaStatusChanged: {
                     if (mediaStatus === MediaPlayer.EndOfMedia)
-                        Log.note("media", "video \"" + clip.name + "\" has played to its end")
+                        Log.note("media", "video \"" + movie.name + "\" has played to its end")
                 }
                 Component.onCompleted: play()
+            }
+
+            // Only a video that is to be heard has anything to be heard through.
+            Loader {
+                id: sound
+
+                active: movie.volume > 0
+
+                sourceComponent: AudioOutput {
+                    objectName: "mediaSound"
+                    volume: movie.volume * root.level
+                }
             }
 
             VideoOutput {
@@ -135,9 +164,17 @@ Item {
                         return
                     const codec = mediaPlayer.metaData.stringValue(MediaMetaData.VideoCodec)
                     const rate = Number(mediaPlayer.metaData.value(MediaMetaData.VideoFrameRate))
-                    Log.note("media", "video \"" + clip.name + "\": first picture after " + Math.round(Date.now() - clip.askedAt) + " ms; "
+                    // Whether there is sound in the file, and whether it is being played:
+                    // what there is to go on when a video is silent that should not be
+                    const tracks = mediaPlayer.audioTracks.length
+                    const heard = tracks === 0 ? "no sound in the file"
+                                : movie.volume <= 0 ? "its sound not played"
+                                : "its sound played" + (movie.volume < 1 ? " at " + Math.round(movie.volume * 100) + "%" : "")
+                                  + " through " + (sound.item.device.description || "no audio output")
+                    Log.note("media", "video \"" + movie.name + "\": first picture after " + Math.round(Date.now() - movie.askedAt) + " ms; "
                              + description + (codec ? "; " + codec : "") + (rate > 0 ? ", " + (+rate.toFixed(2)) + " frames a second" : "")
-                             + (mediaPlayer.duration > 0 ? ", " + (mediaPlayer.duration / 1000).toFixed(1) + " s long" : ""))
+                             + (mediaPlayer.duration > 0 ? ", " + (mediaPlayer.duration / 1000).toFixed(1) + " s long" : "")
+                             + "; " + heard)
                 }
             }
         }

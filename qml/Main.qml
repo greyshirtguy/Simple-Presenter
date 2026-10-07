@@ -97,8 +97,9 @@ Window {
     property string livePlaylistId: ""
     property bool cleared: true
     // What is on the media layer: { name, path, source, video, foreground, loops,
-    // retriggers }, or null, and the media playlist it was triggered from, "" if a slide
-    // triggered it. The last three are how it behaves (see goLive() and alreadyPlaying()).
+    // retriggers, volume }, or null, and the media playlist it was triggered from, "" if
+    // a slide triggered it. The last four are how it behaves (see goLive() and
+    // alreadyPlaying(), and for the sound MediaContent).
     property var liveMedia: null
     property string liveMediaPlaylistId: ""
 

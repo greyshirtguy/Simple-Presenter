@@ -38,9 +38,9 @@ struct PlaylistFile
     // arrangement, "" being every group in stored order.
     //
     // For a media playlist: { id, name, path, source, video, missing, foreground, loops,
-    // retriggers }, where `id` is the row's own id and `path` the media file on this
-    // machine, empty with `missing` set if it cannot be found. The last three are how
-    // the row's media behaves, as workspace::MediaBehaviour describes.
+    // retriggers, volume }, where `id` is the row's own id and `path` the media file on
+    // this machine, empty with `missing` set if it cannot be found. The last four are
+    // how the row's media behaves, as workspace::MediaBehaviour describes.
     QHash<QString, QVariantList> items;
 
     // An absent file is an empty set of playlists, not an error.

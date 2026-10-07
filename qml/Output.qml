@@ -42,7 +42,7 @@ AuxWindow {
         slideLayer.show(slide)
     }
 
-    // `media` is { source, video, loops }; null clears the layer.
+    // `media` is { source, video, loops, volume }; null clears the layer.
     function showMedia(media) {
         mediaLayer.show(media)
     }

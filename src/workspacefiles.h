@@ -104,6 +104,13 @@ QString writeMessage(const QString &path, const google::protobuf::MessageLite &m
 // of its own, and the file keeps its two halves in different places: which of the two
 // it is belongs to the action, and whether a video goes round again belongs to the
 // media in it.
+//
+// This is the one place that says how a piece of media is to be played, and it is all
+// that what plays it goes by (MediaContent.qml is handed these values and asks nothing
+// else). There is nowhere in the app yet to set such things for one piece of media, as
+// ProPresenter's inspector does. When there is, what it shows is this, what it changes
+// is the fields of the file that this is read from, and a thing that for now is settled
+// by a rule (`volume` is) becomes a thing read from the file like the rest.
 struct MediaBehaviour
 {
     bool foreground = false;
@@ -111,8 +118,16 @@ struct MediaBehaviour
     bool loops = false;
     // Whether triggering it starts it again even when it is what is already playing
     bool retriggers = false;
+    // How loud a video's sound is played, from 0, which is silent, to 1, which is as
+    // loud as the file has it. The rule for now: a background is silent, whatever
+    // sound its file may have, since a background is there to be looked at behind the
+    // words; a foreground is played with its sound, at the volume the file gives it
+    // (ProPresenter's own setting for the video, which is full unless it was turned
+    // down there).
+    double volume = 0;
 
-    // For the maps the views are handed: `foreground`, `loops` and `retriggers`.
+    // For the maps the views are handed: `foreground`, `loops`, `retriggers` and
+    // `volume`.
     void describe(QVariantMap *media) const;
 };
 MediaBehaviour mediaBehaviour(const rv::data::Action &action);
