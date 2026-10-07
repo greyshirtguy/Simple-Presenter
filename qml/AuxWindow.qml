@@ -93,6 +93,9 @@ Window {
         restored = true
         // What draws it, and when it is shown, hidden or moved, goes into the log.
         Log.watch(win, title.toLowerCase() + " window")
+        // Not a window to switch to: kept out of Alt+Tab and the desktop's other lists
+        // of windows, where the app can see to that itself (see src/windowlists.h).
+        WindowLists.leaveOut(win)
         present()
     }
     onShownChanged: if (restored) present()

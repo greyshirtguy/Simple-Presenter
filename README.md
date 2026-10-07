@@ -43,11 +43,11 @@ It shows ProPresenter 7 `.pro` presentations on a slide layer over a media layer
 [Transitions](#transitions) are shaders, which keeps them cheap. Besides a plain cut
 there are fifty-four: an equivalent of every slide transition ProPresenter has, under
 the names it gives them, and eighteen more. It has two outputs, an audience output and
-a stage display, each in its own window, and a media bin. [Media](#media) plays as a
-background or as a foreground, a foreground video with its sound, with a transport for
-the video that is playing; it can be dragged in from the file manager, onto a slide or
-between two. There are [timers](#timers), whose time a text box on a slide can show.
-[Props](#props)
+a stage display, each in its [own window](#the-output-and-stage-windows), and a media
+bin. [Media](#media) plays as a background or as a foreground, a foreground video with
+its sound, with a transport for the video that is playing; it can be dragged in from
+the file manager, onto a slide or between two. There are [timers](#timers), whose time
+a text box on a slide can show. [Props](#props)
 are laid over the slides and stay until they are cleared, and the stage display can be
 given a [stage layout](#stage-layouts) of ProPresenter's or of its own. It can import a
 playlist that has been exported from ProPresenter, and it has a simple
@@ -136,7 +136,7 @@ sudo apt install git cmake ninja-build g++ pkg-config \
     qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qt6-shadertools-dev \
     qml6-module-qtquick-controls qml6-module-qtquick-effects qml6-module-qtmultimedia \
     qml6-module-qtquick-dialogs qml6-module-qtquick-shapes qt6-image-formats-plugins \
-    protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev \
+    protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev libxcb1-dev \
     libavformat-dev libavcodec-dev libswscale-dev libavutil-dev
 ```
 
@@ -150,6 +150,7 @@ sudo apt install git cmake ninja-build g++ pkg-config \
 | `libfontconfig-dev` | Finding fonts by the names ProPresenter knows them by |
 | `zlib1g-dev` | Unpacking exported playlists, which are zip archives |
 | `libav…-dev`, `libswscale-dev` | FFmpeg, for taking a frame from a video as its thumbnail |
+| `libxcb1-dev` | X11's own library, for keeping the output and stage windows out of Alt+Tab when the app is run through X11 |
 
 **2. Get the code.**
 
@@ -644,6 +645,51 @@ On the laptop in [Built for modest hardware](#built-for-modest-hardware), with a
 and its media changing at once on a full-screen 1080p output, all of them keep sixty
 frames a second but one, Cross Zoom, which manages fifty-seven.
 
+## The output and stage windows
+
+The audience output and the stage display are windows of their own, switched on and off
+by the pair of buttons at the right of the toolbar (or Ctrl+1 and Ctrl+2). Each is
+either a small window with a slim title bar that floats over the operator window, or
+fills a screen: double-click its title bar to have it fill the screen it is on, and
+move the mouse over it there for the control that brings it back. The output starts
+out filling a second screen if there is one (`--screen`, with a screen's number or
+name, says which; `--list-screens` says what there are), and each window comes back
+the way it was left.
+
+A Wayland desktop does not let an application place its own windows, so the two come
+back wherever the desktop puts them. The settings screen has a switch, under Windows,
+to run the app through X11 instead, where their places are remembered; it says what
+that costs.
+
+**Alt+Tab.** These two windows are there to be looked at, not switched to, so they are
+kept out of the desktop's window switcher, its overview and its dock, and switching to
+Simple Presenter always lands on the window that works the show. How that is done
+depends on what the app is run through:
+
+- **Through X11** the app sees to it itself, and there is nothing to do.
+- **Through Wayland**, which is the default, an application cannot: the desktop alone
+  decides what is in its lists. GNOME leaves the two windows out when a small extension
+  of its own, which comes with the app, is switched on. The package puts the extension
+  where GNOME looks for it; log out and in again once so that GNOME finds it, and then
+  switch it on:
+
+  ```
+  gnome-extensions enable simple-presenter-windows@greyshirtguy.github.io
+  ```
+
+  From a copy built from source, put it in place first:
+
+  ```
+  mkdir -p ~/.local/share/gnome-shell/extensions
+  cp -r packaging/gnome-shell-extension/simple-presenter-windows@greyshirtguy.github.io \
+      ~/.local/share/gnome-shell/extensions/
+  ```
+
+  The extension is written for GNOME 50, the one Ubuntu 26.04 has, and does only this:
+  it finds the two windows by their application and their titles and tells GNOME to
+  leave them out. On other desktops run through Wayland, and on GNOME without it, the
+  two windows are in Alt+Tab as any window is.
+
 ## Keys
 
 | Key | Action |
@@ -782,12 +828,13 @@ those.
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props and stage screens |
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | The output and stage windows |
+| `src/windowlists.*` | Keeps those two windows out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
 | `qml/PropsLayer.qml` | The props that are on, over the other layers |
 | `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
 | `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions |
-| `packaging/` | The launcher, icon and description that an installed copy has |
+| `packaging/` | The launcher, icon and description that an installed copy has, and the GNOME Shell extension that keeps the output and stage windows out of Alt+Tab through Wayland |
 | `third_party/ProPresenter7-Proto` | The descriptions of ProPresenter's file formats, as a submodule |
 
 ## Licence

@@ -1,0 +1,7 @@
+{
+    "uuid": "simple-presenter-windows@greyshirtguy.github.io",
+    "name": "Simple Presenter windows",
+    "description": "Leaves Simple Presenter's output and stage windows out of the window switcher (Alt+Tab), the overview and the dock. They are there for the audience and the stage to look at, not for switching to. Part of Simple Presenter, which is a personal experiment and not a product: nobody supports it.",
+    "shell-version": ["50"],
+    "url": "https://github.com/greyshirtguy/Simple-Presenter"
+}

@@ -19,6 +19,9 @@ find_package(ZLIB REQUIRED)
 # one thing: taking a single frame from a video for its thumbnail (src/videoframe.cpp).
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFmpeg REQUIRED IMPORTED_TARGET libavformat libavcodec libswscale libavutil)
+# X11's own library, for the one thing Qt has no setting for: keeping the output and stage
+# windows out of the desktop's lists of windows (src/windowlists.cpp).
+pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
 qt_standard_project_setup(REQUIRES 6.9)
 
 # ProPresenter 7 document schema: the presentation and playlist documents and everything
@@ -165,6 +168,8 @@ qt_add_qml_module(SimplePresenter
         src/show.cpp
         src/sessionlog.h
         src/sessionlog.cpp
+        src/windowlists.h
+        src/windowlists.cpp
 )
 
 # The transitions. Compiled by qsb for every graphics backend Qt can draw with, and loaded
@@ -229,7 +234,7 @@ qt_add_shaders(SimplePresenter "shaders"
 )
 
 target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia proproto Fontconfig::Fontconfig ZLIB::ZLIB
-                      PkgConfig::FFmpeg)
+                      PkgConfig::FFmpeg PkgConfig::XCB)
 # The version, for the window's title and for the log.
 target_compile_definitions(SimplePresenter PRIVATE APP_VERSION="${PROJECT_VERSION}")
 
@@ -251,6 +256,11 @@ install(FILES packaging/io.github.greyshirtguy.SimplePresenter.svg
 install(FILES packaging/io.github.greyshirtguy.SimplePresenter.metainfo.xml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
 install(FILES COPYING COPYING.LESSER DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/simplepresenter)
+# The GNOME Shell extension that keeps the output and stage windows out of Alt+Tab when
+# the app is run through Wayland (src/windowlists.h says why it takes one). GNOME finds
+# it here the next time someone logs in; it does nothing until it is switched on.
+install(DIRECTORY packaging/gnome-shell-extension/simple-presenter-windows@greyshirtguy.github.io
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/gnome-shell/extensions)
 
 set(CPACK_GENERATOR DEB)
 set(CPACK_PACKAGE_NAME simplepresenter)

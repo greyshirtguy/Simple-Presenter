@@ -313,6 +313,18 @@ Rectangle {
                     + "Takes effect the next time the app starts. Running now on: "
                     + (screen.platform === "xcb" ? "X11" : screen.platform === "wayland" ? "Wayland" : screen.platform) + "."
             }
+
+            Text {
+                objectName: "altTabNote"
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: "Alt+Tab. The output and stage windows are there to be looked at, not switched to, so "
+                    + "they are kept out of the desktop's window switcher. Through X11 the app sees to that "
+                    + "itself. Through Wayland only the desktop can: on GNOME, switch on the extension "
+                    + "“Simple Presenter windows”, which comes with the app (the README says how)."
+            }
         }
 
         // About: what this is, which version, and where the log is
