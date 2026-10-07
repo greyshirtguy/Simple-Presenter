@@ -69,4 +69,13 @@ struct ProDocument
     static QString setCueMediaForeground(const QString &path, const QString &cueId, bool foreground);
     // Removes the media the cue triggers, if any, and writes the file back.
     static QString removeCueMedia(const QString &path, const QString &cueId);
+    // Adds a slide for each of the image or video files, in the order given: a new cue
+    // with nothing on its slide, named for the file, that triggers the file as a
+    // foreground. That is what ProPresenter makes of media dropped between two slides,
+    // and how a video is given a place of its own in the run of a presentation. They
+    // go just before the cue with this id, or with `after` just after it, in the
+    // presentation and in that cue's group; with no cue named, at the end. Writes the
+    // file back; returns an error message, empty on success.
+    static QString insertMediaCues(const QString &path, const QString &cueId, bool after, const QStringList &mediaPaths,
+                                   const QString &workspace);
 };

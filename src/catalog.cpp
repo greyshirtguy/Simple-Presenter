@@ -259,6 +259,11 @@ QString Catalog::setSlideMediaForeground(const QString &path, const QString &sli
     return ProDocument::setCueMediaForeground(path, slideId, foreground);
 }
 
+QString Catalog::insertMediaSlides(const QString &path, const QString &slideId, bool after, const QStringList &mediaPaths)
+{
+    return ProDocument::insertMediaCues(path, slideId, after, mediaPaths, m_root);
+}
+
 QString Catalog::removeSlideMedia(const QString &path, const QString &slideId)
 {
     return ProDocument::removeCueMedia(path, slideId);
@@ -336,17 +341,23 @@ QString Catalog::moveMediaPlaylist(const QString &id, const QString &target, con
     return afterChange(PlaylistFile::moveNode(m_root, PlaylistFile::Media, id, target, where));
 }
 
-QString Catalog::addMedia(const QString &playlist, const QList<QUrl> &files)
+QStringList Catalog::mediaAmong(const QList<QUrl> &files) const
 {
     QStringList paths;
     for (const QUrl &file : files) {
         const QString path = file.toLocalFile();
-        if (workspace::isMedia(path))
+        if (workspace::isMedia(path) && QFileInfo(path).isFile())
             paths << path;
     }
+    return paths;
+}
+
+QString Catalog::addMedia(const QString &playlist, const QList<QUrl> &files, const QString &target, bool after)
+{
+    const QStringList paths = mediaAmong(files);
     if (paths.isEmpty())
         return QStringLiteral("None of those files are images or videos this can show");
-    return afterChange(PlaylistFile::addMedia(m_root, playlist, paths));
+    return afterChange(PlaylistFile::addMedia(m_root, playlist, paths, target, after));
 }
 
 QString Catalog::removeMediaItem(const QString &item)

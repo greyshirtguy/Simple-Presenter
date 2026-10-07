@@ -131,6 +131,13 @@ Window {
     // A message to show above the slides, or "", and whether it reports a failure
     property string notice: ""
     property bool noticeIsError: true
+    // Whether anything can be dropped on the show's panes just now: not while the editor
+    // or the settings screen is over them
+    readonly property bool takesDrops: !editing && !settingsOpen
+    // The files of the drag from another application that was last asked about, and
+    // which of them are media (see draggedMedia())
+    property string draggedFiles: ""
+    property var draggedFilesMedia: []
     // [{ name, color }], edited on the settings screen
     property var groups: [
         { name: "Intro", color: "#fdd835" },
@@ -352,16 +359,35 @@ Window {
         }
     }
 
-    // Makes a slide of the presentation being viewed trigger a media file, replacing any
-    // media it triggered before, or with null stops it triggering media. Saved in the
-    // presentation file.
-    function assignMedia(index, media) {
-        const path = document.path
-        const id = document.slides[index].id
-        // It behaves on the slide as it did where it was dragged from, until changed.
-        const error = media ? catalog.setSlideMedia(path, id, media.path, media.foreground === true)
-                            : catalog.removeSlideMedia(path, id)
+    // Makes a slide of the presentation being viewed trigger a media file (by its
+    // path), replacing any media it triggered before, or with "" stops it triggering
+    // media. Saved in the presentation file.
+    //
+    // How the file is to play is settled by where it lands, not by where it came from.
+    // On a slide that triggers no media it is a background: something to go behind the
+    // slide's words. On a slide that does, it takes the place of what was there and
+    // plays as that did, so that this week's video dropped on last week's is still the
+    // foreground that was. (Media dropped between slides gets a slide of its own, as a
+    // foreground: see insertMediaSlides().)
+    function assignMedia(index, path) {
+        const slide = document.slides[index]
+        const error = path !== "" ? catalog.setSlideMedia(document.path, slide.id, path,
+                                                          slide.mediaName !== "" && slide.mediaForeground)
+                                  : catalog.removeSlideMedia(document.path, slide.id)
         if (report(error))
+            reloadDocument()
+    }
+
+    // Gives each of these media files a slide of its own in the presentation being
+    // viewed: a slide with nothing on it that triggers the file as a foreground, which
+    // is how a video takes its turn in the run of a presentation. They go just before
+    // the slide at `index`, or with `after` just after it; -1 is the end, which is
+    // after the last slide as the slides are shown (which in an arrangement need not be
+    // the last one in the file). Saved in the presentation file.
+    function insertMediaSlides(index, after, paths) {
+        const last = document.slides.length - 1
+        const beside = index >= 0 && index <= last ? document.slides[index].id : last >= 0 ? document.slides[last].id : ""
+        if (report(catalog.insertMediaSlides(document.path, beside, index < 0 || after, paths)))
             reloadDocument()
     }
 
@@ -371,17 +397,125 @@ Window {
             reloadDocument()
     }
 
-    // Reads the presentation being viewed again after a change to it that leaves it the
-    // same slides in the same order: the grid can stay where it is scrolled to, and the
-    // live slide keeps its index.
+    // Reads the presentation being viewed again after a change to it that leaves the
+    // slides it had in the order they were in, though there may now be new ones among
+    // them. The grid stays where it is scrolled to, and the slide that is live is still
+    // the one marked: it is found again by its id, and by which of that id's places it
+    // was at, since a group that comes up twice in an arrangement puts a slide in two
+    // places.
     function reloadDocument() {
         notice = ""
         const scrolledTo = grid.contentY
         const reloaded = load(currentEntry())
-        if (viewingLive)
+        if (viewingLive) {
+            const live = liveIndex >= 0 && liveIndex < liveDocument.slides.length ? liveDocument.slides[liveIndex].id : ""
+            const place = liveDocument.slides.slice(0, liveIndex + 1).filter(slide => slide.id === live).length
+            let passed = 0
+            const index = reloaded.slides.findIndex(slide => slide.id === live && ++passed === place)
             liveDocument = reloaded
+            if (index >= 0)
+                liveIndex = index
+        }
         document = reloaded
         grid.contentY = scrolledTo
+    }
+
+    // The media files in what is being dragged over the window, or has been dropped on
+    // it, as paths: the one file of a drag out of the media bin, or whichever of the
+    // files dragged in from another application are images and videos. For those the
+    // answer is kept for as long as the drag is the same files, since it is asked for
+    // with every move of the pointer.
+    function draggedMedia(drag) {
+        if (drag.source !== null)
+            return drag.source.media && !drag.source.media.missing ? [drag.source.media.path] : []
+        const files = drag.urls.join("\n")
+        if (files !== draggedFiles) {
+            draggedFiles = files
+            draggedFilesMedia = catalog.mediaAmong(drag.urls)
+        }
+        return draggedFilesMedia
+    }
+
+    // Answers a drag that is over somewhere media can be dropped. Files from another
+    // application are only ever referred to where they are, and the application is
+    // told so: asked to copy, never to move, which a file manager takes as leave to
+    // delete what it gave. A drag with no media in it is turned away, and the pointer
+    // then shows that it cannot be dropped.
+    function acceptMediaDrag(drag) {
+        if (drag.source !== null)
+            return true
+        drag.action = Qt.CopyAction
+        drag.accepted = draggedMedia(drag).length > 0
+        return drag.accepted
+    }
+
+    // Takes the media out of a drop, saying to the application it came from, if it came
+    // from one, that the drop was taken (and as a copy). The log gets a line for it,
+    // which `where` finishes.
+    function takeDroppedMedia(drop, where) {
+        const paths = draggedMedia(drop)
+        if (drop.source === null) {
+            const left = drop.urls.length - paths.length
+            if (paths.length > 0)
+                drop.accept(Qt.CopyAction)
+            Log.note("drop", counted(drop.urls.length, "file", "files") + " dragged in from another application and dropped " + where
+                     + (paths.length === 0 ? ": none is an image or video this can show"
+                        : left > 0 ? "; " + left + " left out, not being " + (left === 1 ? "an image or video" : "images or videos") : ""))
+            draggedFiles = ""
+            // The keyboard comes back to the show, as after a click.
+            takeFocus()
+        } else if (paths.length > 0) {
+            Log.note("drop", quoted(drop.source.media.name) + " dragged out of the media bin and dropped " + where)
+        }
+        return paths
+    }
+
+    // Media dropped on the slides of the presentation being viewed: "onto" the slide at
+    // `index`, which then triggers it, or "before" or "after" that slide, which is to
+    // say between two slides, where it becomes a slide of its own. -1 is the end.
+    function dropOnSlides(index, zone, drop) {
+        if (document === null)
+            return
+        const where = index < 0 ? "after the last slide of " + quoted(document.name)
+                    : (zone === "onto" ? "onto" : zone) + " slide " + (index + 1) + " of " + quoted(document.name)
+        const paths = takeDroppedMedia(drop, where)
+        if (paths.length === 0)
+            return
+        if (zone !== "onto") {
+            insertMediaSlides(index, zone === "after", paths)
+            return
+        }
+        assignMedia(index, paths[0])
+        if (paths.length > 1 && notice === "") {
+            notice = "A slide triggers one piece of media, so only the first of those " + paths.length + " files was put on it."
+            noticeIsError = false
+        }
+    }
+
+    // Files dragged in from another application and dropped on a media playlist: at its
+    // end, or beside one of its rows (`target`, by id) if it is the playlist being
+    // browsed and they were dropped among its thumbnails.
+    function dropOnMediaPlaylist(playlist, drop, target = "", after = false) {
+        const node = catalog.mediaPlaylists.find(p => p.path === playlist)
+        if (drop.source !== null || !node)
+            return
+        const all = drop.urls
+        const paths = takeDroppedMedia(drop, "on the media playlist " + quoted(node.name))
+        if (paths.length === 0)
+            return
+        const scrolledTo = mediaBin.contentY
+        if (!report(catalog.addMedia(playlist, all, target, after)))
+            return
+        if (playlist === mediaPlaylistId)
+            mediaBin.contentY = scrolledTo
+        // Said in words where it cannot be seen: another playlist than the one being
+        // browsed, or files that were left out.
+        const left = all.length - paths.length
+        if (playlist !== mediaPlaylistId || left > 0) {
+            notice = counted(paths.length, "file", "files") + " added to " + quoted(node.name)
+                     + (left > 0 ? "; " + left + " left out, not being " + (left === 1 ? "an image or video" : "images or videos") : "")
+            noticeIsError = false
+        }
     }
 
     // Makes a row of the media playlist being browsed a background or a foreground. The
@@ -618,7 +752,7 @@ Window {
               run: () => setSlideMediaForeground(index, false) },
             { label: "Foreground", current: !none && slide.mediaForeground, disabled: none,
               run: () => setSlideMediaForeground(index, true) },
-            { label: "Remove Media", disabled: none, run: () => assignMedia(index, null) }
+            { label: "Remove Media", disabled: none, run: () => assignMedia(index, "") }
         ], item, x, y)
     }
 

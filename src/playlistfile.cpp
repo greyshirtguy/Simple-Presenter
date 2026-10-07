@@ -664,7 +664,8 @@ void seedFrom(const QString &directory, const QString &name, rv::data::Playlist 
 
 } // namespace
 
-QString PlaylistFile::addMedia(const QString &root, const QString &playlistId, const QStringList &files)
+QString PlaylistFile::addMedia(const QString &root, const QString &playlistId, const QStringList &files,
+                               const QString &targetId, bool after)
 {
     const Kind kind = Media;
     rv::data::PlaylistDocument document;
@@ -674,8 +675,23 @@ QString PlaylistFile::addMedia(const QString &root, const QString &playlistId, c
     rv::data::Playlist *playlist = findNode(document.mutable_root_node(), playlistId.toStdString());
     if (!playlist || playlist->has_playlists())
         return QStringLiteral("That playlist is no longer there");
-    for (const QString &file : files)
+
+    // Where they are to go: the end, unless a row of the playlist is named.
+    auto *items = playlist->mutable_items()->mutable_items();
+    int place = items->size();
+    if (!targetId.isEmpty()) {
+        for (int i = 0; i < items->size(); ++i) {
+            if (items->Get(i).uuid().string() == targetId.toStdString())
+                place = i + (after ? 1 : 0);
+        }
+    }
+    // Each is added at the end and walked back up to its place, as a moved row is.
+    for (const QString &file : files) {
         addMediaItem(playlist, file, root);
+        for (int i = items->size() - 1; i > place; --i)
+            items->SwapElements(i, i - 1);
+        ++place;
+    }
     return write(root, kind, document);
 }
 

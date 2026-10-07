@@ -124,7 +124,13 @@ public:
     Q_INVOKABLE QString renameMediaPlaylist(const QString &id, const QString &name);
     Q_INVOKABLE QString removeMediaPlaylist(const QString &id);
     Q_INVOKABLE QString moveMediaPlaylist(const QString &id, const QString &target, const QString &where);
-    Q_INVOKABLE QString addMedia(const QString &playlist, const QList<QUrl> &files);
+    // Files go at the end of the playlist, or, given one of its rows as `target`, just
+    // before that row or with `after` just after it.
+    Q_INVOKABLE QString addMedia(const QString &playlist, const QList<QUrl> &files, const QString &target = {},
+                                 bool after = false);
+    // Which of these files are images and videos the app can use, as paths: what is
+    // dragged in from a file manager can be anything.
+    Q_INVOKABLE QStringList mediaAmong(const QList<QUrl> &files) const;
     Q_INVOKABLE QString removeMediaItem(const QString &item);
     // Makes a media playlist's row a background or a foreground. It is the row's own:
     // the same file on a slide, or in another row, keeps the behaviour it has there.
@@ -144,6 +150,12 @@ public:
     Q_INVOKABLE QString setSlideMediaForeground(const QString &path, const QString &slideId, bool foreground);
     // Stops a slide triggering media, and saves the presentation file.
     Q_INVOKABLE QString removeSlideMedia(const QString &path, const QString &slideId);
+    // Adds a slide to the presentation for each of these media files, each with nothing
+    // on it but triggering its file as a foreground (see ProDocument::insertMediaCues):
+    // just before the slide with this id or with `after` just after it, or at the end
+    // for "". Saves the presentation file.
+    Q_INVOKABLE QString insertMediaSlides(const QString &path, const QString &slideId, bool after,
+                                          const QStringList &mediaPaths);
 
 signals:
     void changed();

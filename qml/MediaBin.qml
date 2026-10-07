@@ -6,10 +6,14 @@ import QtQuick.Controls.Basic
 // picked there, as thumbnails, on the right.
 //
 // Click a file to put it on the output's media layer. Drag one onto a slide to make that
-// slide trigger it, or onto another file of the playlist to move it there. The
-// thumbnails come from the thumbnail provider (src/thumbnailprovider.h): each is asked
-// for by a url and arrives when it has been made, so a playlist full of video opens at
-// once and fills in.
+// slide trigger it, between two slides to give it a slide of its own, or onto another
+// file of the playlist to move it there. Files dragged in from another application,
+// such as the file manager, are added: to a playlist they are dropped on in the list,
+// or to the one being browsed, at the place among its thumbnails where they are
+// dropped. They are referred to where they are on disk, not copied. The thumbnails come
+// from the thumbnail provider (src/thumbnailprovider.h): each is asked for by a url
+// and arrives when it has been made, so a playlist full of video opens at once and
+// fills in.
 Rectangle {
     id: bin
 
@@ -108,8 +112,11 @@ Rectangle {
         selectedPath: bin.win.selectedMediaNode
         livePath: bin.win.liveMedia ? bin.win.liveMediaPlaylistId : ""
         dragProxy: bin.playlistDrag
-        dropKeys: ["mediaPlaylist"]
-        dropZone: (node, source) => node.folder ? "both" : "between"
+        // A playlist or folder of the list can be moved by dropping it on another; files
+        // from another application go onto a playlist, if there is media among them.
+        dropKeys: bin.win.takesDrops ? ["mediaPlaylist", "text/uri-list"] : ["mediaPlaylist"]
+        dropZone: (node, source, urls) => source !== null ? (node.folder ? "both" : "between")
+                                         : !node.folder && bin.win.catalog.mediaAmong(urls).length > 0 ? "onto" : ""
         onPicked: (entry) => {
             if (entry.folder)
                 bin.win.selectedMediaNode = entry.path
@@ -119,7 +126,37 @@ Rectangle {
         onMenuRequested: (entry, item) => bin.win.showMediaNodeMenu(entry, item)
         onRenamed: (entry, name) => bin.win.report(bin.win.catalog.renameMediaPlaylist(entry.path, name))
         onEditingEnded: bin.win.takeFocus()
-        onDropped: (node, source, where) => bin.win.report(bin.win.catalog.moveMediaPlaylist(source.entry.path, node.path, where))
+        onDropped: (node, source, where, drop) => {
+            if (source !== null)
+                bin.win.report(bin.win.catalog.moveMediaPlaylist(source.entry.path, node.path, where))
+            else
+                bin.win.dropOnMediaPlaylist(node.path, drop)
+        }
+    }
+
+    // Files dropped among the thumbnails but on none of them go at the end of the
+    // playlist being browsed. (This is under the grid, so a thumbnail that is there has
+    // the drag first.)
+    DropArea {
+        id: endDrop
+
+        anchors.fill: mediaGrid
+        keys: ["text/uri-list"]
+        enabled: bin.win.takesDrops && bin.win.mediaPlaylistId !== ""
+        onEntered: (drag) => bin.win.acceptMediaDrag(drag)
+        onPositionChanged: (drag) => bin.win.acceptMediaDrag(drag)
+        onDropped: (drop) => bin.win.dropOnMediaPlaylist(bin.win.mediaPlaylistId, drop)
+    }
+
+    // An outline round the thumbnails says that is where they would go.
+    Rectangle {
+        anchors.fill: mediaGrid
+        anchors.bottomMargin: 4
+        visible: endDrop.containsDrag
+        radius: 4
+        color: "transparent"
+        border.width: 2
+        border.color: "#c0ffffff"
     }
 
     GridView {
@@ -229,21 +266,33 @@ Rectangle {
 
             // Dropping another of the playlist's media here moves it to this
             // place: before this one from the left half, after it from the right.
+            // Files dragged in from another application are added at the same place.
             DropArea {
                 id: reorderDrop
 
                 property bool after: false
-                readonly property bool moving: containsDrag && bin.mediaDrag.media !== null
-                                               && bin.mediaDrag.media.id !== mediaCell.modelData.id
+                // Whether what is over the cell is files from another application
+                property bool files: false
+                readonly property bool moving: containsDrag && (files || (bin.mediaDrag.media !== null
+                                                                          && bin.mediaDrag.media.id !== mediaCell.modelData.id))
+
+                function follow(drag) {
+                    after = drag.x > width / 2
+                    files = drag.source === null
+                    bin.win.acceptMediaDrag(drag)
+                }
 
                 anchors.fill: parent
-                keys: ["media"]
-                onEntered: (drag) => after = drag.x > width / 2
-                onPositionChanged: (drag) => after = drag.x > width / 2
-                // One call and nothing after it: moving the file rebuilds the grid, and this
+                keys: ["media", "text/uri-list"]
+                enabled: bin.win.takesDrops
+                onEntered: (drag) => follow(drag)
+                onPositionChanged: (drag) => follow(drag)
+                // One call and nothing after it: either way the grid is rebuilt, and this
                 // cell with it.
                 onDropped: (drop) => {
-                    if (drop.source.media.id !== mediaCell.modelData.id)
+                    if (drop.source === null)
+                        bin.win.dropOnMediaPlaylist(bin.win.mediaPlaylistId, drop, mediaCell.modelData.id, after)
+                    else if (drop.source.media.id !== mediaCell.modelData.id)
                         bin.win.moveMedia(drop.source.media.id, mediaCell.modelData.id, after)
                 }
             }
@@ -312,7 +361,7 @@ Rectangle {
         anchors.centerIn: mediaGrid
         width: mediaGrid.width - 80
         visible: bin.win.mediaFiles.length === 0
-        text: bin.win.mediaPlaylistId !== "" ? "This media playlist is empty. Add media to it from the + above."
+        text: bin.win.mediaPlaylistId !== "" ? "This media playlist is empty. Add media to it from the + above, or drag files in."
             : "No media playlists yet. Add one from the + beside Media bin."
     }
 

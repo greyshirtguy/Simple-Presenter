@@ -45,8 +45,9 @@ there are fifty-four: an equivalent of every slide transition ProPresenter has, 
 the names it gives them, and eighteen more. It has two outputs, an audience output and
 a stage display, each in its own window, and a media bin. [Media](#media) plays as a
 background or as a foreground, a foreground video with its sound, with a transport for
-the video that is playing, and there are [timers](#timers), whose time a text box on a
-slide can show. [Props](#props)
+the video that is playing; it can be dragged in from the file manager, onto a slide or
+between two. There are [timers](#timers), whose time a text box on a slide can show.
+[Props](#props)
 are laid over the slides and stay until they are cleared, and the stage display can be
 given a [stage layout](#stage-layouts) of ProPresenter's or of its own. It can import a
 playlist that has been exported from ProPresenter, and it has a simple
@@ -422,8 +423,7 @@ Either gives way to the next media that is triggered, of either kind.
 Which of the two it is belongs to the place the media is used, so a slide's media and
 the same file in the media bin are set separately. A right click on the slide, or on
 the file in the bin, sets it, and the mark on the thumbnail shows which it is: two
-layers, the one behind solid for a background, the one in front for a foreground. Media
-dragged from the bin onto a slide starts out on the slide as it was in the bin.
+layers, the one behind solid for a background, the one in front for a foreground.
 
 In the files this is what ProPresenter keeps: the layer a media action is on, and
 whether its video loops. Media set up there behaves here as it was set there.
@@ -435,6 +435,26 @@ behind the words. The sound follows the picture through a transition, fading in 
 out with a dissolve and starting or stopping at once with a cut. There is nowhere yet
 to set this for one piece of media (see the TODO list); until there is, making a video
 a foreground or a background is what gives it its sound or takes it away.
+
+**Bringing media in.** Media gets onto a slide by being dragged there, out of the media
+bin or, as files, straight out of the file manager. Where it is dropped settles what it
+becomes, whichever of the two it came from:
+
+- **On a slide**, it is the media that slide triggers, as a background: something to go
+  behind the slide's words. If the slide already triggers media, the new file takes its
+  place and plays as the old one did, so this week's video dropped on last week's is
+  still the foreground that was.
+- **Between two slides** (or before the first, or after the last), it gets a slide of
+  its own there, with nothing on it, that triggers it as a foreground. That is how a
+  video takes its turn in the run of a presentation, and it is what ProPresenter makes
+  of media dropped between slides. Several files dropped together get a slide each.
+
+A white outline on the slide, or a white line in the gap, shows which it will be.
+Files dragged from the file manager into the media bin are added to a media playlist:
+the one they are dropped on in the list, or the one being browsed, at the place among
+its thumbnails where they are dropped. Files are referred to where they are on disk,
+never copied or moved, and anything in a drag that is not an image or a video the app
+can show is left out.
 
 A video's thumbnail is a picture from about five seconds into it (or from the middle of
 one shorter than ten seconds), and a little later than that if the picture there is

@@ -90,8 +90,11 @@ struct PlaylistFile
 
     // Media only:
 
-    // Appends image and video files to a media playlist, in the order given.
-    static QString addMedia(const QString &root, const QString &playlistId, const QStringList &files);
+    // Adds image and video files to a media playlist, in the order given: at its end,
+    // or, given one of its rows as `targetId`, just before that row or with `after`
+    // just after it.
+    static QString addMedia(const QString &root, const QString &playlistId, const QStringList &files,
+                            const QString &targetId = {}, bool after = false);
     // Makes a row a background or a foreground (see workspace::MediaBehaviour).
     static QString setMediaForeground(const QString &root, const QString &itemId, bool foreground);
     // If there is no media playlists file yet, writes one that mirrors the folders under

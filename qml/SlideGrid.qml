@@ -3,8 +3,13 @@ import QtQuick.Controls.Basic
 import SimplePresenterApp
 
 // The middle of the operator window: the slides of the presentation being viewed, as a
-// grid of thumbnails. Click one to put it on the output; right-click for its menu; drop
-// a file from the media bin on one to make that slide trigger it.
+// grid of thumbnails. Click one to put it on the output; right-click for its menu.
+//
+// Media can be dropped here, dragged out of the media bin or, as files, out of another
+// application such as the file manager. Dropped on a slide, it becomes the media that
+// slide triggers; dropped between two slides, or before the first or after the last,
+// it becomes a slide of its own there. Where it lands also settles how it plays (see
+// assignMedia() and insertMediaSlides() in Main.qml).
 //
 // Each thumbnail is the slide itself, drawn small by the same Slide that draws the
 // output, not a picture of it, so what is here is always what would be shown. Its frame
@@ -84,6 +89,19 @@ Item {
                           ? slides.win.document.arrangements.indexOf(slides.win.document.arrangement) + 1 : 0
             onActivated: (index) => slides.win.setArrangement(slides.win.currentEntry(), index === 0 ? "" : model[index])
         }
+    }
+
+    // Media dropped on the grid but on none of its slides goes after the last of them.
+    // (This is under the grid, so a slide that is there has the drag first.)
+    DropArea {
+        id: endDrop
+
+        anchors.fill: grid
+        keys: ["media", "text/uri-list"]
+        enabled: slides.win.takesDrops && slides.win.document !== null
+        onEntered: (drag) => slides.win.acceptMediaDrag(drag)
+        onPositionChanged: (drag) => slides.win.acceptMediaDrag(drag)
+        onDropped: (drop) => slides.win.dropOnSlides(-1, "after", drop)
     }
 
     // Slides
@@ -213,11 +231,25 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 4
-                    visible: (cellMouse.containsMouse && !cell.live) || mediaDrop.containsDrag
+                    visible: (cellMouse.containsMouse && !cell.live) || mediaDrop.onto
                     color: "transparent"
-                    border.width: mediaDrop.containsDrag ? 3 : 1
-                    border.color: mediaDrop.containsDrag ? "white" : "#c0ffffff"
+                    border.width: mediaDrop.onto ? 3 : 1
+                    border.color: mediaDrop.onto ? "white" : "#c0ffffff"
                 }
+            }
+
+            // Where media being dragged would become a slide of its own: a line in the
+            // gap before this slide or after it. The last slide also shows it for a
+            // drag that is over the grid but past every slide.
+            Rectangle {
+                readonly property bool atEnd: endDrop.containsDrag && cell.index === grid.count - 1
+
+                x: mediaDrop.zone === "after" || atEnd ? parent.width - 1.5 : -1.5
+                y: 6
+                width: 3
+                height: parent.height - 12
+                visible: (mediaDrop.containsDrag && !mediaDrop.onto) || atEnd
+                color: "white"
             }
 
             MouseArea {
@@ -238,16 +270,29 @@ Item {
                 }
             }
 
-            // A media bin file dropped here becomes the media this slide triggers.
+            // Media dropped on the middle of the slide becomes the media the slide
+            // triggers. Dropped on its left or right edge, which is to say in the gap
+            // beside it, it becomes a slide of its own there.
             DropArea {
                 id: mediaDrop
 
-                anchors.fill: parent
-                keys: ["media"]
-                onDropped: (drop) => {
-                    if (!drop.source.media.missing)
-                        slides.win.assignMedia(cell.index, drop.source.media)
+                // Which of those the drag is over: "onto", "before" or "after"
+                property string zone: "onto"
+                readonly property bool onto: containsDrag && zone === "onto"
+                // How far in from each side the edges reach
+                readonly property real edge: Math.max(16, Math.min(30, width * 0.14))
+
+                function follow(drag) {
+                    zone = drag.x < edge ? "before" : drag.x > width - edge ? "after" : "onto"
+                    slides.win.acceptMediaDrag(drag)
                 }
+
+                anchors.fill: parent
+                keys: ["media", "text/uri-list"]
+                enabled: slides.win.takesDrops
+                onEntered: (drag) => follow(drag)
+                onPositionChanged: (drag) => follow(drag)
+                onDropped: (drop) => slides.win.dropOnSlides(cell.index, zone, drop)
             }
         }
     }

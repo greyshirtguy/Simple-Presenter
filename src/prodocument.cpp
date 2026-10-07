@@ -372,6 +372,119 @@ QString ProDocument::removeCueMedia(const QString &path, const QString &cueId)
     return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
 }
 
+QString ProDocument::insertMediaCues(const QString &path, const QString &cueId, bool after, const QStringList &mediaPaths,
+                                     const QString &workspace)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+
+    // The cue they go beside, if one was named, and the group it is in
+    int anchor = -1;
+    for (int i = 0; i < presentation.cues_size() && !cueId.isEmpty(); ++i) {
+        if (QString::fromStdString(presentation.cues(i).uuid().string()) == cueId)
+            anchor = i;
+    }
+    if (!cueId.isEmpty() && anchor < 0)
+        return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+    rv::data::Presentation::CueGroup *group = nullptr;
+    int placeInGroup = 0;
+    for (rv::data::Presentation::CueGroup &candidate : *presentation.mutable_cue_groups()) {
+        for (int i = 0; i < candidate.cue_identifiers_size() && !group && anchor >= 0; ++i) {
+            if (candidate.cue_identifiers(i).string() == cueId.toStdString()) {
+                group = &candidate;
+                placeInGroup = i + (after ? 1 : 0);
+            }
+        }
+    }
+    // With no cue named they go at the end: of the last group, if there are groups. A
+    // presentation with nothing in it at all is given a group for them, since
+    // ProPresenter shows a presentation by its groups.
+    if (anchor < 0) {
+        if (presentation.cue_groups_size() == 0 && presentation.cues_size() == 0) {
+            rv::data::Presentation::CueGroup *made = presentation.add_cue_groups();
+            made->mutable_group()->mutable_uuid()->set_string(newUuid());
+            made->mutable_group()->mutable_hotkey();
+        }
+        if (presentation.cue_groups_size() > 0) {
+            group = presentation.mutable_cue_groups(presentation.cue_groups_size() - 1);
+            placeInGroup = group->cue_identifiers_size();
+        }
+    }
+
+    // The new slides are the size of the one they go beside, or failing that of the
+    // first slide there is, or failing that of an HD screen.
+    double width = 0;
+    double height = 0;
+    const auto sizeFrom = [&width, &height](const rv::data::Cue &cue) {
+        for (const rv::data::Action &action : cue.actions()) {
+            if (width > 0 || !action.has_slide() || !action.slide().has_presentation())
+                continue;
+            const rv::data::Graphics::Size &size = action.slide().presentation().base_slide().size();
+            if (size.width() > 0 && size.height() > 0) {
+                width = size.width();
+                height = size.height();
+            }
+        }
+    };
+    if (anchor >= 0)
+        sizeFrom(presentation.cues(anchor));
+    for (const rv::data::Cue &cue : presentation.cues())
+        sizeFrom(cue);
+    if (width <= 0) {
+        width = 1920;
+        height = 1080;
+    }
+
+    int place = anchor < 0 ? presentation.cues_size() : anchor + (after ? 1 : 0);
+    for (const QString &mediaPath : mediaPaths) {
+        const std::string name = QFileInfo(mediaPath).fileName().toStdString();
+
+        // The cue, laid out as ProPresenter writes one of these: a slide with nothing
+        // on it, labelled with the file's name, and the media as a foreground.
+        rv::data::Cue *cue = presentation.add_cues();
+        cue->mutable_uuid()->set_string(newUuid());
+        cue->set_name(name);
+        cue->set_completion_action_type(rv::data::Cue::COMPLETION_ACTION_TYPE_LAST);
+        cue->mutable_hot_key();
+        cue->set_isenabled(true);
+
+        rv::data::Action *slide = cue->add_actions();
+        slide->mutable_uuid()->set_string(newUuid());
+        slide->mutable_label()->set_text(name);
+        slide->set_isenabled(true);
+        slide->set_type(rv::data::Action::ACTION_TYPE_PRESENTATION_SLIDE);
+        rv::data::Slide *base = slide->mutable_slide()->mutable_presentation()->mutable_base_slide();
+        base->mutable_size()->set_width(width);
+        base->mutable_size()->set_height(height);
+        base->mutable_uuid()->set_string(newUuid());
+
+        rv::data::Action *media = cue->add_actions();
+        media->mutable_uuid()->set_string(newUuid());
+        media->set_isenabled(true);
+        media->set_type(rv::data::Action::ACTION_TYPE_MEDIA);
+        media->mutable_media()->mutable_audio();
+        *media->mutable_media()->mutable_element() = workspace::mediaElement(mediaPath, workspace);
+        workspace::setMediaForeground(media, true);
+
+        // Added at the end and walked back up to its place, in the list of cues and in
+        // the group's list of them.
+        const std::string id = cue->uuid().string();
+        for (int i = presentation.cues_size() - 1; i > place; --i)
+            presentation.mutable_cues()->SwapElements(i, i - 1);
+        ++place;
+        if (group) {
+            group->add_cue_identifiers()->set_string(id);
+            for (int i = group->cue_identifiers_size() - 1; i > placeInGroup; --i)
+                group->mutable_cue_identifiers()->SwapElements(i, i - 1);
+            ++placeInGroup;
+        }
+    }
+
+    return writePresentation(path, presentation);
+}
+
 QString ProDocument::arrangementId(const QString &path, const QString &name)
 {
     rv::data::Presentation presentation;

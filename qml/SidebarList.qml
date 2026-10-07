@@ -24,13 +24,15 @@ ListView {
     // and given the dragged entry. Entries for which `draggable(entry)` is false stay put.
     property Item dragProxy: null
     property var draggable: (entry) => true
-    // Drags with any of these keys can be dropped on entries. `dropZone(entry, source)`
-    // says how, for the item being dragged: "onto" the entry, shown by outlining it;
-    // "between", into the gap above or below it, shown by a line there; "both", where
-    // the middle of the entry is onto and its top and bottom edges are between; or ""
-    // for not at all.
+    // Drags with any of these keys can be dropped on entries. `dropZone(entry, source,
+    // urls)` says how, for the item being dragged: "onto" the entry, shown by outlining
+    // it; "between", into the gap above or below it, shown by a line there; "both",
+    // where the middle of the entry is onto and its top and bottom edges are between;
+    // or "" for not at all. Files dragged in from another application, which come
+    // under the key "text/uri-list", have no item: `source` is null and `urls` is what
+    // they are.
     property var dropKeys: []
-    property var dropZone: (entry, source) => "onto"
+    property var dropZone: (entry, source, urls) => "onto"
 
     signal picked(var entry)
     // Right-click; `item` is the entry's row, for placing a menu by it.
@@ -40,8 +42,10 @@ ListView {
     // A rename in place ended, whether or not anything changed.
     signal editingEnded
     // Something was dropped; `source` is the dragged item, and `where` is "onto",
-    // "before" or "after" the entry.
-    signal dropped(var entry, var source, string where)
+    // "before" or "after" the entry. For files from another application `source` is
+    // null and `drop` is the drop itself, which has them as `urls` and is to be
+    // accepted by whoever takes them.
+    signal dropped(var entry, var source, string where, var drop)
 
     function escaped(text) {
         return text.replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -209,13 +213,20 @@ ListView {
             property string where: ""
 
             function update(drag) {
-                const zone = list.dropZone(entry.modelData, drag.source)
+                const zone = list.dropZone(entry.modelData, drag.source, drag.urls)
                 const edge = zone === "both" ? 0.28 : 0.5
                 where = zone === "" ? ""
                       : zone === "onto" ? "onto"
                       : drag.y < height * edge ? "before"
                       : drag.y > height * (1 - edge) ? "after"
                       : "onto"
+                // Another application is told whether its files can be dropped here, and
+                // that they would be copied, never moved: a file manager takes a move as
+                // leave to delete what it gave.
+                if (drag.source === null) {
+                    drag.action = Qt.CopyAction
+                    drag.accepted = where !== ""
+                }
             }
 
             anchors.fill: parent
@@ -225,7 +236,7 @@ ListView {
             onPositionChanged: (drag) => update(drag)
             onDropped: (drop) => {
                 if (where !== "")
-                    list.dropped(entry.modelData, drop.source, where)
+                    list.dropped(entry.modelData, drop.source, where, drop)
             }
         }
 
