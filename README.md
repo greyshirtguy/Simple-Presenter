@@ -1,6 +1,6 @@
 # Simple Presenter
 
-![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and Edit at its left and the buttons for Simple View, the media bin, the output and stage windows and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; a grid of slide thumbnails framed in their group colours, the live one ringed in orange, with the media bin under it; and down the right the output and stage previews, the clear buttons, the transport for the video that is playing and the timers](docs/screenshot.png)
+![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and Edit at its left and the buttons for Simple View, the media bin, the output and stage windows and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; a grid of slide thumbnails framed in their group colours, the live one ringed in orange, with the media bin and its thumbnails under it; and down the right the output and stage previews, the clear buttons, the transport for the video that is playing and the show controls, on their tab of props](docs/screenshot.png)
 
 > [!WARNING]
 > **This is a personal experiment, not a product.**
