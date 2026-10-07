@@ -23,6 +23,27 @@
 > You are very welcome to try it, read it, take it apart, fork it and borrow from it.
 > Just do not count on it.
 
+**Yes, it has an editor.** A basic one, for the text boxes on a slide: add them, move
+and resize them, and change their words and their looks. Props and stage layouts are
+edited with it too. More under [Editing](#editing).
+
+![The editor: the presentation's slides down the left, with the elements of the one being worked on listed under them; that slide in the middle, a text box on it picked and showing its handles; and on the right the panel of what can be set for the box, which is its name, position, size and opacity, its fill, stroke and shadow, and the rules for when it shows](docs/editor.png)
+
+**It has timers, props and custom stage layouts,** on three tabs under the previews: a
+countdown that a slide can start, something to lay over the slides until it is
+cleared, and what the people on the stage are shown.
+
+| [Timers](#timers) | [Props](#props) | [Stage layouts](#stage-layouts) |
+|:---:|:---:|:---:|
+| <img src="docs/timers.png" width="240" alt="The timers tab: a countdown of five minutes with its settings open, and a second timer under it"> | <img src="docs/props.png" width="240" alt="The props tab: the default collection, with one prop in it"> | <img src="docs/stage-layouts.png" width="236" alt="The stage tab: the stage screen, with the layout it shows picked from a list and a button to edit it"> |
+
+**And one idea of my own: Simple View.** Hold the ~ key, or click its button, and
+everything round the slides gets out of the way, so that as many of them as will fit
+can be seen at once. The same again brings it all back. More under
+[Simple View](#simple-view).
+
+![Simple View: the toolbar and every pane gone and the slides filling the window, seven to a row, with the presentation's name at the top left and, in the middle of the top, the bright button that says how to go back](docs/simple-view.png)
+
 Simple Presenter is an experiment in vibe coding, and my first attempt at building
 something non-trivial that way: a presenter for Linux that works on a ProPresenter 7
 folder as it is. It has three goals.
