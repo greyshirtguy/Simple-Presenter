@@ -3,11 +3,13 @@ import QtQuick.Window
 
 // The toolbar across the top of the operator window, which stands in for the title bar
 // the window does not have: drag it to move the window, double-click it to maximise.
-// From the left it holds the workspace picker, the name of what is open, the buttons
-// that switch things on and off (the editor, the media bin, the output and stage
-// windows, the settings screen), and the window's own buttons. What works the show
-// itself is not here but beside what it works: the transition under the slides, the
-// clears, the transport and the timers under the previews.
+// On the left it holds what decides what is being worked on: the workspace picker, and
+// the button into the editor and back out. Then the name of what is open. On the right,
+// the buttons that switch things on and off (the media bin; the output and stage
+// windows, which are a pair and are drawn as one; the settings screen), and the
+// window's own buttons. What works the show itself is not here but beside what it
+// works: the transition under the slides, the clears, the transport and the timers
+// under the previews.
 Rectangle {
     id: toolbar
 
@@ -79,10 +81,31 @@ Rectangle {
         }
     }
 
+    // Into the editor for the presentation being viewed, and back out
+    ToolbarIcon {
+        id: editButton
+
+        objectName: "editButton"
+        anchors.left: workspacePicker.right
+        anchors.leftMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        kind: "edit"
+        label: "Edit"
+        on: toolbar.win.editing
+        opacity: toolbar.win.editing || (toolbar.win.document !== null && toolbar.win.currentEntry() !== undefined) ? 1 : 0.4
+        onClicked: {
+            if (toolbar.win.editing)
+                toolbar.win.stopEditing()
+            else
+                toolbar.win.startEditing(toolbar.win.currentEntry())
+        }
+    }
+
     // What is open, and the app: in the middle of the window where there is room for it
-    // there, and otherwise in what room there is between the picker and the buttons
+    // there, and otherwise in what room there is between the edit button and the buttons
+    // on the right
     Text {
-        readonly property real from: workspacePicker.x + workspacePicker.width + 14
+        readonly property real from: editButton.x + editButton.width + 14
         readonly property real to: toolbarControls.x - 16
 
         x: Math.max(from, Math.min((parent.width - width) / 2, to - width))
@@ -102,21 +125,6 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
 
-        // Into the editor for the presentation being viewed, and back out
-        ToolbarIcon {
-            anchors.verticalCenter: parent.verticalCenter
-            kind: "edit"
-            label: "Edit"
-            on: toolbar.win.editing
-            opacity: toolbar.win.editing || (toolbar.win.document !== null && toolbar.win.currentEntry() !== undefined) ? 1 : 0.4
-            onClicked: {
-                if (toolbar.win.editing)
-                    toolbar.win.stopEditing()
-                else
-                    toolbar.win.startEditing(toolbar.win.currentEntry())
-            }
-        }
-
         ToolbarIcon {
             anchors.verticalCenter: parent.verticalCenter
             kind: "bin"
@@ -125,18 +133,46 @@ Rectangle {
             onClicked: toolbar.win.mediaBinVisible = !toolbar.win.mediaBinVisible
         }
 
-        ToolbarIcon {
+        // The two windows the show goes out through, each switched on and off by its
+        // half: one control, with a line down the middle
+        Rectangle {
+            objectName: "outputToggles"
             anchors.verticalCenter: parent.verticalCenter
-            label: "Output"
-            on: toolbar.win.outputEnabled
-            onClicked: toolbar.win.outputEnabled = !toolbar.win.outputEnabled
-        }
+            width: outputToggles.width + 2
+            height: 40
+            radius: 8
+            color: "#23252b"
+            border.width: 1
+            border.color: "#3a3c42"
 
-        ToolbarIcon {
-            anchors.verticalCenter: parent.verticalCenter
-            label: "Stage"
-            on: toolbar.win.stageEnabled
-            onClicked: toolbar.win.stageEnabled = !toolbar.win.stageEnabled
+            Row {
+                id: outputToggles
+
+                anchors.centerIn: parent
+
+                ToolbarIcon {
+                    objectName: "outputToggle"
+                    height: 38
+                    label: "Output"
+                    on: toolbar.win.outputEnabled
+                    onClicked: toolbar.win.outputEnabled = !toolbar.win.outputEnabled
+                }
+
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 1
+                    height: 26
+                    color: "#3a3c42"
+                }
+
+                ToolbarIcon {
+                    objectName: "stageToggle"
+                    height: 38
+                    label: "Stage"
+                    on: toolbar.win.stageEnabled
+                    onClicked: toolbar.win.stageEnabled = !toolbar.win.stageEnabled
+                }
+            }
         }
 
         ToolbarIcon {
