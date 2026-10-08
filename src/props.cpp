@@ -318,6 +318,38 @@ QString Props::move(const QString &id, const QString &collection)
     return write(&document);
 }
 
+QString Props::place(const QString &id, const QString &before)
+{
+    rv::data::PropDocument document;
+    const QString error = read(&document);
+    if (!error.isEmpty())
+        return error;
+    collectStrays(&document);
+    const std::string moved = id.toStdString();
+    const std::string target = before.toStdString();
+    for (Collection &collection : *document.mutable_prop_collections()) {
+        int from = -1;
+        for (int i = 0; i < collection.items_size(); ++i) {
+            if (collection.items(i).prop_cue_uuid().string() == moved)
+                from = i;
+        }
+        if (from < 0)
+            continue;
+        // Taken out, and put back before the other, or at the end.
+        collection.mutable_items()->DeleteSubrange(from, 1);
+        int to = collection.items_size();
+        for (int i = 0; i < collection.items_size(); ++i) {
+            if (!target.empty() && collection.items(i).prop_cue_uuid().string() == target)
+                to = i;
+        }
+        collection.add_items()->mutable_prop_cue_uuid()->set_string(moved);
+        for (int at = collection.items_size() - 1; at > to; --at)
+            collection.mutable_items()->SwapElements(at, at - 1);
+        return write(&document);
+    }
+    return propGone;
+}
+
 QVariantMap Props::addCollection()
 {
     rv::data::PropDocument document;

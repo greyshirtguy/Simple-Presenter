@@ -72,6 +72,9 @@ public:
     Q_INVOKABLE QString remove(const QString &id);
     // Moves a prop to the end of another collection.
     Q_INVOKABLE QString move(const QString &id, const QString &collection);
+    // Moves a prop within its collection: to just before another prop of it, or, with
+    // none named, to the end.
+    Q_INVOKABLE QString place(const QString &id, const QString &before);
     Q_INVOKABLE QVariantMap addCollection();
     Q_INVOKABLE QString renameCollection(const QString &id, const QString &name);
     // Removes a collection and the props that are in it.
