@@ -106,6 +106,7 @@ qt_add_qml_module(SimplePresenter
         qml/Editor.qml
         qml/EditorCanvas.qml
         qml/EditorInspector.qml
+        qml/EditorTool.qml
         qml/EmptyNote.qml
         qml/FontPicker.qml
         qml/IconButton.qml
@@ -192,6 +193,7 @@ qt_add_shaders(SimplePresenter "shaders"
         shaders/fadeDark.frag
         shaders/fadeGray.frag
         shaders/fadeWhite.frag
+        shaders/feather.frag
         shaders/flip.frag
         shaders/flyIn.frag
         shaders/iris.frag

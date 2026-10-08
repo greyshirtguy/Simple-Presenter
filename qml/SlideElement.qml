@@ -1,10 +1,22 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Shapes
+import QtQuick.Window
 import SimplePresenterApp
 
 // One element of a slide: its shape (fill and stroke), with its text over it, each with
 // its own shadow. Geometry comes in slide units and is multiplied by `unit`, so text is
 // rasterised at the size it is shown at rather than scaled up from a fixed-size texture.
+//
+// The shape. Nearly every element there is is a rectangle that is filled with a plain
+// colour or not at all, and that is drawn as the one rectangle it is. Anything more is
+// drawn by the parts further down, which are only made for an element that needs them:
+// an outline that is not a rectangle (a rounded rectangle, an ellipse, an arrow, or
+// any other shape of ProPresenter's, each drawn from the points of its outline), a
+// fill that is a gradient or a picture, edges that fade out. A picture is cut to a
+// shape that is not a rectangle by masking it, and edges are faded by a shader
+// (shaders/feather.frag), each of which takes a texture of its own; so they too are
+// only set up where they are called for.
 //
 // It draws what the element map says and works nothing out: which elements show, and
 // what text each shows, was settled when the map was made (src/proconvert.h). The same
@@ -78,7 +90,38 @@ Item {
     // fill that is only behind the text's lines), in slide units
     readonly property real textBleed: 60
     // A fill that is only behind the lines of the text is drawn with the text.
-    readonly property bool boxFilled: source.fillEnabled && !source.fillLinesOnly && (standIns || !source.linkPicture)
+    readonly property bool boxFilled: source.fillShown && !source.fillLinesOnly && (standIns || !source.linkPicture)
+    // Whether the shape is more than a rectangle with a plain fill, or none
+    readonly property bool plain: source.shape === "rectangle" && (!boxFilled || source.fillKind === "color") && !feathered
+    readonly property bool feathered: effects && source.featherOn && boxFilled && source.shape !== "arrow" && source.shape !== "other"
+    // The shape's outline as an SVG path, in pixels of this item
+    readonly property string outline: plain ? "" : outlinePath(width, height)
+
+    function outlinePath(w, h) {
+        const round = (n) => Math.round(n * 100) / 100
+        if (source.shape === "roundedRectangle") {
+            // Round in the element's own proportions, whatever the points in the file say
+            const r = round(Math.max(0, Math.min(0.5, source.roundness)) * Math.min(w, h))
+            if (r <= 0)
+                return "M 0 0 H " + w + " V " + h + " H 0 Z"
+            const arc = " A " + r + " " + r + " 0 0 1 "
+            return "M " + r + " 0 H " + round(w - r) + arc + w + " " + r + " V " + round(h - r) + arc + round(w - r) + " " + h
+                 + " H " + r + arc + "0 " + round(h - r) + " V " + r + arc + r + " 0 Z"
+        }
+        const points = source.outline
+        if (!points || points.length < 2)
+            return "M 0 0 H " + w + " V " + h + " H 0 Z"
+        // From each point to the next by a curve, which is a straight line where the
+        // bending points are the points themselves
+        let path = "M " + round(points[0][0] * w) + " " + round(points[0][1] * h)
+        for (let i = 1; i <= points.length; ++i) {
+            const from = points[i - 1]
+            const to = points[i % points.length]
+            path += " C " + round(from[4] * w) + " " + round(from[5] * h) + " " + round(to[2] * w) + " " + round(to[3] * h)
+                  + " " + round(to[0] * w) + " " + round(to[1] * h)
+        }
+        return path + " Z"
+    }
 
     component Shadow: MultiEffect {
         property string which
@@ -99,16 +142,152 @@ Item {
     rotation: source.rotation
     opacity: source.opacity
 
-    Rectangle {
+    Loader {
         anchors.fill: parent
         visible: element.boxFilled || element.source.strokeEnabled
-        color: element.boxFilled ? element.source.fillColor : "transparent"
-        border.color: element.source.strokeColor
-        border.width: element.source.strokeEnabled ? element.source.strokeWidth * element.unit : 0
+        sourceComponent: element.plain ? plainBox : richShape
 
         layer.enabled: element.effects && element.source.shadowEnabled
         layer.effect: Shadow {
             which: "shadow"
+        }
+    }
+
+    Component {
+        id: plainBox
+
+        Rectangle {
+            color: element.boxFilled ? element.source.fillColor : "transparent"
+            border.color: element.source.strokeColor
+            border.width: element.source.strokeEnabled ? element.source.strokeWidth * element.unit : 0
+        }
+    }
+
+    Component {
+        id: richShape
+
+        Item {
+            id: rich
+
+            readonly property string kind: element.boxFilled ? element.source.fillKind : "none"
+            readonly property bool cut: element.source.shape !== "rectangle"
+            // Which way a gradient runs: its angle is anticlockwise from pointing right
+            readonly property real along: element.source.fillGradientAngle * Math.PI / 180
+            readonly property real reach: Math.abs(width / 2 * Math.cos(along)) + Math.abs(height / 2 * Math.sin(along))
+
+            // The fill, which is the part whose edges fade if they do
+            Item {
+                anchors.fill: parent
+
+                layer.enabled: element.feathered
+                layer.effect: ShaderEffect {
+                    property real kind: element.source.shape === "ellipse" ? 2 : element.source.shape === "roundedRectangle" ? 1 : 0
+                    property real corner: Math.max(0, Math.min(0.5, element.source.roundness)) * Math.min(rich.width, rich.height)
+                    property real feather: element.source.featherRadius * Math.min(rich.width, rich.height)
+                    property vector2d extent: Qt.vector2d(rich.width, rich.height)
+
+                    fragmentShader: "qrc:/shaders/feather.frag.qsb"
+                }
+
+                // A colour or a gradient, in the shape
+                Shape {
+                    anchors.fill: parent
+                    visible: rich.kind === "color" || rich.kind === "gradient"
+                    preferredRendererType: Shape.CurveRenderer
+
+                    ShapePath {
+                        strokeColor: "transparent"
+                        strokeWidth: 0
+                        fillColor: rich.kind === "color" ? element.source.fillColor : "transparent"
+                        fillGradient: rich.kind === "gradient" ? ramp : null
+
+                        PathSvg {
+                            path: element.outline
+                        }
+                    }
+                }
+
+                LinearGradient {
+                    id: ramp
+
+                    x1: rich.width / 2 - Math.cos(rich.along) * rich.reach
+                    y1: rich.height / 2 + Math.sin(rich.along) * rich.reach
+                    x2: rich.width / 2 + Math.cos(rich.along) * rich.reach
+                    y2: rich.height / 2 - Math.sin(rich.along) * rich.reach
+
+                    GradientStop {
+                        position: 0
+                        color: element.source.fillGradientFrom
+                    }
+                    GradientStop {
+                        position: 1
+                        color: element.source.fillGradientTo
+                    }
+                }
+
+                // A picture: made to fit inside the element, to fill it and be cut off
+                // at its edges, or stretched to it. In a shape that is not a rectangle
+                // it is cut to the shape by a mask.
+                Image {
+                    anchors.fill: parent
+                    visible: rich.kind === "media"
+                    source: rich.kind === "media" ? element.source.fillMediaSource : ""
+                    asynchronous: true
+                    clip: true
+                    fillMode: element.source.fillMediaScale === 2 ? Image.Stretch
+                            : element.source.fillMediaScale === 1 ? Image.PreserveAspectCrop : Image.PreserveAspectFit
+                    // No larger in memory than it is shown
+                    sourceSize: Qt.size(Math.max(1, Math.ceil(width * Screen.devicePixelRatio)),
+                                        Math.max(1, Math.ceil(height * Screen.devicePixelRatio)))
+
+                    layer.enabled: rich.cut && rich.kind === "media"
+                    layer.effect: MultiEffect {
+                        maskEnabled: true
+                        maskSource: mask.item
+                    }
+                }
+
+                Loader {
+                    id: mask
+
+                    anchors.fill: parent
+                    active: rich.cut && rich.kind === "media"
+
+                    sourceComponent: Shape {
+                        visible: false
+                        preferredRendererType: Shape.CurveRenderer
+                        layer.enabled: true
+
+                        ShapePath {
+                            strokeColor: "transparent"
+                            strokeWidth: 0
+                            fillColor: "white"
+
+                            PathSvg {
+                                path: element.outline
+                            }
+                        }
+                    }
+                }
+            }
+
+            // The stroke, along the outline
+            Shape {
+                anchors.fill: parent
+                visible: element.source.strokeEnabled
+                preferredRendererType: Shape.CurveRenderer
+
+                ShapePath {
+                    strokeColor: element.source.strokeColor
+                    strokeWidth: element.source.strokeWidth * element.unit
+                    fillColor: "transparent"
+                    joinStyle: ShapePath.MiterJoin
+
+                    PathSvg {
+                        path: element.outline
+                    }
+                }
+            }
         }
     }
 

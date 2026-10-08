@@ -1821,6 +1821,8 @@ Window {
         backdropFor: (slideId) => win.slideBackdrop(slideId)
         showMenu: (items, item, x, y) => menu.show(items, item, x, y)
         onDone: win.stopEditing()
+        mediaFilter: win.catalog.mediaDialogFilter
+        mediaFolder: win.catalog.mediaDirectory
         // Whatever is on the output can still be cleared while editing.
         onKeyPassed: (event) => {
             if (event.key === Qt.Key_F1)

@@ -22,6 +22,8 @@ Rectangle {
     // The installed font families
     property var families: []
     property var setProperties: (changes, interim) => {}
+    // Asks for a media file to fill the element with
+    property var chooseMedia: () => {}
     property var setFormat: (format, interim) => {}
     property var settle: () => {}
     property string tab: "shape"
@@ -418,10 +420,34 @@ Rectangle {
                 text: "Fill"
             }
 
+            // What it is filled with: a colour, a gradient from one colour to another, or
+            // a picture. Choosing a kind turns the fill on.
             CheckLine {
+                id: fillLine
+
+                readonly property string kind: inspector.element ? inspector.element.fillKind : "none"
+
                 text: "Fill"
                 checked: inspector.element ? inspector.element.fillOn : false
                 onToggled: (checked) => inspector.setProperties({ fillOn: checked }, false)
+
+                Choice {
+                    objectName: "fillKind"
+                    width: shapeTab.width - 78
+                    model: ["Colour", "Gradient", "Media"]
+                    choice: fillLine.kind === "gradient" ? 1 : fillLine.kind === "media" ? 2 : 0
+                    onChosen: (index) => {
+                        if (index === 2)
+                            inspector.chooseMedia()
+                        else
+                            inspector.setProperties({ fillKind: index === 1 ? "gradient" : "color", fillOn: true }, false)
+                    }
+                }
+            }
+
+            Line {
+                caption: "Colour"
+                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media"
 
                 // Picking a colour turns the fill on, and makes it a plain colour.
                 ColorButton {
@@ -432,8 +458,83 @@ Rectangle {
                 }
             }
 
+            // From the first colour to the second, along the angle: 0 is to the right
+            // and the angle turns anticlockwise, so 270 is downwards.
+            Line {
+                caption: "Colours"
+                visible: fillLine.kind === "gradient"
+
+                ColorButton {
+                    objectName: "gradientFrom"
+                    value: inspector.element ? inspector.element.fillGradientFrom : "white"
+                    onChanging: (value) => inspector.setProperties({ fillGradientFrom: value }, true)
+                    onPicked: (value) => inspector.setProperties({ fillGradientFrom: value }, false)
+                    onClosed: inspector.finished()
+                }
+
+                ColorButton {
+                    objectName: "gradientTo"
+                    value: inspector.element ? inspector.element.fillGradientTo : "black"
+                    onChanging: (value) => inspector.setProperties({ fillGradientTo: value }, true)
+                    onPicked: (value) => inspector.setProperties({ fillGradientTo: value }, false)
+                    onClosed: inspector.finished()
+                }
+
+                Tag {
+                    text: "Angle"
+                }
+
+                NumberField {
+                    objectName: "gradientAngle"
+                    width: 52
+                    from: 0
+                    to: 359
+                    step: 15
+                    suffix: "°"
+                    value: inspector.element ? Math.round(inspector.element.fillGradientAngle) : 0
+                    onEdited: (value) => inspector.setProperties({ fillGradientAngle: value }, false)
+                    onFinished: inspector.finished()
+                }
+            }
+
+            Line {
+                caption: "File"
+                visible: fillLine.kind === "media"
+
+                Text {
+                    width: shapeTab.width - 78 - 90
+                    anchors.verticalCenter: parent.verticalCenter
+                    elide: Text.ElideMiddle
+                    color: inspector.element && inspector.element.fillMediaPath === "" ? "#d07070" : "#e6e6e6"
+                    font.pixelSize: 12
+                    text: inspector.element ? inspector.element.fillMediaName : ""
+                }
+
+                AppButton {
+                    width: 84
+                    height: 26
+                    font.pixelSize: 12
+                    text: "Choose…"
+                    onClicked: inspector.chooseMedia()
+                }
+            }
+
+            Line {
+                caption: "Scale"
+                visible: fillLine.kind === "media"
+
+                Choice {
+                    objectName: "mediaScale"
+                    width: shapeTab.width - 78
+                    model: ["Scale to Fit", "Scale to Fill", "Stretch to Fill"]
+                    choice: inspector.element ? inspector.element.fillMediaScale : 0
+                    onChosen: (index) => inspector.setProperties({ fillMediaScale: index }, false)
+                }
+            }
+
             AppCheck {
                 width: parent.width
+                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media"
                 text: "Only behind the lines of text"
                 checked: inspector.element ? inspector.element.fillLinesOnly : false
                 onToggled: (checked) => inspector.setProperties({ fillLinesOnly: checked }, false)
@@ -441,11 +542,55 @@ Rectangle {
 
             Note {
                 topPadding: 4
-                visible: inspector.element !== null && inspector.element.fillKind !== "color"
-                         && inspector.element.fillKind !== "none"
-                text: inspector.element && inspector.element.fillKind === "gradient"
-                      ? "This element has a gradient fill, which is not drawn here yet. It is kept as it is unless a colour is picked, which replaces it."
-                      : "This element is filled with something that is not drawn here yet. It is kept as it is unless a colour is picked, which replaces it."
+                visible: inspector.element !== null && (fillLine.kind === "other"
+                         || (fillLine.kind === "media" && (inspector.element.fillMediaVideo || inspector.element.fillMediaPath === "")))
+                text: fillLine.kind === "other"
+                      ? "This element is filled with something that is not drawn here yet. It is kept as it is unless another fill is chosen, which replaces it."
+                      : inspector.element && inspector.element.fillMediaPath === ""
+                        ? "That file is not in this workspace or where it was when it was chosen, so nothing is drawn for it."
+                        : "A video as a fill is kept in the file but not drawn here yet: only pictures are."
+            }
+
+            // The corners of a rounded rectangle, which the handle on its top edge also sets
+            Line {
+                caption: "Corners"
+                visible: inspector.element !== null && inspector.element.shape === "roundedRectangle"
+
+                AppSlider {
+                    objectName: "roundness"
+                    width: shapeTab.width - 78
+                    anchors.verticalCenter: parent.verticalCenter
+                    from: 0
+                    to: 0.5
+                    value: inspector.element ? inspector.element.roundness : 0
+                    onMoved: inspector.setProperties({ roundness: Math.round(value * 1000) / 1000 }, true)
+                    onPressedChanged: {
+                        if (!pressed)
+                            inspector.settle()
+                    }
+                }
+            }
+
+            // Edges that fade out, for a rectangle, a rounded one or an ellipse
+            CheckLine {
+                text: "Feather"
+                visible: inspector.element !== null && inspector.element.shape !== "arrow" && inspector.element.shape !== "other"
+                checked: inspector.element ? inspector.element.featherOn : false
+                onToggled: (checked) => inspector.setProperties({ featherOn: checked }, false)
+
+                AppSlider {
+                    objectName: "feather"
+                    width: shapeTab.width - 78
+                    anchors.verticalCenter: parent.verticalCenter
+                    from: 0
+                    to: 0.5
+                    value: inspector.element ? inspector.element.featherRadius : 0
+                    onMoved: inspector.setProperties({ featherRadius: Math.round(value * 1000) / 1000, featherOn: true }, true)
+                    onPressedChanged: {
+                        if (!pressed)
+                            inspector.settle()
+                    }
+                }
             }
 
             Heading {

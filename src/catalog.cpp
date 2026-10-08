@@ -62,6 +62,8 @@ void Catalog::openWorkspace(const QString &path)
 // telling them anyway would have every list rebuilt for nothing.
 void Catalog::rescan()
 {
+    // Files may have come or gone: what is looked for by name is looked for afresh.
+    workspace::setOpenWorkspace(m_root);
     m_settle.stop();
 
     // The workspaces are the folders beside the open one.

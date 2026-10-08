@@ -133,6 +133,21 @@ Item {
             editText(made.id)
     }
 
+    // Adds a shape, or an element filled with a media file, and picks it.
+    function addShape(shape) {
+        finishText()
+        const made = editor.addShape(row, shape)
+        if (report(made.error))
+            selectedId = made.id
+    }
+
+    function addMedia(file) {
+        finishText()
+        const made = editor.addMedia(row, file)
+        if (report(made.error))
+            selectedId = made.id
+    }
+
     function duplicate() {
         if (!selected)
             return
@@ -881,6 +896,61 @@ Item {
                     border.width: 1
                     border.color: "#15161a"
                 }
+            }
+        }
+
+        // A rounded rectangle has one handle more: a round one on its top edge, as far
+        // in from the corner as the corners are round, which is dragged along the edge
+        // to make them more so or less. (It keeps clear of the corner's own handle.)
+        MouseArea {
+            id: cornerHandle
+
+            objectName: "cornerHandle"
+            readonly property var element: canvas.selected
+            readonly property real shorter: element ? Math.min(element.width, element.height) : 1
+            // The roundness while it is being dragged, or -1
+            property real dragged: -1
+            property real pressedX: 0
+            property real from: 0
+
+            visible: element !== null && element.shape === "roundedRectangle" && !element.locked && !canvas.editing
+                     && frame.width > 60
+            x: Math.max(16, (dragged >= 0 ? dragged : element ? element.roundness : 0) * shorter * canvas.u) - width / 2
+            y: -height / 2
+            width: 18
+            height: 18
+            preventStealing: true
+            cursorShape: Qt.SizeHorCursor
+            onPressed: (mouse) => {
+                canvas.forceActiveFocus()
+                canvas.settle()
+                pressedX = mapToItem(frame, mouse.x, mouse.y).x
+                from = element.roundness
+                dragged = from
+            }
+            onPositionChanged: (mouse) => {
+                if (dragged < 0)
+                    return
+                // Along the element's own top edge, whichever way that is turned
+                const moved = (mapToItem(frame, mouse.x, mouse.y).x - pressedX) / canvas.u
+                dragged = Math.max(0, Math.min(0.5, from + moved / shorter))
+                canvas.setProperties({ roundness: Math.round(dragged * 1000) / 1000 }, true)
+            }
+            onReleased: {
+                if (dragged >= 0)
+                    canvas.settle()
+                dragged = -1
+            }
+            onCanceled: dragged = -1
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: 10
+                height: 10
+                radius: 5
+                color: cornerHandle.pressed ? "#ff8a1f" : "#ffd24a"
+                border.width: 1
+                border.color: "#15161a"
             }
         }
     }

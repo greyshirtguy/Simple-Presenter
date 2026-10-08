@@ -55,9 +55,25 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //   fillLinesOnly (the fill is only behind the lines of the text) and how: lineMaskStyle
 //     (0 the box's width, 1 each line's, 2 the widest line's), lineMaskWidthOffset,
 //     lineMaskHeightOffset, lineMaskHorizontalOffset, lineMaskVerticalOffset
+//   fillShown (on, and of a kind that is drawn: a colour, a gradient, or a picture
+//     that can be found), and for the other two kinds: fillGradientFrom,
+//     fillGradientTo and fillGradientAngle (the first and last of its colours, and the
+//     way it runs, in degrees anticlockwise from pointing right); fillMediaName,
+//     fillMediaPath and fillMediaSource (the file, the last two empty if it cannot be
+//     found or, the source, if it is a video, which is not drawn), fillMediaVideo and
+//     fillMediaScale (0 to fit, 1 to fill, 2 stretched)
+//   shape ("rectangle", "roundedRectangle", "ellipse", "arrow" or "other"), roundness
+//     (of a rounded rectangle: its corners' radius as a part of its shorter side), and
+//     outline (for anything but a rectangle: its points on the unit square, each
+//     [x, y, in x, in y, out x, out y], the last four bending the outline on its way
+//     into the point and out of it)
+//   featherOn and featherRadius (its edges fading out, over that part of its shorter
+//     side)
 //   strokeOn, strokeColor, strokeWidth, and strokeEnabled (on, and wider than nothing)
 //   shadow... and textShadow...: Enabled, Color (as drawn, opacity included), Angle,
 //     Offset, Radius, and worked out from those OffsetX and OffsetY
+//   words (the start of its own text, on one line: what an element with no name is
+//     called in a list)
 //   text (RichText, as authored), verticalAlignment, marginLeft/Top/Right/Bottom,
 //   textScale (whether the text's size is changed to suit its box, as the file has it:
 //     0 no, 1 the box's height suits the text instead, which is not done here, 2 made
@@ -106,6 +122,9 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 // keys; these can be changed:
 //   x, y, width, height, opacity, name, locked, hidden
 //   fillOn, fillColor (which also makes the fill a plain colour), fillLinesOnly
+//   fillKind ("color" or "gradient"), fillGradientFrom, fillGradientTo,
+//     fillGradientAngle, fillMediaPath (which makes the fill that file), fillMediaScale
+//   roundness, featherOn, featherRadius
 //   strokeOn, strokeColor, strokeWidth
 //   shadowEnabled, shadowColor, shadowAngle, shadowOffset, shadowRadius, and the same
 //     for textShadow...
@@ -124,6 +143,14 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
 // slide has. Its text is set in the format of `like`'s, if given, so that it matches
 // the text already on the slide.
 rv::data::Slide::Element makeTextElement(const rv::data::Slide &slide, const rv::data::Slide::Element *like);
+
+// A new shape for a slide, filled with a plain colour: "rectangle", "roundedRectangle",
+// "ellipse" or "arrow". And a new element filled with a picture or a video file, the
+// shape of the picture. Each is an element like any other, with words of its own to be
+// typed into it: in ProPresenter's files a text box, a shape and a media element are
+// one kind of thing, which differ only in what they start out with.
+rv::data::Slide::Element makeShapeElement(const rv::data::Slide &slide, const QString &shape);
+rv::data::Slide::Element makeMediaElement(const rv::data::Slide &slide, const QString &file);
 
 // A name for a new element: `base`, or `base` and the first number that makes it one
 // no element of the slide has.

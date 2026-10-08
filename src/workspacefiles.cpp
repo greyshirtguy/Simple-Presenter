@@ -14,7 +14,10 @@
 #include <QUrl>
 #include <QUuid>
 
+#include <QMutex>
+
 #include <algorithm>
+#include <memory>
 
 namespace workspace {
 
@@ -184,6 +187,35 @@ QString writeMessage(const QString &path, const google::protobuf::MessageLite &m
         return QStringLiteral("Cannot write %1: %2").arg(what, file.errorString());
     SessionLog::write("saved", path);
     return {};
+}
+
+namespace {
+QMutex openMutex;
+QString openRoot;
+std::unique_ptr<FileFinder> openFinder;
+}
+
+void setOpenWorkspace(const QString &workspaceFolder)
+{
+    const QMutexLocker lock(&openMutex);
+    openRoot = workspaceFolder;
+    // A new finder: the folder is listed afresh the next time something is looked for
+    // by name.
+    openFinder.reset();
+}
+
+QString findMediaFile(const rv::data::URL &reference)
+{
+    const QMutexLocker lock(&openMutex);
+    if (!openFinder)
+        openFinder = std::make_unique<FileFinder>(openRoot, QStringLiteral("Media"));
+    return openFinder->find(reference);
+}
+
+QString openWorkspace()
+{
+    const QMutexLocker lock(&openMutex);
+    return openRoot;
 }
 
 void MediaBehaviour::describe(QVariantMap *media) const

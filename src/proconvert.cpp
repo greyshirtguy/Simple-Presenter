@@ -10,6 +10,9 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QImageReader>
+#include <QUrl>
+#include <cmath>
 #include <QPointF>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -295,6 +298,106 @@ QString otherConditionLabel(const DataLink::VisibilityLink::Condition &condition
     }
 }
 
+using ShapeType = rv::data::Graphics::Path::Shape::Type;
+
+// The shapes this app can make, by the names the element map knows them under. Any
+// other shape of ProPresenter's is "other": it is drawn, from its outline, but not made.
+QString shapeName(ShapeType type)
+{
+    switch (type) {
+    case rv::data::Graphics::Path::Shape::TYPE_UNKNOWN:
+    case rv::data::Graphics::Path::Shape::TYPE_RECTANGLE:
+        return QStringLiteral("rectangle");
+    case rv::data::Graphics::Path::Shape::TYPE_ROUNDED_RECTANGLE:
+        return QStringLiteral("roundedRectangle");
+    case rv::data::Graphics::Path::Shape::TYPE_ELLIPSE:
+        return QStringLiteral("ellipse");
+    case rv::data::Graphics::Path::Shape::TYPE_RIGHT_ARROW:
+        return QStringLiteral("arrow");
+    default:
+        return QStringLiteral("other");
+    }
+}
+
+// Writes the outline of one of those shapes as ProPresenter writes it: points on the
+// unit square, each with the two points that bend the outline on its way in and on its
+// way out (the same as the point itself where the outline is straight). The corners of
+// a rounded rectangle are round in the element's own proportions, so its outline
+// depends on the element's size, and is written again whenever that changes.
+void setShapePath(rv::data::Graphics::Path *path, ShapeType type, double roundness, double width, double height)
+{
+    path->clear_points();
+    path->set_closed(true);
+    const auto add = [path](QPointF point, QPointF in, QPointF out, bool curved) {
+        auto *made = path->add_points();
+        made->mutable_point()->set_x(point.x());
+        made->mutable_point()->set_y(point.y());
+        made->mutable_q0()->set_x(in.x());
+        made->mutable_q0()->set_y(in.y());
+        made->mutable_q1()->set_x(out.x());
+        made->mutable_q1()->set_y(out.y());
+        if (curved)
+            made->set_curved(true);
+    };
+    const auto corner = [&add](double x, double y) { add({x, y}, {x, y}, {x, y}, false); };
+    // How far along a quarter of a circle's radius its bending points sit
+    const double bend = 0.5522847498;
+    path->mutable_shape()->set_type(type);
+    switch (type) {
+    case rv::data::Graphics::Path::Shape::TYPE_ELLIPSE: {
+        const double near = 0.5 - bend / 2;
+        const double far = 0.5 + bend / 2;
+        add({0.5, 0}, {near, 0}, {far, 0}, true);
+        add({1, 0.5}, {1, near}, {1, far}, true);
+        add({0.5, 1}, {far, 1}, {near, 1}, true);
+        add({0, 0.5}, {0, far}, {0, near}, true);
+        break;
+    }
+    case rv::data::Graphics::Path::Shape::TYPE_ROUNDED_RECTANGLE: {
+        roundness = qBound(0.0, roundness, 0.5);
+        const double radius = roundness * qMin(width, height);
+        const double rx = width > 0 ? radius / width : 0;
+        const double ry = height > 0 ? radius / height : 0;
+        const double cx = rx * (1 - bend);
+        const double cy = ry * (1 - bend);
+        add({rx, 0}, {cx, 0}, {rx, 0}, true);
+        add({1 - rx, 0}, {1 - rx, 0}, {1 - cx, 0}, true);
+        add({1, ry}, {1, cy}, {1, ry}, true);
+        add({1, 1 - ry}, {1, 1 - ry}, {1, 1 - cy}, true);
+        add({1 - rx, 1}, {1 - cx, 1}, {1 - rx, 1}, true);
+        add({rx, 1}, {rx, 1}, {cx, 1}, true);
+        add({0, 1 - ry}, {0, 1 - cy}, {0, 1 - ry}, true);
+        add({0, ry}, {0, ry}, {0, cy}, true);
+        path->mutable_shape()->mutable_rounded_rectangle()->set_roundness(roundness);
+        break;
+    }
+    case rv::data::Graphics::Path::Shape::TYPE_RIGHT_ARROW:
+        // A shaft half the height, and a head over the last two fifths of the width
+        corner(0, 0.25);
+        corner(0.6, 0.25);
+        corner(0.6, 0);
+        corner(1, 0.5);
+        corner(0.6, 1);
+        corner(0.6, 0.75);
+        corner(0, 0.75);
+        path->mutable_shape()->mutable_arrow()->mutable_corner()->set_x(0.6);
+        path->mutable_shape()->mutable_arrow()->mutable_corner()->set_y(0.25);
+        break;
+    default:
+        corner(0, 0);
+        corner(1, 0);
+        corner(1, 1);
+        corner(0, 1);
+        break;
+    }
+}
+
+// The media a fill is made of, as its drawing settings: an image's or a video's.
+const rv::data::Media::DrawingProperties &fillDrawing(const rv::data::Media &media)
+{
+    return media.has_video() ? media.video().drawing() : media.image().drawing();
+}
+
 QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
 {
     const rv::data::Graphics::Element &element = slideElement.element();
@@ -331,8 +434,51 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     insertShadow(&map, QStringLiteral("shadow"), element.shadow());
     insertShadow(&map, QStringLiteral("textShadow"), element.text().shadow());
 
+    // The shape. A plain rectangle needs no outline to be drawn from; anything else
+    // carries its own, as [x, y, in x, in y, out x, out y] for each point.
+    const rv::data::Graphics::Path &path = element.path();
+    const QString shape = path.points_size() < 2 ? QStringLiteral("rectangle") : shapeName(path.shape().type());
+    map.insert("shape", shape);
+    map.insert("roundness", path.shape().rounded_rectangle().roundness());
+    QVariantList outline;
+    if (shape != QLatin1String("rectangle")) {
+        for (const auto &point : path.points()) {
+            outline.append(QVariant(QVariantList {point.point().x(), point.point().y(), point.q0().x(), point.q0().y(),
+                                                  point.q1().x(), point.q1().y()}));
+        }
+    }
+    map.insert("outline", outline);
+
+    // A gradient is drawn from its first colour to its last, along its angle.
+    const rv::data::Graphics::Gradient &gradient = fill.gradient();
+    const int stops = gradient.stops_size();
+    map.insert("fillGradientFrom", stops > 0 ? toColor(gradient.stops(0).color()) : QColor(Qt::white));
+    map.insert("fillGradientTo", stops > 0 ? toColor(gradient.stops(stops - 1).color()) : QColor(Qt::black));
+    map.insert("fillGradientAngle", gradient.angle());
+    // A media fill: the file's name, and the file if it is a picture that can be found.
+    QString mediaName;
+    QString mediaPath;
+    if (fill.has_media()) {
+        mediaName = workspace::fileNameOf(fill.media().url());
+        mediaPath = workspace::findMediaFile(fill.media().url());
+    }
+    const bool mediaIsVideo = fill.media().has_video();
+    map.insert("fillMediaName", mediaName);
+    map.insert("fillMediaPath", mediaPath);
+    map.insert("fillMediaSource", mediaPath.isEmpty() || mediaIsVideo ? QUrl() : QUrl::fromLocalFile(mediaPath));
+    map.insert("fillMediaVideo", mediaIsVideo);
+    map.insert("fillMediaScale", fill.has_media() ? qMin(2, int(fillDrawing(fill.media()).scale_behavior())) % 3 : 0);
+    // Whether there is a fill that is drawn: on, and a colour, a gradient or a picture
+    map.insert("fillShown", fill.enable() && (fill.has_color() || fill.has_gradient()
+                                              || (fill.has_media() && !mediaIsVideo && !mediaPath.isEmpty())));
+    map.insert("featherOn", element.feather().enable() && element.feather().radius() > 0);
+    map.insert("featherRadius", element.feather().radius());
+
     const Text &text = element.text();
-    map.insert("text", QVariant::fromValue(readText(text)));
+    const RichText words = readText(text);
+    map.insert("text", QVariant::fromValue(words));
+    // The start of its own words on one line, for naming an element that has no name
+    map.insert("words", words.plainText().simplified().left(60));
     map.insert("verticalAlignment", toQtVerticalAlignment(text.vertical_alignment()));
     map.insert("textScale", int(text.scale_behavior()));
     map.insert("marginLeft", text.margins().left());
@@ -888,8 +1034,74 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
         }
     }
 
+    // A rounded rectangle's outline is in its own proportions: see setShapePath().
+    const bool rounded = element->path().shape().type() == rv::data::Graphics::Path::Shape::TYPE_ROUNDED_RECTANGLE;
+    if (rounded && (changes.contains("width") || changes.contains("height") || changes.contains("roundness"))) {
+        setShapePath(element->mutable_path(), rv::data::Graphics::Path::Shape::TYPE_ROUNDED_RECTANGLE,
+                     changes.contains("roundness") ? number("roundness") : element->path().shape().rounded_rectangle().roundness(),
+                     element->bounds().size().width(), element->bounds().size().height());
+    }
+
     if (changes.contains("fillColor"))
         setColor(element->mutable_fill()->mutable_color(), changes.value("fillColor").value<QColor>());
+    // What kind of fill it is. Going to a gradient starts from the colour there was.
+    const auto gradient = [element]() {
+        rv::data::Graphics::Fill *fill = element->mutable_fill();
+        if (!fill->has_gradient() || fill->gradient().stops_size() < 2) {
+            const QColor from = fill->has_color() ? toColor(fill->color()) : QColor::fromRgbF(0.13f, 0.59f, 0.95f);
+            rv::data::Graphics::Gradient *made = fill->mutable_gradient();
+            made->clear_stops();
+            made->set_angle(270);
+            made->set_length(1);
+            for (const QColor &color : {from, from.darker(300)}) {
+                auto *stop = made->add_stops();
+                setColor(stop->mutable_color(), color);
+                stop->set_blend_point(0.5);
+            }
+        }
+        return fill->mutable_gradient();
+    };
+    if (changes.contains("fillKind")) {
+        const QString kind = changes.value("fillKind").toString();
+        rv::data::Graphics::Fill *fill = element->mutable_fill();
+        if (kind == QLatin1String("gradient")) {
+            gradient();
+        } else if (kind == QLatin1String("color") && !fill->has_color()) {
+            setColor(fill->mutable_color(), fill->has_gradient() && fill->gradient().stops_size() > 0
+                                                ? toColor(fill->gradient().stops(0).color())
+                                                : QColor::fromRgbF(0.13f, 0.59f, 0.95f));
+        }
+    }
+    if (changes.contains("fillGradientFrom"))
+        setColor(gradient()->mutable_stops(0)->mutable_color(), changes.value("fillGradientFrom").value<QColor>());
+    if (changes.contains("fillGradientTo")) {
+        rv::data::Graphics::Gradient *made = gradient();
+        setColor(made->mutable_stops(made->stops_size() - 1)->mutable_color(), changes.value("fillGradientTo").value<QColor>());
+    }
+    if (changes.contains("fillGradientAngle"))
+        gradient()->set_angle(std::fmod(std::fmod(number("fillGradientAngle"), 360) + 360, 360));
+    // A picture or a video to fill it with, by its path; how it was scaled is kept.
+    if (changes.contains("fillMediaPath")) {
+        rv::data::Graphics::Fill *fill = element->mutable_fill();
+        const auto scale = fill->has_media() ? fillDrawing(fill->media()).scale_behavior() : rv::data::Media::SCALE_BEHAVIOR_FIT;
+        *fill->mutable_media() = workspace::mediaElement(changes.value("fillMediaPath").toString(), workspace::openWorkspace());
+        rv::data::Media *media = fill->mutable_media();
+        (media->has_video() ? media->mutable_video()->mutable_drawing() : media->mutable_image()->mutable_drawing())
+            ->set_scale_behavior(scale);
+        fill->set_enable(true);
+    }
+    if (changes.contains("fillMediaScale") && element->fill().has_media()) {
+        rv::data::Media *media = element->mutable_fill()->mutable_media();
+        (media->has_video() ? media->mutable_video()->mutable_drawing() : media->mutable_image()->mutable_drawing())
+            ->set_scale_behavior(rv::data::Media::ScaleBehavior(qBound(0, changes.value("fillMediaScale").toInt(), 2)));
+    }
+    if (changes.contains("featherOn")) {
+        element->mutable_feather()->set_enable(changes.value("featherOn").toBool());
+        if (element->feather().enable() && element->feather().radius() <= 0)
+            element->mutable_feather()->set_radius(0.05);
+    }
+    if (changes.contains("featherRadius"))
+        element->mutable_feather()->set_radius(qBound(0.0, number("featherRadius"), 0.5));
     if (changes.contains("fillOn")) {
         element->mutable_fill()->set_enable(changes.value("fillOn").toBool());
         // Turned on with nothing to fill with, it is filled with black.
@@ -1052,6 +1264,93 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
         }
     }
     return true;
+}
+
+namespace {
+
+// What a shape and a media element start from: a text box with no words in it, which is
+// what every element of ProPresenter's is underneath, in the middle of the slide at the
+// size given, stepping down and right while that place is taken.
+rv::data::Slide::Element makeBareElement(const rv::data::Slide &slide, const QString &name, double width, double height)
+{
+    rv::data::Slide::Element result = makeTextElement(slide, nullptr);
+    result.clear_info();
+    rv::data::Graphics::Element *element = result.mutable_element();
+    element->set_name(uniqueElementName(slide, name).toStdString());
+
+    const bool hasSize = slide.size().width() > 0 && slide.size().height() > 0;
+    const double slideWidth = hasSize ? slide.size().width() : 1920;
+    const double slideHeight = hasSize ? slide.size().height() : 1080;
+    double x = qRound((slideWidth - width) / 2);
+    double y = qRound((slideHeight - height) / 2);
+    const auto taken = [&slide](double x, double y) {
+        for (const rv::data::Slide::Element &other : slide.elements()) {
+            const auto &origin = other.element().bounds().origin();
+            if (qAbs(origin.x() - x) < 1 && qAbs(origin.y() - y) < 1)
+                return true;
+        }
+        return false;
+    };
+    while (taken(x, y) && y + 30 + height < slideHeight) {
+        x += 30;
+        y += 30;
+    }
+    element->mutable_bounds()->mutable_origin()->set_x(x);
+    element->mutable_bounds()->mutable_origin()->set_y(y);
+    element->mutable_bounds()->mutable_size()->set_width(width);
+    element->mutable_bounds()->mutable_size()->set_height(height);
+
+    // No words, but set as words typed into it later will be: smaller than a text
+    // box's, since a shape is smaller than a slide.
+    RichText words = readText(element->text());
+    TextRun format = words.firstRun();
+    format.size = qRound(slideHeight / 25);
+    writeText(element->mutable_text(), RichText::plain(QString(), format, Qt::AlignHCenter));
+    return result;
+}
+
+} // namespace
+
+rv::data::Slide::Element makeShapeElement(const rv::data::Slide &slide, const QString &shape)
+{
+    using Shape = rv::data::Graphics::Path::Shape;
+    const bool hasSize = slide.size().width() > 0 && slide.size().height() > 0;
+    const double unit = (hasSize ? slide.size().height() : 1080) / 1080;
+    struct Kind { const char *name; Shape::Type type; double width; double height; };
+    const Kind kind = shape == QLatin1String("roundedRectangle") ? Kind {"Rounded Rectangle", Shape::TYPE_ROUNDED_RECTANGLE, 420, 300}
+                    : shape == QLatin1String("ellipse") ? Kind {"Ellipse", Shape::TYPE_ELLIPSE, 360, 360}
+                    : shape == QLatin1String("arrow") ? Kind {"Arrow", Shape::TYPE_RIGHT_ARROW, 420, 220}
+                    : Kind {"Rectangle", Shape::TYPE_RECTANGLE, 420, 300};
+    rv::data::Slide::Element result = makeBareElement(slide, QString::fromLatin1(kind.name), qRound(kind.width * unit),
+                                                      qRound(kind.height * unit));
+    rv::data::Graphics::Element *element = result.mutable_element();
+    setShapePath(element->mutable_path(), kind.type, 0.2, element->bounds().size().width(), element->bounds().size().height());
+    // A shape starts out filled with a plain colour: the blue ProPresenter starts one with.
+    setColor(element->mutable_fill()->mutable_color(), QColor::fromRgbF(0.13f, 0.59f, 0.95f));
+    element->mutable_fill()->set_enable(true);
+    return result;
+}
+
+rv::data::Slide::Element makeMediaElement(const rv::data::Slide &slide, const QString &file)
+{
+    const bool hasSize = slide.size().width() > 0 && slide.size().height() > 0;
+    const double slideWidth = hasSize ? slide.size().width() : 1920;
+    const double slideHeight = hasSize ? slide.size().height() : 1080;
+    // The picture's own size, if that is no more than half the slide each way, and
+    // otherwise as large as fits in that; a video, whose size is not looked up, as a
+    // screen of that width.
+    QSizeF size = workspace::isVideo(file) ? QSizeF(16, 9) : QSizeF(QImageReader(file).size());
+    if (!size.isValid() || size.isEmpty())
+        size = QSizeF(16, 9);
+    const QSizeF room(slideWidth / 2, slideHeight / 2);
+    if (workspace::isVideo(file) || size.width() > room.width() || size.height() > room.height())
+        size.scale(room, Qt::KeepAspectRatio);
+    rv::data::Slide::Element result = makeBareElement(slide, QFileInfo(file).completeBaseName(), qRound(size.width()),
+                                                      qRound(size.height()));
+    rv::data::Graphics::Fill *fill = result.mutable_element()->mutable_fill();
+    *fill->mutable_media() = workspace::mediaElement(file, workspace::openWorkspace());
+    fill->set_enable(true);
+    return result;
 }
 
 QString uniqueElementName(const rv::data::Slide &slide, const QString &base)

@@ -5,6 +5,7 @@
 #include "stage.pb.h"
 
 #include <QAbstractListModel>
+#include <QUrl>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
@@ -89,6 +90,10 @@ public:
     // Adds a text box, its text set like that of the element `like` if there is one.
     // Returns { id, error }.
     Q_INVOKABLE QVariantMap addText(int row, const QString &like);
+    // Adds a shape ("rectangle", "roundedRectangle", "ellipse" or "arrow"), or an
+    // element filled with a picture or video file. Each returns { id, error }.
+    Q_INVOKABLE QVariantMap addShape(int row, const QString &shape);
+    Q_INVOKABLE QVariantMap addMedia(int row, const QUrl &file);
     // Adds a copy of an element, a little down and right of it. Returns { id, error }.
     Q_INVOKABLE QVariantMap duplicate(int row, const QString &element);
     Q_INVOKABLE QString remove(int row, const QString &element);

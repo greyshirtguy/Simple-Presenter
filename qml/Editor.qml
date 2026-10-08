@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import SimplePresenterApp
 
 // The editor, laid over the operator window below its toolbar. On the left are the
@@ -69,6 +70,28 @@ Rectangle {
     readonly property alias inspector: inspector
     readonly property var families: bridge.fontFamilies()
     readonly property color accentColor: "#ff8a1f"
+
+    // What the toolbar button under the pointer does, in words, or ""
+    readonly property string toolHint: {
+        for (let i = 0; i < actions.children.length; ++i) {
+            const tool = actions.children[i]
+            if (tool.hovered === true && tool.hint)
+                return tool.hint
+        }
+        return ""
+    }
+    // A filter for a file dialog showing the media files the app can use, and the
+    // folder such a dialog starts in
+    property string mediaFilter: "All files (*)"
+    property string mediaFolder: ""
+
+    // Asks for a media file: to "add" as an element of its own, or to "fill" the picked
+    // element with.
+    function chooseMedia(purpose) {
+        finish()
+        mediaDialog.purpose = purpose
+        mediaDialog.open()
+    }
 
     // The user asked to go back to showing
     signal done
@@ -608,7 +631,11 @@ Rectangle {
                     elide: Text.ElideRight
                     color: entry.modelData.hidden ? "#7d8088" : "#e6e6e6"
                     font.pixelSize: 13
-                    text: entry.modelData.name !== "" ? entry.modelData.name : "(unnamed)"
+                    // An element with no name goes by its words, as in ProPresenter
+                    text: entry.modelData.name !== "" ? entry.modelData.name
+                        : entry.modelData.words !== "" ? entry.modelData.words
+                        : entry.modelData.fillKind === "media" && entry.modelData.fillMediaName !== "" ? entry.modelData.fillMediaName
+                        : "(unnamed)"
                 }
 
                 // What sets it apart: its text comes from elsewhere, or it has rules for
@@ -693,6 +720,26 @@ Rectangle {
     }
 
     // The picked element's properties
+    // A picture or a video: to be an element of its own, or what the picked one is
+    // filled with. The file is referred to where it is, not copied.
+    FileDialog {
+        id: mediaDialog
+
+        property string purpose: "add"
+
+        title: purpose === "add" ? "Add Media" : "Fill With Media"
+        currentFolder: screen.mediaFolder !== "" ? "file://" + screen.mediaFolder : ""
+        nameFilters: [screen.mediaFilter, "All files (*)"]
+        onAccepted: {
+            if (purpose === "add")
+                canvas.addMedia(selectedFile)
+            else
+                canvas.setProperties({ fillMediaPath: decodeURIComponent(String(selectedFile).replace(/^file:\/\//, "")), fillOn: true }, false)
+            screen.takeFocus()
+        }
+        onRejected: screen.takeFocus()
+    }
+
     EditorInspector {
         id: inspector
 
@@ -706,6 +753,7 @@ Rectangle {
         selection: canvas.selection
         families: screen.families
         setProperties: (changes, interim) => canvas.setProperties(changes, interim)
+        chooseMedia: () => screen.chooseMedia("fill")
         setFormat: (format, interim) => canvas.setFormat(format, interim)
         settle: () => canvas.settle()
         onFinished: screen.takeFocus()
@@ -728,27 +776,57 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
 
-            AppButton {
-                height: 30
-                font.pixelSize: 13
-                text: "Add Text"
-                enabled: canvas.slide !== null
+            // What can be added: a text box, a shape from a short list of them, and
+            // a picture or a video. Underneath they are all the one kind of element:
+            // any of them can be given words by double-clicking it, and any fill.
+            EditorTool {
+                objectName: "addTextTool"
+                kind: "text"
+                hint: "Add a text box"
+                available: canvas.slide !== null
                 onClicked: canvas.addText()
             }
 
-            AppButton {
-                height: 30
-                font.pixelSize: 13
-                text: "Duplicate"
-                enabled: canvas.selected !== null
+            EditorTool {
+                id: shapesTool
+
+                objectName: "addShapeTool"
+                kind: "shapes"
+                hint: "Add a shape: a rectangle, a rounded rectangle, an ellipse or an arrow"
+                available: canvas.slide !== null
+                onClicked: screen.showMenu([
+                    { header: "Shapes" },
+                    { label: "Rectangle", run: () => canvas.addShape("rectangle") },
+                    { label: "Rounded Rectangle", run: () => canvas.addShape("roundedRectangle") },
+                    { label: "Ellipse", run: () => canvas.addShape("ellipse") },
+                    { label: "Arrow", run: () => canvas.addShape("arrow") }
+                ], shapesTool, 0, shapesTool.height + 4)
+            }
+
+            EditorTool {
+                objectName: "addMediaTool"
+                kind: "media"
+                hint: "Add a picture or a video from a file"
+                available: canvas.slide !== null
+                onClicked: screen.chooseMedia("add")
+            }
+
+            Item {
+                width: 10
+                height: 1
+            }
+
+            EditorTool {
+                kind: "duplicate"
+                hint: "Duplicate the picked element (Ctrl+D)"
+                available: canvas.selected !== null
                 onClicked: canvas.duplicate()
             }
 
-            AppButton {
-                height: 30
-                font.pixelSize: 13
-                text: "Delete"
-                enabled: canvas.selected !== null
+            EditorTool {
+                kind: "delete"
+                hint: "Delete the picked element (Delete)"
+                available: canvas.selected !== null
                 onClicked: canvas.removeSelected()
             }
 
@@ -757,19 +835,17 @@ Rectangle {
                 height: 1
             }
 
-            AppButton {
-                height: 30
-                font.pixelSize: 13
-                text: "Undo"
-                enabled: editor.canUndo || canvas.typed
+            EditorTool {
+                kind: "undo"
+                hint: "Undo (Ctrl+Z)"
+                available: editor.canUndo || canvas.typed
                 onClicked: canvas.undo()
             }
 
-            AppButton {
-                height: 30
-                font.pixelSize: 13
-                text: "Redo"
-                enabled: editor.canRedo
+            EditorTool {
+                kind: "redo"
+                hint: "Redo (Ctrl+Shift+Z)"
+                available: editor.canRedo
                 onClicked: canvas.redo()
             }
         }
@@ -840,6 +916,7 @@ Rectangle {
             color: screen.notice === "" ? "#7d8088" : "#f0f0f0"
             font.pixelSize: 12
             text: screen.notice !== "" ? screen.notice
+                : screen.toolHint !== "" ? screen.toolHint
                 : canvas.editing ? "Select text to format part of it  ·  Esc or a click elsewhere finishes  ·  Ctrl+B, I, U"
                 : canvas.selected ? "Drag to move, handles to resize  ·  Shift: straight, or in proportion  ·  Ctrl: no snapping  ·  Arrows nudge  ·  Double-click or Enter edits the text"
                 : "Click an element to pick it  ·  Double-click text to edit it  ·  Arrows change slide"

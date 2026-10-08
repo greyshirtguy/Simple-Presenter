@@ -74,6 +74,16 @@ private:
     bool m_listed = false;
 };
 
+// The workspace that is open, for what has a reference to a media file and no workspace
+// at hand to look in: a slide's element filled with a picture is turned into what is
+// drawn deep inside the reading of a slide, wherever that is done. There is one
+// workspace open at a time, and whoever opens it, or sees its files change, says so
+// here. Both may be called from any thread.
+void setOpenWorkspace(const QString &workspaceFolder);
+// The media file a reference is to, found as FileFinder finds one; empty if it cannot be.
+QString findMediaFile(const rv::data::URL &reference);
+QString openWorkspace();
+
 // Makes a reference to a file: by its path on this machine and, if the file is inside
 // the workspace, relative to the workspace as well.
 void recordFile(rv::data::URL *reference, const QString &file, const QString &workspaceFolder);

@@ -528,6 +528,33 @@ QVariantMap PresentationEditor::addText(int row, const QString &like)
     return {{"id", error.isEmpty() ? id : QString()}, {"error", error}};
 }
 
+QVariantMap PresentationEditor::addShape(int row, const QString &shape)
+{
+    QString id;
+    const QString error = change(row, [&](rv::data::Slide *slide) {
+        const rv::data::Slide::Element added = proconvert::makeShapeElement(*slide, shape);
+        id = QString::fromStdString(added.element().uuid().string());
+        *slide->add_elements() = added;
+        return QString();
+    });
+    return {{"id", error.isEmpty() ? id : QString()}, {"error", error}};
+}
+
+QVariantMap PresentationEditor::addMedia(int row, const QUrl &file)
+{
+    const QString path = file.toLocalFile();
+    if (!workspace::isMedia(path) || !QFileInfo(path).isFile())
+        return {{"id", QString()}, {"error", QStringLiteral("That is not an image or a video this can show")}};
+    QString id;
+    const QString error = change(row, [&](rv::data::Slide *slide) {
+        const rv::data::Slide::Element added = proconvert::makeMediaElement(*slide, path);
+        id = QString::fromStdString(added.element().uuid().string());
+        *slide->add_elements() = added;
+        return QString();
+    });
+    return {{"id", error.isEmpty() ? id : QString()}, {"error", error}};
+}
+
 QVariantMap PresentationEditor::duplicate(int row, const QString &element)
 {
     QString id;
