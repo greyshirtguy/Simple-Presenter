@@ -1353,6 +1353,27 @@ rv::data::Slide::Element makeMediaElement(const rv::data::Slide &slide, const QS
     return result;
 }
 
+rv::data::Cue *addBlankCue(rv::data::Presentation *presentation, const std::string &name, const QSizeF &size)
+{
+    rv::data::Cue *cue = presentation->add_cues();
+    cue->mutable_uuid()->set_string(workspace::newUuid());
+    cue->set_name(name);
+    cue->set_completion_action_type(rv::data::Cue::COMPLETION_ACTION_TYPE_LAST);
+    cue->mutable_hot_key();
+    cue->set_isenabled(true);
+
+    rv::data::Action *slide = cue->add_actions();
+    slide->mutable_uuid()->set_string(workspace::newUuid());
+    slide->mutable_label()->set_text(name);
+    slide->set_isenabled(true);
+    slide->set_type(rv::data::Action::ACTION_TYPE_PRESENTATION_SLIDE);
+    rv::data::Slide *base = slide->mutable_slide()->mutable_presentation()->mutable_base_slide();
+    base->mutable_size()->set_width(size.width());
+    base->mutable_size()->set_height(size.height());
+    base->mutable_uuid()->set_string(workspace::newUuid());
+    return cue;
+}
+
 QString uniqueElementName(const rv::data::Slide &slide, const QString &base)
 {
     const auto taken = [&slide](const QString &name) {

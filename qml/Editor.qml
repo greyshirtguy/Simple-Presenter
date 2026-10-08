@@ -50,6 +50,17 @@ Rectangle {
     property var backdropFor: (slideId) => ""
     // Opens a menu of rows, as the operator window's menu takes them, at a point of an item
     property var showMenu: (items, item, x, y) => {}
+    // Deletes a slide from a presentation file, answering with an error message, empty
+    // if it worked: the operator window's doing, as every change to which slides a
+    // presentation has is.
+    property var removeSlide: (path, slideId) => ""
+    // Adds a slide with nothing on it after the one with this id, and pastes the copied
+    // slide there: each answers { id, error }. And copies a slide, answering an error.
+    property var insertSlide: (path, slideId) => ({ id: "", error: "" })
+    property var pasteSlide: (path, slideId) => ({ id: "", error: "" })
+    property var copySlide: (path, slideId) => ""
+    // Whether a slide has been copied
+    property bool canPaste: false
     // Something to tell the user, and whether it is a failure
     property string notice
     property bool noticeIsError: true
@@ -143,7 +154,8 @@ Rectangle {
         const error = typeof result === "string" ? result : result.error
         const made = typeof result === "string" ? "" : result.id
         const reopened = kind === "props" ? openProps(editor.path, workspace, made !== "" ? made : shown, row)
-                                          : openStage(editor.path, workspace, made !== "" ? made : shown, row)
+                       : kind === "stage" ? openStage(editor.path, workspace, made !== "" ? made : shown, row)
+                       : opened(editor.open(editor.path, workspace), workspace, made !== "" ? made : shown, row)
         report(error !== "" ? error : reopened)
         takeFocus()
         return error === "" ? made : ""
@@ -173,8 +185,28 @@ Rectangle {
     // list. (The list, and not the row, is what it is opened on: the changes it offers
     // rebuild the rows.)
     function showRowMenu(slide, x, y) {
-        if (kind === "presentation")
+        if (kind === "presentation") {
+            // A slide can be deleted, unless it is the only one. Slides that only
+            // trigger media are not in this list, so the count here is of the others.
+            const number = editor.rowOf(slide.id) + 1
+            showMenu([
+                { header: "Slide " + number },
+                // A new slide, and a pasted one, go after this one, and are then the
+                // slide being worked on.
+                { label: "New Slide", run: () => restructure(() => screen.insertSlide(editor.path, slide.id)) },
+                { label: "Copy", run: () => {
+                    finish()
+                    report(screen.copySlide(editor.path, slide.id))
+                } },
+                { label: "Paste", disabled: !screen.canPaste, run: () => restructure(() => screen.pasteSlide(editor.path, slide.id)) },
+                { label: "Delete Slide…", danger: true, disabled: editor.count < 2, run: () => showMenu([
+                    { note: "Slide " + number + " will be deleted. That cannot be undone, and neither can what was done before it." },
+                    { label: "Delete", danger: true, run: () => restructure(() => screen.removeSlide(editor.path, slide.id)) },
+                    { label: "Cancel", run: () => {} }
+                ], slideList, x, y) }
+            ], slideList, x, y)
             return
+        }
         const props = kind === "props"
         showMenu([
             { header: slide.label !== "" ? slide.label : rowWord },

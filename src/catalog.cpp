@@ -261,6 +261,36 @@ QString Catalog::setSlideMediaForeground(const QString &path, const QString &sli
     return ProDocument::setCueMediaForeground(path, slideId, foreground);
 }
 
+QString Catalog::removeSlide(const QString &path, const QString &slideId)
+{
+    return ProDocument::removeCue(path, slideId);
+}
+
+QVariantMap Catalog::insertSlide(const QString &path, const QString &slideId)
+{
+    QString id;
+    const QString error = ProDocument::insertBlankCue(path, slideId, true, &id);
+    return {{"id", error.isEmpty() ? id : QString()}, {"error", error}};
+}
+
+QString Catalog::copySlide(const QString &path, const QString &slideId)
+{
+    QString error;
+    const QByteArray copied = ProDocument::copyCue(path, slideId, &error);
+    if (!error.isEmpty())
+        return error;
+    m_copiedSlide = copied;
+    emit copiedSlideChanged();
+    return {};
+}
+
+QVariantMap Catalog::pasteSlide(const QString &path, const QString &slideId)
+{
+    QString id;
+    const QString error = ProDocument::pasteCue(path, slideId, true, m_copiedSlide, &id);
+    return {{"id", error.isEmpty() ? id : QString()}, {"error", error}};
+}
+
 QString Catalog::insertMediaSlides(const QString &path, const QString &slideId, bool after, const QStringList &mediaPaths)
 {
     return ProDocument::insertMediaCues(path, slideId, after, mediaPaths, m_root);

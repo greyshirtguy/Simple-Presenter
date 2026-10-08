@@ -12,6 +12,7 @@ using workspace::newUuid;
 #include <QFileInfo>
 #include <QHash>
 #include <QMutex>
+#include <QSizeF>
 #include <QUrl>
 
 namespace {
@@ -372,49 +373,99 @@ QString ProDocument::removeCueMedia(const QString &path, const QString &cueId)
     return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
 }
 
-QString ProDocument::insertMediaCues(const QString &path, const QString &cueId, bool after, const QStringList &mediaPaths,
-                                     const QString &workspace)
+QString ProDocument::removeCue(const QString &path, const QString &cueId)
 {
     rv::data::Presentation presentation;
     QString error;
     if (!readPresentation(path, &presentation, &error))
         return error;
 
-    // The cue they go beside, if one was named, and the group it is in
-    int anchor = -1;
-    for (int i = 0; i < presentation.cues_size() && !cueId.isEmpty(); ++i) {
+    int found = -1;
+    for (int i = 0; i < presentation.cues_size(); ++i) {
         if (QString::fromStdString(presentation.cues(i).uuid().string()) == cueId)
-            anchor = i;
+            found = i;
     }
-    if (!cueId.isEmpty() && anchor < 0)
+    if (found < 0)
         return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+    presentation.mutable_cues()->DeleteSubrange(found, 1);
+    for (rv::data::Presentation::CueGroup &group : *presentation.mutable_cue_groups()) {
+        for (int i = group.cue_identifiers_size() - 1; i >= 0; --i) {
+            if (group.cue_identifiers(i).string() == cueId.toStdString())
+                group.mutable_cue_identifiers()->DeleteSubrange(i, 1);
+        }
+    }
+    return writePresentation(path, presentation);
+}
+
+namespace {
+
+// Where in a presentation new cues go: their place in its list of cues, and the group
+// that lists them, if any, with their place in that.
+struct Place
+{
+    int anchor = -1;
+    int cue = 0;
     rv::data::Presentation::CueGroup *group = nullptr;
-    int placeInGroup = 0;
-    for (rv::data::Presentation::CueGroup &candidate : *presentation.mutable_cue_groups()) {
-        for (int i = 0; i < candidate.cue_identifiers_size() && !group && anchor >= 0; ++i) {
+    int inGroup = 0;
+};
+
+// The place just before the cue with this id, or with `after` just after it, in the
+// presentation and in that cue's group; with no cue named, the end. False if a cue was
+// named that the presentation does not have.
+bool findPlace(rv::data::Presentation *presentation, const QString &cueId, bool after, Place *place)
+{
+    for (int i = 0; i < presentation->cues_size() && !cueId.isEmpty(); ++i) {
+        if (QString::fromStdString(presentation->cues(i).uuid().string()) == cueId)
+            place->anchor = i;
+    }
+    if (!cueId.isEmpty() && place->anchor < 0)
+        return false;
+    for (rv::data::Presentation::CueGroup &candidate : *presentation->mutable_cue_groups()) {
+        for (int i = 0; i < candidate.cue_identifiers_size() && !place->group && place->anchor >= 0; ++i) {
             if (candidate.cue_identifiers(i).string() == cueId.toStdString()) {
-                group = &candidate;
-                placeInGroup = i + (after ? 1 : 0);
+                place->group = &candidate;
+                place->inGroup = i + (after ? 1 : 0);
             }
         }
     }
     // With no cue named they go at the end: of the last group, if there are groups. A
     // presentation with nothing in it at all is given a group for them, since
     // ProPresenter shows a presentation by its groups.
-    if (anchor < 0) {
-        if (presentation.cue_groups_size() == 0 && presentation.cues_size() == 0) {
-            rv::data::Presentation::CueGroup *made = presentation.add_cue_groups();
+    if (place->anchor < 0) {
+        if (presentation->cue_groups_size() == 0 && presentation->cues_size() == 0) {
+            rv::data::Presentation::CueGroup *made = presentation->add_cue_groups();
             made->mutable_group()->mutable_uuid()->set_string(newUuid());
             made->mutable_group()->mutable_hotkey();
         }
-        if (presentation.cue_groups_size() > 0) {
-            group = presentation.mutable_cue_groups(presentation.cue_groups_size() - 1);
-            placeInGroup = group->cue_identifiers_size();
+        if (presentation->cue_groups_size() > 0) {
+            place->group = presentation->mutable_cue_groups(presentation->cue_groups_size() - 1);
+            place->inGroup = place->group->cue_identifiers_size();
         }
     }
+    place->cue = place->anchor < 0 ? presentation->cues_size() : place->anchor + (after ? 1 : 0);
+    return true;
+}
 
-    // The new slides are the size of the one they go beside, or failing that of the
-    // first slide there is, or failing that of an HD screen.
+// The cue that has just been added at the end is walked back up to its place, in the
+// list of cues and in the group's list of them, and the place moves on past it.
+void settleCue(rv::data::Presentation *presentation, Place *place)
+{
+    const std::string id = presentation->cues(presentation->cues_size() - 1).uuid().string();
+    for (int i = presentation->cues_size() - 1; i > place->cue; --i)
+        presentation->mutable_cues()->SwapElements(i, i - 1);
+    ++place->cue;
+    if (place->group) {
+        place->group->add_cue_identifiers()->set_string(id);
+        for (int i = place->group->cue_identifiers_size() - 1; i > place->inGroup; --i)
+            place->group->mutable_cue_identifiers()->SwapElements(i, i - 1);
+        ++place->inGroup;
+    }
+}
+
+// The size for a new slide: that of the one at `anchor`, or failing that of the first
+// slide there is, or failing that of an HD screen.
+QSizeF newSlideSize(const rv::data::Presentation &presentation, int anchor)
+{
     double width = 0;
     double height = 0;
     const auto sizeFrom = [&width, &height](const rv::data::Cue &cue) {
@@ -432,34 +483,27 @@ QString ProDocument::insertMediaCues(const QString &path, const QString &cueId, 
         sizeFrom(presentation.cues(anchor));
     for (const rv::data::Cue &cue : presentation.cues())
         sizeFrom(cue);
-    if (width <= 0) {
-        width = 1920;
-        height = 1080;
-    }
+    return width > 0 ? QSizeF(width, height) : QSizeF(1920, 1080);
+}
 
-    int place = anchor < 0 ? presentation.cues_size() : anchor + (after ? 1 : 0);
+} // namespace
+
+QString ProDocument::insertMediaCues(const QString &path, const QString &cueId, bool after, const QStringList &mediaPaths,
+                                     const QString &workspace)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    Place place;
+    if (!findPlace(&presentation, cueId, after, &place))
+        return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+
     for (const QString &mediaPath : mediaPaths) {
-        const std::string name = QFileInfo(mediaPath).fileName().toStdString();
-
-        // The cue, laid out as ProPresenter writes one of these: a slide with nothing
-        // on it, labelled with the file's name, and the media as a foreground.
-        rv::data::Cue *cue = presentation.add_cues();
-        cue->mutable_uuid()->set_string(newUuid());
-        cue->set_name(name);
-        cue->set_completion_action_type(rv::data::Cue::COMPLETION_ACTION_TYPE_LAST);
-        cue->mutable_hot_key();
-        cue->set_isenabled(true);
-
-        rv::data::Action *slide = cue->add_actions();
-        slide->mutable_uuid()->set_string(newUuid());
-        slide->mutable_label()->set_text(name);
-        slide->set_isenabled(true);
-        slide->set_type(rv::data::Action::ACTION_TYPE_PRESENTATION_SLIDE);
-        rv::data::Slide *base = slide->mutable_slide()->mutable_presentation()->mutable_base_slide();
-        base->mutable_size()->set_width(width);
-        base->mutable_size()->set_height(height);
-        base->mutable_uuid()->set_string(newUuid());
-
+        // A slide with nothing on it, labelled with the file's name, and the media as
+        // a foreground.
+        rv::data::Cue *cue = proconvert::addBlankCue(&presentation, QFileInfo(mediaPath).fileName().toStdString(),
+                                                     newSlideSize(presentation, place.anchor));
         rv::data::Action *media = cue->add_actions();
         media->mutable_uuid()->set_string(newUuid());
         media->set_isenabled(true);
@@ -467,21 +511,81 @@ QString ProDocument::insertMediaCues(const QString &path, const QString &cueId, 
         media->mutable_media()->mutable_audio();
         *media->mutable_media()->mutable_element() = workspace::mediaElement(mediaPath, workspace);
         workspace::setMediaForeground(media, true);
-
-        // Added at the end and walked back up to its place, in the list of cues and in
-        // the group's list of them.
-        const std::string id = cue->uuid().string();
-        for (int i = presentation.cues_size() - 1; i > place; --i)
-            presentation.mutable_cues()->SwapElements(i, i - 1);
-        ++place;
-        if (group) {
-            group->add_cue_identifiers()->set_string(id);
-            for (int i = group->cue_identifiers_size() - 1; i > placeInGroup; --i)
-                group->mutable_cue_identifiers()->SwapElements(i, i - 1);
-            ++placeInGroup;
-        }
+        settleCue(&presentation, &place);
     }
 
+    return writePresentation(path, presentation);
+}
+
+QString ProDocument::insertBlankCue(const QString &path, const QString &cueId, bool after, QString *madeId)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    Place place;
+    if (!findPlace(&presentation, cueId, after, &place))
+        return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+    *madeId = QString::fromStdString(proconvert::addBlankCue(&presentation, std::string(), newSlideSize(presentation, place.anchor))
+                                         ->uuid().string());
+    settleCue(&presentation, &place);
+    return writePresentation(path, presentation);
+}
+
+QByteArray ProDocument::copyCue(const QString &path, const QString &cueId, QString *error)
+{
+    rv::data::Presentation presentation;
+    if (!readPresentation(path, &presentation, error))
+        return {};
+    for (const rv::data::Cue &cue : presentation.cues()) {
+        if (QString::fromStdString(cue.uuid().string()) == cueId)
+            return QByteArray::fromStdString(cue.SerializeAsString());
+    }
+    *error = QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+    return {};
+}
+
+QString ProDocument::pasteCue(const QString &path, const QString &cueId, bool after, const QByteArray &copied, QString *madeId)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    Place place;
+    if (!findPlace(&presentation, cueId, after, &place))
+        return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+
+    // The copy is a cue of its own: it, its actions, its slide and the elements on the
+    // slide each get an id of their own. An id is written the same wherever it is
+    // referred to (an element whose text is another's, or that shows only when
+    // another has text), so each is replaced wherever it comes up in the cue, which
+    // keeps those links pointing inside the copy. What the cue refers to outside
+    // itself (its media, a timer) is left as it is.
+    rv::data::Cue original;
+    if (copied.isEmpty() || !original.ParseFromArray(copied.constData(), int(copied.size())))
+        return QStringLiteral("There is no copied slide to paste");
+    QList<std::string> ids{original.uuid().string()};
+    for (const rv::data::Action &action : original.actions()) {
+        ids.append(action.uuid().string());
+        if (!action.has_slide() || !action.slide().has_presentation())
+            continue;
+        const rv::data::Slide &slide = action.slide().presentation().base_slide();
+        ids.append(slide.uuid().string());
+        for (const rv::data::Slide::Element &element : slide.elements())
+            ids.append(element.element().uuid().string());
+    }
+    QByteArray bytes = copied;
+    for (const std::string &id : ids) {
+        const std::string fresh = newUuid();
+        if (id.size() == fresh.size())
+            bytes.replace(QByteArray::fromStdString(id), QByteArray::fromStdString(fresh));
+    }
+    rv::data::Cue *cue = presentation.add_cues();
+    if (!cue->ParseFromArray(bytes.constData(), int(bytes.size()))) {
+        return QStringLiteral("The copied slide could not be read back");
+    }
+    *madeId = QString::fromStdString(cue->uuid().string());
+    settleCue(&presentation, &place);
     return writePresentation(path, presentation);
 }
 

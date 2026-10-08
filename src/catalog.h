@@ -57,6 +57,8 @@ class Catalog : public QObject
     Q_PROPERTY(bool importing READ importing NOTIFY importingChanged)
     // A filter for a file dialog, showing the media files the app can use.
     Q_PROPERTY(QString mediaDialogFilter READ mediaDialogFilter CONSTANT)
+    // Whether a slide has been copied, and so can be pasted
+    Q_PROPERTY(bool hasCopiedSlide READ hasCopiedSlide NOTIFY copiedSlideChanged)
 
 public:
     explicit Catalog(const QString &workspace, QObject *parent = nullptr);
@@ -77,6 +79,7 @@ public:
     bool importing() const { return m_importing; }
     int thumbnailRevision() const { return m_thumbnailRevision; }
     QString mediaDialogFilter() const;
+    bool hasCopiedSlide() const { return !m_copiedSlide.isEmpty(); }
 
     // Discards the cached thumbnails of these media files; they are made again as the
     // views next show them.
@@ -150,6 +153,15 @@ public:
     Q_INVOKABLE QString setSlideMediaForeground(const QString &path, const QString &slideId, bool foreground);
     // Stops a slide triggering media, and saves the presentation file.
     Q_INVOKABLE QString removeSlideMedia(const QString &path, const QString &slideId);
+    // Deletes a slide from the presentation, for good, and saves the presentation file.
+    Q_INVOKABLE QString removeSlide(const QString &path, const QString &slideId);
+    // Adds a slide with nothing on it after the one with this id (or at the end, with
+    // none named). Gives { id, error }: the new slide's id, or what went wrong.
+    Q_INVOKABLE QVariantMap insertSlide(const QString &path, const QString &slideId);
+    // Keeps a copy of a slide, to be pasted into this presentation or another.
+    Q_INVOKABLE QString copySlide(const QString &path, const QString &slideId);
+    // Adds the copied slide after the one with this id. Gives { id, error }.
+    Q_INVOKABLE QVariantMap pasteSlide(const QString &path, const QString &slideId);
     // Adds a slide to the presentation for each of these media files, each with nothing
     // on it but triggering its file as a foreground (see ProDocument::insertMediaCues):
     // just before the slide with this id or with `after` just after it, or at the end
@@ -161,6 +173,7 @@ signals:
     void changed();
     void workspaceChanged();
     void importingChanged();
+    void copiedSlideChanged();
     void thumbnailsDiscarded();
     // `error` is empty on success, when `summary` says what was brought in and
     // `playlist` is the id of the first playlist added.
@@ -175,6 +188,8 @@ private:
     QString m_root;
     QString m_librariesDirectory;
     QString m_mediaDirectory;
+    // The slide that was copied, as its cue is in a presentation file
+    QByteArray m_copiedSlide;
     QVariantList m_workspaces;
     QVariantList m_libraries;
     PlaylistFile m_playlists;

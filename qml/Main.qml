@@ -160,6 +160,9 @@ Window {
     // Set if the workspace changed on disk while the editor was up: the lists are
     // brought up to date when it comes down, not after every change it saves.
     property bool listsStale: false
+    // Set when the editor has added or deleted slides of the presentation being viewed,
+    // so that the show is brought up to date when the editor comes down
+    property bool slidesRearranged: false
     // Read by main.cpp at the next launch; see the Windows section of the settings screen.
     property bool useX11: false
     // A message to show above the slides, or "", and whether it reports a failure
@@ -820,8 +823,46 @@ Window {
               run: () => setSlideMediaForeground(index, false) },
             { label: "Foreground", current: !none && slide.mediaForeground, disabled: none,
               run: () => setSlideMediaForeground(index, true) },
-            { label: "Remove Media", disabled: none, run: () => assignMedia(index, "") }
+            { label: "Remove Media", disabled: none, run: () => assignMedia(index, "") },
+            { header: "Slide" },
+            // A copy goes after the slide whose menu Paste is chosen from, in this
+            // presentation or another.
+            { label: "Copy", run: () => copySlide(index) },
+            { label: "Paste", disabled: !catalog.hasCopiedSlide, run: () => pasteSlide(index) },
+            // Asked twice, since it is for good. (Not the last one there is: a
+            // presentation with no slides is not one ProPresenter makes.)
+            { label: "Delete Slide…", danger: true, disabled: new Set(document.slides.map(s => s.id)).size < 2,
+              run: () => menu.show([
+                { note: "Slide " + (index + 1) + " will be deleted from “" + document.name + "”. That cannot be undone." },
+                { label: "Delete", danger: true, run: () => deleteSlide(index) },
+                { label: "Cancel", run: () => {} }
+            ], item, x, y) }
         ], item, x, y)
+    }
+
+    // Deletes a slide of the presentation being viewed from its file. If it is the
+    // one on the output it is taken off first: what is shown should not be something
+    // that is no longer there to go back to.
+    function copySlide(index) {
+        if (report(catalog.copySlide(document.path, document.slides[index].id)))
+            Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name) + " copied")
+    }
+
+    function pasteSlide(index) {
+        const made = catalog.pasteSlide(document.path, document.slides[index].id)
+        if (report(made.error)) {
+            Log.note("edit", "the copied slide pasted after slide " + (index + 1) + " of " + quoted(document.name))
+            reloadDocument()
+        }
+    }
+
+    function deleteSlide(index) {
+        const slide = document.slides[index]
+        if (viewingLive && !cleared && liveIndex >= 0 && liveDocument.slides[liveIndex].id === slide.id)
+            clearSlide()
+        Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name) + " deleted" + (slide.label !== "" ? " (" + slide.label + ")" : ""))
+        if (report(catalog.removeSlide(document.path, slide.id)))
+            reloadDocument()
     }
 
     // The menu of a file in the media bin.
@@ -881,7 +922,12 @@ Window {
             return
         }
         const entry = currentEntry()
-        if (changed && entry) {
+        if (slidesRearranged && entry) {
+            // Slides were added or deleted in the editor: the one that is live is
+            // found again.
+            slidesRearranged = false
+            reloadDocument()
+        } else if (changed && entry) {
             // The same slides in the same order, so the grid can stay where it is.
             const scrolledTo = grid.contentY
             document = load(entry)
@@ -1823,6 +1869,26 @@ Window {
         onDone: win.stopEditing()
         mediaFilter: win.catalog.mediaDialogFilter
         mediaFolder: win.catalog.mediaDirectory
+        canPaste: win.catalog.hasCopiedSlide
+        removeSlide: (path, slideId) => {
+            Log.note("edit", "a slide deleted in the editor")
+            win.slidesRearranged = true
+            return win.catalog.removeSlide(path, slideId)
+        }
+        insertSlide: (path, slideId) => {
+            Log.note("edit", "a slide added in the editor")
+            win.slidesRearranged = true
+            return win.catalog.insertSlide(path, slideId)
+        }
+        copySlide: (path, slideId) => {
+            Log.note("edit", "a slide copied in the editor")
+            return win.catalog.copySlide(path, slideId)
+        }
+        pasteSlide: (path, slideId) => {
+            Log.note("edit", "the copied slide pasted in the editor")
+            win.slidesRearranged = true
+            return win.catalog.pasteSlide(path, slideId)
+        }
         // Whatever is on the output can still be cleared while editing.
         onKeyPassed: (event) => {
             if (event.key === Qt.Key_F1)

@@ -69,6 +69,11 @@ struct ProDocument
     static QString setCueMediaForeground(const QString &path, const QString &cueId, bool foreground);
     // Removes the media the cue triggers, if any, and writes the file back.
     static QString removeCueMedia(const QString &path, const QString &cueId);
+    // Removes the cue with this id, and so its slide, from the presentation and from
+    // every group that lists it (a group that comes up twice in an arrangement loses it
+    // in both places). A group left with nothing in it is kept: arrangements name
+    // their groups, and ProPresenter keeps an empty one too. Writes the file back.
+    static QString removeCue(const QString &path, const QString &cueId);
     // Adds a slide for each of the image or video files, in the order given: a new cue
     // with nothing on its slide, named for the file, that triggers the file as a
     // foreground. That is what ProPresenter makes of media dropped between two slides,
@@ -78,4 +83,13 @@ struct ProDocument
     // file back; returns an error message, empty on success.
     static QString insertMediaCues(const QString &path, const QString &cueId, bool after, const QStringList &mediaPaths,
                                    const QString &workspace);
+    // Adds a slide with nothing on it, placed as insertMediaCues places one, and gives
+    // the id of its cue. Writes the file back.
+    static QString insertBlankCue(const QString &path, const QString &cueId, bool after, QString *madeId);
+    // A cue as it is in the file, to be pasted; empty, with *error set, if it is not there.
+    static QByteArray copyCue(const QString &path, const QString &cueId, QString *error);
+    // Adds a copy of a cue that copyCue gave, from this presentation or another, placed
+    // as insertMediaCues places one, and gives the id of the copy. The copy and what is
+    // on its slide have ids of their own. Writes the file back.
+    static QString pasteCue(const QString &path, const QString &cueId, bool after, const QByteArray &copied, QString *madeId);
 };

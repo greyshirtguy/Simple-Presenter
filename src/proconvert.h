@@ -5,6 +5,7 @@
 #include "presentation.pb.h"
 
 #include <QColor>
+#include <QSizeF>
 #include <QVariantMap>
 
 // Conversion between ProPresenter's slide messages and what the rest of the app works
@@ -151,6 +152,10 @@ rv::data::Slide::Element makeTextElement(const rv::data::Slide &slide, const rv:
 // one kind of thing, which differ only in what they start out with.
 rv::data::Slide::Element makeShapeElement(const rv::data::Slide &slide, const QString &shape);
 rv::data::Slide::Element makeMediaElement(const rv::data::Slide &slide, const QString &file);
+
+// A new cue at the end of a presentation, laid out as ProPresenter writes one: a slide
+// of this size with nothing on it, labelled with `name`.
+rv::data::Cue *addBlankCue(rv::data::Presentation *presentation, const std::string &name, const QSizeF &size);
 
 // A name for a new element: `base`, or `base` and the first number that makes it one
 // no element of the slide has.
