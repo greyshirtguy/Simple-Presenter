@@ -1,6 +1,23 @@
 # Simple Presenter
 
-![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and Edit at its left and the buttons for Simple View, the media bin, the output and stage windows and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; a grid of slide thumbnails framed in their group colours, the live one ringed in orange, with the media bin and its thumbnails under it; and down the right the output and stage previews, the clear buttons, the transport for the video that is playing and the show controls, on their tab of props](docs/screenshot.png)
+![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and the Show and Edit buttons at its left and the buttons for Simple View, the media bin, the output and stage windows and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; in the middle the name of the presentation over a grid of its slides, framed in their group colours, some marked with the hotkey that goes to them and the live one ringed in orange, with the transition and the size of the thumbnails in a bar under them and the media bin under that; and down the right the output and stage previews, the clear buttons, the transport for the video that is playing and the show controls, on their tab of timers](docs/screenshot.png)
+
+## New in 0.4
+
+- **Shapes.** Rectangles, rounded rectangles, ellipses and arrows are drawn, with
+  colour, gradient and picture fills and feathered edges, and the editor makes them.
+  Elements can be turned.
+- **Slides** can be added, copied, pasted and deleted.
+- **Hotkeys for groups**, as ProPresenter has them: a key goes to the first slide of
+  its group, and that slide is marked with the key.
+- **Show mode and edit mode**, with a button and a key each (Ctrl+S and Ctrl+E), and a
+  header and a footer for the slides.
+- **Faster.** Dragging a slider or a handle in the editor keeps up with the hand,
+  presentations open sooner and slides reach the output sooner. There
+  is now a [benchmark](#benchmark) for seeing that it stays that way.
+
+Earlier versions are on the
+[Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page.
 
 > [!WARNING]
 > **This is a personal experiment, not a product.**
