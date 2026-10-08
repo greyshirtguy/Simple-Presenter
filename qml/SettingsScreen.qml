@@ -16,15 +16,22 @@ Rectangle {
     // Whether to run through X11 on a Wayland desktop from the next launch.
     property bool useX11: false
 
+    // The hotkeys the workspace has for groups that are not in the list here, in words
+    property string otherHotkeys: ""
+    // How solid the icons on the slides are: see Main.qml
+    property real actionIconOpacity: 0.8
+
     signal groupsEdited(var groups)
+    signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
     signal closed
 
     // What the app is running on now: "wayland", "xcb" (X11), "windows", "cocoa", ...
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
-        ? [{ name: "Groups", path: "groups" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
-        : [{ name: "Groups", path: "groups" }, { name: "About", path: "about" }]
+        ? [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Windows", path: "windows" },
+           { name: "About", path: "about" }]
+        : [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -34,6 +41,12 @@ Rectangle {
 
     function edited(index, change) {
         groupsEdited(groups.map((group, i) => i === index ? Object.assign({}, group, change) : group))
+    }
+
+    // Gives a group its hotkey, "" for none. A key is one group's only.
+    function keyEdited(index, key) {
+        groupsEdited(groups.map((group, i) => i === index ? Object.assign({}, group, { key: key })
+                                             : key !== "" && group.key === key ? Object.assign({}, group, { key: "" }) : group))
     }
 
     color: "#b0000000"
@@ -109,7 +122,13 @@ Rectangle {
                 font.pixelSize: 13
                 text: "Slides are framed in the colour of the group they belong to. A slide's group is "
                     + "matched by name, ignoring case and a trailing number, so “Verse” also colours "
-                    + "“Verse 1” and “Verse 2” unless those have entries of their own."
+                    + "“Verse 1” and “Verse 2” unless those have entries of their own.\n\n"
+                    + "A group can have a hotkey, in the box after its name: a letter or a digit that, "
+                    + "pressed while showing, goes to the first slide of that group in the presentation "
+                    + "(where the group first comes up, if it comes up more than once). Click the box "
+                    + "and press the key; Backspace takes it away. The hotkeys are kept with the workspace, "
+                    + "in its list of groups, where ProPresenter keeps them."
+                    + (screen.otherHotkeys !== "" ? "\n\nThe workspace's own groups have hotkeys besides: " + screen.otherHotkeys + "." : "")
             }
 
             ListView {
@@ -219,9 +238,52 @@ Rectangle {
                         }
                     }
 
+                    // The group's hotkey: click, then press the letter or digit it is to
+                    // be. A key that another group has is taken from that group.
+                    Rectangle {
+                        id: keyBox
+
+                        objectName: "groupKey"
+                        readonly property string key: row.modelData.key ?? ""
+
+                        anchors.right: remove.left
+                        anchors.rightMargin: 8
+                        width: 46
+                        height: 34
+                        radius: 6
+                        color: activeFocus ? "#3a3c42" : "#23252b"
+                        border.width: activeFocus ? 2 : 1
+                        border.color: activeFocus ? "#ff8a1f" : "#45484e"
+                        activeFocusOnTab: true
+                        Keys.onPressed: (event) => {
+                            if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
+                                screen.keyEdited(row.index, "")
+                            } else if (/^[a-z0-9]$/i.test(event.text) && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+                                screen.keyEdited(row.index, event.text.toUpperCase())
+                            } else if (event.key !== Qt.Key_Escape) {
+                                return
+                            }
+                            focus = false
+                            event.accepted = true
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            color: keyBox.key !== "" ? "#e6e6e6" : "#6c6f75"
+                            font.pixelSize: keyBox.key !== "" ? 15 : 12
+                            font.bold: keyBox.key !== ""
+                            text: keyBox.activeFocus ? "…" : keyBox.key !== "" ? keyBox.key : "key"
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: keyBox.forceActiveFocus()
+                        }
+                    }
+
                     AppTextField {
                         anchors.left: swatch.right
-                        anchors.right: remove.left
+                        anchors.right: keyBox.left
                         anchors.leftMargin: 8
                         anchors.rightMargin: 8
                         text: row.modelData.name
@@ -252,6 +314,106 @@ Rectangle {
                 onClicked: {
                     screen.groupsEdited(screen.groups.concat([{ name: "New Group", color: "#757575" }]))
                     groupList.positionViewAtEnd()
+                }
+            }
+        }
+
+        // Slides: how the thumbnails of slides look
+        Column {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            spacing: 14
+            visible: screen.section === "slides"
+
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: "#b0b3b8"
+                font.pixelSize: 13
+                text: "A slide's thumbnail has small icons in its top left corner for what comes with the slide: the hotkey that goes to it, and the media it brings. They can be made fainter, so that more of the slide shows through them, or more solid, so that they stand out."
+            }
+
+            Row {
+                spacing: 12
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 14
+                    text: "Icon opacity"
+                }
+
+                AppSlider {
+                    objectName: "actionIconOpacity"
+                    width: 260
+                    anchors.verticalCenter: parent.verticalCenter
+                    from: 0.05
+                    to: 1
+                    stepSize: 0.05
+                    value: screen.actionIconOpacity
+                    onMoved: screen.actionIconOpacityEdited(Math.round(value * 100) / 100)
+                }
+
+                Text {
+                    width: 44
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 14
+                    text: Math.round(screen.actionIconOpacity * 100) + "%"
+                }
+            }
+
+            // How they look at that, over something light and something dark
+            Row {
+                spacing: 12
+
+                Repeater {
+                    model: ["#d9dde3", "#ff8a1f", "#15161a"]
+
+                    delegate: Rectangle {
+                        id: sample
+
+                        required property string modelData
+
+                        width: 150
+                        height: 84
+                        color: modelData
+                        border.width: 1
+                        border.color: "#45484e"
+
+                        Row {
+                            x: 4
+                            y: 4
+                            spacing: 3
+
+                            ActionIcon {
+                                color: "#ff8a1f"
+                                strength: screen.actionIconOpacity
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "#15161a"
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                    text: "C"
+                                }
+                            }
+
+                            ActionIcon {
+                                width: 21
+                                strength: screen.actionIconOpacity
+
+                                MediaBadge {
+                                    anchors.centerIn: parent
+                                    size: 0.8
+                                    color: "transparent"
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -152,6 +152,8 @@ Item {
             // The frame is the slide's group colour, and the label is drawn on it.
             readonly property color frame: slides.win.groupColor(modelData)
             readonly property bool lightFrame: 0.299 * frame.r + 0.587 * frame.g + 0.114 * frame.b > 0.6
+            // The hotkey that goes to this slide, or ""
+            readonly property string hotkey: slides.win.groupKeyAt[index] ?? ""
 
             width: grid.cellWidth
             height: grid.cellHeight
@@ -203,14 +205,51 @@ Item {
                     // or a foreground; amber when the media file cannot be found, in which
                     // case there is no thumbnail behind the slide either. Only made for the
                     // slides that have media.
-                    Loader {
+                    //
+                    // The top left corner is where a slide says what comes with it: first
+                    // the key that goes to it, if its group has a hotkey and this is the
+                    // slide the key goes to, then its media. (More is to come here.)
+                    Row {
                         x: 4
                         y: 4
-                        active: cell.modelData.mediaName !== ""
+                        spacing: 3
 
-                        sourceComponent: MediaBadge {
-                            foreground: cell.modelData.mediaForeground
-                            missing: cell.modelData.media === undefined
+                        Loader {
+                            active: cell.hotkey !== ""
+                            visible: active
+
+                            sourceComponent: ActionIcon {
+                                objectName: "hotkeyBadge"
+                                color: "#ff8a1f"
+                                strength: slides.win.actionIconOpacity
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: "#15161a"
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                    text: cell.hotkey
+                                }
+                            }
+                        }
+
+                        Loader {
+                            active: cell.modelData.mediaName !== ""
+                            visible: active
+
+                            sourceComponent: ActionIcon {
+                                objectName: "mediaBadge"
+                                width: 21
+                                strength: slides.win.actionIconOpacity
+
+                                MediaBadge {
+                                    anchors.centerIn: parent
+                                    size: 0.8
+                                    color: "transparent"
+                                    foreground: cell.modelData.mediaForeground
+                                    missing: cell.modelData.media === undefined
+                                }
+                            }
                         }
                     }
                 }

@@ -175,7 +175,14 @@ Window {
     // which of them are media (see draggedMedia())
     property string draggedFiles: ""
     property var draggedFilesMedia: []
-    // [{ name, color }], edited on the settings screen
+    // [{ name, color, key }], edited on the settings screen. `key` is the group's
+    // hotkey, a capital letter or a digit, and is left out or "" for none.
+    //
+    // The names and the colours are the app's own, kept in its settings, and these are
+    // what a new installation starts with. The hotkeys are the workspace's: they are
+    // in its list of groups, where ProPresenter keeps them (see GroupKeys), and are
+    // read from there when the workspace is opened (readGroupKeys) and written there
+    // when one is changed (setGroups).
     property var groups: [
         { name: "Intro", color: "#fdd835" },
         { name: "Verse", color: "#1e88e5" },
@@ -189,6 +196,25 @@ Window {
         { name: "Outro", color: "#6d4c41" },
         { name: "Background", color: "#757575" }
     ]
+    // The hotkeys a workspace has until it has a list of groups of its own: what a
+    // new installation starts with. As GroupKeys.keys.
+    readonly property var newGroupKeys: [{ name: "verse", label: "Verse", key: "V" }, { name: "chorus", label: "Chorus", key: "C" },
+                                         { name: "bridge", label: "Bridge", key: "B" }]
+    // Every hotkey there is: [{ name, key }], the group's name in lower case. Those of
+    // the workspace's list of groups (or, if it has none, the ones above), and any
+    // plain keys its key mappings give to groups besides.
+    readonly property var hotkeys: (GroupKeys.exists ? GroupKeys.keys : newGroupKeys).concat(GroupKeys.mappedKeys)
+    // The hotkeys of groups that are not among the groups of the settings, in words,
+    // for the settings screen to say: they work, and are not its to change
+    readonly property string otherHotkeys: hotkeys.filter(h => !groups.some(g => g.name.trim().toLowerCase() === h.name))
+                                                  .map(h => h.key + " for " + h.label).join(", ")
+    // Set when the settings held hotkeys, as an earlier version kept them: see
+    // readGroupKeys
+    property bool groupKeysInSettings: false
+    // How solid the small icons are that say what comes with a slide (its hotkey, its
+    // media): from 0.05, nearly gone, to 1. Set on the settings screen. This is the
+    // app's own, and is kept in its settings.
+    property real actionIconOpacity: 0.8
     // Pane sizes, changed by dragging the dividers between them
     property real sidebarWidth: 260
     // How wide the media bin's list of playlists is. It starts as wide as the lists
@@ -394,14 +420,102 @@ Window {
     // The frame colour for a slide: the configured group of the same name, else the one
     // matching without a trailing number, else the colour the document gives the group.
     function groupColor(slide) {
+        const group = configuredGroup(slide)
+        return group ? group.color : slide.groupColor !== "" ? slide.groupColor : surfaceColor
+    }
+
+    // Which of the groups set up on the settings screen a slide's group is: the one of
+    // the same name, else the one matching without a trailing number, else none.
+    function configuredGroup(slide) {
         const name = slide.group.trim().toLowerCase()
-        if (name !== "") {
-            const find = wanted => groups.find(g => g.name.trim().toLowerCase() === wanted)
-            const group = find(name) ?? find(name.replace(/\s*\d+$/, ""))
-            if (group)
-                return group.color
+        if (name === "")
+            return undefined
+        const find = wanted => groups.find(g => g.name.trim().toLowerCase() === wanted)
+        return find(name) ?? find(name.replace(/\s*\d+$/, ""))
+    }
+
+    // The slides of the presentation being viewed that the hotkeys go to: `at` is a
+    // slide's place to its key, for marking the slide, and `of` a key to the place it
+    // goes to. A key goes to the first slide of its group, where the group first comes
+    // up; if several groups have the same key, as "Verse" and "Verse 1" have in
+    // ProPresenter's own list, to whichever of them comes first. A group is the one of
+    // a hotkey if it has the hotkey's name, or has it with a number after ("Verse 1"
+    // for a hotkey of "Verse") and no hotkey under its own name.
+    readonly property var groupKeys: {
+        const at = {}
+        const of = {}
+        const slides = document ? document.slides : []
+        for (let index = 0; index < slides.length; ++index) {
+            if (!slides[index].groupStart)
+                continue
+            const name = slides[index].group.trim().toLowerCase()
+            let found = hotkeys.filter(h => h.name === name)
+            if (found.length === 0)
+                found = hotkeys.filter(h => h.name === name.replace(/\s*\d+$/, ""))
+            for (const hotkey of found) {
+                if (of[hotkey.key] !== undefined)
+                    continue
+                of[hotkey.key] = index
+                // (A slide that two keys go to is marked with the first.)
+                at[index] = at[index] ?? hotkey.key
+            }
         }
-        return slide.groupColor !== "" ? slide.groupColor : surfaceColor
+        return { at: at, of: of }
+    }
+    readonly property var groupKeyAt: groupKeys.at
+
+    // The hotkey a group of the settings has, by its own name, as the settings screen
+    // shows it.
+    function keyOfGroup(name) {
+        const wanted = name.trim().toLowerCase()
+        const found = (GroupKeys.exists ? GroupKeys.keys : newGroupKeys).find(h => h.name === wanted)
+        return found ? found.key : ""
+    }
+
+    // Gives the groups of the settings their hotkeys, when a workspace is opened: those
+    // in its list of groups, or, for a workspace that has no list, the ones a new
+    // installation starts with.
+    function readGroupKeys() {
+        if (groupKeysInSettings) {
+            // An earlier version kept the hotkeys in the app's settings, with the
+            // colours. A workspace that has a list of groups has hotkeys of its own
+            // there, which stand. One that has none is given a list, with them in it.
+            groupKeysInSettings = false
+            if (GroupKeys.exists) {
+                Log.note("settings", "the hotkeys an earlier version kept in the app's settings are left behind: the workspace's list of groups has its own")
+            } else {
+                Log.note("settings", "the hotkeys of the groups moved from the app's settings into a list of groups for the workspace")
+                report(GroupKeys.setKeys(groups))
+            }
+        }
+        groups = groups.map(group => ({ name: group.name, color: group.color, key: keyOfGroup(group.name) }))
+    }
+
+    // The groups as edited on the settings screen. A hotkey that has changed goes into
+    // the workspace's list of groups: the file is not touched for a change of name or
+    // colour alone.
+    function setGroups(edited) {
+        const keysOf = list => JSON.stringify(list.filter(g => g.key).map(g => [g.name.trim().toLowerCase(), g.key]).sort())
+        const before = groups
+        groups = edited
+        if (keysOf(before) !== keysOf(edited))
+            report(GroupKeys.setKeys(edited))
+    }
+
+    // A hotkey was pressed: the first slide of its group goes live. Answers whether
+    // the key was a hotkey, which is then all it is, whether or not the presentation
+    // being viewed has such a group.
+    function triggerGroupKey(key) {
+        const hotkey = hotkeys.find(h => h.key === key)
+        if (!hotkey)
+            return false
+        const index = groupKeys.of[key]
+        Log.note("key", quoted(key) + ", the hotkey of the group "
+                 + (index !== undefined ? quoted(document.slides[index].group)
+                                        : quoted(hotkey.name) + ": the presentation being viewed has no such group"))
+        if (index !== undefined)
+            goLive(index)
+        return true
     }
 
     // Selects one of a presentation's arrangements ("" for Master) for a row and re-lays
@@ -1209,10 +1323,11 @@ Window {
     // Reads what else a workspace folder holds for the show: its timers, its props and
     // its stage layouts.
     function openShowControls(path) {
-        for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path)]) {
+        for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path)]) {
             if (error !== "")
                 report(error)
         }
+        readGroupKeys()
     }
 
     width: 1400
@@ -1263,11 +1378,16 @@ Window {
             transitionDuration = duration
         try {
             const stored = JSON.parse(String(saved("groups", "")))
-            if (Array.isArray(stored))
+            if (Array.isArray(stored)) {
                 groups = stored.filter(g => typeof g.name === "string" && typeof g.color === "string")
+                groupKeysInSettings = groups.some(g => g.key)
+            }
         } catch (e) {
             // Nothing stored yet, or not readable: keep the defaults.
         }
+        const iconOpacity = Number(saved("actionIconOpacity", actionIconOpacity))
+        if (isFinite(iconOpacity))
+            actionIconOpacity = Math.max(0.05, Math.min(1, iconOpacity))
 
         const tab = String(saved("showControlTab", "timers"))
         if (["timers", "props", "stage"].includes(tab))
@@ -1382,7 +1502,15 @@ Window {
     onMediaBinVisibleChanged: save("mediaBinVisible", mediaBinVisible)
     onOutputEnabledChanged: save("outputEnabled", outputEnabled)
     onStageEnabledChanged: save("stageEnabled", stageEnabled)
-    onGroupsChanged: save("groups", JSON.stringify(groups))
+    // (Without their hotkeys, which are the workspace's.)
+    onGroupsChanged: save("groups", JSON.stringify(groups.map(group => ({ name: group.name, color: group.color }))))
+    onRestoredChanged: {
+        // The groups as they are now that everything has been read: without the
+        // hotkeys an earlier version kept with them, which readGroupKeys has moved.
+        if (restored)
+            groupsChanged()
+    }
+    onActionIconOpacityChanged: save("actionIconOpacity", actionIconOpacity)
     onSimpleChanged: {
         if (simple)
             simpleToggle.announce()
@@ -1627,6 +1755,12 @@ Window {
                 default:
                     return
                 }
+                event.accepted = true
+                return
+            }
+            // A letter or a digit may be a group's hotkey.
+            if (/^[a-z0-9]$/i.test(event.text) && !(event.modifiers & (Qt.AltModifier | Qt.MetaModifier))
+                    && !event.isAutoRepeat && win.triggerGroupKey(event.text.toUpperCase())) {
                 event.accepted = true
                 return
             }
@@ -1910,7 +2044,10 @@ Window {
         anchors.topMargin: toolbar.height
         visible: win.settingsOpen
         groups: win.groups
-        onGroupsEdited: (groups) => win.groups = groups
+        onGroupsEdited: (groups) => win.setGroups(groups)
+        otherHotkeys: win.otherHotkeys
+        actionIconOpacity: win.actionIconOpacity
+        onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))
         useX11: win.useX11
         onUseX11Edited: (useX11) => win.useX11 = useX11
         onClosed: {

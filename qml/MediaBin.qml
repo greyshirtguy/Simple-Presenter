@@ -241,11 +241,19 @@ Rectangle {
                     }
 
                     // Whether it plays as a background or a foreground
-                    MediaBadge {
+                    ActionIcon {
                         x: 3
                         y: 3
-                        foreground: mediaCell.modelData.foreground
-                        missing: mediaCell.modelData.missing
+                        width: 21
+                        strength: bin.win.actionIconOpacity
+
+                        MediaBadge {
+                            anchors.centerIn: parent
+                            size: 0.8
+                            color: "transparent"
+                            foreground: mediaCell.modelData.foreground
+                            missing: mediaCell.modelData.missing
+                        }
                     }
                 }
 
