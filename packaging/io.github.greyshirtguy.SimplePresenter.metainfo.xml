@@ -38,6 +38,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.51" date="2026-10-09">
+      <description>
+        <p>
+          A slide is shown before its actions are done, so a slide that clears itself is cleared, and
+          is still marked as the live slide. A macro's colour is a block round its picture.
+        </p>
+      </description>
+    </release>
     <release version="0.5" date="2026-10-09">
       <description>
         <p>
