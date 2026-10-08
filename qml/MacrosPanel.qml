@@ -6,12 +6,11 @@ import SimplePresenterApp
 // (see src/actions.h and src/macros.h), and a click on one runs it: does them all, in
 // order.
 //
-// A macro is a bar of its own colour (royal blue, unless it has been given another),
-// with its picture at the left, the M in brackets unless it has a letter or a digit of
-// its own, and two lines beside that: its name, and under the name a small picture
-// for each of its actions, so that what a macro does can be seen at a glance.
-// (ProPresenter draws a macro as a small picture on a block of its colour; colouring
-// the whole bar is this app's way.)
+// A macro has its picture at the left, on a rounded block of its colour (royal blue,
+// unless it has been given another), as ProPresenter draws one: the M in brackets,
+// unless it has a letter or a digit of its own. Beside that are two lines: its name,
+// and under the name a small picture for each of its actions, so that what a macro
+// does can be seen at a glance.
 //
 // Everything else is in the macro's menu, on a right click: adding an action, removing
 // one, and for each action that has anything to change a row of its own leading to
@@ -37,15 +36,6 @@ Item {
         { name: "Green", color: "#2e7d32" }, { name: "Teal", color: "#00838f" }, { name: "Blue", color: "#1565c0" },
         { name: "Purple", color: "#6a1b9a" }, { name: "Pink", color: "#c2185b" }, { name: "Grey", color: "#546e7a" }
     ]
-    // A macro's colour as its bar is drawn in it. The name on the bar is white whatever
-    // the colour, so a colour too pale for white to be read on is drawn darker, by as
-    // much as it is pale.
-    function shade(colour) {
-        const c = Qt.color(colour)
-        const light = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b
-        return light > 0.6 ? Qt.darker(c, 1 + (light - 0.6) * 2.5) : c
-    }
-
     // The collections and their macros as the rows of one list: a heading for each
     // collection, then its macros
     readonly property var rows: {
@@ -197,16 +187,18 @@ Item {
             required property var modelData
             readonly property bool heading: modelData.heading === true
             readonly property bool naming: panel.renaming === modelData.id && modelData.id !== ""
-            // A macro's own colour, a little brighter under the pointer and brighter
-            // again for a moment when it is run
-            readonly property color tint: heading ? "transparent" : panel.shade(modelData.color !== "" ? modelData.color : panel.plain)
+            // A macro's own colour, which the block round its picture is, and whether
+            // that is too pale a colour for the picture to be drawn on in white
+            readonly property color tint: heading ? "transparent" : modelData.color !== "" ? modelData.color : panel.plain
+            readonly property bool pale: 0.299 * tint.r + 0.587 * tint.g + 0.114 * tint.b > 0.6
 
             objectName: heading ? "" : "macroRow"
             width: list.width
             height: heading ? 24 : 46
             radius: 6
-            color: heading ? "transparent" : panel.lit === modelData.id ? Qt.lighter(tint, 1.45)
-                 : rowMouse.containsMouse || dropArea.containsDrag ? Qt.lighter(tint, 1.15) : tint
+            // Lit for a moment when it is run
+            color: heading ? "transparent" : panel.lit === modelData.id ? "#4a3a22"
+                 : rowMouse.containsMouse || dropArea.containsDrag ? "#33353a" : "#2b2d31"
             border.width: dropArea.containsDrag ? 2 : 0
             border.color: panel.win.accentColor
 
@@ -253,26 +245,35 @@ Item {
                 onDropped: panel.win.dropAction({ macro: row.modelData.id }, row)
             }
 
-            // The macro's picture
-            MacroGlyph {
-                x: 10
+            // The macro's picture, on a block of its colour
+            Rectangle {
+                objectName: "macroBlock"
+                x: 7
                 anchors.verticalCenter: parent.verticalCenter
+                width: 34
+                height: 34
+                radius: 7
                 visible: !row.heading
-                size: 1.6
-                ink: "white"
-                letter: row.heading ? "" : row.modelData.letter
+                color: row.tint
+
+                MacroGlyph {
+                    anchors.centerIn: parent
+                    size: 1.5
+                    ink: row.pale ? "#15161a" : "white"
+                    letter: row.heading ? "" : row.modelData.letter
+                }
             }
 
             // Its name, or a collection's
             Text {
                 id: label
 
-                x: row.heading ? 4 : 46
+                x: row.heading ? 4 : 50
                 y: row.heading ? (parent.height - height) / 2 : 6
                 width: parent.width - x - 8
                 visible: !row.naming
                 elide: Text.ElideRight
-                color: row.heading ? "#9a9da3" : "white"
+                color: row.heading ? "#9a9da3" : "#e6e6e6"
                 font.pixelSize: row.heading ? 11 : 13
                 font.bold: true
                 font.capitalization: row.heading ? Font.AllUppercase : Font.MixedCase
@@ -282,7 +283,7 @@ Item {
             // What it does: a small picture for each of its actions, in their order
             Row {
                 objectName: "macroActions"
-                x: 46
+                x: 50
                 y: 27
                 width: parent.width - x - 8
                 spacing: 6
@@ -297,13 +298,13 @@ Item {
 
                         kind: modelData.kind
                         // Fainter for a kind that is kept and not done here
-                        ink: modelData.done ? "#f2f4f7" : "#a0ffffff"
+                        ink: modelData.done ? "#c9cdd6" : "#70757d"
                     }
                 }
 
                 Text {
                     visible: !row.heading && row.modelData.actions.length === 0
-                    color: "#c0ffffff"
+                    color: "#9a9da3"
                     font.pixelSize: 11
                     text: "No actions yet"
                 }
@@ -311,7 +312,7 @@ Item {
 
             // Renaming in place
             AppTextField {
-                x: row.heading ? 0 : 42
+                x: row.heading ? 0 : 46
                 y: row.heading ? 0 : 3
                 width: parent.width - x - 4
                 height: 24

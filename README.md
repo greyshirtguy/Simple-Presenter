@@ -120,8 +120,6 @@ always wished ProPresenter had them. The list will grow.
   held.)
 - **Dragging the clear buttons.** A clear button dragged onto a slide or a macro gives
   it the action that clears that layer. See [Actions](#actions).
-- **A macro is a bar of its own colour**, with its actions drawn on it as small icons.
-  See [Macros](#macros).
 - **How solid the icons on the slides are** is a setting, from nearly gone to solid.
 
 ## TODO
@@ -771,10 +769,10 @@ layout and clear the props, say) is set up once, as a macro, and each of those s
 has the one action that runs it.
 
 The fourth tab of the show controls, the **[M]**, lists the workspace's macros by
-collection. A macro is a bar of its colour, royal blue unless it has been given
-another, with its picture at the left and two lines beside it: its name, and under
-that a small icon for each of its actions, in their order, so that what it does can be
-seen at a glance. A click on a macro runs it.
+collection. A macro has its picture at the left, on a rounded block of its colour
+(royal blue unless it has been given another), as ProPresenter draws one, and two
+lines beside it: its name, and under that a small icon for each of its actions, in
+their order, so that what it does can be seen at a glance. A click on a macro runs it.
 
 Everything else is in its menu, on a right click: Run; **Add Action** (as for a
 slide); **Remove Action**, which lists its actions; a row for each action that has
