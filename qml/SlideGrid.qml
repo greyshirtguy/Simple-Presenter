@@ -36,7 +36,9 @@ Item {
         grid.positionViewAtIndex(index, mode)
     }
 
-    // Whatever there is to tell the user, and the arrangement of the presentation being viewed
+    // A thin header over the slides: the name of the presentation being viewed at its
+    // left, then whatever there is to tell the user, and the presentation's
+    // arrangement at its right
     Item {
         id: gridHeader
 
@@ -45,23 +47,35 @@ Item {
         anchors.top: parent.top
         anchors.leftMargin: 16
         anchors.rightMargin: 16
-        // In Simple View it is always there, and says which presentation this is when
-        // there is nothing else to say: the toolbar and the lists that would are gone.
-        readonly property bool named: !slides.win.chromeShown && slides.win.document !== null
+        visible: slides.win.document !== null || slides.win.notice !== ""
+        height: visible ? 30 : 6
 
-        visible: (slides.win.document !== null && slides.win.document.arrangements.length > 0) || slides.win.notice !== "" || named
-        height: visible ? 34 : 6
+        Text {
+            id: gridTitle
+
+            objectName: "gridTitle"
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            // Up to half of the header: the rest is for what there is to say
+            width: Math.min(implicitWidth, (arrangementLabel.x - 16) * (slides.win.notice !== "" ? 0.5 : 1))
+            elide: Text.ElideRight
+            color: slides.win.textColor
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
+            text: slides.win.document ? slides.win.document.name : ""
+        }
 
         Text {
             objectName: "gridNotice"
-            anchors.left: parent.left
+            anchors.left: gridTitle.right
+            anchors.leftMargin: gridTitle.text !== "" ? 14 : 0
             anchors.right: arrangementLabel.left
             anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
-            color: slides.win.notice !== "" && slides.win.noticeIsError ? "#ff6b6b" : slides.win.dimTextColor
+            color: slides.win.noticeIsError ? "#ff6b6b" : slides.win.dimTextColor
             font.pixelSize: 13
-            text: slides.win.notice !== "" ? slides.win.notice : gridHeader.named ? slides.win.document.name : ""
+            text: slides.win.notice
         }
 
         Text {
@@ -122,16 +136,11 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: gridHeader.bottom
-        anchors.bottom: parent.bottom
+        anchors.bottom: gridFooter.top
         anchors.leftMargin: 10
         anchors.rightMargin: 4
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        // Room under the last row for what sits over the bottom corners, so that the
-        // last slides can be scrolled clear of it
-        footer: Item {
-            height: 40
-        }
         cellWidth: Math.floor((width - 12) / columns)
         cellHeight: (cellWidth - 12 - 2 * frameWidth) * 9 / 16 + frameWidth + labelHeight + 12
         // One row beyond what is in view is kept ready, so that scrolling does not wait for
@@ -341,26 +350,46 @@ Item {
         }
     }
 
-    // The transition, over the bottom left corner of the slides
-    TransitionControls {
-        anchors.left: grid.left
-        anchors.bottom: grid.bottom
-        anchors.leftMargin: 8
-        anchors.bottomMargin: 10
-        win: slides.win
-    }
+    // A thin footer under the slides, with a line over it: the transition at its left
+    // and the size of the thumbnails at its right
+    Item {
+        id: gridFooter
 
-    // Thumbnail size, over the bottom right corner of the slides
-    ZoomButtons {
-        anchors.right: grid.right
-        anchors.bottom: grid.bottom
-        anchors.rightMargin: 22
-        anchors.bottomMargin: 12
-        visible: slides.win.document !== null && slides.win.document.slides.length > 0
-        canShrink: slides.win.thumbnailWidth > slides.win.smallestThumbnail
-        canGrow: slides.win.thumbnailWidth < slides.win.largestThumbnail && grid.columns > 1
-        onShrink: slides.win.zoomThumbnails(-1)
-        onGrow: slides.win.zoomThumbnails(1)
+        objectName: "gridFooter"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 34
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 1
+            color: "#3a3c42"
+        }
+
+        TransitionControls {
+            anchors.left: parent.left
+            anchors.leftMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: 1
+            win: slides.win
+        }
+
+        ZoomButtons {
+            anchors.right: parent.right
+            anchors.rightMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: 1
+            solid: true
+            size: 22
+            visible: slides.win.document !== null && slides.win.document.slides.length > 0
+            canShrink: slides.win.thumbnailWidth > slides.win.smallestThumbnail
+            canGrow: slides.win.thumbnailWidth < slides.win.largestThumbnail && grid.columns > 1
+            onShrink: slides.win.zoomThumbnails(-1)
+            onGrow: slides.win.zoomThumbnails(1)
+        }
     }
 
     EmptyNote {

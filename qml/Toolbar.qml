@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import QtQuick.Window
 
 // The toolbar across the top of the operator window, which stands in for the title bar
@@ -61,18 +62,37 @@ Rectangle {
             anchors.centerIn: parent
             spacing: 8
 
-            Text {
+            // A folder, which is what a workspace is
+            Item {
+                objectName: "workspaceIcon"
                 anchors.verticalCenter: parent.verticalCenter
-                leftPadding: 4
-                color: toolbar.win.dimTextColor
-                font.pixelSize: 11
-                font.capitalization: Font.AllUppercase
-                text: "Workspace"
+                width: 24
+                height: 16
+
+                Shape {
+                    x: 5
+                    y: 1
+                    width: 18
+                    height: 14
+                    preferredRendererType: Shape.CurveRenderer
+
+                    ShapePath {
+                        strokeColor: "#c8cacf"
+                        strokeWidth: 1.5
+                        fillColor: "transparent"
+                        joinStyle: ShapePath.RoundJoin
+
+                        PathSvg {
+                            path: "M 1 3 Q 1 1.5 2.5 1.5 H 6.5 L 8.5 3.5 H 15.5 Q 17 3.5 17 5 V 11.5 Q 17 13 15.5 13 H 2.5 Q 1 13 1 11.5 Z"
+                        }
+                    }
+                }
             }
 
             AppComboBox {
                 anchors.verticalCenter: parent.verticalCenter
-                width: 180
+                // Narrower in a narrow window, which leaves the title some room
+                width: toolbar.width < 1100 ? 124 : 180
                 height: 28
                 font.pixelSize: 13
                 // Not while a presentation of this one is being edited
@@ -85,13 +105,28 @@ Rectangle {
         }
     }
 
-    // Into the editor for the presentation being viewed, and back out
+    // Show mode and edit mode, side by side, the one the window is in lit. Show comes
+    // out of whichever editor is up; Edit goes into the editor for the presentation
+    // being viewed (and, clicked again, comes back out).
+    ToolbarIcon {
+        id: showButton
+
+        objectName: "showButton"
+        anchors.left: workspacePicker.right
+        anchors.leftMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        kind: "show"
+        label: "Show"
+        on: !toolbar.win.editing
+        onClicked: toolbar.win.showMode()
+    }
+
     ToolbarIcon {
         id: editButton
 
         objectName: "editButton"
-        anchors.left: workspacePicker.right
-        anchors.leftMargin: 8
+        anchors.left: showButton.right
+        anchors.leftMargin: 2
         anchors.verticalCenter: parent.verticalCenter
         kind: "edit"
         label: "Edit"

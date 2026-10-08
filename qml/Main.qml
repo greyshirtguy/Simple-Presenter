@@ -502,6 +502,19 @@ Window {
             report(GroupKeys.setKeys(edited))
     }
 
+    // Show mode and edit mode: the two things the window is for. Show mode comes out of
+    // whichever editor is up (a presentation's, the props', the stage layouts'); edit
+    // mode goes into the editor for the presentation being viewed.
+    function showMode() {
+        if (editing)
+            stopEditing()
+    }
+
+    function editMode() {
+        if (!editing && document !== null && currentEntry() !== undefined)
+            startEditing(currentEntry())
+    }
+
     // A hotkey was pressed: the first slide of its group goes live. Answers whether
     // the key was a hotkey, which is then all it is, whether or not the presentation
     // being viewed has such a group.
@@ -1340,9 +1353,6 @@ Window {
     flags: Qt.Window | Qt.FramelessWindowHint
     // The app and its version, then in brackets what is open or being edited
     title: "Simple Presenter " + Qt.application.version
-           + (editing && editScreen.editor.kind === "props" ? " [Editing Props]"
-              : editing && editScreen.editor.kind === "stage" ? " [Editing Stage Layouts]"
-              : document ? " [" + (editing ? "Editing " : "") + document.name + "]" : "")
 
     // Restores the last session where what it refers to is still on disk, and falls back
     // to the first library and presentation and the top media folder where it is not.
@@ -1709,6 +1719,22 @@ Window {
         value: win.nextSlide ?? ({})
     }
 
+    // Show mode and edit mode, whichever of the app's windows has the keyboard and
+    // whatever in it
+    Shortcut {
+        sequence: "Ctrl+S"
+        context: Qt.ApplicationShortcut
+        enabled: !win.settingsOpen
+        onActivated: win.showMode()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+E"
+        context: Qt.ApplicationShortcut
+        enabled: !win.settingsOpen
+        onActivated: win.editMode()
+    }
+
     Item {
         id: keys
 
@@ -2000,7 +2026,6 @@ Window {
         groupColor: (slide) => win.groupColor(slide)
         backdropFor: (slideId) => win.slideBackdrop(slideId)
         showMenu: (items, item, x, y) => menu.show(items, item, x, y)
-        onDone: win.stopEditing()
         mediaFilter: win.catalog.mediaDialogFilter
         mediaFolder: win.catalog.mediaDirectory
         canPaste: win.catalog.hasCopiedSlide

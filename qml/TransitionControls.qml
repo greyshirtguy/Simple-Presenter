@@ -4,10 +4,9 @@ import QtQuick
 // chosen transition (a click opens the menu of them all), a button for what can be
 // adjusted about it, and its length as a slider and as a number of seconds.
 //
-// It sits over the bottom left corner of the slides, as the thumbnail size buttons sit
-// over the bottom right, and is faint, fainter than they are since it covers more, until
-// the pointer is on it or it is in use. It is drawn at four fifths of the size its
-// parts are made at; what opens from it (the menu, the panel of what can be adjusted)
+// It is at the left of the thin bar under the slides, as the thumbnail size buttons are
+// at its right. It is drawn at four fifths of the size its parts are made at, which
+// keeps the bar thin; what opens from it (the menu, the panel of what can be adjusted)
 // opens upwards, at full size.
 Item {
     id: controls
@@ -16,33 +15,17 @@ Item {
     // by calling its functions.
     required property var win
     readonly property real shrink: 0.8
-    readonly property bool busy: hover.hovered || options.opened || durationField.activeFocus || win.menuItem === controls
 
     width: panel.width * shrink
     height: panel.height * shrink
-    opacity: busy ? 1 : 0.3
 
-    HoverHandler {
-        id: hover
-    }
-
-    Rectangle {
+    Item {
         id: panel
 
         transformOrigin: Item.TopLeft
         scale: controls.shrink
-        width: row.width + 12
-        height: 38
-        radius: 8
-        color: "#23252b"
-        border.width: 1
-        border.color: "#3a3c42"
-
-        // Not through to the slide underneath
-        MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.AllButtons
-        }
+        width: row.width
+        height: 28
 
         Row {
             id: row

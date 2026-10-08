@@ -82,6 +82,10 @@ Rectangle {
     readonly property var families: bridge.fontFamilies()
     readonly property color accentColor: "#ff8a1f"
 
+    // What is being edited, by name: a presentation, or the workspace's props or stage
+    // layouts
+    readonly property string subject: kind === "props" ? "Props" : kind === "stage" ? "Stage Layouts"
+                                    : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
     // What the toolbar button under the pointer does, in words, or ""
     readonly property string toolHint: {
         for (let i = 0; i < actions.children.length; ++i) {
@@ -104,8 +108,6 @@ Rectangle {
         mediaDialog.open()
     }
 
-    // The user asked to go back to showing
-    signal done
     // A key that belongs to the operator window, not the editor, was pressed
     signal keyPassed(var event)
 
@@ -161,13 +163,20 @@ Rectangle {
         return error === "" ? made : ""
     }
 
-    // Adds a prop, to the collection of the one being shown, or a stage layout.
+    // Adds a prop, to the collection of the one being shown, or a stage layout, or a
+    // slide with nothing on it after the one being shown.
+    //
+    // TODO, when there are themes: a new slide is then a choice, of a theme's slide or
+    // a blank one, and everything that makes a slide (this, New Slide in the list's
+    // menu, media dropped between slides) is to offer it.
     function addRow() {
         if (kind === "props") {
             const beside = canvas.slide ? Props.find(canvas.slide.id) : ({})
             restructure(() => Props.add(beside.collection ?? ""))
         } else if (kind === "stage") {
             restructure(() => StageLayouts.add())
+        } else {
+            restructure(() => screen.insertSlide(editor.path, canvas.slide ? canvas.slide.id : ""))
         }
     }
 
@@ -370,8 +379,7 @@ Rectangle {
             text: screen.kind === "props" ? "Props" : screen.kind === "stage" ? "Stage Layouts" : "Slides"
         }
 
-        // Adds a prop or a stage layout. (A presentation's slides are added to in
-        // ProPresenter.)
+        // Adds a slide, a prop or a stage layout: see addRow().
         AppButton {
             objectName: "editorAddRow"
             anchors.right: parent.right
@@ -384,7 +392,6 @@ Rectangle {
             rightPadding: 0
             font.pixelSize: 14
             text: "+"
-            visible: screen.kind !== "presentation"
             onClicked: screen.addRow()
         }
 
@@ -563,19 +570,6 @@ Rectangle {
                 font.capitalization: Font.AllUppercase
                 text: "Elements"
             }
-
-            AppButton {
-                anchors.right: parent.right
-                anchors.rightMargin: 8
-                anchors.verticalCenter: parent.verticalCenter
-                height: 24
-                leftPadding: 10
-                rightPadding: 10
-                font.pixelSize: 12
-                text: "+ Text"
-                enabled: canvas.slide !== null
-                onClicked: canvas.addText()
-            }
         }
 
         ListView {
@@ -747,7 +741,7 @@ Rectangle {
             wrapMode: Text.Wrap
             color: "#9a9da3"
             font.pixelSize: 13
-            text: "This " + screen.rowWord.toLowerCase() + " has nothing on it. Add a text box with “+ Text”."
+            text: "This " + screen.rowWord.toLowerCase() + " has nothing on it. Add something to it with the buttons over the slide."
         }
     }
 
@@ -885,25 +879,14 @@ Rectangle {
         Text {
             anchors.left: actions.right
             anchors.leftMargin: 14
-            anchors.right: doneButton.left
+            anchors.right: parent.right
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
             color: "#9a9da3"
             font.pixelSize: 13
-            text: canvas.slide ? screen.rowWord + " " + (canvas.row + 1) + " of " + editor.count : ""
-        }
-
-        AppButton {
-            id: doneButton
-
-            anchors.right: parent.right
-            anchors.rightMargin: 12
-            anchors.verticalCenter: parent.verticalCenter
-            height: 30
-            font.pixelSize: 13
-            text: "Done"
-            onClicked: screen.done()
+            // What is being edited, and which of it this is
+            text: screen.subject + (canvas.slide ? "   ·   " + screen.rowWord + " " + (canvas.row + 1) + " of " + editor.count : "")
         }
     }
 
