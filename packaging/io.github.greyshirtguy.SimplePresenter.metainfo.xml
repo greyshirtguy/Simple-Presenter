@@ -38,6 +38,18 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.5" date="2026-10-09">
+      <description>
+        <p>
+          Slides and macros have actions: for timers, clearing, the stage, props and macros. They are
+          added from a menu or by dragging, and those a ProPresenter presentation already has are run.
+          Macros have a tab of their own. How a video plays on from its end (stop, loop, a number of
+          times, for a length of time) is honoured, shown on the slide and changed from the slide. Menus
+          that lead to more menus open them alongside. Props are shown a collection at a time and can be
+          put in order by dragging.
+        </p>
+      </description>
+    </release>
     <release version="0.4" date="2026-10-08">
       <description>
         <p>

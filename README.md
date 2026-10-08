@@ -2,19 +2,19 @@
 
 ![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and the Show and Edit buttons at its left and the buttons for Simple View, the media bin, the output and stage windows and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; in the middle the name of the presentation over a grid of its slides, framed in their group colours, some marked with the hotkey that goes to them and the live one ringed in orange, with the transition and the size of the thumbnails in a bar under them and the media bin under that; and down the right the output and stage previews, the clear buttons, the transport for the video that is playing and the show controls, on their tab of timers](docs/screenshot.png)
 
-## New in 0.4
+## New in 0.5
 
-- **Shapes.** Rectangles, rounded rectangles, ellipses and arrows are drawn, with
-  colour, gradient and picture fills and feathered edges, and the editor makes them.
-  Elements can be turned.
-- **Slides** can be added, copied, pasted and deleted.
-- **Hotkeys for groups**, as ProPresenter has them: a key goes to the first slide of
-  its group, and that slide is marked with the key.
-- **Show mode and edit mode**, with a button and a key each (Ctrl+S and Ctrl+E), and a
-  header and a footer for the slides.
-- **Faster.** Dragging a slider or a handle in the editor keeps up with the hand,
-  presentations open sooner and slides reach the output sooner. There
-  is now a [benchmark](#benchmark) for seeing that it stays that way.
+- **Actions.** A slide can do more when it is shown than show itself: start or stop a
+  timer, clear a layer, give the stage a layout, put a prop on or take it off, run a
+  macro. Those a ProPresenter presentation already has are run, and they are added
+  from a slide's menu or by dragging a timer, a prop, a macro, the stage screen or one
+  of the clear buttons onto the slide.
+- **Macros**, on a tab of their own: ProPresenter's, and new ones.
+- **How a video plays on from its end** (stop, loop, loop a number of times or for a
+  length of time) is honoured, shown on the slide, and changed from the slide.
+- **Menus** that lead to more menus open them alongside, and stay.
+- **Props** are shown a collection at a time, and can be put in order by dragging.
+- A list of the things here that [ProPresenter does not have](#custom-features).
 
 Earlier versions are on the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page.
@@ -55,7 +55,7 @@ edited with it too. More under [Editing](#editing).
 
 ![The editor: the presentation's slides down the left, with the elements of the one being worked on listed under them; that slide in the middle, a text box on it picked and showing its handles; and on the right the panel of what can be set for the box, which is its name, position, size and opacity, its fill, stroke and shadow, and the rules for when it shows](docs/editor.png)
 
-**It has timers, props and custom stage layouts,** on three tabs under the previews: a
+**It has timers, props, custom stage layouts and macros,** on four tabs under the previews: a
 countdown that a slide can start, something to lay over the slides until it is
 cleared, and what the people on the stage are shown.
 
@@ -101,6 +101,29 @@ given a [stage layout](#stage-layouts) of ProPresenter's or of its own. It can i
 playlist that has been exported from ProPresenter, and it has a simple
 [editor](#editing) for the text boxes on a slide, a prop or a stage layout.
 
+## Custom features
+
+Most of what is here is ProPresenter's way of doing things, followed as closely as
+could be managed. These are the things that are not: ideas of my own, added because I
+always wished ProPresenter had them. The list will grow.
+
+- **[Simple View](#simple-view).** Everything but the slides gets out of the way, and
+  the slides take the whole window.
+- **How a slide's video plays on, at a glance.** A slide with a video has an icon for
+  whether it stops at its end, loops, or loops for a count or a time, under the icon
+  for its being a background or a foreground. See [Media](#media).
+- **Changing a slide's media from the slide.** A right click on either of those icons
+  changes what it shows, there and then, with no inspector to go to.
+- **Playing a slide's media by itself.** The Media caption in a slide's menu is
+  something to click: it plays the slide's media and leaves the slide layer as it is.
+  (The other way about, a slide without its media, is ProPresenter's: a click with Alt
+  held.)
+- **Dragging the clear buttons.** A clear button dragged onto a slide or a macro gives
+  it the action that clears that layer. See [Actions](#actions).
+- **A macro is a bar of its own colour**, with its actions drawn on it as small icons.
+  See [Macros](#macros).
+- **How solid the icons on the slides are** is a setting, from nearly gone to solid.
+
 ## TODO
 
 What is not there yet. It is a list of ideas, not of promises: see the note at the top
@@ -135,12 +158,17 @@ of this page.
       loud, whether it goes round again, where it starts and stops. For now that is
       settled by a rule: a background video is silent and loops, a foreground one
       plays once with its sound.
-- [ ] **Show Controls**: the timers, the props and the stage layouts are there. Still
-      to come: more than one stage screen; more of what a stage layout can show (the
-      clock, a slide's notes, pictures of the slides and of the output, stage messages,
-      the time left of a video); a prop's own transition and clearing itself after a
-      time; and a way of giving a slide a timer action here (those a presentation
-      already has are run).
+- [ ] **Show Controls**: the timers, the props, the stage layouts and the macros are
+      there. Still to come: more than one stage screen; more of what a stage layout can
+      show (the clock, a slide's notes, pictures of the slides and of the output, stage
+      messages, the time left of a video); a prop's own transition and clearing itself
+      after a time.
+- [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
+      stage, props and macros, and those are run. Still to come: the rest of
+      ProPresenter's kinds (looks, messages, audio, communications, capture and more,
+      which are kept in the files and shown, and not done), an action's delay, putting
+      a slide's or a macro's actions in another order, and the clear layers the app
+      does not have yet.
 
 ### To try, and see what happens
 
@@ -148,8 +176,8 @@ Bigger things, each of which ProPresenter does and this does not. No order, and 
 promise that any of them will turn out to be possible this way: that is the experiment.
 
 - [ ] **Search**
-- [ ] **More Actions**
-- [ ] **Macros**
+- [ ] **More Actions** (timers, clearing, the stage, props and macros are done)
+- [x] **Macros**
 - [ ] **Themes** (when there are themes, everything that makes a new slide, which is
       the `+` over the editor's slides, New Slide in a slide's menu and media dropped
       between slides, is to offer a theme's slide as well as a blank one)
@@ -177,11 +205,11 @@ the package as much as for the code: it is an experiment, passed on as it is.
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download
-`simplepresenter_0.4_amd64.deb` from the
+`simplepresenter_0.5_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.4_amd64.deb
+sudo apt install ./simplepresenter_0.5_amd64.deb
 ```
 
 That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
@@ -293,7 +321,7 @@ those numbers back into names is made from the program as it was built, and belo
 with the package it was made for:
 
 ```
-nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.4_symbols.txt.xz
+nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.5_symbols.txt.xz
 ```
 
 A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of
@@ -536,20 +564,46 @@ media bin. How it then behaves is one of two things, as in ProPresenter:
 - A **background** stays. It plays on under whatever slides come next, and a video
   starts again when it reaches its end. Triggering it while it is already what is
   playing leaves it playing; it is not started again. So every slide of a song can
-  carry the song's background.
+  carry the song's background. (That holds for a video that is going round. One set
+  to stop at its end is started again each time it is triggered, there being nothing
+  of it to play on; and so is one that has been set to play another way since it was
+  started, which is how such a change takes effect.)
 - A **foreground** is for the moment. A video plays once and stops on its last frame,
   and the next slide that is triggered takes it off, whether or not that slide has
   media of its own.
 
 Either gives way to the next media that is triggered, of either kind.
 
+A click on a slide with **Alt** held shows the slide, and does its actions, without
+the media it brings, as in ProPresenter; while Alt is held the thumbnails are drawn
+without their media, to say so. And the other way about, which is the app's own: the
+**Media** caption in a slide's right-click menu can be clicked, where the slide has
+media, and plays that media by itself, as a click on the file in the media bin would,
+leaving the slide layer as it is.
+
 Which of the two it is belongs to the place the media is used, so a slide's media and
 the same file in the media bin are set separately. A right click on the slide, or on
-the file in the bin, sets it, and the mark on the thumbnail shows which it is: two
+the file in the bin, sets it, and the icon on the thumbnail shows which it is: two
 layers, the one behind solid for a background, the one in front for a foreground.
 
-In the files this is what ProPresenter keeps: the layer a media action is on, and
-whether its video loops. Media set up there behaves here as it was set there.
+**How a video plays on from its end** is a setting of its own, as it is in
+ProPresenter: it **stops** on its last frame, or **loops** for good, or loops for a
+**play count**, or loops for a **length of time**, after which it stops where it is. A
+slide with a video has a second icon for this under the first: a square for stop, an
+arrow going round for loop, with the count or the time after it. Media dropped on a
+slide starts out as ProPresenter would have it, a background looping and a foreground
+stopping.
+
+Each of the two icons is its own thing to right-click, and its menu changes what it
+shows, with the way it is now ticked: Background or Foreground for the one; Stop,
+Loop, Loop for Play Count or Loop for Time for the other, the last two leading to a
+few counts and times to pick from. Changing the one leaves the other as it is. A
+plain click on an icon is a click on the slide, as anywhere else on it. (This is the
+app's own shortcut. In ProPresenter these are set in the media inspector, which is
+not here yet.)
+
+In the files this is what ProPresenter keeps: the layer a media action is on, and how
+its video plays on. Media set up there behaves here as it was set there.
 
 **Sound.** A foreground video is played with its sound, through the system's audio
 output, at the volume ProPresenter has for it (full, unless it was turned down there).
@@ -644,18 +698,95 @@ is turned off by another click or cleared (F4, or the fourth of the clear button
 clearing everything clears the props too). Any number can be on at once, one over
 another in the order they were turned on: the latest is in front.
 
-Props are kept in named collections, one level of them, as ProPresenter keeps them. A
-collection can be set to show **one at a time** (in its right-click menu), and then
-turning one of its props on turns off whichever other of them was on; props of
-different collections are never in each other's way. The `+` adds a prop or a
-collection, and a right click on a prop offers Edit, Rename, Duplicate, moving it to
-another collection, and Remove.
+Props are kept in named collections, one level of them, as ProPresenter keeps them,
+and the tab shows one collection at a time: the one chosen from the drop-down over the
+list. The `…` beside that has what can be done with the collection itself: rename it,
+remove it, and set it to show **one at a time**, when turning one of its props on
+turns off whichever other of them was on. Props of different collections are never in
+each other's way. The `+` adds a prop, to the collection being shown, or a collection.
+
+A prop is dragged up or down the list to put it somewhere else in its collection. A
+right click on one offers Edit, Rename, Duplicate, **Move to** another collection, and
+Remove.
 
 A prop is edited in the same [editor](#editing) as a slide, with everything a slide's
 text box can do, including showing a timer. A prop that is on while it is edited is
 shown as edited once the editor is left. Props come and go with a dissolve, over the
 length of time ProPresenter has for it in the workspace (half a second where it says
 nothing). A workspace's props are ProPresenter's own, in `Configuration/Props`.
+
+## Actions
+
+A slide can do more when it is shown than show itself and its media. In ProPresenter's
+files a slide's cue is a list of **actions**, and the app runs the ones it knows as
+the slide goes live, in the order the cue has them and before the slide itself:
+
+- **Timer**: start, stop or reset a [timer](#timers), or reset and start it, and
+  optionally set it up anew first (as a countdown of so long, a countdown to a time of
+  day, or an elapsed time).
+- **Clear**: everything, the slide, the media or the props.
+- **Stage**: give the stage screen one of the workspace's [stage layouts](#stage-layouts),
+  or leave it as it is.
+- **Prop**: put a [prop](#props) on (Trigger) or take it off (Clear).
+- **Macro**: run a [macro](#macros).
+
+Each action a slide has is a small icon in the top left corner of its thumbnail, after
+the icons for its hotkey and its media. A right click on a slide offers **Add Action**,
+which leads to the kinds above: Clear, Prop and Macro to lists to pick from (a prop by
+its collection, then Trigger or Clear; a macro by its collection), Timer and Stage to a
+small panel to fill in. Under it is **Remove Action**, which lists the actions the
+slide has. A right click on an action's icon says what the action is and offers to
+change it, for a timer or a stage action, or to remove it.
+
+A row of a menu that leads to a menu of its own has an arrowhead at its right, and its
+menu opens beside it when the pointer rests on the row (or on a click). The menu it
+came from stays where it is, and each is kept inside the window.
+
+Whatever is listed in the show controls can also be **dragged onto a slide**: a timer
+or the stage screen, which bring up their panel; a prop, which asks whether it is to
+be triggered or cleared; a macro, which needs nothing more. So can the **clear
+buttons** under the previews, each of which gives the slide the action that clears its
+layer; and those can be dropped on a macro as well.
+
+ProPresenter has many more kinds of action than these five (audience looks, messages,
+audio, clear groups, communications and so on). A slide or a macro that has one keeps
+it: it is shown as a fainter icon, said for what it is, written back untouched and not
+done. An action for a timer, a prop, a macro or a layout that is not in the workspace
+does nothing, and the [log](#log) says so.
+
+A stage action names the stage screens it is for. ProPresenter may have several set
+up for the workspace, where this app has one, which is taken to be the first of them:
+an action made here names them all as ProPresenter does, with the others left as they
+are, and one made in ProPresenter gives this app's screen the layout it gives the
+first screen it changes.
+
+## Macros
+
+A **macro** is a named list of actions, of the kinds a slide can have. Running it does
+them all, in order. So something many slides should do (give the stage the singing
+layout and clear the props, say) is set up once, as a macro, and each of those slides
+has the one action that runs it.
+
+The fourth tab of the show controls, the **[M]**, lists the workspace's macros by
+collection. A macro is a bar of its colour, royal blue unless it has been given
+another, with its picture at the left and two lines beside it: its name, and under
+that a small icon for each of its actions, in their order, so that what it does can be
+seen at a glance. A click on a macro runs it.
+
+Everything else is in its menu, on a right click: Run; **Add Action** (as for a
+slide); **Remove Action**, which lists its actions; a row for each action that has
+anything to change (a timer action, a stage action), leading to Edit and Remove;
+Rename; Colour; Duplicate; Move to another collection; and Remove. The `+` over the
+list adds a macro or a collection. One of the clear buttons dragged onto a macro
+gives it that clear action. A macro can run another macro; two that run each other
+are stopped after eight turns.
+
+The macros are ProPresenter's own, in `Configuration/Macros`, read and written as
+they are: a workspace ProPresenter has used comes with its macros, and the slides that
+run them now do so here. A macro's picture is the M in brackets, or the letter or
+digit it has in ProPresenter; the rest of ProPresenter's set of pictures, and a
+picture of the user's own, are kept in the file and drawn as the M for now. Actions of
+kinds not understood here are kept too.
 
 ## Stage layouts
 
@@ -1013,6 +1144,8 @@ those.
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/keymappings.*` | The workspace's key mappings: the hotkeys of groups, in the file ProPresenter keeps them in |
 | `src/cursors.*` | The pointer for turning an element in the editor, and whether Ctrl is held |
+| `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
+| `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |
 | `src/props.*`, `src/stagelayouts.*` | The workspace's props and their collections, and its stage layouts: their files, and adding to, renaming and removing them |
 | `src/show.*` | What is live, for the text boxes that show the words of the live slide or the next |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
