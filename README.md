@@ -719,7 +719,10 @@ nothing). A workspace's props are ProPresenter's own, in `Configuration/Props`.
 
 A slide can do more when it is shown than show itself and its media. In ProPresenter's
 files a slide's cue is a list of **actions**, and the app runs the ones it knows as
-the slide goes live, in the order the cue has them and before the slide itself:
+the slide goes live: the slide first, and then its actions, in the order the cue has
+them. (So an action that clears the slide clears that slide, which is how a cue is
+made that shows nothing of its own. Such a slide is still the one the show is at: it
+is marked as the live one, and the arrow keys go on from it.)
 
 - **Timer**: start, stop or reset a [timer](#timers), or reset and start it, and
   optionally set it up anew first (as a countdown of so long, a countdown to a time of

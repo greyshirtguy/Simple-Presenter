@@ -82,7 +82,7 @@ Rectangle {
                     interactive: false
                     model: sidebar.win.catalog.libraries
                     selectedPath: sidebar.win.selectedNode === "" ? sidebar.win.libraryPath : ""
-                    livePath: !sidebar.win.cleared && sidebar.win.liveDocument && sidebar.win.livePlaylistId === ""
+                    livePath: sidebar.win.cueLive && sidebar.win.liveDocument && sidebar.win.livePlaylistId === ""
                               ? sidebar.win.liveDocument.path.substring(0, sidebar.win.liveDocument.path.lastIndexOf("/")) : ""
                     onPicked: (entry) => sidebar.win.openLibrary(entry.path)
                 }
@@ -141,7 +141,7 @@ Rectangle {
                     interactive: false
                     model: sidebar.win.catalog.playlists
                     selectedPath: sidebar.win.selectedNode
-                    livePath: sidebar.win.cleared ? "" : sidebar.win.livePlaylistId
+                    livePath: sidebar.win.cueLive ? sidebar.win.livePlaylistId : ""
                     dragProxy: sidebar.playlistDrag
                     dropKeys: ["presentation", "playlist"]
                     // A presentation goes onto a playlist. A playlist or folder
@@ -234,7 +234,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         model: sidebar.win.documents
         selectedPath: sidebar.win.documentKey
-        livePath: !sidebar.win.cleared && sidebar.win.livePlaylistId === sidebar.win.playlistId ? sidebar.win.liveKey : ""
+        livePath: sidebar.win.cueLive && sidebar.win.livePlaylistId === sidebar.win.playlistId ? sidebar.win.liveKey : ""
         dragProxy: sidebar.presentationDrag
         draggable: (entry) => entry.playlistItem || sidebar.win.openable(entry)
         dropKeys: sidebar.win.playlistId !== "" ? ["presentation"] : []

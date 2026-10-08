@@ -157,7 +157,7 @@ Item {
 
             required property var modelData
             required property int index
-            readonly property bool live: slides.win.viewingLive && !slides.win.cleared && slides.win.liveIndex === index
+            readonly property bool live: slides.win.viewingLive && slides.win.cueLive && slides.win.liveIndex === index
             // The frame is the slide's group colour, and the label is drawn on it.
             readonly property color frame: slides.win.groupColor(modelData)
             readonly property bool lightFrame: 0.299 * frame.r + 0.587 * frame.g + 0.114 * frame.b > 0.6

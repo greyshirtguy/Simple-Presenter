@@ -105,6 +105,16 @@ Window {
     property string liveKey: ""
     property string livePlaylistId: ""
     property bool cleared: true
+    // Set when the slide that is live took itself off the output: its cue has an action
+    // that clears the slide, or everything. Nothing of it is on the slide layer, and
+    // `cleared` says so; but it is still the slide the show is at, which is marked as
+    // the live one and from which the arrow keys go on.
+    property bool clearedByCue: false
+    // Whether the slide the show is at is to be marked as such: it is on the output, or
+    // would be had it not taken itself off
+    readonly property bool cueLive: !cleared || clearedByCue
+    // While the actions of the slide going live are being run
+    property bool runningCue: false
     // What is on the media layer: { name, path, source, video, foreground, loops,
     // retriggers, volume }, or null, and the media playlist it was triggered from, "" if
     // a slide triggered it. The last four are how it behaves (see goLive() and
@@ -1477,6 +1487,7 @@ Window {
         liveKey = documentKey
         livePlaylistId = playlistId
         cleared = false
+        clearedByCue = false
         Log.note("live", "slide " + (index + 1) + " of " + document.slides.length + " of " + quoted(document.name)
                  + (slide.label !== "" ? " (" + slide.label + ")" : "")
                  + (withoutMedia && slide.mediaName !== "" ? "; without its media, as asked"
@@ -1488,10 +1499,6 @@ Window {
         if (!withoutMedia && !slide.media && slide.mediaName !== "")
             Log.problem("The media " + quoted(slide.mediaName) + " of slide " + (index + 1) + " of " + quoted(document.name)
                         + " was not found in the workspace, so the slide is shown without it")
-        // What else the slide's cue does, such as starting the countdown it shows. It
-        // is done first, so that a slide that clears what was there is not cleared
-        // itself.
-        runActions(slide.actions, 0)
         if (!media) {
             // A foreground is for the moment it was triggered in: a slide that brings no
             // media of its own ends it. A background plays on.
@@ -1505,6 +1512,13 @@ Window {
             liveMediaPlaylistId = ""
             output.showSlideWithMedia(slide, media)
         }
+        // What else the slide's cue does, such as starting the countdown it shows: the
+        // slide first, and then its actions, in their order. So an action that clears
+        // the slide clears this one, which is how a cue is made that shows nothing of
+        // its own; it is then still the slide the show is at (see clearedByCue).
+        runningCue = true
+        runActions(slide.actions, 0)
+        runningCue = false
         grid.positionViewAtIndex(index, GridView.Contain)
     }
 
@@ -1623,11 +1637,13 @@ Window {
     }
 
     // Moves the live slide within the presentation being viewed. From a cleared output
-    // it brings the current slide back; from another presentation it starts at the top.
+    // it brings the current slide back (unless that slide is one that clears itself,
+    // which would only clear itself again); from another presentation it starts at
+    // the top.
     function step(delta) {
         if (!viewingLive)
             goLive(0)
-        else if (cleared)
+        else if (cleared && !clearedByCue)
             goLive(liveIndex)
         else
             goLive(liveIndex + delta)
@@ -1636,8 +1652,9 @@ Window {
     function clearSlide() {
         if (cleared)
             return
-        Log.note("clear", "the slide")
+        Log.note("clear", "the slide" + (runningCue ? ", by its own action" : ""))
         cleared = true
+        clearedByCue = runningCue
         output.showSlide(null)
     }
 
