@@ -23,6 +23,15 @@
 > You are very welcome to try it, read it, take it apart, fork it and borrow from it.
 > Just do not count on it.
 
+> [!NOTE]
+> ## How the experiment is going
+>
+> **I cannot believe how well Claude is doing at vibe coding this app.**
+>
+> So I am going to keep going, and see how far I can get, knowing full well that the
+> whole experiment may yet come crashing down. There is a list of what I mean to throw
+> at it next under [TODO](#todo).
+
 **Yes, it has an editor.** A basic one, for the text boxes on a slide: add them, move
 and resize them, and change their words and their looks. Props and stage layouts are
 edited with it too. More under [Editing](#editing).
@@ -81,16 +90,24 @@ What is not there yet. It is a list of ideas, not of promises: see the note at t
 of this page.
 
 - [ ] **Improve File Compatibility**: render more of what a `.pro` file can hold, such
-      as gradients, shapes other than rectangles and image fills.
+      as a video as an element's fill, gradients of more than two colours or that run
+      in a circle, and feathered edges on shapes other than the three plain ones.
       Drawn so far: text with its fonts, colours, outline, shadow, capitals, underline
-      and spacing, made smaller or larger to suit its box where it is set to be; plain
-      fills, including one that is only behind the lines of the text; strokes and
-      shadows; elements that show only when another has text, or while a timer runs;
-      and text linked from another element, from a timer, or from the slide that is
-      live.
-- [ ] **Editor**: text boxes can be added, moved, resized and removed, and their text
-      and looks changed. Still to do: other kinds of element, adding and removing
-      slides, picking several elements at once, rotating, lists and scrolling text.
+      and spacing, made smaller or larger to suit its box where it is set to be;
+      shapes, from their outlines, whatever they are; fills that are a colour
+      (including one that is only behind the lines of the text), a gradient from one
+      colour to another, or a picture; strokes, shadows and feathered edges; elements
+      that show only when another has text, or while a timer runs; and text linked
+      from another element, from a timer, or from the slide that is live.
+- [ ] **Editor**: text boxes, shapes and pictures can be added, moved, resized, turned
+      and removed, and their text and looks changed; slides can be added, copied,
+      pasted and deleted. Still to do: reordering slides, the rest of ProPresenter's
+      shapes, picking several elements at once, lists and scrolling text.
+- [ ] **Key mappings**: the hotkeys of groups are there, read from and written to the
+      workspace's list of groups as ProPresenter has them, and Ctrl+S and Ctrl+E for
+      show mode and edit mode. Still to do: a page of the settings for the app's other
+      keys, and the rest of what ProPresenter's key mappings can go to (cues, macros,
+      props, timers, clear groups, MIDI notes).
 - [ ] **Playlist Support**: build and run an ordered list of presentations and media
       for a service. Playlists and folders can be created, renamed, rearranged, removed
       and run, and their rows added, reordered and removed; still to do are headers and
@@ -108,6 +125,34 @@ of this page.
       time; and a way of giving a slide a timer action here (those a presentation
       already has are run).
 
+### To try, and see what happens
+
+Bigger things, each of which ProPresenter does and this does not. No order, and no
+promise that any of them will turn out to be possible this way: that is the experiment.
+
+- [ ] **Search**
+- [ ] **More Actions**
+- [ ] **Macros**
+- [ ] **Themes** (when there are themes, everything that makes a new slide, which is
+      the `+` over the editor's slides, New Slide in a slide's menu and media dropped
+      between slides, is to offer a theme's slide as well as a blank one)
+- [ ] **Screens**
+- [ ] **Looks**
+- [ ] **Arrangement Editor**
+- [ ] **Importing ChordPro**
+- [ ] **Chord Editor**
+- [ ] **NDI**
+- [ ] **Blackmagic SDI**
+- [ ] **EasyView**
+- [ ] **MIDI**
+- [ ] **RossTalk**
+- [ ] **Custom HTTP Requests**
+- [ ] **Reflow**
+- [ ] **Masks**
+- [ ] **Audio Bin**
+- [ ] **Announcements**
+- [ ] **Video Input**
+
 ## Installing
 
 Being packaged does not make it a product. The note at the top of this page holds for
@@ -115,11 +160,11 @@ the package as much as for the code: it is an experiment, passed on as it is.
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download
-`simplepresenter_0.3_amd64.deb` from the
+`simplepresenter_0.4_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.3_amd64.deb
+sudo apt install ./simplepresenter_0.4_amd64.deb
 ```
 
 That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
@@ -231,7 +276,7 @@ those numbers back into names is made from the program as it was built, and belo
 with the package it was made for:
 
 ```
-nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.3_symbols.txt.xz
+nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.4_symbols.txt.xz
 ```
 
 A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of
@@ -626,11 +671,13 @@ are kept, so the layouts still work in ProPresenter.
 
 ## Editing
 
-**Edit** in the toolbar, or in the right-click menu of a presentation or of a slide,
-swaps the slides for the editor, at that slide if it was a slide's menu; **Done**, or
-**Edit** again, goes back to showing. The output
-carries on as it was while a presentation is edited, and shows a slide as edited the
-next time that slide is shown.
+The window is in one of two modes, and the two buttons at the left of the toolbar say
+which: **Show** (the triangle) and **Edit** (the pencil). **Edit**, or Ctrl+E, or Edit
+in the right-click menu of a presentation or of a slide, swaps the slides for the
+editor, at that slide if it was a slide's menu. **Show**, or Ctrl+S, or Edit again,
+goes back to showing, from whichever editor is up. The output carries on as it was
+while a presentation is edited, and shows a slide as edited the next time that slide
+is shown.
 
 On the left are the presentation's slides and, under them, the elements of the slide
 being worked on, the one in front first. In the middle is the slide. On the right are
@@ -650,8 +697,39 @@ and a right-click menu to rename, copy or remove one.
 - **Text.** Double-click an element to edit its text where it stands, drawn as it will
   be shown. Font, size, colour, bold, italic, underline, capitals, spacing and outline
   apply to the text that is selected, or to all of the text when none is.
-- **Shape.** Position and size, opacity, fill (a colour, optionally only behind the
-  lines of the text), stroke and shadow.
+- **Adding.** The first three buttons over the slide add a text box (the T), a shape
+  from a short list (a rectangle, a rounded rectangle, an ellipse or an arrow, each
+  filled with a plain colour to begin with), and a picture or video from a file. The
+  buttons are glyphs; what the one under the pointer does is said in words along the
+  bottom of the editor. Underneath, the three are one kind of thing, as they are in
+  ProPresenter's files: any of them can be given words by double-clicking it, and any
+  of them any fill.
+- **Turning.** An element is turned about its middle by the **Rotation** field, in
+  degrees clockwise, or by dragging one of its corner handles with Ctrl held, as
+  ProPresenter has it with the Command key. Dragged, it settles on upright and on the
+  quarter turns when it is near one, and with Shift goes by fifteen degrees at a time.
+  The frame and the handles turn with the element, and a turned element is resized
+  along its own sides. Over a corner handle the pointer says which a drag would do: the
+  arrows for resizing, or with Ctrl down a curved arrow for turning. (Ctrl held from the
+  start of a drag is what turns; to resize by a corner without snapping, press Ctrl
+  once the drag is under way.)
+- **Shape.** Position and size, opacity, fill, stroke and shadow. A fill is a colour
+  (optionally only behind the lines of the text), a gradient from one colour to another
+  along an angle, or a picture, which is made to fit inside the element, to fill it and
+  be cut off at its edges, or stretched to it. A rounded rectangle has one handle more
+  than the others, a round one on its top edge, which is dragged to make its corners
+  more round or less. A rectangle, a rounded rectangle and an ellipse can have their
+  edges feathered, which fades them out. A picture is referred to where it is on disk,
+  not copied; a video can be chosen as a fill, and is kept in the file, but only
+  pictures are drawn so far.
+- **Slides.** The `+` over the list on the left adds a slide with nothing on it after
+  the one being worked on. A right click on a slide in the list offers **New Slide**,
+  which does the same after that slide; **Copy** and **Paste**, the copy
+  going after the slide whose menu Paste is chosen from, in that presentation or
+  another; and **Delete Slide…**. A slide's menu while showing has Copy, Paste and
+  Delete Slide… too. A pasted slide is a slide of its own, and so is everything on it.
+  None of these can be undone with Undo, and each takes with it what could be undone
+  before; deleting asks first.
 - **Visibility.** An element can be set to show only when other elements of the slide
   have text, or have none: all, any or none of a list of conditions.
 - **Linked text.** A text box can show the text of another element of the slide, in
@@ -682,8 +760,9 @@ substitute is used to draw it.
 
 ## Transitions
 
-The transition is chosen at the bottom left of the slides, and applies to every change
-on the output, slides and media alike; the slider beside it is how long it takes. The
+The transition is chosen at the left of the thin bar under the slides (the buttons for
+the size of the thumbnails are at its right), and applies to every change on the
+output, slides and media alike; the slider beside it is how long it takes. The
 menu has them by category, as ProPresenter does: Dissolves, Wipes, Movements, Objects,
 Color and Blurs, and then More, for the ones ProPresenter does not have.
 
@@ -759,9 +838,39 @@ depends on what the app is run through:
 | Down / Up | Next / previous presentation |
 | F1 / F2 / F3 / F4 | Clear all / slide layer / media layer / props |
 | ~, held for most of a second | [Simple View](#simple-view) on or off |
+| A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
+| Ctrl+E | Edit mode: the editor, for the presentation being viewed |
+| Ctrl+S | Show mode: out of the editor, whichever one is up |
 | Ctrl+V | Show or hide the media bin |
 | Ctrl+1 / Ctrl+2 | Show or hide the output / stage window |
 | Esc | Close a menu |
+
+A group's hotkey is set on the settings screen, under Groups, where each group has its
+colour: click the box after the group's name and press the letter or digit. Pressed
+while showing, it puts the first slide of that group on the output, from where the
+group first comes up in the presentation if it comes up more than once.
+
+The hotkeys are kept with the workspace, in its list of groups (`Configuration/Groups`),
+which is where ProPresenter keeps a group's hotkey beside its name and its colour. So a
+workspace that ProPresenter has used comes with ProPresenter's own: **A** for the first
+verse, **S** for the second, **C** for the chorus, **B** for the bridge and so on. Every
+hotkey in that list works, whether or not its group is one of those on the settings
+screen, and the settings screen says which others there are. A hotkey changed on the
+settings screen is written into the list, and nothing else in the file is touched. A
+workspace with no list of groups goes by **C** for the chorus, **V** for the verse
+(which is "Verse 1", where the verses are numbered) and **B** for the bridge until a
+hotkey is changed, which makes the list, of the groups on the settings screen.
+
+ProPresenter has a second file, `Configuration/KeyMappings`, for the key mappings a
+user has made beyond the ones it starts with. That file is only read: a plain letter
+or digit mapped to a group there works as a hotkey too. Nothing is written to it. The
+groups' names and colours on the settings screen are the app's own, and the same in
+every workspace.
+
+The slide a key goes to has the key in a small orange icon at its top left corner,
+beside the icon for its media if it has any. How solid these icons are is set on the
+settings screen, under Slides, from nearly gone (5%) to solid; they start at 80%, so
+that the slide shows through them a little. That setting is the app's own.
 
 In the editor:
 
@@ -839,6 +948,20 @@ second gets through. A log that grows past 2 MB carries on in a new file and kee
 one before, so a session's log is never more than twice that. The one thing done by
 the clock is the question put to the app once a second, to see that it is answering.
 
+## Benchmark
+
+```
+benchmark/run.py
+```
+
+runs the app several times over on a workspace of its own making, times what an
+operator waits for (starting up, opening a presentation, a slide reaching the output
+with the output full screen, the frames of a transition, a change in the editor
+reaching the screen, what it costs standing by, and memory), and compares the times
+with a baseline kept in `benchmark/baseline.txt`, marking whatever has got worse by
+more than a fifth. It is for seeing that a change has not made the app slower. Nothing
+of yours is read or changed by it. See [benchmark/README.md](benchmark/README.md).
+
 ## Self-test
 
 ```
@@ -871,6 +994,8 @@ those.
 | `src/presentationeditor.*` | A presentation, the props or the stage layouts open in the editor: its changes, undo, saving and backups |
 | `src/playlistfile.*` | Reads and writes the two playlists files |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
+| `src/keymappings.*` | The workspace's key mappings: the hotkeys of groups, in the file ProPresenter keeps them in |
+| `src/cursors.*` | The pointer for turning an element in the editor, and whether Ctrl is held |
 | `src/props.*`, `src/stagelayouts.*` | The workspace's props and their collections, and its stage layouts: their files, and adding to, renaming and removing them |
 | `src/show.*` | What is live, for the text boxes that show the words of the live slide or the next |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
@@ -884,6 +1009,7 @@ those.
 | `src/firstframe.*` | Says when a video has its first picture, so that it is not put on the output before |
 | `src/fontresolver.*` | Finds fonts by PostScript name through fontconfig |
 | `src/selftest.*` | The self-test |
+| `src/benchmark.*`, `qml/Benchmark.qml`, `benchmark/` | The benchmark: what it works on and measures with, its run, and the script that repeats it and compares it with the baseline |
 | `src/sessionlog.*` | The log of a run: what the app is running on, what it did, a crash's last lines, and the watch for the app not answering |
 | `qml/Main.qml` | The operator window: the app's state and logic |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |

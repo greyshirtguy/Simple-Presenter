@@ -38,6 +38,18 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4" date="2026-10-08">
+      <description>
+        <p>
+          The editor draws and makes shapes (rectangles, rounded rectangles, ellipses, arrows) with
+          colour, gradient and picture fills and feathered edges, turns elements, and adds, copies,
+          pastes and deletes slides. Groups have hotkeys, kept where ProPresenter keeps them, and the
+          slide a key goes to is marked. Show mode and edit mode have a button and a key each. Dragging
+          a slider or a handle in the editor no longer falls behind the hand, and slides open and reach
+          the output sooner. There is a benchmark for telling whether a change has made the app slower.
+        </p>
+      </description>
+    </release>
     <release version="0.3" date="2026-10-07">
       <description>
         <p>
