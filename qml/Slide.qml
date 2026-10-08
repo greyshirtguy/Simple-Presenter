@@ -21,6 +21,20 @@ Item {
     readonly property real slideWidth: slide?.width ?? 1920
     readonly property real slideHeight: slide?.height ?? 1080
     readonly property real u: Math.min(width / slideWidth, height / slideHeight)
+    readonly property var elements: slide?.elements ?? []
+    // The last element that was drawn: see elementAt(). (Kept in a plain object, so
+    // that noting it is not a change to anything that is watched.)
+    readonly property var spare: ({ element: null })
+
+    // The element that the item at this place in the slide draws. An item that is about
+    // to go, the slide having changed for one with fewer elements, may ask once more
+    // on its way out, and is given a real element rather than nothing.
+    function elementAt(index) {
+        const element = elements[Math.min(index, elements.length - 1)]
+        if (element)
+            spare.element = element
+        return element ?? spare.element
+    }
 
     // Whether an element shows now, for one with a rule about a timer: such a rule is
     // met or not as the timer runs, so it is asked while the slide is on show, where
@@ -59,11 +73,19 @@ Item {
         }
 
         // Elements that are hidden, or that their visibility rules rule out, are not drawn.
+        //
+        // There is an item for each element, and the items are made again only when
+        // the number of elements changes. A slide that changes, as it does many times a
+        // second while something on it is dragged in the editor, or that gives way to
+        // another of as many elements, has the items it has shown the new elements:
+        // only what differs is worked out again, where making the items again would lay
+        // out every text and load every picture afresh.
         Repeater {
-            model: root.slide?.elements ?? []
+            model: root.elements.length
 
             delegate: SlideElement {
-                required property var modelData
+                required property int index
+                readonly property var modelData: root.elementAt(index)
 
                 source: modelData
                 unit: root.u

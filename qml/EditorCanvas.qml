@@ -47,6 +47,15 @@ Item {
     property var guides: []
 
     readonly property var elements: slide ? slide.elements : []
+    // The last element there was: see elementAt()
+    readonly property var spare: ({ element: null })
+    // Changes to an element that are being dragged out, on a slider or a handle, and
+    // have yet to be shown: { format, row, id, changes }, with `format` set if they are
+    // to its text's format. They are shown once a frame, however many arrive in that
+    // time: a pointer says where it is far more often than the screen is drawn, and
+    // each change is a slide described and drawn again, so that showing every one of
+    // them would leave the picture further and further behind the hand.
+    property var pending: null
     readonly property var selected: elements.find(e => e.id === selectedId) ?? null
     readonly property var editing: editingId === "" ? null : (elements.find(e => e.id === editingId) ?? null)
     // The format at the caret or of the selection while text is edited, else that of the
@@ -108,6 +117,36 @@ Item {
         default:
             return ""
         }
+    }
+
+    // The element that the item at this place draws: as Slide.elementAt().
+    function elementOf(index) {
+        const element = elements[Math.min(index, elements.length - 1)]
+        if (element)
+            spare.element = element
+        return element ?? spare.element
+    }
+
+    // Shows the changes that were waiting for the next frame, if any were. Whatever
+    // else is done to the slide does this first, so that it is done to the slide as
+    // the user last saw it asked for.
+    function flush() {
+        const waiting = pending
+        if (!waiting)
+            return
+        pending = null
+        if (waiting.format)
+            applyFormat(waiting.changes, true)
+        else
+            editor.previewProperties(waiting.row, waiting.id, waiting.changes)
+    }
+
+    // Keeps an interim change for the next frame, with any that are waiting already
+    // if they are of the same kind and to the same element.
+    function hold(format, changes) {
+        if (pending && (pending.format !== format || pending.row !== row || pending.id !== selectedId))
+            flush()
+        pending = { format: format, row: row, id: selectedId, changes: Object.assign({}, pending ? pending.changes : {}, changes) }
     }
 
     function reload() {
@@ -230,10 +269,12 @@ Item {
         // An element given its text from elsewhere has none of its own to go on typing.
         if (changes.linkKind !== undefined && changes.linkKind !== "none" && editingId === selectedId)
             finishText()
-        if (interim)
-            editor.previewProperties(row, selectedId, changes)
-        else
-            report(editor.commitPreview()) && report(editor.setProperties(row, selectedId, changes))
+        if (interim) {
+            hold(false, changes)
+            return
+        }
+        flush()
+        report(editor.commitPreview()) && report(editor.setProperties(row, selectedId, changes))
     }
 
     // Formats the selected text while text is being edited, and otherwise, or with
@@ -241,6 +282,15 @@ Item {
     function setFormat(format, interim) {
         if (!selected)
             return
+        if (interim) {
+            hold(true, format)
+            return
+        }
+        flush()
+        applyFormat(format, false)
+    }
+
+    function applyFormat(format, interim) {
         let start = 0
         let end = everything
         const caret = textEdit.cursorPosition
@@ -260,6 +310,7 @@ Item {
     }
 
     function settle() {
+        flush()
         report(editor.commitPreview())
     }
 
@@ -309,6 +360,7 @@ Item {
 
     // Hands what has been typed to the editor.
     function sendText() {
+        flush()
         if (editingId === "" || !typed)
             return
         typed = false
@@ -316,6 +368,7 @@ Item {
     }
 
     function finishText() {
+        flush()
         if (editingId === "")
             return
         // The keyboard goes back to the canvas, if the text had it.
@@ -333,6 +386,7 @@ Item {
     function nudge(dx, dy) {
         if (!selected || selected.locked)
             return
+        flush()
         editor.previewProperties(row, selectedId, { x: selected.x + dx, y: selected.y + dy })
         nudgeTimer.restart()
     }
@@ -617,6 +671,12 @@ Item {
         }
     }
 
+    // Changes being dragged out are shown once a frame: see `pending`.
+    FrameAnimation {
+        running: canvas.pending !== null
+        onTriggered: canvas.flush()
+    }
+
     Timer {
         id: nudgeTimer
 
@@ -651,11 +711,13 @@ Item {
 
         // An element that is switched off is not drawn; one that its visibility rules
         // would hide is, since those depend on what the slide holds when it is shown.
+        // (An item for each, kept while there are as many of them: see Slide.qml.)
         Repeater {
-            model: canvas.elements
+            model: canvas.elements.length
 
             delegate: SlideElement {
-                required property var modelData
+                required property int index
+                readonly property var modelData: canvas.elementOf(index)
                 readonly property bool dragged: canvas.dragBox !== null && modelData.id === canvas.selectedId
                 readonly property bool turned: canvas.dragTurn !== null && modelData.id === canvas.selectedId
                 // Linked to something there is nothing of to show just now: its own
@@ -778,10 +840,11 @@ Item {
     // Where each element is, faintly, so that one with nothing in it yet can be found;
     // and clearly for the one a click would pick.
     Repeater {
-        model: canvas.elements
+        model: canvas.elements.length
 
         delegate: Rectangle {
-            required property var modelData
+            required property int index
+            readonly property var modelData: canvas.elementOf(index)
             readonly property bool hovered: modelData.id === pointer.hovered
 
             x: canvas.originX + modelData.x * canvas.u
@@ -800,12 +863,13 @@ Item {
     // print at its foot what it is linked to. It goes with the element as that is
     // dragged, and stays when the element is picked, inside the frame that shows that.
     Repeater {
-        model: canvas.elements
+        model: canvas.elements.length
 
         delegate: Rectangle {
             id: linkMark
 
-            required property var modelData
+            required property int index
+            readonly property var modelData: canvas.elementOf(index)
             readonly property var box: canvas.dragBox !== null && modelData.id === canvas.selectedId ? canvas.dragBox
                                                                                                     : modelData
             readonly property string caption: modelData.linkKind !== "none" ? canvas.linkCaption(modelData) : ""
@@ -1161,6 +1225,7 @@ Item {
     // Undoing and redoing while text is being edited brings the text back with it.
     function undo() {
         sendText()
+        flush()
         if (!report(editor.undo()))
             return
         afterRestore()
@@ -1168,6 +1233,7 @@ Item {
 
     function redo() {
         sendText()
+        flush()
         if (!report(editor.redo()))
             return
         afterRestore()
