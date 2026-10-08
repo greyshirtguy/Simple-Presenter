@@ -88,6 +88,7 @@
 // temporary file that then replaces the original. Whatever the app does not know about
 // goes back exactly as it came.
 
+#include "benchmark.h"
 #include "catalog.h"
 #include "selftest.h"
 #include "sessionlog.h"
@@ -97,10 +98,13 @@
 #include <QDir>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
+#include <QQmlContext>
 #include <QQuickWindow>
 #include <QScreen>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTextStream>
 
 static int findScreen(const QString &spec)
@@ -160,7 +164,8 @@ int main(int argc, char *argv[])
     const QCommandLineOption screenOption({"s", "screen"}, "Screen for the fullscreen output (index or name). "
                                           "Default: a non-primary screen if there is one, otherwise a window.", "screen");
     const QCommandLineOption selfTestOption("selftest", "Drive the output through a fixed sequence, save frames as PNGs into <dir>, then quit.", "dir");
-    parser.addOptions({listOption, workspaceOption, screenOption, selfTestOption});
+    const QCommandLineOption benchmarkOption("benchmark", "Time a fixed run on a workspace of the benchmark's own making, write the times to <file>, then quit.", "file");
+    parser.addOptions({listOption, workspaceOption, screenOption, selfTestOption, benchmarkOption});
     parser.process(app);
 
     QTextStream out(stdout);
@@ -214,6 +219,19 @@ int main(int argc, char *argv[])
         workspace = workspacesDirectory + "/" + (existing.isEmpty() ? QStringLiteral("Default") : existing.first());
         chosenAs = existing.isEmpty() ? QStringLiteral("a new one, there being none") : QStringLiteral("the first there is");
     }
+    // The benchmark works on a workspace of its own, made afresh and thrown away after.
+    QTemporaryDir benchmarkFolder;
+    const bool benchmarking = parser.isSet(benchmarkOption);
+    if (benchmarking) {
+        const QString error = Benchmark::makeWorkspace(benchmarkFolder.path());
+        if (!error.isEmpty()) {
+            err << error << "\n";
+            SessionLog::finish();
+            return 1;
+        }
+        workspace = benchmarkFolder.path();
+        chosenAs = QStringLiteral("the benchmark's own");
+    }
     SessionLog::write("workspace", QStringLiteral("opening %1 (%2)").arg(workspace, chosenAs));
     Catalog catalog(workspace);
 
@@ -225,7 +243,7 @@ int main(int argc, char *argv[])
         {"catalog", QVariant::fromValue(&catalog)},
         {"outputScreen", outputScreen},
         // The self-test must not read or disturb the user's saved session,
-        {"remember", !parser.isSet(selfTestOption)},
+        {"remember", !parser.isSet(selfTestOption) && !benchmarking},
         // and its pictures must not depend on when it is run or how long it takes.
         {"clocksHeld", parser.isSet(selfTestOption)},
     });
@@ -253,6 +271,21 @@ int main(int argc, char *argv[])
             return 1;
         }
         runSelfTest(operatorWindow, output, stage, parser.value(selfTestOption));
+    }
+
+    if (benchmarking) {
+        // The run is made in the operator window's own scope, so that it can work the
+        // app by the functions a click does: see qml/Benchmark.qml.
+        auto *bench = new Benchmark(parser.value(benchmarkOption), &app);
+        bench->record("startup: to the windows being made", Benchmark::sinceStart(), "ms");
+        QQmlComponent component(&engine, "SimplePresenterApp", "Benchmark");
+        QObject *run = component.createWithInitialProperties({{"bench", QVariant::fromValue(bench)}}, qmlContext(operatorWindow));
+        if (!run) {
+            err << component.errorString() << "\n";
+            SessionLog::finish();
+            return 1;
+        }
+        run->setParent(operatorWindow);
     }
 
     SessionLog::watchForStalls();

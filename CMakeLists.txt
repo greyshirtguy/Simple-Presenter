@@ -68,6 +68,8 @@ qt_add_executable(SimplePresenter
     src/rtf.h
     src/rtfwriter.cpp
     src/rtfwriter.h
+    src/benchmark.cpp
+    src/benchmark.h
     src/selftest.cpp
     src/selftest.h
     src/textlayout.cpp
@@ -99,6 +101,7 @@ qt_add_qml_module(SimplePresenter
         qml/AppCheck.qml
         qml/AppComboBox.qml
         qml/AppSlider.qml
+        qml/Benchmark.qml
         qml/AppTextField.qml
         qml/AuxWindow.qml
         qml/ColorButton.qml

@@ -1,0 +1,51 @@
+# SimplePresenter 0.3, Qt 6.10.2, Ubuntu 26.04 LTS, wayland
+# screen Meta-0 1920x1080 at 60 Hz, scale 1
+# the median of 5 runs
+startup: to the windows being made	799.0	ms
+startup: to the operator window's first frame	1000.0	ms
+startup: to the output window's first frame	1001.0	ms
+startup: to the operator window standing still	1283.0	ms
+open Words: to its slides all being drawn	83.4	ms
+open Shapes: to its slides all being drawn	274.0	ms
+open Pictures: to its slides all being drawn	84.0	ms
+open again Words: to its slides all being drawn	84.6	ms
+open again Shapes: to its slides all being drawn	288.0	ms
+open again Pictures: to its slides all being drawn	85.7	ms
+show Words: to the output showing a slide, median	27.2	ms
+show Words: to the output showing a slide, worst	43.6	ms
+show Words: to the output standing still, median	34.9	ms
+show Words: work in the click itself, median	10.0	ms
+show Shapes: to the output showing a slide, median	50.6	ms
+show Shapes: to the output showing a slide, worst	77.0	ms
+show Shapes: to the output standing still, median	81.8	ms
+show Shapes: work in the click itself, median	33.9	ms
+show Pictures: to the output showing a slide, median	10.9	ms
+show Pictures: to the output showing a slide, worst	22.3	ms
+show Pictures: to the output standing still, median	46.6	ms
+show Pictures: work in the click itself, median	6.4	ms
+show again Shapes: to the output showing a slide, median	48.1	ms
+show again Shapes: to the output showing a slide, worst	65.5	ms
+show again Shapes: to the output standing still, median	81.3	ms
+show again Shapes: work in the click itself, median	33.9	ms
+show again Pictures: to the output showing a slide, median	10.6	ms
+show again Pictures: to the output showing a slide, worst	22.3	ms
+show again Pictures: to the output standing still, median	45.1	ms
+show again Pictures: work in the click itself, median	6.6	ms
+transition (Dissolve) through Words: to its first frame, median	27.6	ms
+transition (Dissolve) through Words: frames a second, median	60.5	fps
+transition (Dissolve) through Words: longest wait between frames, worst	23.0	ms
+transition (Dissolve) through Shapes: to its first frame, median	50.8	ms
+transition (Dissolve) through Shapes: frames a second, median	60.9	fps
+transition (Dissolve) through Shapes: longest wait between frames, worst	22.4	ms
+transition (Dissolve) through Pictures: to its first frame, median	10.6	ms
+transition (Dissolve) through Pictures: frames a second, median	58.1	fps
+transition (Dissolve) through Pictures: longest wait between frames, worst	40.0	ms
+editor: opening, to standing still	165.0	ms
+editor: corners made rounder, a change to the screen	24.2	ms
+editor: opacity turned down, a change to the screen	23.7	ms
+editor: made wider, a change to the screen	25.0	ms
+editor: closing, to standing still	290.0	ms
+standing by: processor used, of one core	0.8	%
+standing by: frames drawn a second, both windows	0.0	fps
+memory: held at the end	360.0	MB
+memory: most held	360.0	MB
