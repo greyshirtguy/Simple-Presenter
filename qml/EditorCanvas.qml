@@ -41,6 +41,8 @@ Item {
     property bool typed: false
     // While an element is being dragged or resized: where it would land, in slide units
     property var dragBox: null
+    // While it is being turned: how far round it would be, in degrees
+    property var dragTurn: null
     // The lines snapped to: [{ vertical, at }], in slide units
     property var guides: []
 
@@ -200,16 +202,24 @@ Item {
         const sy = (y - originY) / u
         for (let i = elements.length - 1; i >= 0; --i) {
             const e = elements[i]
-            if (!e.hidden && !e.locked && sx >= e.x && sx <= e.x + e.width && sy >= e.y && sy <= e.y + e.height)
+            if (!e.hidden && !e.locked && inside(e, sx, sy))
                 return e
         }
         return null
     }
 
     function holds(element, x, y) {
-        const sx = (x - originX) / u
-        const sy = (y - originY) / u
-        return sx >= element.x && sx <= element.x + element.width && sy >= element.y && sy <= element.y + element.height
+        return inside(element, (x - originX) / u, (y - originY) / u)
+    }
+
+    // Whether a point of the slide is in an element: in its box as it stands, turned
+    // about its middle if it is turned.
+    function inside(element, sx, sy) {
+        const turn = -element.rotation * Math.PI / 180
+        const dx = sx - element.x - element.width / 2
+        const dy = sy - element.y - element.height / 2
+        return Math.abs(dx * Math.cos(turn) - dy * Math.sin(turn)) <= element.width / 2
+            && Math.abs(dx * Math.sin(turn) + dy * Math.cos(turn)) <= element.height / 2
     }
 
     // Changes to the picked element. `interim` ones are shown but not saved, until one
@@ -396,6 +406,36 @@ Item {
             bottom = top + from.height
         } else {
             const proportional = (modifiers & Qt.ShiftModifier) && hx !== 0.5 && hy !== 0.5
+            if ((from.rotation ?? 0) % 360 !== 0) {
+                // A turned element is resized along its own sides: the pointer's move
+                // is read as the element sees it, and the corner or the side opposite
+                // the handle stays where it is on the slide. Nothing snaps, the lines
+                // there are to snap to being upright.
+                const angle = from.rotation * Math.PI / 180
+                const cos = Math.cos(angle)
+                const sin = Math.sin(angle)
+                const along = dx * cos + dy * sin
+                const down = dy * cos - dx * sin
+                let width = Math.max(smallest, Math.round(from.width + (hx === 1 ? along : hx === 0 ? -along : 0)))
+                let height = Math.max(smallest, Math.round(from.height + (hy === 1 ? down : hy === 0 ? -down : 0)))
+                if (proportional) {
+                    const scale = Math.max(width / from.width, height / from.height)
+                    width = Math.max(smallest, Math.round(from.width * scale))
+                    height = Math.max(smallest, Math.round(from.height * scale))
+                }
+                // The point that stays, measured from the middle in the element's own
+                // widths and heights, and where the middle must then be
+                const ax = 0.5 - hx
+                const ay = 0.5 - hy
+                const stayX = from.x + from.width / 2 + ax * from.width * cos - ay * from.height * sin
+                const stayY = from.y + from.height / 2 + ax * from.width * sin + ay * from.height * cos
+                const middleX = stayX - (ax * width * cos - ay * height * sin)
+                const middleY = stayY - (ax * width * sin + ay * height * cos)
+                guides = []
+                dragBox = { x: Math.round((middleX - width / 2) * 100) / 100, y: Math.round((middleY - height / 2) * 100) / 100,
+                            width: width, height: height }
+                return
+            }
             // Each edge being dragged follows the pointer, and may snap.
             const edge = (start, by, vertical) => {
                 if (by === 0)
@@ -442,6 +482,25 @@ Item {
         guides = []
         if (box && (box.x !== from.x || box.y !== from.y || box.width !== from.width || box.height !== from.height))
             setProperties(box, false)
+    }
+
+    // Turns the picked element about its middle, by as far as the pointer has gone
+    // round it since the drag began. It settles on upright and on the quarter turns
+    // when it is close to one; with Shift it goes by fifteen degrees at a time.
+    function turn(from, degrees, modifiers) {
+        let angle = from.rotation + degrees
+        if (modifiers & Qt.ShiftModifier)
+            angle = Math.round(angle / 15) * 15
+        else if (Math.abs(angle - Math.round(angle / 90) * 90) < 2)
+            angle = Math.round(angle / 90) * 90
+        dragTurn = ((Math.round(angle * 10) / 10) % 360 + 360) % 360
+    }
+
+    function dropTurn(from) {
+        const angle = dragTurn
+        dragTurn = null
+        if (angle !== null && angle !== (from.rotation % 360 + 360) % 360)
+            setProperties({ rotation: angle }, false)
     }
 
     // The keys, while no text is being edited. Arrows move the picked element a unit
@@ -598,6 +657,7 @@ Item {
             delegate: SlideElement {
                 required property var modelData
                 readonly property bool dragged: canvas.dragBox !== null && modelData.id === canvas.selectedId
+                readonly property bool turned: canvas.dragTurn !== null && modelData.id === canvas.selectedId
                 // Linked to something there is nothing of to show just now: its own
                 // text stands in, as a sample.
                 readonly property bool sampled: modelData.linkKind === "other"
@@ -610,6 +670,7 @@ Item {
                 boxY: dragged ? canvas.dragBox.y : modelData.y
                 boxWidth: dragged ? canvas.dragBox.width : modelData.width
                 boxHeight: dragged ? canvas.dragBox.height : modelData.height
+                rotation: turned ? canvas.dragTurn : modelData.rotation
                 textOverride: modelData.id === canvas.editingId ? canvas.liveText : sampled ? modelData.text : undefined
                 fitted: modelData.id !== canvas.editingId
                 standIns: true
@@ -728,6 +789,7 @@ Item {
             width: modelData.width * canvas.u
             height: modelData.height * canvas.u
             visible: !modelData.hidden && modelData.id !== canvas.selectedId
+            rotation: modelData.rotation
             color: "transparent"
             border.width: 1
             border.color: hovered ? "#c0ffffff" : "#30ffffff"
@@ -754,6 +816,7 @@ Item {
             width: box.width * canvas.u
             height: box.height * canvas.u
             visible: !modelData.hidden && modelData.linkKind !== "none"
+            rotation: canvas.dragTurn !== null && modelData.id === canvas.selectedId ? canvas.dragTurn : modelData.rotation
             color: "transparent"
             border.width: 1.5
             border.color: "#ffd400"
@@ -800,6 +863,8 @@ Item {
         y: box ? canvas.originY + box.y * canvas.u : 0
         width: box ? box.width * canvas.u : 0
         height: box ? box.height * canvas.u : 0
+        // Turned as the element is, and its handles with it
+        rotation: canvas.dragTurn ?? (canvas.selected ? canvas.selected.rotation : 0)
 
         // Dark under light, so the frame shows against anything.
         Rectangle {
@@ -818,14 +883,16 @@ Item {
             border.color: canvas.editing ? "#4da3ff" : "#ff8a1f"
         }
 
-        // Where it is and how big, while it is being dragged
+        // Where it is and how big, while it is being dragged, or how far round while it
+        // is being turned. (Upright, whichever way the element is.)
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             y: parent.height + 10
             width: readout.implicitWidth + 16
             height: 22
             radius: 5
-            visible: canvas.dragBox !== null
+            rotation: -frame.rotation
+            visible: canvas.dragBox !== null || canvas.dragTurn !== null
             color: "#e615161a"
             border.width: 1
             border.color: "#5c5f66"
@@ -836,7 +903,8 @@ Item {
                 anchors.centerIn: parent
                 color: "#e6e6e6"
                 font.pixelSize: 12
-                text: canvas.dragBox ? Math.round(canvas.dragBox.x) + ", " + Math.round(canvas.dragBox.y) + "   "
+                text: canvas.dragTurn !== null ? canvas.dragTurn + "°"
+                    : canvas.dragBox ? Math.round(canvas.dragBox.x) + ", " + Math.round(canvas.dragBox.y) + "   "
                                        + Math.round(canvas.dragBox.width) + " × " + Math.round(canvas.dragBox.height) : ""
             }
         }
@@ -853,6 +921,14 @@ Item {
                 readonly property real hy: modelData[1]
                 property point pressedAt
                 property var from: null
+                // Set while it is turning the element and not resizing it: the way
+                // from the element's middle to where the pointer went down, in degrees
+                property var turningFrom: null
+
+                function bearing(at) {
+                    const middle = frame.mapToItem(canvas, frame.width / 2, frame.height / 2)
+                    return Math.atan2(at.y - middle.y, at.x - middle.x) * 180 / Math.PI
+                }
 
                 x: hx * frame.width - width / 2
                 y: hy * frame.height - height / 2
@@ -861,30 +937,68 @@ Item {
                 // The middle handles go when the element is too small to hold them apart.
                 visible: (hx !== 0.5 || frame.width > 44) && (hy !== 0.5 || frame.height > 44)
                 preventStealing: true
-                cursorShape: hx === 0.5 ? Qt.SizeVerCursor : hy === 0.5 ? Qt.SizeHorCursor
-                           : hx === hy ? Qt.SizeFDiagCursor : Qt.SizeBDiagCursor
+                hoverEnabled: true
+
+                // The pointer says what a drag from here would do. A corner with Ctrl
+                // held turns the element, and has a pointer for that (see Cursors); the
+                // others resize it, and have the desktop's arrows for the way the
+                // handle goes, which for a turned element is the way it is turned.
+                readonly property bool corner: hx !== 0.5 && hy !== 0.5
+                readonly property bool turns: turningFrom !== null || (from === null && corner && Cursors.ctrlHeld)
+                // The way from the element's middle out through this handle, in
+                // degrees clockwise from pointing right, as it is on the screen
+                readonly property real outward: Math.atan2(hy - 0.5, hx - 0.5) * 180 / Math.PI + frame.rotation
+                // That way as one of the four the arrows can lie: 0 across, 1 down to
+                // the right, 2 up and down, 3 down to the left
+                readonly property int lie: ((Math.round(outward / 45) % 4) + 4) % 4
+
+                function showPointer() {
+                    if (turns)
+                        Cursors.turn(handle, outward)
+                    else
+                        Cursors.shape(handle, [Qt.SizeHorCursor, Qt.SizeFDiagCursor, Qt.SizeVerCursor, Qt.SizeBDiagCursor][lie])
+                }
+
+                onTurnsChanged: showPointer()
+                onLieChanged: showPointer()
+                onOutwardChanged: {
+                    if (turns)
+                        showPointer()
+                }
+                Component.onCompleted: showPointer()
                 onPressed: (mouse) => {
                     canvas.forceActiveFocus()
                     canvas.settle()
                     const element = canvas.selected
                     pressedAt = mapToItem(canvas, mouse.x, mouse.y)
-                    from = { x: element.x, y: element.y, width: element.width, height: element.height }
+                    from = { x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation }
+                    // A corner handle with Ctrl held turns the element, as in
+                    // ProPresenter (where it is the Command key).
+                    turningFrom = (mouse.modifiers & Qt.ControlModifier) && hx !== 0.5 && hy !== 0.5 ? bearing(pressedAt) : null
                 }
                 onPositionChanged: (mouse) => {
                     if (!from)
                         return
                     const at = mapToItem(canvas, mouse.x, mouse.y)
-                    canvas.drag(from, (at.x - pressedAt.x) / canvas.u, (at.y - pressedAt.y) / canvas.u, hx, hy, mouse.modifiers)
+                    if (turningFrom !== null)
+                        canvas.turn(from, bearing(at) - turningFrom, mouse.modifiers)
+                    else
+                        canvas.drag(from, (at.x - pressedAt.x) / canvas.u, (at.y - pressedAt.y) / canvas.u, hx, hy, mouse.modifiers)
                 }
                 onReleased: {
-                    if (from)
+                    if (from && turningFrom !== null)
+                        canvas.dropTurn(from)
+                    else if (from)
                         canvas.drop(from)
                     from = null
+                    turningFrom = null
                 }
                 onCanceled: {
                     canvas.dragBox = null
+                    canvas.dragTurn = null
                     canvas.guides = []
                     from = null
+                    turningFrom = null
                 }
 
                 Rectangle {
@@ -965,6 +1079,12 @@ Item {
         visible: element !== null
         x: element ? canvas.originX + (element.x + element.marginLeft) * canvas.u : 0
         y: element ? canvas.originY + (element.y + element.marginTop) * canvas.u : 0
+        // Turned with the element, about the element's middle
+        transform: Rotation {
+            origin.x: textFrame.element ? (textFrame.element.width / 2 - textFrame.element.marginLeft) * canvas.u : 0
+            origin.y: textFrame.element ? (textFrame.element.height / 2 - textFrame.element.marginTop) * canvas.u : 0
+            angle: textFrame.element ? textFrame.element.rotation : 0
+        }
 
         TextEdit {
             id: textEdit

@@ -388,6 +388,38 @@ Rectangle {
                 }
             }
 
+            // How far it is turned, clockwise about its middle. (Dragging a corner
+            // handle with Ctrl held turns it too.)
+            Line {
+                caption: "Rotation"
+
+                NumberField {
+                    id: turnField
+
+                    objectName: "rotation"
+                    decimals: 1
+                    from: -360
+                    to: 360
+                    suffix: "°"
+                    // ProPresenter writes a whole turn for none
+                    value: inspector.element ? (inspector.element.rotation % 360 + 360) % 360 : 0
+                    onEdited: (value) => inspector.setProperties({ rotation: value }, false)
+                    onFinished: inspector.finished()
+                }
+
+                IconButton {
+                    width: 26
+                    text: "−"
+                    onClicked: inspector.setProperties({ rotation: Math.round(turnField.value) - 1 }, false)
+                }
+
+                IconButton {
+                    width: 26
+                    text: "+"
+                    onClicked: inspector.setProperties({ rotation: Math.round(turnField.value) + 1 }, false)
+                }
+            }
+
             Line {
                 caption: "Opacity"
 

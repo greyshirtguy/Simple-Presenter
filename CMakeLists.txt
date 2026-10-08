@@ -164,6 +164,8 @@ qt_add_qml_module(SimplePresenter
         src/timers.cpp
         src/props.h
         src/props.cpp
+        src/cursors.h
+        src/cursors.cpp
         src/stagelayouts.h
         src/stagelayouts.cpp
         src/show.h

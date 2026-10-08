@@ -1008,6 +1008,9 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
         element->mutable_bounds()->mutable_size()->set_height(qMax(1.0, number("height")));
     if (changes.contains("opacity"))
         element->set_opacity(qBound(0.0, number("opacity"), 1.0));
+    // Degrees, clockwise, from 0 up to but not 360
+    if (changes.contains("rotation"))
+        element->set_rotation(std::fmod(std::fmod(number("rotation"), 360) + 360, 360));
     if (changes.contains("locked"))
         element->set_locked(changes.value("locked").toBool());
     if (changes.contains("hidden"))
