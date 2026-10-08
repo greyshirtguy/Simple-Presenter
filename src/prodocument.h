@@ -3,8 +3,14 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <QVariantMap>
 
+#include <functional>
 #include <optional>
+
+namespace rv::data {
+class Cue;
+}
 
 // A presentation, read for showing.
 //
@@ -27,12 +33,15 @@
 // units.
 //
 // What else a slide's cue does when it is triggered goes with the slide:
-//   - media: the file's name as `mediaName` and whether it is a foreground as
-//     `mediaForeground`, and, where the file can be found here, the media itself as
-//     `media`: { name, path, source, video, foreground, loops, retriggers, volume }
-//     (the last four as workspace::MediaBehaviour describes);
-//   - timers: `timerActions`, a list of what to do to which timer, each a map as
-//     Timers::act() takes.
+//   - media: the file's name as `mediaName`, whether it is a foreground as
+//     `mediaForeground`, whether it is a video as `mediaVideo` and, for a video, how
+//     it plays on from its end as `mediaPlayback`, `mediaLoopCount` and
+//     `mediaLoopSeconds`; and, where the file can be found here, the media itself as
+//     `media`: { name, path, source, video, foreground, loops, retriggers, volume,
+//     playback, loopCount, loopSeconds } (all but the first four as
+//     workspace::MediaBehaviour describes);
+//   - everything else: `actions`, a list of what the cue does besides, such as
+//     starting a timer or running a macro, each a map as src/actions.h describes.
 struct ProDocument
 {
     QString name;
@@ -67,6 +76,15 @@ struct ProDocument
     // Makes the media the cue triggers a background or a foreground, and writes the
     // file back.
     static QString setCueMediaForeground(const QString &path, const QString &cueId, bool foreground);
+    // Sets how the video the cue triggers plays on from its end (see
+    // workspace::MediaBehaviour), and writes the file back.
+    static QString setCueMediaPlayback(const QString &path, const QString &cueId, int playback, int loopCount, double loopSeconds);
+    // Gives the cue another action, changes one it has, by the action's id, and takes
+    // one away. The action is a map as src/actions.h describes. Each writes the file
+    // back and returns an error message, empty on success.
+    static QString addCueAction(const QString &path, const QString &cueId, const QVariantMap &action);
+    static QString changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action);
+    static QString removeCueAction(const QString &path, const QString &cueId, const QString &actionId);
     // Removes the media the cue triggers, if any, and writes the file back.
     static QString removeCueMedia(const QString &path, const QString &cueId);
     // Removes the cue with this id, and so its slide, from the presentation and from
@@ -92,4 +110,9 @@ struct ProDocument
     // as insertMediaCues places one, and gives the id of the copy. The copy and what is
     // on its slide have ids of their own. Writes the file back.
     static QString pasteCue(const QString &path, const QString &cueId, bool after, const QByteArray &copied, QString *madeId);
+
+private:
+    // Reads the file, hands the cue with this id to `change`, and writes the file back
+    // unless that gave an error.
+    static QString changeCue(const QString &path, const QString &cueId, const std::function<QString(rv::data::Cue *)> &change);
 };

@@ -266,6 +266,26 @@ QString Catalog::removeSlide(const QString &path, const QString &slideId)
     return ProDocument::removeCue(path, slideId);
 }
 
+QString Catalog::setSlideMediaPlayback(const QString &path, const QString &slideId, int playback, int loopCount, double loopSeconds)
+{
+    return ProDocument::setCueMediaPlayback(path, slideId, playback, loopCount, loopSeconds);
+}
+
+QString Catalog::addSlideAction(const QString &path, const QString &slideId, const QVariantMap &action)
+{
+    return ProDocument::addCueAction(path, slideId, action);
+}
+
+QString Catalog::changeSlideAction(const QString &path, const QString &slideId, const QString &actionId, const QVariantMap &action)
+{
+    return ProDocument::changeCueAction(path, slideId, actionId, action);
+}
+
+QString Catalog::removeSlideAction(const QString &path, const QString &slideId, const QString &actionId)
+{
+    return ProDocument::removeCueAction(path, slideId, actionId);
+}
+
 QVariantMap Catalog::insertSlide(const QString &path, const QString &slideId)
 {
     QString id;

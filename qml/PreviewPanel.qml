@@ -73,6 +73,11 @@ Rectangle {
         // "all", "slide", "media" or "props"
         property string kind
         property bool live: false
+        // The layer it clears, as an action's file numbers them, and what an action
+        // that clears it is called
+        readonly property int clears: ({ "all": 0, "slide": 5, "media": 2, "props": 4 })[kind] ?? 0
+        readonly property string title: ({ "all": "Clear Everything", "slide": "Clear the Slide", "media": "Clear the Media",
+                                           "props": "Clear the Props" })[kind] ?? ""
         readonly property color ink: live ? "#ececec" : "#6c6f75"
 
         signal clicked
@@ -140,13 +145,20 @@ Rectangle {
             }
         }
 
-        MouseArea {
+        // A click clears, when there is something to clear. And the button can be
+        // dragged, whether there is or not, onto a slide or a macro, which gives that
+        // the action that clears this layer (the app's own way of adding one).
+        DragSource {
             id: clearMouse
 
             anchors.fill: parent
+            win: sidePanel.win
+            payload: ({ kind: "clear", id: "", layer: clearButton.clears, name: clearButton.title })
             hoverEnabled: true
-            enabled: clearButton.live
-            onClicked: clearButton.clicked()
+            onClicked: {
+                if (!dragged && clearButton.live)
+                    clearButton.clicked()
+            }
         }
     }
 

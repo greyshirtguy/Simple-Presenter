@@ -26,6 +26,14 @@ void Cursors::setCtrlHeld(bool held)
     emit ctrlHeldChanged();
 }
 
+void Cursors::setAltHeld(bool held)
+{
+    if (held == m_altHeld)
+        return;
+    m_altHeld = held;
+    emit altHeldChanged();
+}
+
 bool Cursors::eventFilter(QObject *, QEvent *event)
 {
     switch (event->type()) {
@@ -36,6 +44,8 @@ bool Cursors::eventFilter(QObject *, QEvent *event)
         const auto *key = static_cast<QKeyEvent *>(event);
         if (key->key() == Qt::Key_Control)
             setCtrlHeld(event->type() == QEvent::KeyPress);
+        if (key->key() == Qt::Key_Alt)
+            setAltHeld(event->type() == QEvent::KeyPress);
         break;
     }
     case QEvent::MouseMove:
@@ -43,9 +53,11 @@ bool Cursors::eventFilter(QObject *, QEvent *event)
         // The pointer says what is held as it moves, which puts right a key that went
         // down or came up while another window had the keyboard.
         setCtrlHeld(static_cast<QMouseEvent *>(event)->modifiers() & Qt::ControlModifier);
+        setAltHeld(static_cast<QMouseEvent *>(event)->modifiers() & Qt::AltModifier);
         break;
     case QEvent::ApplicationDeactivate:
         setCtrlHeld(false);
+        setAltHeld(false);
         break;
     default:
         break;

@@ -224,6 +224,9 @@ void MediaBehaviour::describe(QVariantMap *media) const
     media->insert("loops", loops);
     media->insert("retriggers", retriggers);
     media->insert("volume", volume);
+    media->insert("playback", playback);
+    media->insert("loopCount", loopCount);
+    media->insert("loopSeconds", loopSeconds);
 }
 
 MediaBehaviour mediaBehaviour(const rv::data::Action &action)
@@ -236,6 +239,9 @@ MediaBehaviour mediaBehaviour(const rv::data::Action &action)
         const Transport &transport = action.media().element().video().transport();
         // Looping a number of times, or for a length of time, is looping here.
         behaviour.loops = transport.playback_behavior() != Transport::PLAYBACK_BEHAVIOR_STOP;
+        behaviour.playback = qBound(0, int(transport.playback_behavior()), 3);
+        behaviour.loopCount = int(transport.times_to_loop());
+        behaviour.loopSeconds = transport.loop_time();
         behaviour.retriggers = behaviour.retriggers || transport.retrigger() == Transport::RETRIGGER_SETTING_ALWAYS;
         // A video that says nothing about its sound has it at full.
         const rv::data::Media::VideoTypeProperties &video = action.media().element().video();
@@ -245,11 +251,29 @@ MediaBehaviour mediaBehaviour(const rv::data::Action &action)
     return behaviour;
 }
 
+void setMediaLayer(rv::data::Action *action, bool foreground)
+{
+    action->mutable_media()->set_layer_type(foreground ? rv::data::Action::LAYER_TYPE_FOREGROUND
+                                                       : rv::data::Action::LAYER_TYPE_BACKGROUND);
+}
+
+void setMediaPlayback(rv::data::Action *action, int playback, int loopCount, double loopSeconds)
+{
+    using Transport = rv::data::Media::TransportProperties;
+    if (!action->media().element().has_video())
+        return;
+    Transport *transport = action->mutable_media()->mutable_element()->mutable_video()->mutable_transport();
+    transport->set_playback_behavior(Transport::PlaybackBehavior(qBound(0, playback, 3)));
+    if (transport->playback_behavior() == Transport::PLAYBACK_BEHAVIOR_LOOP_FOR_COUNT)
+        transport->set_times_to_loop(uint32_t(qMax(1, loopCount)));
+    if (transport->playback_behavior() == Transport::PLAYBACK_BEHAVIOR_LOOP_FOR_TIME)
+        transport->set_loop_time(qMax(0.0, loopSeconds));
+}
+
 void setMediaForeground(rv::data::Action *action, bool foreground)
 {
     using Transport = rv::data::Media::TransportProperties;
-    action->mutable_media()->set_layer_type(foreground ? rv::data::Action::LAYER_TYPE_FOREGROUND
-                                                       : rv::data::Action::LAYER_TYPE_BACKGROUND);
+    setMediaLayer(action, foreground);
     if (action->media().element().has_video()) {
         action->mutable_media()->mutable_element()->mutable_video()->mutable_transport()->set_playback_behavior(
             foreground ? Transport::PLAYBACK_BEHAVIOR_STOP : Transport::PLAYBACK_BEHAVIOR_LOOP);

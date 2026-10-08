@@ -41,6 +41,16 @@ Item {
             radius: 6
             color: "#2b2d31"
 
+            // The screen can be dragged onto a slide, by its name and its picture, to
+            // give the slide an action that changes the layout it shows.
+            DragSource {
+                objectName: "stageScreenDrag"
+                width: parent.width
+                height: 30
+                win: panel.win
+                payload: ({ kind: "stage", id: "", name: "Stage" })
+            }
+
             // A screen on its stand, and what the screen is called
             Item {
                 id: icon

@@ -135,9 +135,16 @@ struct MediaBehaviour
     // (ProPresenter's own setting for the video, which is full unless it was turned
     // down there).
     double volume = 0;
+    // How a video plays on from its end, as ProPresenter's files have it: 0 it stops,
+    // 1 it goes round for good, 2 it plays `loopCount` times and stops, 3 it goes
+    // round until `loopSeconds` have passed and stops. (`loops` is whether it is any
+    // but the first.)
+    int playback = 0;
+    int loopCount = 0;
+    double loopSeconds = 0;
 
-    // For the maps the views are handed: `foreground`, `loops`, `retriggers` and
-    // `volume`.
+    // For the maps the views are handed: `foreground`, `loops`, `retriggers`,
+    // `volume`, `playback`, `loopCount` and `loopSeconds`.
     void describe(QVariantMap *media) const;
 };
 MediaBehaviour mediaBehaviour(const rv::data::Action &action);
@@ -145,5 +152,12 @@ MediaBehaviour mediaBehaviour(const rv::data::Action &action);
 // Makes a media action a background or a foreground, as ProPresenter sets one up: a
 // background video loops and a foreground one plays once.
 void setMediaForeground(rv::data::Action *action, bool foreground);
+// Makes a media action a background or a foreground and nothing else: how its video
+// plays on from its end is left as it is.
+void setMediaLayer(rv::data::Action *action, bool foreground);
+// Sets how a media action's video plays on from its end (see MediaBehaviour): the
+// count is kept to one or more and the time to nothing or more, and each is only
+// written for the way of playing that uses it.
+void setMediaPlayback(rv::data::Action *action, int playback, int loopCount, double loopSeconds);
 
 } // namespace workspace

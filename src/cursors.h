@@ -17,13 +17,16 @@ class Cursors : public QObject
     Q_OBJECT
     QML_ELEMENT
     QML_SINGLETON
-    // Whether Ctrl is held, wherever in the app the keyboard is
+    // Whether Ctrl is held, wherever in the app the keyboard is; and whether Alt is,
+    // which the slides ask (a click with Alt shows a slide without its media)
     Q_PROPERTY(bool ctrlHeld READ ctrlHeld NOTIFY ctrlHeldChanged)
+    Q_PROPERTY(bool altHeld READ altHeld NOTIFY altHeldChanged)
 
 public:
     explicit Cursors(QObject *parent = nullptr);
 
     bool ctrlHeld() const { return m_ctrlHeld; }
+    bool altHeld() const { return m_altHeld; }
 
     // Gives an item the pointer for turning: an arc with an arrowhead at each end.
     // `degrees` is the way from the middle of what is turned to the item, clockwise
@@ -34,12 +37,15 @@ public:
 
 signals:
     void ctrlHeldChanged();
+    void altHeldChanged();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void setCtrlHeld(bool held);
+    void setAltHeld(bool held);
 
     bool m_ctrlHeld = false;
+    bool m_altHeld = false;
 };

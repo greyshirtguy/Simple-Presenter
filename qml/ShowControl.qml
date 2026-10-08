@@ -1,7 +1,11 @@
 import QtQuick
 
 // The show controls: what is worked during a show besides the slides and the media, a
-// tab for each kind: the timers, the props, and the stage screens.
+// tab for each kind: the timers, the props, the stage screens, and the macros.
+//
+// Whatever a tab lists can also be dragged onto a slide, which gives the slide the
+// action that goes with it: do this to that timer, show that prop, give the stage
+// that layout, run that macro (see DragSource, and dropActionOnSlide in Main.qml).
 //
 // The tabs are a row of buttons across the whole width, pictures and not words, as
 // ProPresenter's are, and the one whose tab is showing is blue. Under them, at the
@@ -11,14 +15,15 @@ Item {
 
     // The operator window
     required property var win
-    // Which tab is showing: "timers", "props" or "stage"
+    // Which tab is showing: "timers", "props", "stage" or "macros"
     property string tab: "timers"
     // Whether something here is being renamed in place, and so has the keyboard
-    readonly property bool renaming: props.renaming !== ""
+    readonly property bool renaming: props.renaming !== "" || macros.renaming !== ""
     readonly property var tabs: [
         { id: "timers", name: "Timers" },
         { id: "props", name: "Props" },
-        { id: "stage", name: "Stage" }
+        { id: "stage", name: "Stage" },
+        { id: "macros", name: "Macros" }
     ]
 
     Row {
@@ -142,6 +147,14 @@ Item {
                     }
                 }
 
+                // Macros: an M in brackets
+                MacroGlyph {
+                    anchors.centerIn: parent
+                    visible: button.modelData.id === "macros"
+                    size: 1.35
+                    ink: button.ink
+                }
+
                 MouseArea {
                     id: mouse
 
@@ -158,7 +171,7 @@ Item {
     }
 
     // Adds to what the tab holds: a timer, a prop or a collection of them, a stage
-    // layout. Small, and out of the way of the tabs.
+    // layout, a macro or a collection of them. Small, and out of the way of the tabs.
     Rectangle {
         id: add
 
@@ -190,6 +203,8 @@ Item {
                     timers.add()
                 else if (control.tab === "props")
                     props.showAddMenu(add)
+                else if (control.tab === "macros")
+                    macros.showAddMenu(add)
                 else
                     stage.add()
             }
@@ -224,6 +239,14 @@ Item {
 
             anchors.fill: parent
             visible: control.tab === "stage"
+            win: control.win
+        }
+
+        MacrosPanel {
+            id: macros
+
+            anchors.fill: parent
+            visible: control.tab === "macros"
             win: control.win
         }
     }

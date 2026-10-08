@@ -595,6 +595,326 @@ Window {
             reloadDocument()
     }
 
+    // The menu of the icon that says whether a slide's media is a background or a
+    // foreground: the one it is is ticked, and the other changes it. (How a video
+    // plays on from its end is its own setting, with its own icon.)
+    function showMediaBehaviourMenu(index, item) {
+        const slide = document.slides[index]
+        menu.show([
+            { header: "Media" },
+            { label: "Background", current: !slide.mediaForeground, run: () => setSlideMediaForeground(index, false) },
+            { label: "Foreground", current: slide.mediaForeground, run: () => setSlideMediaForeground(index, true) }
+        ], item, 0, item.height + 2)
+    }
+
+    // How a video plays on from its end, in a few words: for the icon and the menu.
+    // `playback` is as the file numbers them: 0 it stops, 1 it goes round, 2 it plays
+    // a number of times, 3 it goes round for a length of time.
+    function playbackWords(playback, count, seconds) {
+        const time = seconds >= 60 && seconds % 60 === 0 ? seconds / 60 + " min" : Math.round(seconds) + " s"
+        return playback === 2 ? "×" + Math.max(1, count) : playback === 3 ? time : ""
+    }
+
+    // The menu of the icon that says how a slide's video plays on from its end.
+    function showMediaPlaybackMenu(index, item) {
+        const slide = document.slides[index]
+        const mode = slide.mediaPlayback
+        const show = items => menu.show(items, item, 0, item.height + 2)
+        const set = (playback, count, seconds) => {
+            Log.note("edit", "the video of slide " + (index + 1) + " of " + quoted(document.name) + " set to "
+                     + ["stop at its end", "loop", "play " + count + " times", "loop for " + seconds + " seconds"][playback])
+            if (report(catalog.setSlideMediaPlayback(document.path, slide.id, playback, count, seconds)))
+                reloadDocument()
+        }
+        show([
+            { header: "At Its End" },
+            { label: "Stop", current: mode === 0, run: () => set(0, 0, 0) },
+            { label: "Loop", current: mode === 1, run: () => set(1, 0, 0) },
+            { label: "Loop for Play Count" + (mode === 2 ? ": " + slide.mediaLoopCount : ""), current: mode === 2,
+              items: [{ header: "Play Count" }].concat([2, 3, 4, 5, 10, 20].map(count => ({
+                  label: count + " times", current: mode === 2 && slide.mediaLoopCount === count, run: () => set(2, count, 0) }))) },
+            { label: "Loop for Time" + (mode === 3 ? ": " + playbackWords(3, 0, slide.mediaLoopSeconds) : ""), current: mode === 3,
+              items: [{ header: "Time" }].concat([10, 30, 60, 120, 300, 600, 1800].map(seconds => ({
+                  label: playbackWords(3, 0, seconds), current: mode === 3 && slide.mediaLoopSeconds === seconds,
+                  run: () => set(3, 0, seconds) }))) }
+        ])
+    }
+
+    // ---- Actions: what a slide's cue, or a macro, does besides (see src/actions.h)
+
+    // Runs a list of actions, in order: a slide's, as it goes live, or a macro's.
+    // `depth` is how many macros deep this is, a macro being able to run a macro.
+    function runActions(actions, depth) {
+        for (const action of actions)
+            runAction(action, depth)
+    }
+
+    function runAction(action, depth) {
+        switch (action.kind) {
+        case "timer":
+            Timers.act(action)
+            break
+        case "clear":
+            // The layers there are here to clear; the others are ProPresenter's.
+            Log.note("action", action.title + (action.done ? "" : ": not done here"))
+            if (!action.done)
+                break
+            if (action.layer === 0)
+                clearAll()
+            else if (action.layer === 2)
+                clearMedia()
+            else if (action.layer === 4)
+                clearProps()
+            else
+                clearSlide()
+            break
+        case "stage": {
+            const layout = stageLayoutOf(action)
+            Log.note("action", action.title + (layout ? "" : ": nothing to change here"))
+            if (layout)
+                stageLayoutId = layout.id
+            break
+        }
+        case "prop": {
+            const prop = propOf(action)
+            Log.note("action", action.title + (prop ? "" : ": there is no such prop here"))
+            if (prop)
+                setProp(prop.id, !action.clear)
+            break
+        }
+        case "macro": {
+            const macro = Macros.find(action.macroId, action.macroName)
+            if (macro.id === undefined) {
+                Log.note("action", action.title + ": there is no such macro here")
+            } else if (depth >= 8) {
+                Log.problem("The macro " + quoted(macro.name) + " was not run again: macros that run each other have gone round eight times")
+            } else {
+                Log.note("action", action.title + ", which has " + macro.actions.length + " action" + (macro.actions.length === 1 ? "" : "s"))
+                runActions(macro.actions, depth + 1)
+            }
+            break
+        }
+        default:
+            Log.note("action", action.title + ": not done here")
+        }
+    }
+
+    // Runs a macro by hand, from the show controls.
+    function runMacro(id) {
+        const macro = Macros.find(id)
+        if (macro.id === undefined)
+            return
+        Log.note("macro", quoted(macro.name) + " run by hand: " + macro.actions.length + " action" + (macro.actions.length === 1 ? "" : "s"))
+        runActions(macro.actions, 1)
+    }
+
+    // The stage screen this app has, as an action names one. ProPresenter may have
+    // set several up for the workspace, of which the first is taken to be it; a
+    // workspace it has not set up has the one, by the name it has here.
+    function stageScreen() {
+        return StageLayouts.screens.length > 0 ? StageLayouts.screens[0] : { id: "", name: "Stage" }
+    }
+
+    // Which of a stage action's screens is this app's: the one it names by id, or by
+    // name; failing that, the first it gives a layout to, the action having been made
+    // somewhere the screens are called something else. -1 if it names none.
+    function stageAssignmentOf(action) {
+        const screen = stageScreen()
+        const list = action.assignments
+        const byId = list.findIndex(a => screen.id !== "" && a.screenId === screen.id)
+        const byName = list.findIndex(a => a.screenName === screen.name)
+        const first = list.findIndex(a => a.layoutId !== "" || a.layoutName !== "")
+        return byId >= 0 ? byId : byName >= 0 ? byName : first
+    }
+
+    // The stage layout an action gives this app's stage screen, or null for none, or
+    // for one that is not among the workspace's.
+    function stageLayoutOf(action) {
+        const assignment = action.assignments[stageAssignmentOf(action)]
+        if (!assignment || (assignment.layoutId === "" && assignment.layoutName === ""))
+            return null
+        return StageLayouts.layouts.find(layout => layout.id === assignment.layoutId)
+            ?? StageLayouts.layouts.find(layout => layout.name === assignment.layoutName) ?? null
+    }
+
+    // A stage action's list of screens, with this app's given a layout (or, for null,
+    // left as it is). An action that is being changed keeps what it says of other
+    // screens; a new one names every screen ProPresenter has set up, the others left
+    // as they are, which is how ProPresenter writes one.
+    function stageAssignments(existing, layout) {
+        const mine = { layoutId: layout ? layout.id : "", layoutName: layout ? layout.name : "" }
+        if (existing && existing.assignments.length > 0) {
+            const at = Math.max(0, stageAssignmentOf(existing))
+            return existing.assignments.map((a, i) => i === at ? Object.assign({}, a, mine) : a)
+        }
+        const screens = StageLayouts.screens.length > 0 ? StageLayouts.screens : [stageScreen()]
+        return screens.map((screen, i) => Object.assign({ screenId: screen.id, screenName: screen.name, layoutId: "", layoutName: "" },
+                                                        i === 0 ? mine : {}))
+    }
+
+    // The prop an action is for: by its id, or failing that by its name.
+    function propOf(action) {
+        let named = null
+        for (const collection of Props.collections) {
+            for (const prop of collection.props) {
+                if (prop.id === action.propId)
+                    return prop
+                if (named === null && prop.name === action.propName)
+                    named = prop
+            }
+        }
+        return named
+    }
+
+    // What an action is added to, changed in or taken from: `target` is { slide } for
+    // the slide at that place in the presentation being viewed, or { macro } for the
+    // macro with that id. An action is a map as src/actions.h describes; with
+    // `existingId` it takes the place of the action that has that id.
+    function commitAction(target, action, existingId) {
+        if (target.macro !== undefined) {
+            Log.note("edit", "an action " + (existingId ? "changed in" : "added to") + " a macro: " + action.kind)
+            return report(existingId ? Macros.changeAction(target.macro, existingId, action) : Macros.addAction(target.macro, action))
+        }
+        const slide = document.slides[target.slide]
+        Log.note("edit", "an action " + (existingId ? "changed on" : "added to") + " slide " + (target.slide + 1) + " of "
+                 + quoted(document.name) + ": " + action.kind)
+        const done = report(existingId ? catalog.changeSlideAction(document.path, slide.id, existingId, action)
+                                       : catalog.addSlideAction(document.path, slide.id, action))
+        if (done)
+            reloadDocument()
+        return done
+    }
+
+    function removeAction(target, action) {
+        if (target.macro !== undefined)
+            return report(Macros.removeAction(target.macro, action.id))
+        const slide = document.slides[target.slide]
+        Log.note("edit", "an action taken off slide " + (target.slide + 1) + " of " + quoted(document.name) + ": " + action.title)
+        const done = report(catalog.removeSlideAction(document.path, slide.id, action.id))
+        if (done)
+            reloadDocument()
+        return done
+    }
+
+    // The kinds of action there are to add, as the rows of a menu, each leading to what
+    // there is to choose for it: a menu of its own to pick from, or a small panel to
+    // fill in.
+    function addActionItems(target) {
+        const add = action => commitAction(target, action, "")
+        const clear = (label, layer) => ({ label: label, run: () => add({ kind: "clear", layer: layer }) })
+        const props = Props.collections.filter(collection => collection.props.length > 0)
+        // (Not the macro itself, for an action of a macro.)
+        const macros = Macros.collections.map(collection => Object.assign({}, collection, {
+            macros: collection.macros.filter(macro => macro.id !== target.macro) })).filter(collection => collection.macros.length > 0)
+        return [
+            { header: "Add Action" },
+            { label: "Timer…", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
+            { label: "Clear", items: [{ header: "Clear" }, clear("Everything", 0), clear("The Slide", 5), clear("The Media", 2), clear("The Props", 4)] },
+            { label: "Stage…", run: () => actionDialog.openStage(target, null) },
+            { label: "Prop", disabled: props.length === 0, items: [{ header: "Prop" }].concat(props.map(collection => ({
+                label: collection.name, items: [{ header: collection.name }].concat(collection.props.map(prop => ({
+                    label: prop.name, items: propActionItems(target, prop, collection) }))) }))) },
+            { label: "Macro", disabled: macros.length === 0, items: [{ header: "Macro" }].concat(macros.map(collection => ({
+                label: collection.name, items: [{ header: collection.name }].concat(collection.macros.map(macro => ({
+                    label: macro.name, run: () => add(macroAction(macro, collection)) }))) }))) }
+        ]
+    }
+
+    function showAddActionMenu(target, item, x, y) {
+        menu.show(addActionItems(target), item, x, y)
+    }
+
+    // A prop is put on by an action, or taken off: the rows that ask which.
+    function propActionItems(target, prop, collection) {
+        const make = clear => ({ kind: "prop", propId: prop.id, propName: prop.name, collectionId: collection.id,
+                                 collectionName: collection.id === "" ? "" : collection.name, clear: clear })
+        return [
+            { header: prop.name },
+            { label: "Trigger", run: () => commitAction(target, make(false), "") },
+            { label: "Clear", run: () => commitAction(target, make(true), "") }
+        ]
+    }
+
+    function showPropActionMenu(target, prop, collection, item, x, y) {
+        menu.show(propActionItems(target, prop, collection), item, x, y)
+    }
+
+    function macroAction(macro, collection) {
+        return { kind: "macro", macroId: macro.id, macroName: macro.name, collectionId: collection.id,
+                 collectionName: collection.id === "" ? "" : collection.name }
+    }
+
+    // The menu of an action that is there: what it is, and changing it or taking it away.
+    function showActionMenu(target, action, item, x, y) {
+        const items = [{ note: action.title + (action.done ? "" : ". This kind of action is kept in the file, and is not done here.") }]
+        // (An action that adds time to a timer is not one the panel can show.)
+        if (action.kind === "timer" && action.action !== Timers.Increment)
+            items.push({ label: "Change…", run: () => actionDialog.openTimer(target, action, "") })
+        if (action.kind === "stage")
+            items.push({ label: "Change…", run: () => actionDialog.openStage(target, action) })
+        items.push({ label: "Remove", danger: true, run: () => removeAction(target, action) })
+        menu.show(items, item, x, y)
+    }
+
+    // The panel in which a timer action or a stage action is changed, for whoever lists
+    // actions and has no way to it of its own.
+    function openTimerAction(target, action) {
+        actionDialog.openTimer(target, action, "")
+    }
+
+    function openStageAction(target, action) {
+        actionDialog.openStage(target, action)
+    }
+
+    // Something is being dragged that stands for an action: a timer, a prop, a macro or
+    // a stage screen out of the show controls, or one of the clear buttons, to be
+    // dropped on a slide or on a macro, which gives that the action that goes with it.
+    // `payload` says what: { kind, id, name } and, for a prop or a macro, its
+    // collection, or for a clear button the layer it clears. (A prop dropped on another
+    // prop of its collection is moved there instead: see PropsPanel.)
+    function beginActionDrag(payload) {
+        actionDrag.payload = payload
+        actionDrag.Drag.active = true
+    }
+
+    function moveActionDrag(point) {
+        const at = actionDrag.parent.mapFromItem(null, point.x, point.y)
+        actionDrag.x = at.x
+        actionDrag.y = at.y
+    }
+
+    function endActionDrag(dropped) {
+        if (dropped)
+            actionDrag.Drag.drop()
+        actionDrag.Drag.active = false
+    }
+
+    // What was being dragged has been dropped on a slide, or on a macro (`target` is
+    // as commitAction takes it). A timer and a stage screen bring up the panel that
+    // says what is to be done to them; a prop asks whether it is to be put on or taken
+    // off; a macro, and one of the clear buttons, need nothing more.
+    function dropAction(target, item) {
+        const dropped = actionDrag.payload
+        if (!dropped || (target.slide !== undefined && !document) || (dropped.kind === "macro" && dropped.id === target.macro))
+            return
+        Log.note("drop", "a " + (dropped.kind === "stage" ? "stage screen" : dropped.kind === "clear" ? "clear button" : dropped.kind) + " dropped on "
+                 + (target.macro !== undefined ? "a macro" : "slide " + (target.slide + 1) + " of " + quoted(document.name)))
+        if (dropped.kind === "timer")
+            actionDialog.openTimer(target, null, dropped.id)
+        else if (dropped.kind === "stage")
+            actionDialog.openStage(target, null)
+        else if (dropped.kind === "prop")
+            showPropActionMenu(target, dropped, { id: dropped.collectionId, name: dropped.collectionName }, item, 20, 20)
+        else if (dropped.kind === "macro")
+            commitAction(target, macroAction(dropped, { id: dropped.collectionId, name: dropped.collectionName }), "")
+        else if (dropped.kind === "clear")
+            commitAction(target, { kind: "clear", layer: dropped.layer }, "")
+    }
+
+    function dropActionOnSlide(index, item) {
+        dropAction({ slide: index }, item)
+    }
+
     // Reads the presentation being viewed again after a change to it that leaves the
     // slides it had in the order they were in, though there may now be new ones among
     // them. The grid stays where it is scrolled to, and the slide that is live is still
@@ -943,9 +1263,16 @@ Window {
     function showSlideMenu(index, item, x, y) {
         const slide = document.slides[index]
         const none = slide.mediaName === ""
+        const target = { slide: index }
         menu.show([
             { label: "Edit", run: () => startEditing(currentEntry(), slide.id) },
-            { header: "Media" },
+            // What else the slide does when it is shown: see src/actions.h
+            { label: "Add Action", items: () => addActionItems(target) },
+            { label: "Remove Action", disabled: slide.actions.length === 0, items: [{ header: "Remove Action" }].concat(
+                slide.actions.map(action => ({ label: action.title, glyph: action.kind, run: () => removeAction(target, action) }))) },
+            // The caption itself is something to click, where the slide has media that
+            // can be played: it plays the media and leaves the slide layer alone.
+            { header: "Media", run: slide.media ? () => playSlideMedia(index) : undefined },
             { label: "Background", current: !none && !slide.mediaForeground, disabled: none,
               run: () => setSlideMediaForeground(index, false) },
             { label: "Foreground", current: !none && slide.mediaForeground, disabled: none,
@@ -1138,10 +1465,13 @@ Window {
     }
 
     // Puts a slide on the slide layer, and any media its cue triggers on the media layer.
-    function goLive(index) {
+    // With `withoutMedia`, the slide and its actions and not the media its cue triggers:
+    // what a click with Alt held does, as in ProPresenter.
+    function goLive(index, withoutMedia) {
         if (!document || index < 0 || index >= document.slides.length)
             return
         const slide = document.slides[index]
+        const media = withoutMedia ? undefined : slide.media
         liveDocument = document
         liveIndex = index
         liveKey = documentKey
@@ -1149,39 +1479,60 @@ Window {
         cleared = false
         Log.note("live", "slide " + (index + 1) + " of " + document.slides.length + " of " + quoted(document.name)
                  + (slide.label !== "" ? " (" + slide.label + ")" : "")
-                 + (slide.media ? (alreadyPlaying(slide.media) ? "; its " + mediaWords(slide.media) + " is playing already"
-                                                                : "; with its " + mediaWords(slide.media))
+                 + (withoutMedia && slide.mediaName !== "" ? "; without its media, as asked"
+                    : media ? (alreadyPlaying(media) ? "; its " + mediaWords(media) + " is playing already"
+                                                     : "; with its " + mediaWords(media))
                     : slide.mediaName !== "" ? "; its media " + quoted(slide.mediaName) + " was not found"
                     : liveMedia !== null && liveMedia.foreground ? "; which takes off the foreground media" : "")
-                 + (slide.timerActions.length > 0 ? "; and does " + slide.timerActions.length + " thing"
-                                                    + (slide.timerActions.length === 1 ? "" : "s") + " to a timer" : ""))
-        if (!slide.media && slide.mediaName !== "")
+                 + (slide.actions.length > 0 ? "; and has " + slide.actions.length + " action" + (slide.actions.length === 1 ? "" : "s") : ""))
+        if (!withoutMedia && !slide.media && slide.mediaName !== "")
             Log.problem("The media " + quoted(slide.mediaName) + " of slide " + (index + 1) + " of " + quoted(document.name)
                         + " was not found in the workspace, so the slide is shown without it")
-        // What the slide's cue does to timers, such as starting the countdown it shows
-        for (const action of slide.timerActions)
-            Timers.act(action)
-        if (!slide.media) {
+        // What else the slide's cue does, such as starting the countdown it shows. It
+        // is done first, so that a slide that clears what was there is not cleared
+        // itself.
+        runActions(slide.actions, 0)
+        if (!media) {
             // A foreground is for the moment it was triggered in: a slide that brings no
             // media of its own ends it. A background plays on.
             if (liveMedia !== null && liveMedia.foreground)
                 clearMedia()
             output.showSlide(slide)
-        } else if (alreadyPlaying(slide.media)) {
+        } else if (alreadyPlaying(media)) {
             output.showSlideOverMedia(slide)
         } else {
-            liveMedia = slide.media
+            liveMedia = media
             liveMediaPlaylistId = ""
-            output.showSlideWithMedia(slide, slide.media)
+            output.showSlideWithMedia(slide, media)
         }
         grid.positionViewAtIndex(index, GridView.Contain)
     }
 
     // Whether this media is a background that is the one already playing, which is then
     // left to play on and not started again (unless it is set always to start again).
+    // For a video that holds only while it is going round: one that plays to its end
+    // and stops is started again, there being nothing of it to play on. And it holds
+    // only for a video that is to play as the one playing does: one that has been set
+    // to play another way since is started again, which is how a change to the way a
+    // slide's video plays takes effect when the slide is next triggered.
     function alreadyPlaying(media) {
-        return liveMedia !== null && !liveMedia.foreground && !media.foreground && !media.retriggers
-               && media.path === liveMedia.path
+        if (liveMedia === null || liveMedia.foreground || media.foreground || media.retriggers || media.path !== liveMedia.path)
+            return false
+        // (The count and the time only matter for the way of playing that uses them.)
+        return !media.video || (liveMedia.loops && media.playback === liveMedia.playback
+                                && (media.playback !== 2 || media.loopCount === liveMedia.loopCount)
+                                && (media.playback !== 3 || media.loopSeconds === liveMedia.loopSeconds))
+    }
+
+    // Plays the media a slide brings, and that alone: the slide layer is left as it is.
+    // As a click on the file in the media bin would. (The app's own: in ProPresenter a
+    // slide's media comes with the slide or not at all.)
+    function playSlideMedia(index) {
+        const slide = document.slides[index]
+        if (!slide.media)
+            return
+        Log.note("live", "the media of slide " + (index + 1) + " of " + quoted(document.name) + ", without the slide")
+        showMedia(slide.media)
     }
 
     // Puts media on the media layer. `playlist` is the media playlist it was picked
@@ -1319,6 +1670,13 @@ Window {
                  + "; " + liveProps.length + " on")
     }
 
+    // Puts a prop on or takes it off, whichever way it was: what an action asks, where
+    // a click turns it over.
+    function setProp(id, on) {
+        if (liveProps.includes(id) !== on)
+            toggleProp(id)
+    }
+
     function clearProps() {
         if (liveProps.length === 0)
             return
@@ -1336,7 +1694,8 @@ Window {
     // Reads what else a workspace folder holds for the show: its timers, its props and
     // its stage layouts.
     function openShowControls(path) {
-        for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path)]) {
+        for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
+                             Macros.open(path)]) {
             if (error !== "")
                 report(error)
         }
@@ -1400,7 +1759,7 @@ Window {
             actionIconOpacity = Math.max(0.05, Math.min(1, iconOpacity))
 
         const tab = String(saved("showControlTab", "timers"))
-        if (["timers", "props", "stage"].includes(tab))
+        if (["timers", "props", "macros", "stage"].includes(tab))
             sidePanel.showControlTab = tab
         openShowControls(catalog.workspacePath)
         Log.watch(win, "operator window")
@@ -1924,6 +2283,45 @@ Window {
             }
         }
 
+        // What is being dragged out of the show controls, to be dropped on a slide (see
+        // beginActionDrag): a point that follows the pointer, with what it is beside it.
+        Item {
+            id: actionDrag
+
+            property var payload: null
+
+            z: 50
+            Drag.keys: ["action"]
+
+            Rectangle {
+                x: 12
+                y: 8
+                width: dragLabel.implicitWidth + 40
+                height: 26
+                radius: 6
+                visible: actionDrag.Drag.active
+                color: "#e623252b"
+                border.width: 1.5
+                border.color: win.accentColor
+
+                ActionGlyph {
+                    x: 9
+                    anchors.verticalCenter: parent.verticalCenter
+                    kind: actionDrag.payload ? actionDrag.payload.kind : ""
+                }
+
+                Text {
+                    id: dragLabel
+
+                    x: 29
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 13
+                    text: actionDrag.payload ? actionDrag.payload.name : ""
+                }
+            }
+        }
+
         // What is being dragged out of each of the lists. They live here, over all the
         // panes, because a drag starts in one pane and ends in another.
         RowDrag {
@@ -2062,6 +2460,16 @@ Window {
                 return
             event.accepted = true
         }
+    }
+
+    // The small panel in which a timer action or a stage action is set up
+    ActionDialog {
+        id: actionDialog
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        win: win
+        onClosed: win.takeFocus()
     }
 
     SettingsScreen {

@@ -196,9 +196,11 @@ Item {
                     color: "black"
 
                     // The media the cue triggers alongside the slide
+                    // (Not while Alt is held, when a click would show the slide
+                    // without it.)
                     Image {
                         anchors.fill: parent
-                        visible: cell.modelData.media !== undefined
+                        visible: cell.modelData.media !== undefined && !Cursors.altHeld
                         source: visible ? slides.win.thumbnailUrl(cell.modelData.media.path) : ""
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
@@ -217,10 +219,15 @@ Item {
                     //
                     // The top left corner is where a slide says what comes with it: first
                     // the key that goes to it, if its group has a hotkey and this is the
-                    // slide the key goes to, then its media. (More is to come here.)
-                    Row {
+                    // slide the key goes to, then its media and how that plays, then
+                    // what else its cue does. Each of these but the key has a menu of
+                    // its own, on a right click (see cellMouse).
+                    Flow {
+                        id: icons
+
                         x: 4
                         y: 4
+                        width: parent.width - 8
                         spacing: 3
 
                         Loader {
@@ -242,21 +249,101 @@ Item {
                             }
                         }
 
-                        Loader {
-                            active: cell.modelData.mediaName !== ""
-                            visible: active
+                        // Its media, as two icons, one over the other: whether it is a
+                        // background or a foreground, and under that, for a video, how
+                        // it plays on from its end.
+                        Column {
+                            spacing: 3
+                            visible: cell.modelData.mediaName !== ""
 
-                            sourceComponent: ActionIcon {
-                                objectName: "mediaBadge"
-                                width: 21
+                            // Its media: whether it is a background or a foreground,
+                            Loader {
+                                active: cell.modelData.mediaName !== ""
+                                visible: active
+
+                                sourceComponent: ActionIcon {
+                                    id: mediaIcon
+
+                                    objectName: "mediaBadge"
+                                    width: 21
+                                    strength: slides.win.actionIconOpacity
+
+                                    function open() {
+                                        slides.win.showMediaBehaviourMenu(cell.index, mediaIcon)
+                                    }
+
+                                    MediaBadge {
+                                        anchors.centerIn: parent
+                                        size: 0.8
+                                        color: "transparent"
+                                        foreground: cell.modelData.mediaForeground
+                                        missing: cell.modelData.media === undefined
+                                    }
+                                }
+                            }
+
+                            // and, for a video, how it plays on from its end: it stops, or
+                            // goes round, for good or a number of times or for a while.
+                            Loader {
+                                active: cell.modelData.mediaName !== "" && cell.modelData.mediaVideo
+                                visible: active
+
+                                sourceComponent: ActionIcon {
+                                    id: playbackIcon
+
+                                    readonly property string words: slides.win.playbackWords(cell.modelData.mediaPlayback,
+                                                                                             cell.modelData.mediaLoopCount,
+                                                                                             cell.modelData.mediaLoopSeconds)
+
+                                    objectName: "playbackBadge"
+                                    width: words === "" ? 18 : 21 + playbackLabel.implicitWidth
+                                    strength: slides.win.actionIconOpacity
+
+                                    function open() {
+                                        slides.win.showMediaPlaybackMenu(cell.index, playbackIcon)
+                                    }
+
+                                    ActionGlyph {
+                                        x: 3
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        kind: cell.modelData.mediaPlayback === 0 ? "stop" : "loop"
+                                    }
+
+                                    Text {
+                                        id: playbackLabel
+
+                                        x: 17
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: "#e3e5e9"
+                                        font.pixelSize: 10
+                                        text: playbackIcon.words
+                                    }
+                                }
+                            }
+                        }
+
+                        // What else its cue does: an icon for each action
+                        Repeater {
+                            model: cell.modelData.actions
+
+                            delegate: ActionIcon {
+                                id: actionIcon
+
+                                required property var modelData
+
+                                objectName: "actionBadge"
+                                width: modelData.kind === "macro" ? 22 : 18
                                 strength: slides.win.actionIconOpacity
 
-                                MediaBadge {
+                                function open() {
+                                    slides.win.showActionMenu({ slide: cell.index }, modelData, actionIcon, 0, height + 2)
+                                }
+
+                                ActionGlyph {
                                     anchors.centerIn: parent
-                                    size: 0.8
-                                    color: "transparent"
-                                    foreground: cell.modelData.mediaForeground
-                                    missing: cell.modelData.media === undefined
+                                    kind: actionIcon.modelData.kind
+                                    // Fainter for a kind that is kept and not done here
+                                    ink: actionIcon.modelData.done ? "#e3e5e9" : "#8a8d93"
                                 }
                             }
                         }
@@ -316,9 +403,27 @@ Item {
                         // The keyboard comes back to the show, from whatever box of the
                         // window was being typed in.
                         slides.win.takeFocus()
-                        slides.win.goLive(cell.index)
+                        // With Alt held, the slide without the media it brings
+                        slides.win.goLive(cell.index, (mouse.modifiers & Qt.AltModifier) !== 0)
                     } else {
-                        slides.win.showSlideMenu(cell.index, cell, mouse.x, mouse.y)
+                        // A right click on one of the icons in the corner is for that
+                        // icon, which has a menu of its own; anywhere else it is for
+                        // the slide. (A click with the other button is always the
+                        // slide's: the icons are not in the way of showing it.)
+                        // (An icon may be inside something that holds two of them.)
+                        let hit = icons
+                        let icon = null
+                        while (hit && !icon) {
+                            const at = mapToItem(hit, mouse.x, mouse.y)
+                            hit = hit.childAt(at.x, at.y)
+                            const inner = hit ? (hit.item ?? hit) : null
+                            if (inner && inner.open)
+                                icon = inner
+                        }
+                        if (icon)
+                            icon.open()
+                        else
+                            slides.win.showSlideMenu(cell.index, cell, mouse.x, mouse.y)
                     }
                 }
             }
@@ -326,6 +431,12 @@ Item {
             // Media dropped on the middle of the slide becomes the media the slide
             // triggers. Dropped on its left or right edge, which is to say in the gap
             // beside it, it becomes a slide of its own there.
+            //
+            // And a timer, a prop, a macro or a stage screen dragged out of the show
+            // controls and dropped anywhere on the slide gives the slide the action
+            // that goes with it. (One drop area for both: two, one over the other,
+            // would each have a say in what a drag of files is taken as, and a drag
+            // from the file manager must only ever be taken as a copy.)
             DropArea {
                 id: mediaDrop
 
@@ -335,17 +446,31 @@ Item {
                 // How far in from each side the edges reach
                 readonly property real edge: Math.max(16, Math.min(30, width * 0.14))
 
+                function ofAction(drag) {
+                    return drag.keys.indexOf("action") >= 0
+                }
+
                 function follow(drag) {
+                    if (ofAction(drag)) {
+                        zone = "onto"
+                        drag.accepted = true
+                        return
+                    }
                     zone = drag.x < edge ? "before" : drag.x > width - edge ? "after" : "onto"
                     slides.win.acceptMediaDrag(drag)
                 }
 
                 anchors.fill: parent
-                keys: ["media", "text/uri-list"]
+                keys: ["media", "text/uri-list", "action"]
                 enabled: slides.win.takesDrops
                 onEntered: (drag) => follow(drag)
                 onPositionChanged: (drag) => follow(drag)
-                onDropped: (drop) => slides.win.dropOnSlides(cell.index, zone, drop)
+                onDropped: (drop) => {
+                    if (ofAction(drop))
+                        slides.win.dropActionOnSlide(cell.index, cell)
+                    else
+                        slides.win.dropOnSlides(cell.index, zone, drop)
+                }
             }
         }
     }

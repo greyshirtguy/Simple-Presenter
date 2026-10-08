@@ -1,5 +1,6 @@
 #include "prodocument.h"
 
+#include "actions.h"
 #include "proconvert.h"
 #include "workspacefiles.h"
 
@@ -35,24 +36,6 @@ QVariantMap toMedia(const rv::data::Action &action, workspace::FileFinder *finde
     return map;
 }
 
-// What a cue's timer action asks, as Timers::act() takes it.
-QVariantMap toTimerAction(const rv::data::Action::TimerType &timer)
-{
-    QVariantMap map {
-        {"action", int(timer.action_type())},
-        {"timerId", QString::fromStdString(timer.timer_identification().parameter_uuid().string())},
-        {"timerName", QString::fromStdString(timer.timer_identification().parameter_name())},
-        {"amount", timer.increment_amount()},
-    };
-    // How the timer is to be set up, if the action says: passed on as it is in the
-    // file, for the timers to read as they read their own.
-    if (timer.has_timer_configuration()) {
-        map.insert("configuration", QString::fromLatin1(
-                       QByteArray::fromStdString(timer.timer_configuration().SerializeAsString()).toBase64()));
-    }
-    return map;
-}
-
 bool isVisualMedia(const rv::data::Action &action)
 {
     return action.has_media() && (action.media().element().has_video() || action.media().element().has_image());
@@ -69,7 +52,11 @@ QVariantMap emptySlide(const QString &label)
         {"groupStart", false},
         {"mediaName", QString()},
         {"mediaForeground", false},
-        {"timerActions", QVariantList()},
+        {"mediaVideo", false},
+        {"mediaPlayback", 0},
+        {"mediaLoopCount", 0},
+        {"mediaLoopSeconds", 0.0},
+        {"actions", QVariantList()},
         {"plainText", QString()},
         {"elements", QVariantList()},
     };
@@ -146,12 +133,13 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
         if (!cue.isenabled())
             return slides;
         const QString id = QString::fromStdString(cue.uuid().string());
-        // The cue's media action, if it has one: its file's name, whether it is a
-        // foreground, and the file if found. And what it does to timers.
+        // The cue's media action, if it has one: its file's name, how it plays, and
+        // the file if found. And the actions it has besides.
         QString name;
-        bool foreground = false;
+        bool video = false;
+        workspace::MediaBehaviour behaviour;
         QVariantMap media;
-        QVariantList timerActions;
+        QVariantList others;
         for (const rv::data::Action &action : cue.actions()) {
             if (!action.isenabled())
                 continue;
@@ -160,10 +148,11 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                                       QString::fromStdString(action.label().text())));
             } else if (isVisualMedia(action) && name.isEmpty()) {
                 name = workspace::fileNameOf(action.media().element().url());
-                foreground = workspace::mediaBehaviour(action).foreground;
+                video = action.media().element().has_video();
+                behaviour = workspace::mediaBehaviour(action);
                 media = toMedia(action, &mediaFinder);
-            } else if (action.has_timer()) {
-                timerActions.append(toTimerAction(action.timer()));
+            } else if (actions::listed(action)) {
+                others.append(actions::describe(action));
             }
         }
         if (slides.isEmpty() && !name.isEmpty())
@@ -172,11 +161,15 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
             QVariantMap first = slides.first().toMap();
             if (!name.isEmpty()) {
                 first.insert("mediaName", name);
-                first.insert("mediaForeground", foreground);
+                first.insert("mediaForeground", behaviour.foreground);
+                first.insert("mediaVideo", video);
+                first.insert("mediaPlayback", behaviour.playback);
+                first.insert("mediaLoopCount", behaviour.loopCount);
+                first.insert("mediaLoopSeconds", behaviour.loopSeconds);
                 if (!media.isEmpty())
                     first.insert("media", media);
             }
-            first.insert("timerActions", timerActions);
+            first.insert("actions", others);
             slides.first() = first;
         }
         for (QVariant &entry : slides) {
@@ -342,11 +335,76 @@ QString ProDocument::setCueMediaForeground(const QString &path, const QString &c
         // The same action the slide's media is read from: the first image or video one.
         for (rv::data::Action &action : *cue.mutable_actions()) {
             if (action.isenabled() && isVisualMedia(action)) {
-                workspace::setMediaForeground(&action, foreground);
+                workspace::setMediaLayer(&action, foreground);
                 return writePresentation(path, presentation);
             }
         }
         return QStringLiteral("That slide has no media");
+    }
+    return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+}
+
+QString ProDocument::setCueMediaPlayback(const QString &path, const QString &cueId, int playback, int loopCount, double loopSeconds)
+{
+    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
+        for (rv::data::Action &action : *cue->mutable_actions()) {
+            if (action.isenabled() && isVisualMedia(action)) {
+                if (!action.media().element().has_video())
+                    return QStringLiteral("Only a video has a way of playing on from its end");
+                workspace::setMediaPlayback(&action, playback, loopCount, loopSeconds);
+                return QString();
+            }
+        }
+        return QStringLiteral("That slide has no media");
+    });
+}
+
+QString ProDocument::addCueAction(const QString &path, const QString &cueId, const QVariantMap &action)
+{
+    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
+        rv::data::Action made;
+        const QString error = actions::build(action, &made);
+        if (error.isEmpty())
+            *cue->add_actions() = made;
+        return error;
+    });
+}
+
+QString ProDocument::changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action)
+{
+    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
+        for (rv::data::Action &candidate : *cue->mutable_actions()) {
+            if (QString::fromStdString(candidate.uuid().string()) == actionId && actions::listed(candidate))
+                return actions::build(action, &candidate);
+        }
+        return QStringLiteral("That slide no longer has that action");
+    });
+}
+
+QString ProDocument::removeCueAction(const QString &path, const QString &cueId, const QString &actionId)
+{
+    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
+        for (int i = 0; i < cue->actions_size(); ++i) {
+            if (QString::fromStdString(cue->actions(i).uuid().string()) == actionId && actions::listed(cue->actions(i))) {
+                cue->mutable_actions()->DeleteSubrange(i, 1);
+                return QString();
+            }
+        }
+        return QStringLiteral("That slide no longer has that action");
+    });
+}
+
+QString ProDocument::changeCue(const QString &path, const QString &cueId, const std::function<QString(rv::data::Cue *)> &change)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    for (rv::data::Cue &cue : *presentation.mutable_cues()) {
+        if (QString::fromStdString(cue.uuid().string()) != cueId)
+            continue;
+        error = change(&cue);
+        return error.isEmpty() ? writePresentation(path, presentation) : error;
     }
     return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
 }

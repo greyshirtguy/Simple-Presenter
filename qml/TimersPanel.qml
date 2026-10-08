@@ -110,13 +110,19 @@ Item {
             color: rowMouse.containsMouse && !row.open ? "#33353a" : "#2b2d31"
 
             // A click on the row opens or shuts it; a right click offers to remove it.
-            MouseArea {
+            // And the row can be dragged onto a slide, to give the slide an action for
+            // this timer.
+            DragSource {
                 id: rowMouse
 
                 anchors.fill: parent
+                win: panel.win
+                payload: row.timer.id !== "" ? { kind: "timer", id: row.timer.id, name: row.timer.name } : null
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onClicked: (mouse) => {
+                    if (dragged)
+                        return
                     const id = row.timer.id
                     if (mouse.button === Qt.LeftButton) {
                         panel.open(id)

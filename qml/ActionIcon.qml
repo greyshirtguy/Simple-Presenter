@@ -15,7 +15,8 @@ Rectangle {
     width: 18
     height: 18
     radius: 3.5
-    color: "#1c1d21"
+    // A dark grey that is still seen against a black slide
+    color: "#383b42"
     border.width: 1
     border.color: "black"
     opacity: strength

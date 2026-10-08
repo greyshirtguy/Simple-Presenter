@@ -151,6 +151,14 @@ public:
     // Makes the media a slide triggers a background or a foreground (see
     // workspace::MediaBehaviour), and saves the presentation file.
     Q_INVOKABLE QString setSlideMediaForeground(const QString &path, const QString &slideId, bool foreground);
+    // How the slide's video plays on from its end: 0 it stops, 1 it goes round, 2 it
+    // plays `loopCount` times, 3 it goes round for `loopSeconds`.
+    Q_INVOKABLE QString setSlideMediaPlayback(const QString &path, const QString &slideId, int playback, int loopCount, double loopSeconds);
+    // The actions a slide has besides showing itself and its media (see src/actions.h
+    // for what one is): gives it another, changes one by its id, takes one away.
+    Q_INVOKABLE QString addSlideAction(const QString &path, const QString &slideId, const QVariantMap &action);
+    Q_INVOKABLE QString changeSlideAction(const QString &path, const QString &slideId, const QString &actionId, const QVariantMap &action);
+    Q_INVOKABLE QString removeSlideAction(const QString &path, const QString &slideId, const QString &actionId);
     // Stops a slide triggering media, and saves the presentation file.
     Q_INVOKABLE QString removeSlideMedia(const QString &path, const QString &slideId);
     // Deletes a slide from the presentation, for good, and saves the presentation file.

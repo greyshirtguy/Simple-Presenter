@@ -4,8 +4,10 @@ import QtMultimedia
 import SimplePresenterApp
 
 // What the media layer shows: an image or a video, scaled to fit. A video goes round
-// again at its end if the media says it loops, as a background does, and otherwise
-// plays once and stays on its last frame, as a foreground does; and it is played with
+// again at its end if the media says it loops, as a background mostly does: for good,
+// or a number of times, or for a length of time, after which it stays on the frame it
+// has reached. Otherwise it plays once and stays on its last frame, as a foreground
+// mostly does. And it is played with
 // its sound if the media gives it a volume, and silently if not. How a piece of media
 // is to play is all decided where it is read (workspace::MediaBehaviour in
 // src/workspacefiles.h), and what is here only does as it is told.
@@ -33,7 +35,8 @@ import SimplePresenterApp
 Item {
     id: root
 
-    // { source, video, loops, volume }, or null for nothing
+    // { source, video, loops, volume, playback, loopCount, loopSeconds }, or null for
+    // nothing (the last three as workspace::MediaBehaviour has them)
     property var content: null
     // How much of this instance is on show, from 0 to 1: kept by the layer it is in
     // (see TransitionLayer), and all of it when it is used by itself
@@ -117,7 +120,8 @@ Item {
                 source: root.content?.source ?? ""
                 videoOutput: output
                 audioOutput: sound.item
-                loops: root.content?.loops === false ? 1 : MediaPlayer.Infinite
+                loops: root.content?.loops === false ? 1
+                     : root.content?.playback === 2 ? Math.max(1, root.content.loopCount) : MediaPlayer.Infinite
                 onErrorOccurred: (error, errorString) => {
                     Log.problem("The video \"" + movie.name + "\" will not play: " + errorString)
                     movie.failed = true
@@ -128,6 +132,20 @@ Item {
                         Log.note("media", "video \"" + movie.name + "\" has played to its end")
                 }
                 Component.onCompleted: play()
+            }
+
+            // A video that goes round for a length of time stops where it is when the
+            // time is up.
+            Timer {
+                interval: Math.max(1, (root.content?.loopSeconds ?? 0) * 1000)
+                running: root.content?.playback === 3 && mediaPlayer.playbackState === MediaPlayer.PlayingState
+                         && interval > 1 && !lapsed
+                property bool lapsed: false
+                onTriggered: {
+                    lapsed = true
+                    Log.note("media", "video \"" + movie.name + "\" has gone round for its " + root.content.loopSeconds + " seconds, and stops")
+                    mediaPlayer.pause()
+                }
             }
 
             // Only a video that is to be heard has anything to be heard through.

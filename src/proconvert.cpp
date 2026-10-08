@@ -980,7 +980,11 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
         {"groupStart", false},
         {"mediaName", QString()},
         {"mediaForeground", false},
-        {"timerActions", QVariantList()},
+        {"mediaVideo", false},
+        {"mediaPlayback", 0},
+        {"mediaLoopCount", 0},
+        {"mediaLoopSeconds", 0.0},
+        {"actions", QVariantList()},
         {"plainText", texts.join(u'\n')},
         {"elements", elements},
     };
