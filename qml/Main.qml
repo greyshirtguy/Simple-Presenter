@@ -264,7 +264,7 @@ Window {
                                         && documentKey === liveKey && playlistId === livePlaylistId
                                         && document.arrangement === liveDocument.arrangement
     // The item the pop-up menu is open for, or null while it is shut
-    readonly property var menuItem: menu.opened ? menu.parent : null
+    readonly property var menuItem: menu.opened ? menu.opener : null
 
     readonly property color panelColor: "#1e1f22"
     readonly property color surfaceColor: "#2b2d31"

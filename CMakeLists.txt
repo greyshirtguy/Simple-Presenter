@@ -100,6 +100,7 @@ qt_add_qml_module(SimplePresenter
         qml/AppButton.qml
         qml/AppCheck.qml
         qml/AppComboBox.qml
+        qml/ActionGlyph.qml
         qml/ActionIcon.qml
         qml/AppSlider.qml
         qml/Benchmark.qml
@@ -116,6 +117,7 @@ qt_add_qml_module(SimplePresenter
         qml/IconButton.qml
         qml/KineticWheel.qml
         qml/LiveRing.qml
+        qml/MacroGlyph.qml
         qml/Main.qml
         qml/MediaBadge.qml
         qml/MediaBin.qml
