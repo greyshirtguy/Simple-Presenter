@@ -43,9 +43,10 @@ QtObject {
                 const switches = Lib.findAll(toolbar, item => item.label !== undefined && item.kind !== undefined).map(item => item.label)
                 const leftOf = (label) => { const item = Lib.find(toolbar, i => i.label === label && i.kind !== undefined); return item.mapToItem(null, 0, 0).x }
                 const picker0 = Lib.find(toolbar, item => item.currentIndex !== undefined && item.popup !== undefined)
-                check("with the workspace picker and the seven switches", switches.slice().sort().join("|") === "Edit|Media|Output|Settings|Show|Simple View|Stage" && !texts(toolbar).includes("Workspace") && named("workspaceIcon") !== null, switches.join("|"))
-                check("Edit at the left, straight after the workspace picker, and the rest at the right in their order",
-                      leftOf("Edit") > picker0.mapToItem(null, picker0.width, 0).x && leftOf("Edit") < 400 && title.mapToItem(null, 0, 0).x > leftOf("Edit") + 52
+                check("with the workspace picker and the nine switches", switches.slice().sort().join("|") === "Edit|Media|Output|Search|Settings|Show|Simple View|Stage|Themes" && !texts(toolbar).includes("Workspace") && named("workspaceIcon") !== null, switches.join("|"))
+                check("Search, Themes, Show and Edit at the left, straight after the workspace picker, and the rest at the right in their order",
+                      leftOf("Search") > picker0.mapToItem(null, picker0.width, 0).x && leftOf("Search") < leftOf("Themes") && leftOf("Themes") < leftOf("Show")
+                      && leftOf("Show") < leftOf("Edit") && leftOf("Edit") < 460 && title.mapToItem(null, 0, 0).x > leftOf("Edit") + 52
                       && leftOf("Simple View") > win.width / 2 && leftOf("Simple View") < leftOf("Media") && leftOf("Media") < leftOf("Output") && leftOf("Output") < leftOf("Stage")
                       && leftOf("Stage") < leftOf("Settings"),
                       ["Edit", "Simple View", "Media", "Output", "Stage", "Settings"].map(l => l + " " + Math.round(leftOf(l))).join(", "))
@@ -241,8 +242,9 @@ QtObject {
                 const first = Lib.find(toolbar, item => item.label === "Simple View" && item.kind !== undefined)
                 const left = title.mapToItem(null, 0, 0).x
                 const right = title.mapToItem(null, title.width, 0).x
-                check("in a narrow window the title keeps between the edit button and the buttons on the right", left > edit.mapToItem(null, edit.width, 0).x && right < first.mapToItem(null, 0, 0).x
-                      && edit.mapToItem(null, 0, 0).x > picker.mapToItem(null, picker.width, 0).x && title.width > 60,
+                check("in a narrow window the title keeps between the edit button and the buttons on the right, or is left out where that is no room to speak of",
+                      edit.mapToItem(null, 0, 0).x > picker.mapToItem(null, picker.width, 0).x
+                      && (!title.visible || (left > edit.mapToItem(null, edit.width, 0).x && right < first.mapToItem(null, 0, 0).x && title.width >= 90)),
                       left.toFixed(0) + " to " + right.toFixed(0) + ", picker ends " + picker.mapToItem(null, picker.width, 0).x.toFixed(0) + ", edit ends " + edit.mapToItem(null, edit.width, 0).x.toFixed(0)
                       + ", buttons start " + first.mapToItem(null, 0, 0).x.toFixed(0))
                 testInput.grab("5-narrow-window")

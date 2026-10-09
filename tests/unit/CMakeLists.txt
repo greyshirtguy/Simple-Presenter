@@ -37,3 +37,12 @@ qt_add_executable(tst_searchindex
 target_include_directories(tst_searchindex PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_searchindex PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME searchindex COMMAND tst_searchindex)
+
+qt_add_executable(tst_thememath
+    tst_thememath.cpp
+    ${PROJECT_SOURCE_DIR}/src/thememath.h
+    ${PROJECT_SOURCE_DIR}/src/thememath.cpp
+)
+target_include_directories(tst_thememath PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_thememath PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME thememath COMMAND tst_thememath)

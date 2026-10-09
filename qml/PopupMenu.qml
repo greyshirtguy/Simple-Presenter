@@ -276,7 +276,9 @@ Popup {
                                 // A gap above each section after the first sets it apart.
                                 readonly property real gap: heading && index > 0 ? 6 : 0
                                 readonly property bool pictured: !caption && modelData.glyph !== undefined
-                                readonly property real indent: pictured ? 34 : pane.sectioned && !caption ? 30 : 12
+                                // Or a slide drawn small, for a row that stands for a look slides can be given
+                                readonly property bool previewed: !caption && modelData.preview !== undefined
+                                readonly property real indent: previewed ? 60 : pictured ? 34 : pane.sectioned && !caption ? 30 : 12
                                 // A caption that can be clicked
                                 readonly property bool pressable: heading && modelData.run !== undefined
 
@@ -301,6 +303,27 @@ Popup {
                                     sourceComponent: ActionGlyph {
                                         kind: row.modelData.glyph
                                         ink: row.unavailable ? "#6c6f75" : "#c9cdd6"
+                                    }
+                                }
+
+                                Loader {
+                                    x: 10
+                                    anchors.verticalCenter: label.verticalCenter
+                                    active: row.previewed
+
+                                    sourceComponent: Rectangle {
+                                        width: 40
+                                        height: 22.5
+                                        color: "black"
+                                        border.width: 1
+                                        border.color: "#5d616b"
+
+                                        Slide {
+                                            anchors.fill: parent
+                                            anchors.margins: 1
+                                            slide: row.modelData.preview
+                                            effects: false
+                                        }
                                     }
                                 }
 

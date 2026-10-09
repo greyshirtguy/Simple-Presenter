@@ -1047,6 +1047,60 @@ depends on what the app is run through:
   leave them out. On other desktops run through Wayland, and on GNOME without it, the
   two windows are in Alt+Tab as any window is.
 
+## Themes
+
+A **theme** is a set of slides built to show how slides should look: where the words go,
+in what font and colour, over what shapes and pictures. They are ProPresenter's own, kept
+under the workspace's `Themes` folder, each in a folder of its name (a folder there with
+no theme in it is a folder of themes).
+
+The toolbar's **Themes** button lets them down to be browsed: folders as folders, a theme
+as its first slide; a click on a theme shows its slides. A theme is used in three ways.
+
+- **On a presentation.** With a presentation open, a click on a theme slide dresses
+  every slide of the presentation in it.
+- **On one slide.** A slide's menu has **Theme**, which leads through the folders and the
+  themes (each by the look of its first slide) to the theme's slides.
+- **On a screen, for as long as a look says** ([Looks](#looks)), with the presentation
+  left alone.
+
+The first two change the presentation's file; a copy of it as it was is kept first,
+beside the editor's backups.
+
+**What dressing a slide does.** ProPresenter does not say how it decides, so this is
+this app's reading of it, and may differ from ProPresenter's in the corners.
+
+- The slide's text boxes that have words are matched with the theme slide's text boxes
+  (the things on it with words in them, which stand for the words to come: "Verse",
+  "Lyrics"): **by name** first, whatever the capitals; then **by size**, the largest
+  into the largest, since a theme moves boxes about but the big one is the main one in
+  both; and boxes much of a size **in the order** they come.
+- A matched text box takes everything from the theme's: place, size, fill, outline,
+  shadow, and the one format the theme's text is in (font, size, colour, alignment,
+  capitals, how it fits its box). It keeps its words.
+- What else the theme slide has (shapes, pictures, text boxes that get no words) comes
+  with it, the text boxes empty.
+- **Words are never thrown away**: a text box of the slide that has no box in the theme
+  stays as it was.
+- Things of the slide's own that are not words (a picture someone put on it) stay.
+  Things an earlier theme brought are taken away again, so that going from one theme
+  to another leaves nothing of the first. (They are known by having the ids of things
+  in the workspace's themes; what a theme put on a slide in ProPresenter itself is not
+  known that way, and stays.)
+- The slide's background colour becomes the theme slide's. The media and the other
+  actions of its cue are not its look, and are not touched.
+
+**Making and changing themes.** In the Themes panel, **+ New Theme** makes one, with a
+slide to start from; inside a theme, **+ Slide** adds another, **Edit** opens the theme in
+[the editor](#editing), which edits its slides as it edits any (a right click on a theme
+slide opens it there, or deletes it), and **Delete Theme…** removes it. A theme's text is
+meant to be in one format: where a theme slide's text has several, the first is the one
+slides are dressed in.
+
+Not yet: making folders of themes here (ProPresenter's are shown, and a theme can be
+put in one in the file manager), the pictures a theme keeps in its own folder being
+found from there, and choosing a theme for a new slide.
+
 ## Search
 
 **Search** (the magnifying glass at the left of the toolbar, or **Ctrl+F**) finds a
@@ -1324,6 +1378,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
+| `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
 | `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |
 | `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
 | `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
@@ -1351,6 +1406,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
 | `qml/OutputScene.qml`, `qml/StageScene.qml` | What an audience screen and a stage screen show, whatever they are sent out through |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |
+| `qml/ThemesPanel.qml` | The themes, let down from the toolbar's button |
 | `qml/SearchPanel.qml` | The search window |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps those two windows out of Alt+Tab where the app can see to that itself (through X11) |

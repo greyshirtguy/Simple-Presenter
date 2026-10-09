@@ -74,7 +74,9 @@ Rectangle {
     // What is open: "presentation", "props" or "stage"; and what a row of the list on
     // the left is then called
     readonly property string kind: editor.kind
-    readonly property string rowWord: kind === "props" ? "Prop" : kind === "stage" ? "Layout" : "Slide"
+    readonly property string rowWord: kind === "props" ? "Prop" : kind === "stage" ? "Layout" : kind === "theme" ? "Theme Slide" : "Slide"
+    // For a theme: its place under the workspace's Themes folder (see Themes)
+    readonly property string themePlace: kind === "theme" ? editor.path.replace(/^.*\/Themes\//, "").replace(/\/Theme$/, "") : ""
 
     readonly property alias editor: editor
     readonly property alias canvas: canvas
@@ -84,7 +86,7 @@ Rectangle {
 
     // What is being edited, by name: a presentation, or the workspace's props or stage
     // layouts
-    readonly property string subject: kind === "props" ? "Props" : kind === "stage" ? "Stage Layouts"
+    readonly property string subject: kind === "props" ? "Props" : kind === "stage" ? "Stage Layouts" : kind === "theme" ? "Theme: " + themePlace.split("/").pop()
                                     : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
     // What the toolbar button under the pointer does, in words, or ""
     readonly property string toolHint: {
@@ -127,6 +129,11 @@ Rectangle {
         return opened(editor.openStageLayouts(path, workspace), workspace, id, row)
     }
 
+    // A theme, at the theme slide with the given id: `path` is its Theme file.
+    function openTheme(path, workspace, id, row) {
+        return opened(editor.openTheme(path, workspace), workspace, id, row)
+    }
+
     // What follows opening any of them: the row with the given id is shown, or failing
     // that the one at `row`, or the first.
     function opened(error, workspace, id, row) {
@@ -157,6 +164,7 @@ Rectangle {
         const made = typeof result === "string" ? "" : result.id
         const reopened = kind === "props" ? openProps(editor.path, workspace, made !== "" ? made : shown, row)
                        : kind === "stage" ? openStage(editor.path, workspace, made !== "" ? made : shown, row)
+                       : kind === "theme" ? openTheme(editor.path, workspace, made !== "" ? made : shown, row)
                        : opened(editor.open(editor.path, workspace), workspace, made !== "" ? made : shown, row)
         report(error !== "" ? error : reopened)
         takeFocus()
@@ -175,6 +183,8 @@ Rectangle {
             restructure(() => Props.add(beside.collection ?? ""))
         } else if (kind === "stage") {
             restructure(() => StageLayouts.add())
+        } else if (kind === "theme") {
+            restructure(() => Themes.addSlide(themePlace))
         } else {
             restructure(() => screen.insertSlide(editor.path, canvas.slide ? canvas.slide.id : ""))
         }
@@ -185,7 +195,8 @@ Rectangle {
         const row = editor.rowOf(id)
         renamingRow = ""
         if (row >= 0 && name !== "" && name !== editor.slideAt(row).label)
-            restructure(() => kind === "props" ? Props.rename(id, name) : StageLayouts.rename(id, name))
+            restructure(() => kind === "props" ? Props.rename(id, name) : kind === "theme" ? Themes.renameSlide(themePlace, id, name)
+                                                                              : StageLayouts.rename(id, name))
         else
             takeFocus()
     }
@@ -212,6 +223,17 @@ Rectangle {
                     { note: "Slide " + number + " will be deleted. That cannot be undone, and neither can what was done before it." },
                     { label: "Delete", danger: true, run: () => restructure(() => screen.removeSlide(editor.path, slide.id)) },
                     { label: "Cancel", run: () => {} }
+                ], slideList, x, y) }
+            ], slideList, x, y)
+            return
+        }
+        if (kind === "theme") {
+            showMenu([
+                { header: slide.label !== "" ? slide.label : rowWord },
+                { label: "Rename", run: () => renamingRow = slide.id },
+                { label: "Remove…", danger: true, disabled: editor.count < 2, run: () => showMenu([
+                    { note: "“" + slide.label + "” will be removed from the theme. That cannot be undone." },
+                    { label: "Remove", danger: true, run: () => restructure(() => Themes.removeSlide(themePlace, slide.id)) }
                 ], slideList, x, y) }
             ], slideList, x, y)
             return
@@ -376,7 +398,7 @@ Rectangle {
             id: slidesTitle
 
             color: "#4da3ff"
-            text: screen.kind === "props" ? "Props" : screen.kind === "stage" ? "Stage Layouts" : "Slides"
+            text: screen.kind === "props" ? "Props" : screen.kind === "stage" ? "Stage Layouts" : screen.kind === "theme" ? "Theme Slides" : "Slides"
         }
 
         // Adds a slide, a prop or a stage layout: see addRow().

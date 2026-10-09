@@ -284,6 +284,7 @@ TESTS = {
     "acts": test("Act", after=after_acts),
     "refine": test("Act"),
     "search": test("Demo"),
+    "themes": test("Act"),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)

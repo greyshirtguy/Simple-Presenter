@@ -234,7 +234,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a slide's menu offers its media's behaviour", menu.opened && /^Edit, Add Action, Remove Action(\(off\))?, \[Media\], \*Background, Foreground, Remove Media, \[Slide\], Copy, Paste\(off\), Delete Slide…$/.test(labels()), labels())
+                check("a slide's menu offers its media's behaviour", menu.opened && /^Edit, Add Action, Remove Action(\(off\))?, Theme(\(off\))?, \[Media\], \*Background, Foreground, Remove Media, \[Slide\], Copy, Paste\(off\), Delete Slide…$/.test(labels()), labels())
                 testInput.grab("5-slide-menu")
                 click(menuRow("Foreground"))
                 return 600
@@ -250,7 +250,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a slide with no media has nothing to set", labels() === "Edit, Add Action, Remove Action(off), [Media], Background(off), Foreground(off), Remove Media(off), [Slide], Copy, Paste(off), Delete Slide…", labels())
+                check("a slide with no media has nothing to set", labels().replace("Theme(off)", "Theme") === "Edit, Add Action, Remove Action(off), Theme, [Media], Background(off), Foreground(off), Remove Media(off), [Slide], Copy, Paste(off), Delete Slide…", labels())
                 testInput.key(Qt.Key_Escape)
                 // ---- the slide's foreground, set to play once, live
                 report(catalog.setSlideMediaPlayback(document.path, document.slides[0].id, 0, 0, 0))

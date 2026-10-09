@@ -81,7 +81,8 @@ QHash<int, QByteArray> PresentationEditor::roleNames() const
 QString PresentationEditor::kind() const
 {
     return m_kind == Kind::Props ? QStringLiteral("props")
-         : m_kind == Kind::Stage ? QStringLiteral("stage") : QStringLiteral("presentation");
+         : m_kind == Kind::Stage ? QStringLiteral("stage")
+         : m_kind == Kind::Theme ? QStringLiteral("theme") : QStringLiteral("presentation");
 }
 
 // Opening goes in three steps: the file is read by whichever of the three is being
@@ -107,6 +108,8 @@ void PresentationEditor::start(Kind kind, const QString &path, const QString &wo
         m_props.Clear();
     if (kind != Kind::Stage)
         m_stage.Clear();
+    if (kind != Kind::Theme)
+        m_theme.Clear();
 }
 
 void PresentationEditor::finishOpening()
@@ -214,12 +217,28 @@ QString PresentationEditor::openStageLayouts(const QString &path, const QString 
     return {};
 }
 
+// A theme is slides in a file of its own, each with a name (see themefile.h).
+QString PresentationEditor::openTheme(const QString &path, const QString &workspace)
+{
+    rv::data::Template::Document theme;
+    const QString error = workspace::readMessage(path, &theme, QStringLiteral("the theme"));
+    if (!error.isEmpty())
+        return error;
+    start(Kind::Theme, path, workspace, QFileInfo(path).dir().dirName());
+    m_theme = theme;
+    for (int i = 0; i < m_theme.slides_size(); ++i)
+        m_rows.append({i, QString(), QString(), false});
+    finishOpening();
+    return {};
+}
+
 void PresentationEditor::close()
 {
     beginResetModel();
     m_presentation.Clear();
     m_props.Clear();
     m_stage.Clear();
+    m_theme.Clear();
     m_kind = Kind::Presentation;
     m_path.clear();
     m_name.clear();
@@ -247,6 +266,7 @@ int PresentationEditor::rowOf(const QString &slideId) const
     for (int row = 0; row < m_rows.size(); ++row) {
         const int unit = m_rows.at(row).unit;
         const std::string &id = m_kind == Kind::Stage ? m_stage.layouts(unit).uuid().string()
+                              : m_kind == Kind::Theme ? m_theme.slides(unit).base_slide().uuid().string()
                               : m_kind == Kind::Props ? m_props.cues(unit).uuid().string()
                                                       : m_presentation.cues(unit).uuid().string();
         if (id == wanted)
@@ -265,6 +285,7 @@ google::protobuf::Message *PresentationEditor::unitAt(int row)
     switch (m_kind) {
     case Kind::Props: return m_props.mutable_cues(unit);
     case Kind::Stage: return m_stage.mutable_layouts(unit);
+    case Kind::Theme: return m_theme.mutable_slides(unit);
     default: return m_presentation.mutable_cues(unit);
     }
 }
@@ -281,6 +302,8 @@ rv::data::Slide *PresentationEditor::slideIn(int row)
     const int unit = m_rows.at(row).unit;
     if (m_kind == Kind::Stage)
         return m_stage.mutable_layouts(unit)->mutable_slide();
+    if (m_kind == Kind::Theme)
+        return m_theme.mutable_slides(unit)->mutable_base_slide();
     // A change to the cue undone or redone may have altered its actions.
     rv::data::Cue *cue = m_kind == Kind::Props ? m_props.mutable_cues(unit) : m_presentation.mutable_cues(unit);
     const int action = slideAction(*cue, m_kind == Kind::Props);
@@ -296,6 +319,7 @@ QString PresentationEditor::write()
     switch (m_kind) {
     case Kind::Props: return workspace::writeMessage(m_path, m_props, QStringLiteral("the props"));
     case Kind::Stage: return workspace::writeMessage(m_path, m_stage, QStringLiteral("the stage layouts"));
+    case Kind::Theme: return workspace::writeMessage(m_path, m_theme, QStringLiteral("the theme"));
     default: return proconvert::writePresentation(m_path, m_presentation);
     }
 }
@@ -308,6 +332,10 @@ QVariantMap PresentationEditor::describe(int row) const
         const rv::data::Stage::Layout &layout = m_stage.layouts(place.unit);
         slide = proconvert::toSlideMap(layout.slide(), QString::fromStdString(layout.name()));
         slide.insert("id", QString::fromStdString(layout.uuid().string()));
+    } else if (m_kind == Kind::Theme) {
+        const rv::data::Template::Slide &themed = m_theme.slides(place.unit);
+        slide = proconvert::toSlideMap(themed.base_slide(), QString::fromStdString(themed.name()));
+        slide.insert("id", QString::fromStdString(themed.base_slide().uuid().string()));
     } else {
         const bool prop = m_kind == Kind::Props;
         const rv::data::Cue &cue = prop ? m_props.cues(place.unit) : m_presentation.cues(place.unit);

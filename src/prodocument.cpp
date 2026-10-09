@@ -1,5 +1,7 @@
 #include "prodocument.h"
 
+#include "themefile.h"
+
 #include "actions.h"
 #include "proconvert.h"
 #include "workspacefiles.h"
@@ -392,6 +394,52 @@ QString ProDocument::removeCueAction(const QString &path, const QString &cueId, 
         }
         return QStringLiteral("That slide no longer has that action");
     });
+}
+
+QString ProDocument::dressCues(const QString &path, const QStringList &cueIds, const rv::data::Slide &theme,
+                               const QSet<QString> &themeElements, int *dressed)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    int count = 0;
+    for (rv::data::Cue &cue : *presentation.mutable_cues()) {
+        if (!cueIds.isEmpty() && !cueIds.contains(QString::fromStdString(cue.uuid().string())))
+            continue;
+        for (rv::data::Action &action : *cue.mutable_actions()) {
+            if (!action.has_slide() || !action.slide().has_presentation())
+                continue;
+            themefile::dress(action.mutable_slide()->mutable_presentation()->mutable_base_slide(), theme, themeElements);
+            ++count;
+        }
+    }
+    if (dressed)
+        *dressed = count;
+    if (count == 0)
+        return QStringLiteral("%1 has no such slides any more").arg(QFileInfo(path).fileName());
+    return writePresentation(path, presentation);
+}
+
+QVariantMap ProDocument::dressedSlide(const QString &path, const QString &cueId, const rv::data::Slide &theme,
+                                      const QSet<QString> &themeElements)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return {};
+    for (rv::data::Cue &cue : *presentation.mutable_cues()) {
+        if (QString::fromStdString(cue.uuid().string()) != cueId)
+            continue;
+        for (rv::data::Action &action : *cue.mutable_actions()) {
+            if (!action.isenabled() || !action.has_slide() || !action.slide().has_presentation())
+                continue;
+            rv::data::Slide *slide = action.mutable_slide()->mutable_presentation()->mutable_base_slide();
+            themefile::dress(slide, theme, themeElements);
+            return proconvert::toSlideMap(*slide, QString::fromStdString(action.label().text()));
+        }
+    }
+    return {};
 }
 
 QString ProDocument::changeCue(const QString &path, const QString &cueId, const std::function<QString(rv::data::Cue *)> &change)

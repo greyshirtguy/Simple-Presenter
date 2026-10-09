@@ -123,10 +123,23 @@ Rectangle {
     }
 
     ToolbarIcon {
+        id: themesButton
+
+        objectName: "themesButton"
+        anchors.left: searchButton.right
+        anchors.leftMargin: 2
+        anchors.verticalCenter: parent.verticalCenter
+        kind: "themes"
+        label: "Themes"
+        on: toolbar.win.themesOpen
+        onClicked: toolbar.win.themesOpen ? toolbar.win.closeThemes() : toolbar.win.openThemes()
+    }
+
+    ToolbarIcon {
         id: showButton
 
         objectName: "showButton"
-        anchors.left: searchButton.right
+        anchors.left: themesButton.right
         anchors.leftMargin: 2
         anchors.verticalCenter: parent.verticalCenter
         kind: "show"

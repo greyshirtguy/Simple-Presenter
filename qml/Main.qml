@@ -146,6 +146,47 @@ Window {
     // Whether the search is up (see SearchPanel)
     property bool searchOpen: false
 
+    // Whether the themes are up (see ThemesPanel)
+    property bool themesOpen: false
+
+    function openThemes() {
+        if (editing || settingsOpen)
+            return
+        themesOpen = true
+        themesPanel.open()
+    }
+
+    function closeThemes() {
+        themesOpen = false
+        takeFocus()
+    }
+
+    // Dresses slides of the presentation being viewed in a theme slide, for good: the
+    // slides with these ids, or with none named all of them (see Themes).
+    function applyTheme(slideIds, place, themeSlideId) {
+        if (!document || currentEntry() === undefined)
+            return
+        const themed = Themes.slide(place, themeSlideId)
+        if (!report(Themes.apply(document.path, slideIds, place, themeSlideId)))
+            return
+        reloadDocument()
+        notice = (slideIds.length === 1 ? "The slide is" : slideIds.length > 1 ? slideIds.length + " slides are" : "Every slide of " + quoted(document.name) + " is")
+               + " now in " + quoted(themed ? themed.name : "the theme") + " of the theme " + quoted(place.split("/").pop())
+               + ". The file as it was is kept with the editor's backups."
+        noticeIsError = false
+    }
+
+    // The themes as a menu: folders, then themes by the look of their first slide, then
+    // each theme's slides, a click on one dressing the slides with these ids in it.
+    function themeMenuItems(slideIds) {
+        const of = entries => entries.map(entry => entry.kind === "folder"
+            ? { label: entry.name, items: [{ header: entry.name }].concat(of(entry.items)) }
+            : { label: entry.name, preview: entry.slides.length > 0 ? entry.slides[0].slide : null,
+                items: [{ header: entry.name }].concat(entry.slides.map(slide => ({
+                    label: slide.name, preview: slide.slide, run: () => applyTheme(slideIds, entry.place, slide.id) }))) })
+        return [{ header: "Theme" }].concat(of(Themes.tree))
+    }
+
     function openSearch() {
         if (editing || settingsOpen)
             return
@@ -1190,6 +1231,8 @@ Window {
             { label: "Add Action", items: () => addActionItems(target) },
             { label: "Remove Action", disabled: slide.actions.length === 0, items: [{ header: "Remove Action" }].concat(
                 slide.actions.map(action => ({ label: action.title, glyph: action.kind, run: () => removeAction(target, action) }))) },
+            // The look of the slide: see Themes
+            { label: "Theme", disabled: Themes.themes.length === 0, items: () => themeMenuItems([slide.id]) },
             // The caption itself is something to click, where the slide has media that
             // can be played: it plays the media and leaves the slide layer alone.
             { header: "Media", run: slide.media ? () => playSlideMedia(index) : undefined },
@@ -1270,6 +1313,18 @@ Window {
         Log.note("edit", "the editor opened on the stage layouts, layout " + (editScreen.canvas.row + 1) + " of " + editScreen.editor.count)
     }
 
+    // The editor on a theme, at one of its slides (or its first): the same editor that
+    // edits a presentation's slides, since a theme's slides are slides.
+    function startEditingTheme(place, slideId) {
+        const path = catalog.workspacePath + "/Themes/" + place + "/Theme"
+        if (editing || !report(editScreen.openTheme(path, catalog.workspacePath, slideId)))
+            return
+        notice = ""
+        editing = true
+        editScreen.takeFocus()
+        Log.note("edit", "the editor opened on the theme " + quoted(place) + ", slide " + (editScreen.canvas.row + 1) + " of " + editScreen.editor.count)
+    }
+
     // Takes the editor down and shows the presentation as it now is. What is on the
     // output is left as it is until a slide is next shown; a prop that is on, or the
     // stage's layout, is shown as it now is at once.
@@ -1293,6 +1348,10 @@ Window {
         }
         if (kind === "stage") {
             report(StageLayouts.reload())
+            return
+        }
+        if (kind === "theme") {
+            Themes.reload()
             return
         }
         const entry = currentEntry()
@@ -1653,6 +1712,7 @@ Window {
             if (error !== "")
                 report(error)
         }
+        Themes.open(path)
         followScreens()
         readGroupKeys()
     }
@@ -2631,6 +2691,27 @@ Window {
             win.settingsOpen = false
             win.takeFocus()
         }
+    }
+
+    // The themes, let down from the toolbar's button; a click anywhere else puts them away.
+    MouseArea {
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        visible: win.themesOpen
+        onClicked: win.closeThemes()
+    }
+
+    ThemesPanel {
+        id: themesPanel
+
+        objectName: "themesPanel"
+        x: 8
+        y: toolbar.height + 4
+        width: Math.min(720, win.width - 16)
+        height: Math.min(470, win.height - toolbar.height - 16)
+        visible: win.themesOpen
+        win: win
+        onClosed: win.closeThemes()
     }
 
     SearchPanel {

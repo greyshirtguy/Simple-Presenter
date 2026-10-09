@@ -10,6 +10,7 @@
 
 namespace rv::data {
 class Cue;
+class Slide;
 }
 
 // A presentation, read for showing.
@@ -110,6 +111,16 @@ struct ProDocument
     // as insertMediaCues places one, and gives the id of the copy. The copy and what is
     // on its slide have ids of their own. Writes the file back.
     static QString pasteCue(const QString &path, const QString &cueId, bool after, const QByteArray &copied, QString *madeId);
+
+    // Dresses the slides of these cues in a theme slide (see themefile.h), or with no
+    // cues named every slide of the presentation, and writes the file back. `dressed`
+    // is given how many slides were.
+    static QString dressCues(const QString &path, const QStringList &cueIds, const rv::data::Slide &theme,
+                             const QSet<QString> &themeElements, int *dressed);
+    // The slide of a cue as it would be dressed in a theme slide, as a map of the kind
+    // `slides` holds for drawing: empty if the cue is not there. The file is not changed.
+    static QVariantMap dressedSlide(const QString &path, const QString &cueId, const rv::data::Slide &theme,
+                                    const QSet<QString> &themeElements);
 
 private:
     // Reads the file, hands the cue with this id to `change`, and writes the file back

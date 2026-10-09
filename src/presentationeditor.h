@@ -3,6 +3,7 @@
 #include "presentation.pb.h"
 #include "propDocument.pb.h"
 #include "stage.pb.h"
+#include "template.pb.h"
 
 #include <QAbstractListModel>
 #include <QUrl>
@@ -72,6 +73,8 @@ public:
     // file they are in.
     Q_INVOKABLE QString openProps(const QString &path, const QString &workspace);
     Q_INVOKABLE QString openStageLayouts(const QString &path, const QString &workspace);
+    // A theme: `path` is its Theme file, and its slides are the rows.
+    Q_INVOKABLE QString openTheme(const QString &path, const QString &workspace);
     Q_INVOKABLE void close();
 
     Q_INVOKABLE QVariantMap slideAt(int row) const;
@@ -123,7 +126,7 @@ signals:
     void restored(int row);
 
 private:
-    enum class Kind { Presentation, Props, Stage };
+    enum class Kind { Presentation, Props, Stage, Theme };
     // Where a row's slide is: which cue of the presentation or of the props, or which
     // stage layout; and for a presentation's slide, its group.
     struct Row
@@ -162,6 +165,7 @@ private:
     rv::data::Presentation m_presentation;
     rv::data::PropDocument m_props;
     rv::data::Stage::Document m_stage;
+    rv::data::Template::Document m_theme;
     QString m_path;
     QString m_name;
     QString m_workspace;

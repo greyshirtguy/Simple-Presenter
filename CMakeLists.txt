@@ -33,7 +33,7 @@ set(PRO_PROTO_NAMES
     intRange keymapping layers macros messages musicKeyScale planningCenter playlist presentation
     presentationSlide proAudienceLook proMask propDocument propresenter propSlide proscreen proworkspace
     recording rvtimestamp screens
-    slide stage templateIdentification timers url uuid version
+    slide stage template templateIdentification timers url uuid version
 )
 list(TRANSFORM PRO_PROTO_NAMES PREPEND ${PRO_PROTO_DIR}/ OUTPUT_VARIABLE PRO_PROTO_FILES)
 list(TRANSFORM PRO_PROTO_FILES APPEND .proto)
@@ -152,6 +152,7 @@ qt_add_qml_module(SimplePresenter
         qml/StageScene.qml
         qml/StagePanel.qml
         qml/StageView.qml
+        qml/ThemesPanel.qml
         qml/TimeField.qml
         qml/TimersPanel.qml
         qml/Toolbar.qml
@@ -197,8 +198,14 @@ qt_add_qml_module(SimplePresenter
         src/search.cpp
         src/searchindex.h
         src/searchindex.cpp
+        src/themes.h
+        src/themes.cpp
         src/screenfile.h
         src/screenfile.cpp
+        src/thememath.h
+        src/thememath.cpp
+        src/themefile.h
+        src/themefile.cpp
         src/screens.h
         src/screens.cpp
         src/ndi.h
