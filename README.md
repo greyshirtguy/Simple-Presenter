@@ -2,18 +2,36 @@
 
 ![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and the Search, Themes, Show and Edit buttons at its left and the buttons for Simple View, the media bin, the output and stage screens and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; in the middle the name of the presentation over a grid of its slides, framed in their group colours, some marked with the hotkey that goes to them or with icons for the media and the macro they bring, and the live one ringed in orange, with the transition and the size of the thumbnails in a bar under them and the media bin under that; and down the right the output preview, with the words over a video that is playing, the stage preview with its countdown, the clear buttons, the transport for the video and the show controls, on their tab of macros, each macro with its coloured icon and small icons for its actions](docs/screenshot.png)
 
-## New in 0.7
+## New in 0.5 and since
 
+The big things, up to version 0.7:
+
+- **Screens.** A workspace can have up to sixteen [screens](#screens), for the audience
+  and for the stage, where there was one of each. They are the screens ProPresenter has
+  for the workspace. Each goes to a window of its own, to one of the computer's
+  displays, or over the network; each stage screen has its own layout; and a video is
+  still played only once, however many screens show it.
+- **NDI output.** A screen can be an [NDI](#ndi) source on the local network. NDI's own
+  library is not part of the app, but the app offers to fetch it, showing NDI's licence
+  for you to agree to first.
 - **Looks.** Which layers of the show each audience screen gets (the slides, the media,
   the props), by name, with one [look](#looks) live at a time: the room can have the
   words over the media while a stream has the words alone. They are ProPresenter's own
-  looks, and a slide or a macro can go over to one.
-- **Themes.** ProPresenter's [themes](#themes), browsed from the toolbar: dress a whole
-  presentation or one slide in a theme slide, make and edit themes in the editor, and
-  have a look dress a screen's slides in a theme as they are shown, with the
-  presentation left as it was.
-- **Search** (Ctrl+F): find a presentation by its name or its words, and open it or add
-  it to the playlist.
+  looks.
+- **Themes.** ProPresenter's [themes](#themes): dress a whole presentation or one slide
+  in a theme slide, make and edit themes in the editor, and have a look dress a screen's
+  slides in a theme as they are shown, with the presentation left as it was (what
+  ProPresenter calls an alternate theme).
+- **Search** (Ctrl+F): find a [presentation](#search) by its name or its words, and open
+  it or add it to the playlist.
+- **Actions**, on slides and in macros: start or stop a timer, clear a layer, give the
+  stage a layout, put a prop on or take it off, run a macro, go over to a look. An
+  [action](#actions) is added from a menu, or by dragging a timer, a prop, the stage
+  screen or a macro onto a slide; and, which is Simple Presenter's own, by dragging one
+  of the clear buttons onto a slide or a macro.
+- **Macros**: named lists of actions, on a tab of their own, ProPresenter's and new
+  [ones](#macros).
+- **The screens are kept awake** while the show is on one.
 
 Earlier versions are on the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page.
