@@ -85,6 +85,17 @@ cleared, and what the people on the stage are shown.
 |:---:|:---:|:---:|
 | <img src="docs/timers.png" width="240" alt="The timers tab: a countdown of five minutes with its settings open, and a second timer under it"> | <img src="docs/props.png" width="240" alt="The props tab: the default collection, with one prop in it"> | <img src="docs/stage-layouts.png" width="236" alt="The stage tab: the stage screen, with the layout it shows picked from a list and a button to edit it"> |
 
+**And chords, with two editors ProPresenter does not have.** A song's chords are shown
+over its words on the stage, in any key. They can be put on by hand, on a sheet of the
+whole song where a chord goes wherever the pointer is with one key, or typed as ChordPro
+text; and a song can be brought in from a ChordPro file. More under [Chords](#chords).
+
+![The chord editor: the song as one sheet, each slide's lines in a card under the name of its group, with the chords in small bubbles over the words they belong to; along the top the song's key and its seven chords on the keys 1 to 7; and over one line a bubble in which a chord is being typed, with the chords it might be going to be offered above it](docs/chord-editor.png)
+
+| The same song as ChordPro text | On the stage |
+|:---:|:---:|
+| <img src="docs/chordpro-editor.png" width="420" alt="The ChordPro editor: the song's words as plain text, each group named in curly brackets and each chord in square brackets, in orange, where it is played"> | <img src="docs/stage-chords.png" width="420" alt="A stage screen: the live slide's two lines in yellow with their chords over the words, the next slide's lines in grey under them, and a countdown"> |
+
 **And one idea of my own: Simple View.** Hold the ~ key, or click its button, and
 everything round the slides gets out of the way, so that as many of them as will fit
 can be seen at once. The same again brings it all back. More under
@@ -1164,6 +1175,8 @@ written, which are ProPresenter's four: **Chords** (C#m7/E), **Numbers** (6m7/1)
 **Numerals** (vi7/I) and **Do Re Mi** (Do#m7/Mi). The chords are drawn over the
 syllables they belong to. So that they stay there, a line of words with chords is never
 broken in two: text too wide for its box is made smaller instead.
+
+![A stage layout in the editor: a text box that shows the current slide's words is picked, with the live song's chords drawn over them, and at the foot of its Text tab are Chords, with Show ticked and a colour, and As, set to Chords](docs/stage-layout-chords.png)
 
 **The key.** A song's chords are written in the file in its original key. Over the
 slides of a song that has chords there is a **Key** to pick, starting at the key the
