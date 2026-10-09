@@ -31,6 +31,14 @@ Item {
     // Whether this scene plays the media itself. One scene does, for all of them: a
     // video is decoded once, and the others are handed its frames (see MediaContent).
     property bool leads: true
+    // Which of the layers this screen gets, as the look that is live has it (see
+    // Looks): a layer it does not get is still kept up to date, out of sight, so that it
+    // is there at once when a look gives it back; and how long a layer takes to come
+    // or go when the look changes, in milliseconds.
+    property bool slideOn: true
+    property bool mediaOn: true
+    property bool propsOn: true
+    property int lookFade: 0
     // What that transition is called, for the log
     property string transitionName: ""
     // The QVideoSink of the video on the media layer, or null; lets a preview borrow its frames.
@@ -84,6 +92,12 @@ Item {
         id: mediaLayer
 
         anchors.fill: parent
+        opacity: scene.mediaOn ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: scene.lookFade }
+        }
         name: "media layer"
         shaderName: scene.transitionName
         shader: scene.shader
@@ -106,6 +120,12 @@ Item {
         id: slideLayer
 
         anchors.fill: parent
+        opacity: scene.slideOn ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: scene.lookFade }
+        }
         name: "slide layer"
         shaderName: scene.transitionName
         shader: scene.shader
@@ -120,5 +140,11 @@ Item {
         id: propsLayer
 
         anchors.fill: parent
+        opacity: scene.propsOn ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: scene.lookFade }
+        }
     }
 }

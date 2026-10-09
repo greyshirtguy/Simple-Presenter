@@ -208,7 +208,7 @@ QtObject {
             },
             () => {
                 const settingsScreen = Lib.find(win.contentItem, item => item.sections !== undefined && item.section !== undefined && item.useX11 !== undefined)
-                check("the settings have an About section", settingsScreen !== null && settingsScreen.sections.map(x => x.name).join() === "Groups,Slides,Screens,Windows,About",
+                check("the settings have an About section", settingsScreen !== null && settingsScreen.sections.map(x => x.name).join() === "Groups,Slides,Screens,Looks,Windows,About",
                       settingsScreen ? settingsScreen.sections.map(x => x.name).join() : "none")
                 const row = Lib.find(settingsScreen, item => item.text === "About" && item.font !== undefined)
                 click(centre(row))

@@ -242,6 +242,8 @@ Rectangle {
                     label: "Output"
                     on: toolbar.win.outputEnabled
                     onClicked: toolbar.win.outputEnabled = !toolbar.win.outputEnabled
+                    // The looks, to make one live (see Looks)
+                    onMenuAsked: toolbar.win.showLooksMenu(this)
                 }
 
                 Rectangle {

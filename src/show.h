@@ -72,11 +72,15 @@ class Show : public QObject
     Q_PROPERTY(QVariantMap screenLayouts READ screenLayouts NOTIFY screenLayoutsChanged)
     Q_PROPERTY(QString stageLayoutId READ stageLayoutId WRITE setStageLayoutId NOTIFY screenLayoutsChanged)
 
+    // The look that is live, by id; "" for none, which is every screen getting everything
+    Q_PROPERTY(QString lookId READ lookId WRITE setLookId NOTIFY lookChanged)
+
     // The workspace's things an action can name, as Props, Macros and StageLayouts list them
     Q_PROPERTY(QVariantList props READ props WRITE setProps NOTIFY workspaceChanged)
     Q_PROPERTY(QVariantList macros READ macros WRITE setMacros NOTIFY workspaceChanged)
     Q_PROPERTY(QVariantList stageLayouts READ stageLayouts WRITE setStageLayouts NOTIFY workspaceChanged)
     Q_PROPERTY(QVariantList stageScreens READ stageScreens WRITE setStageScreens NOTIFY workspaceChanged)
+    Q_PROPERTY(QVariantList looks READ looks WRITE setLooks NOTIFY workspaceChanged)
 
     // The slide that is live and the one that would come next, as maps (see
     // proconvert), or empty maps for none
@@ -119,6 +123,10 @@ public:
     void setStageLayouts(const QVariantList &layouts);
     QVariantList stageScreens() const { return m_workspace.stageScreens; }
     void setStageScreens(const QVariantList &screens);
+    QVariantList looks() const { return m_workspace.looks; }
+    void setLooks(const QVariantList &looks);
+    QString lookId() const { return m_state.lookId; }
+    void setLookId(const QString &id);
 
     QVariantMap currentSlide() const { return m_state.cleared ? QVariantMap() : m_state.slide; }
     QVariantMap nextSlide() const { return m_state.next; }
@@ -190,6 +198,7 @@ signals:
     void mediaChanged();
     void propsChanged();
     void screenLayoutsChanged();
+    void lookChanged();
     void workspaceChanged();
     void changed();
 

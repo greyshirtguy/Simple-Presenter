@@ -55,6 +55,8 @@ void Show::change(const std::function<show::Effects()> &what)
         emit propsChanged();
     if (before.stageLayouts != m_state.stageLayouts)
         emit screenLayoutsChanged();
+    if (before.lookId != m_state.lookId)
+        emit lookChanged();
     if (words) {
         ++m_revision;
         emit changed();
@@ -147,6 +149,20 @@ void Show::setStageScreens(const QVariantList &screens)
     emit workspaceChanged();
     // Which screen is the first may have changed, and with it what stageLayoutId says.
     emit screenLayoutsChanged();
+}
+
+void Show::setLooks(const QVariantList &looks)
+{
+    m_workspace.looks = looks;
+    emit workspaceChanged();
+    // A look that is no longer there is no longer live.
+    if (!m_state.lookId.isEmpty() && show::findLook(m_state.lookId, QString(), m_workspace).isEmpty())
+        change([&] { m_state.lookId.clear(); return show::Effects(); });
+}
+
+void Show::setLookId(const QString &id)
+{
+    change([&] { return m_state.setLook(id, m_workspace); });
 }
 
 void Show::goLive(const QVariantMap &cue, bool withoutMedia)

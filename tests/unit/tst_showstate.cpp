@@ -105,6 +105,7 @@ Workspace workspace()
     };
     w.stageLayouts = {QVariantMap {{"id", "l1"}, {"name", "Words"}}, QVariantMap {{"id", "l2"}, {"name", "Clock"}}};
     w.stageScreens = {QVariantMap {{"id", "screen1"}, {"name", "Stage"}}, QVariantMap {{"id", "screen2"}, {"name", "Lobby"}}};
+    w.looks = {QVariantMap {{"id", "full"}, {"name", "Everything"}}, QVariantMap {{"id", "third"}, {"name", "Lower Third"}}};
     return w;
 }
 
@@ -667,6 +668,37 @@ private slots:
         const QMap<QString, QVariantMap> read = stageLayoutsOf(stageAction(changed), w);
         QCOMPARE(read.value("screen1").value("id").toString(), "l1");
         QCOMPARE(read.value("screen2").value("id").toString(), "l2");
+    }
+
+    // ---- looks
+
+    void aLookIsMadeLiveByHandOrByAnAction()
+    {
+        State show;
+        const Workspace w = workspace();
+        QVERIFY(show.lookId.isEmpty());
+        QVERIFY(noted(show.setLook("third", w), "\"Lower Third\" is live"));
+        QCOMPARE(show.lookId, "third");
+        // The same again is nothing; one that is not there is not gone over to
+        QVERIFY(show.setLook("third", w).isEmpty());
+        QVERIFY(show.setLook("no such", w).isEmpty());
+        QCOMPARE(show.lookId, "third");
+        // An action names a look by its id, or failing that by its name
+        Presentation song;
+        const auto lookAction = [](const QString &id, const QString &name) {
+            return QVariantMap {{"kind", "look"}, {"title", "Look"}, {"done", true}, {"lookId", id}, {"lookName", name}};
+        };
+        song.slides = {slide("a", {}, {lookAction("full", "")}), slide("b", {}, {lookAction("made elsewhere", "Lower Third")}),
+                       slide("c", {}, {lookAction("x", "No such")})};
+        show.goLive(song.cue(0), false, w);
+        QCOMPARE(show.lookId, "full");
+        show.goLive(song.cue(1), false, w);
+        QCOMPARE(show.lookId, "third");
+        QVERIFY(noted(show.goLive(song.cue(2), false, w), "there is no such look here"));
+        QCOMPARE(show.lookId, "third");
+        // And none at all, by hand
+        show.setLook("", w);
+        QVERIFY(show.lookId.isEmpty());
     }
 
     // ---- a presentation that changes under the show

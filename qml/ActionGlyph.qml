@@ -83,6 +83,32 @@ Item {
         }
     }
 
+    // Two layers, one over the other: a look
+    Item {
+        anchors.fill: parent
+        visible: glyph.kind === "look"
+
+        Rectangle {
+            x: 0
+            y: 0
+            width: 9
+            height: 7
+            radius: 1.2
+            color: "transparent"
+            border.width: 1.3
+            border.color: glyph.ink
+        }
+
+        Rectangle {
+            x: 3
+            y: 4
+            width: 9
+            height: 7
+            radius: 1.2
+            color: glyph.ink
+        }
+    }
+
     // A screen on its stand
     Item {
         anchors.fill: parent

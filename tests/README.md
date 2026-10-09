@@ -14,10 +14,13 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are three:
+So far there are six:
 
 | Test | What it tries |
 | --- | --- |
+| `tst_lookfile` | The looks in ProPresenter's set-up file (`src/lookfile.h`): what each gives each screen, a theme known by its place whatever computer named it, and changes that leave the rest of the file alone |
+| `tst_thememath` | Which text box of a slide goes into which text box of a theme (`src/thememath.h`): by name, by size, in order |
+| `tst_searchindex` | Finding presentations by their names and words (`src/searchindex.h`): capitals, punctuation and accents, the order of what is found, the line that is shown |
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
 | `tst_screenfile` | The list of a workspace's screens in ProPresenter's set-up file (`src/screenfile.h`): what a workspace with no file has, what adding, renaming and removing a screen write, and that the rest of a file ProPresenter wrote goes back as it came |
 | `tst_showstate` | The rules of the show (`src/showstate.h`): what a slide going live puts on the output and in what order, when the media it brings is started and when what is playing is left to, what a slide's actions do, what clearing leaves, how props stack and give way, what a macro does, where a step takes the show, and how the show follows a presentation that is read again |
@@ -101,7 +104,7 @@ What the folder holds:
 | --- | --- |
 | `workspaces/Demo` | Presentations and playlists; its `Media` is a link to a real media folder, which is only read |
 | `workspaces/ProPresenter MR` | Presentations, timers, props, stage layouts and playlists as ProPresenter itself wrote them |
-| `workspaces/Act` | The same presentations with ProPresenter's macros, groups and its own account of the workspace |
+| `workspaces/Act` | The same presentations with ProPresenter's macros, groups, its own account of the workspace (screens and looks) and its themes |
 | `workspaces/Shapes` | One presentation and two pictures, for the editor |
 | `made/` | Small videos and pictures made for the tests: one keyframe in twenty seconds, dark until nine seconds in, VP9, HEVC, one with sound |
 

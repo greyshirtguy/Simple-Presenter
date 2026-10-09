@@ -177,13 +177,12 @@ of this page.
 Bigger things, each of which ProPresenter does and this does not. No order, and no
 promise that any of them will turn out to be possible this way: that is the experiment.
 
-- [ ] **Search**
 - [ ] **More Actions** (timers, clearing, the stage, props and macros are done)
 - [x] **Macros**
-- [ ] **Themes** (when there are themes, everything that makes a new slide, which is
-      the `+` over the editor's slides, New Slide in a slide's menu and media dropped
-      between slides, is to offer a theme's slide as well as a blank one)
-- [ ] **Looks**
+- [x] **Search**, **Looks**, **Themes**
+- [ ] **A theme for a new slide** (now that there are themes, everything that makes a
+      new slide, which is the `+` over the editor's slides, New Slide in a slide's menu
+      and media dropped between slides, is to offer a theme's slide as well as a blank one)
 - [ ] **Arrangement Editor**
 - [ ] **Importing ChordPro**
 - [ ] **Chord Editor**
@@ -1047,6 +1046,33 @@ depends on what the app is run through:
   leave them out. On other desktops run through Wayland, and on GNOME without it, the
   two windows are in Alt+Tab as any window is.
 
+## Looks
+
+A **look** says which layers of the show each audience screen gets. The room can have
+the slides over the media while a stream has the slides alone, to lie over a camera's
+picture; a lobby screen can have the props and nothing else. A workspace has as many
+looks as are wanted, by name, and one of them is live at a time.
+
+Under **Settings → Looks** each look is a table: a line for each audience screen, with a
+switch for the slides, for the media under them and for the props over them, and a
+**theme** for that screen's slides to be dressed in (below). A look is made live there,
+from the menu a right click on the toolbar's **Output** button gives, or by an **Audience
+Look** action on a slide or in a macro, which is how a service moves from one to
+another by itself. When the look changes, each layer comes or goes over the time the
+look says.
+
+**A theme for a screen.** A look can give a screen a theme slide, and every slide shown
+on that screen is then dressed in it as it is shown: the same words, large and central
+in the room and a line across the foot of the stream. Nothing about the presentation is
+changed, and the next look can dress it another way.
+
+The looks are the workspace's, the ones ProPresenter has for it, and are read from and
+written to its file of how the workspace is set up (`Configuration/Workspace`), with the
+screens. ProPresenter has layers this app has not yet (announcements, messages, video
+inputs, masks): what its looks say of those is left in the file as it was found. Which
+look is live is kept on this computer; a workspace opened here for the first time starts
+with the one that was live when ProPresenter last had it.
+
 ## Themes
 
 A **theme** is a set of slides built to show how slides should look: where the words go,
@@ -1378,6 +1404,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
+| `src/lookfile.*`, `src/looks.*` | The workspace's looks, in ProPresenter's set-up file: which layers each audience screen gets, and in what theme |
 | `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
 | `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |
 | `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
@@ -1406,6 +1433,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
 | `qml/OutputScene.qml`, `qml/StageScene.qml` | What an audience screen and a stage screen show, whatever they are sent out through |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |
+| `qml/LooksSettings.qml` | The Looks section of the settings |
 | `qml/ThemesPanel.qml` | The themes, let down from the toolbar's button |
 | `qml/SearchPanel.qml` | The search window |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |

@@ -204,6 +204,12 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("clear", action.prop().has_clear());
         map.insert("title", QStringLiteral("%1 the prop %2").arg(action.prop().has_clear() ? QStringLiteral("Clear") : QStringLiteral("Show"),
                                                                quoted(text(prop.parameter_name()))));
+    } else if (action.has_audience_look()) {
+        const Identification &look = action.audience_look().identification();
+        map.insert("kind", QStringLiteral("look"));
+        map.insert("lookId", text(look.parameter_uuid().string()));
+        map.insert("lookName", text(look.parameter_name()));
+        map.insert("title", QStringLiteral("Go over to the look %1").arg(quoted(text(look.parameter_name()))));
     } else if (action.has_macro()) {
         const Identification &macro = action.macro().identification();
         map.insert("kind", QStringLiteral("macro"));
@@ -249,6 +255,9 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
             if (!assignment.value("layoutId").toString().isEmpty() || !assignment.value("layoutName").toString().isEmpty())
                 identify(made->mutable_layout(), assignment.value("layoutId").toString(), assignment.value("layoutName").toString());
         }
+    } else if (kind == QLatin1String("look")) {
+        action->set_type(Action::ACTION_TYPE_AUDIENCE_LOOK);
+        identify(action->mutable_audience_look()->mutable_identification(), wanted.value("lookId").toString(), wanted.value("lookName").toString());
     } else if (kind == QLatin1String("prop")) {
         action->set_type(Action::ACTION_TYPE_PROP);
         Identification *prop = action->mutable_prop()->mutable_identification();

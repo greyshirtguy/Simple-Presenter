@@ -41,9 +41,9 @@ QtObject {
                 check("the workspace's macros are read, in their collection", Macros.collections.length === 1 && Macros.collections[0].name === "Default Collection"
                       && names.slice(0, 2).join("|") === "Singing|Stream & Stage Notes", names.join("|"))
                 const singing = Macros.find("", "Singing")
-                check("a macro is its actions, each said in words, and whether it is one done here", singing.actions.map(a => a.kind + (a.done ? "" : "-")).join(" ") === "stage other- clear- clear clear-"
+                check("a macro is its actions, each said in words, and whether it is one done here", singing.actions.map(a => a.kind + (a.done ? "" : "-")).join(" ") === "stage look clear- clear clear-"
                       && singing.actions[0].title === "Give the stage the layout “Singing”" && singing.actions[3].title === "Clear the props"
-                      && singing.actions[1].title === "Audience look: Lyrics L3rd", singing.actions.map(a => a.title).join(" | "))
+                      && singing.actions[1].title === "Go over to the look “Lyrics L3rd”", singing.actions.map(a => a.title).join(" | "))
                 check("ProPresenter's stage screens are known by name", Screens.stage.length === 2 && stageScreen().id === "E3A36D8C-E70D-45D8-A127-E7DAC6577CDC", JSON.stringify(StageLayouts.screens))
                 openLibrary(catalog.libraries[0].path)
                 openEntry(entry("All Hail King Jesus"))
@@ -71,14 +71,14 @@ QtObject {
                 check("the slide itself is on the output", liveIndex === kept.macroSlide && !cleared)
                 const lines = testInput.readText(Log.path).split("\n")
                 check("the log says what was run, and what of it is not done here", lines.some(l => l.includes("Run the macro “Singing”, which has 5 actions"))
-                      && lines.some(l => l.includes("Audience look: Lyrics L3rd: not done here")) && lines.some(l => l.includes("Clear the audio: not done here")))
+                      && lines.some(l => l.includes("Go over to the look “Lyrics L3rd”") && !l.includes("not done here")) && lines.some(l => l.includes("Clear the audio: not done here")))
                 // ---- adding actions: the menu
                 kept.target = slideWith(s => s.actions.length === 0 && s.mediaName === "")
                 showSlideMenu(kept.target, slideCell(kept.target), 30, 30)
                 return 300
             },
             () => {
-                check("a slide's menu offers to add an action, and to remove one, under Edit", labels().startsWith("Edit, Add Action, Remove Action(off), [Media]"), labels())
+                check("a slide's menu offers to add an action, and to remove one, under Edit", labels().startsWith("Edit, Add Action, Remove Action(off), Theme, [Media]"), labels())
                 // The pointer resting on the row opens its menu beside it
                 const row = menuRow("Add Action")
                 testInput.mouse(4, row.x, row.y)
@@ -87,7 +87,7 @@ QtObject {
             () => {
                 const panes = Lib.findAll(menu.contentItem, i => i.px !== undefined && i.rows !== undefined)
                 kept.panes = panes
-                check("resting the pointer on Add Action opens its menu, of five kinds", labels() === "[Add Action], Timer…, Clear, Stage…, Prop, Macro", labels())
+                check("resting the pointer on Add Action opens its menu, of six kinds", labels() === "[Add Action], Timer…, Clear, Stage…, Audience Look, Prop, Macro", labels())
                 check("beside the slide's menu, which stays where it is", panes.length === 2 && menu.opened && near(panes[1].x, panes[0].x + panes[0].width - 4)
                       && panes[1].y >= panes[0].y && panes[1].x + panes[1].width <= win.width, panes.map(p => p.x + "," + p.y).join(" "))
                 const row = menuRow("Clear")

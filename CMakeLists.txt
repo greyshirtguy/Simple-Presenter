@@ -120,6 +120,7 @@ qt_add_qml_module(SimplePresenter
         qml/IconButton.qml
         qml/KineticWheel.qml
         qml/LiveRing.qml
+        qml/LooksSettings.qml
         qml/MacroGlyph.qml
         qml/MacrosPanel.qml
         qml/Main.qml
@@ -198,6 +199,10 @@ qt_add_qml_module(SimplePresenter
         src/search.cpp
         src/searchindex.h
         src/searchindex.cpp
+        src/lookfile.h
+        src/lookfile.cpp
+        src/looks.h
+        src/looks.cpp
         src/themes.h
         src/themes.cpp
         src/screenfile.h

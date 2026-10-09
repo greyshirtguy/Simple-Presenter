@@ -775,6 +775,8 @@ Window {
             { label: "Timer…", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
             { label: "Clear", items: [{ header: "Clear" }, clear("Everything", 0), clear("The Slide", 5), clear("The Media", 2), clear("The Props", 4)] },
             { label: "Stage…", run: () => actionDialog.openStage(target, null) },
+            { label: "Audience Look", disabled: Looks.looks.length === 0, items: [{ header: "Audience Look" }].concat(Looks.looks.map(look => ({
+                label: look.name, run: () => add({ kind: "look", lookId: look.id, lookName: look.name }) }))) },
             { label: "Prop", disabled: props.length === 0, items: [{ header: "Prop" }].concat(props.map(collection => ({
                 label: collection.name, items: [{ header: collection.name }].concat(collection.props.map(prop => ({
                     label: prop.name, items: propActionItems(target, prop, collection) }))) }))) },
@@ -1351,7 +1353,9 @@ Window {
             return
         }
         if (kind === "theme") {
+            // A screen dressed in the theme by the look that is live shows it as it now is.
             Themes.reload()
+            eachAudienceScene((scene, id) => redress(id))
             return
         }
         const entry = currentEntry()
@@ -1518,8 +1522,51 @@ Window {
     function eachAudienceScene(act) {
         for (const id of audienceIds) {
             if (scenes[id])
-                act(scenes[id])
+                act(scenes[id], id)
         }
+    }
+
+    // ---- Looks
+    //
+    // How long a layer takes to come or go when the look changes, in milliseconds: what
+    // the look that is live says.
+    readonly property int lookFade: {
+        const look = Looks.looks.find(candidate => candidate.id === Show.lookId)
+        return look ? Math.round(look.transition * 1000) : 0
+    }
+
+    // The looks as a menu, the live one ticked: under the toolbar's Output button.
+    function looksMenuItems() {
+        return [{ header: "Look" }].concat(Looks.looks.map(look => ({ label: look.name, current: Show.lookId === look.id, run: () => Show.lookId = look.id })))
+            .concat(Looks.looks.length === 0 ? [{ note: "This workspace has no looks: every audience screen gets everything." }] : [])
+            .concat([{ header: "" }, { label: "Edit Looks…", run: () => {
+                settingsOpen = true
+                settingsScreen.section = "looks"
+            } }])
+    }
+
+    function showLooksMenu(item) {
+        menu.show(looksMenuItems(), item)
+    }
+
+    // A slide as an audience screen shows it: as it is, or, where the look that is live
+    // gives that screen a theme, dressed in the theme (see Themes), with nothing about
+    // the presentation changed.
+    function slideFor(screenId, slide) {
+        if (!slide || !liveDocument)
+            return slide
+        const look = Looks.of(Show.lookId, screenId)
+        if (look.theme === "")
+            return slide
+        const dressed = Themes.dressed(liveDocument.path, slide.id, look.theme, look.themeSlide)
+        return dressed.elements !== undefined ? Object.assign({}, slide, { elements: dressed.elements, backgroundColor: dressed.backgroundColor,
+                                                                           drawsBackground: dressed.drawsBackground }) : slide
+    }
+
+    // The slide that is live, shown again on a screen whose theme has changed.
+    function redress(screenId) {
+        if (liveSlide && scenes[screenId])
+            scenes[screenId].showSlide(slideFor(screenId, liveSlide))
     }
 
     // Media as the scenes are told to play it: with a number for this playing of it.
@@ -1537,7 +1584,7 @@ Window {
         if (lastPlayed !== null)
             scene.showMedia(lastPlayed)
         if (liveSlide)
-            scene.showSlide(liveSlide)
+            scene.showSlide(slideFor(id, liveSlide))
     }
 
     function sceneGone(id, scene) {
@@ -1708,7 +1755,7 @@ Window {
         Screens.remember = remember
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
-                             Macros.open(path), Screens.open(path)]) {
+                             Macros.open(path), Screens.open(path), Looks.open(path)]) {
             if (error !== "")
                 report(error)
         }
@@ -1841,6 +1888,11 @@ Window {
                          : Object.keys(had).length === 0 && before === "" ? (Screens.layouts[screen.id] ?? "") : ""
             Show.setStageLayout(screen.id, StageLayouts.layouts.some(candidate => candidate.id === layout) ? layout : "")
         })
+        // The look that was live here, if the workspace still has it; for a workspace
+        // not opened here before, the one that was live when ProPresenter last had it.
+        const look = savedSelection("look")
+        Show.lookId = Looks.looks.some(candidate => candidate.id === look) ? look
+                    : look === "" && Looks.looks.some(candidate => candidate.id === Looks.startsWith) ? Looks.startsWith : ""
     }
 
     // Closes the open workspace and opens another: the output is cleared, everything
@@ -1968,6 +2020,10 @@ Window {
     Connections {
         target: Show
 
+        function onLookChanged() {
+            win.saveSelection("look", Show.lookId)
+        }
+
         function onScreenLayoutsChanged() {
             const layouts = Show.screenLayouts
             win.saveSelection("stageLayouts", JSON.stringify(layouts))
@@ -2086,6 +2142,12 @@ Window {
             readonly property var screen: Screens.screens.find(candidate => candidate.id === audienceHost.modelData) ?? ({ output: "none", name: "" })
             // The first plays the media, for all of them (see MediaContent).
             readonly property bool leads: index === 0
+            // What the look that is live gives this screen: which layers, and in what theme
+            readonly property var look: Looks.looks.length >= 0 ? Looks.of(Show.lookId, audienceHost.modelData) : null
+            readonly property string themeKey: look.theme === "" ? "" : look.theme + "\n" + look.themeSlide
+            // The look has given this screen another theme, or none: the slide that is
+            // live is shown again as it now looks here.
+            onThemeKeyChanged: win.redress(audienceHost.modelData)
             readonly property bool overNdi: screen.output === "ndi"
 
             property Instantiator inWindow: Instantiator {
@@ -2099,6 +2161,10 @@ Window {
                     display: audienceHost.screen.output === "display" ? audienceHost.screen.display : ""
                     fullScreenOn: audienceHost.leads && audienceHost.screen.output === "window" ? win.outputScreen : -1
                     leads: audienceHost.leads
+                    slideOn: audienceHost.look.slide
+                    mediaOn: audienceHost.look.media
+                    propsOn: audienceHost.look.props
+                    lookFade: win.lookFade
                     shader: transitionCatalogue.shaderUrl(win.transition)
                     options: win.transitionUniforms.options
                     tint: win.transitionUniforms.tint
@@ -2130,6 +2196,10 @@ Window {
                         id: ndiScene
 
                         leads: audienceHost.leads
+                        slideOn: audienceHost.look.slide
+                        mediaOn: audienceHost.look.media
+                        propsOn: audienceHost.look.props
+                        lookFade: win.lookFade
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint
@@ -2225,13 +2295,14 @@ Window {
         function onSlideShown(showing, media) {
             const slide = win.liveDocument.slides[Show.liveIndex]
             const played = showing === Show.WithMedia ? win.playing(media) : null
-            win.eachAudienceScene(scene => {
+            win.eachAudienceScene((scene, id) => {
+                const dressed = win.slideFor(id, slide)
                 if (showing === Show.WithMedia)
-                    scene.showSlideWithMedia(slide, played)
+                    scene.showSlideWithMedia(dressed, played)
                 else if (showing === Show.OverMedia)
-                    scene.showSlideOverMedia(slide)
+                    scene.showSlideOverMedia(dressed)
                 else
-                    scene.showSlide(slide)
+                    scene.showSlide(dressed)
             })
         }
 
@@ -2272,6 +2343,12 @@ Window {
         target: Show
         property: "stageLayouts"
         value: StageLayouts.layouts
+    }
+
+    Binding {
+        target: Show
+        property: "looks"
+        value: Looks.looks.map(look => ({ id: look.id, name: look.name }))
     }
 
     Binding {
@@ -2675,6 +2752,8 @@ Window {
     }
 
     SettingsScreen {
+        id: settingsScreen
+
         anchors.fill: parent
         anchors.topMargin: toolbar.height
         visible: win.settingsOpen

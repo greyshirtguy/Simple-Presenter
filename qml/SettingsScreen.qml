@@ -34,9 +34,9 @@ Rectangle {
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
         ? [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Screens", path: "screens" },
-           { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
+           { name: "Looks", path: "looks" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
         : [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Screens", path: "screens" },
-           { name: "About", path: "about" }]
+           { name: "Looks", path: "looks" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -436,6 +436,19 @@ Rectangle {
             senders: screen.senders
             onFailed: (text) => screen.screensFailed(text)
             onNdiWanted: ndiSetup.visible = true
+        }
+
+        // Looks: which layers each audience screen gets, and in what theme
+        LooksSettings {
+            objectName: "looksSettings"
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            visible: screen.section === "looks"
+            onFailed: (text) => screen.screensFailed(text)
         }
 
         // Windows

@@ -39,6 +39,8 @@ struct Workspace
     QVariantList macros;
     QVariantList stageLayouts;
     QVariantList stageScreens;
+    // Its looks, { id, name } each
+    QVariantList looks;
 };
 
 // A slide as it is triggered: where it is, and what it brings.
@@ -107,6 +109,10 @@ public:
     // The props that are on, by id, in the order they were turned on: the last is in front.
     QStringList props;
 
+    // The look that is live, by id: which layers each audience screen gets (see
+    // lookfile.h). "" for none, which is every screen getting everything.
+    QString lookId;
+
     // The layout each stage screen has, by the ids of both. A screen that is not here,
     // or has "", has the plain view.
     QMap<QString, QString> stageLayouts;
@@ -164,6 +170,9 @@ public:
     // Gives a stage screen a layout ("" for the plain view).
     void setStageLayout(const QString &screenId, const QString &layoutId);
 
+    // Makes a look the live one ("" for none).
+    Effects setLook(const QString &id, const Workspace &workspace);
+
 private:
     // While the actions of the slide going live are being done
     bool m_runningCue = false;
@@ -185,6 +194,8 @@ QVariantMap findProp(const QString &id, const Workspace &workspace);
 QVariantMap propOf(const QVariantMap &action, const Workspace &workspace);
 // A macro by its id, or failing that by its name ("" for by id alone).
 QVariantMap findMacro(const QString &id, const QString &name, const Workspace &workspace);
+// A look by its id, or failing that by its name.
+QVariantMap findLook(const QString &id, const QString &name, const Workspace &workspace);
 // The workspace's stage screens, { id, name } each: those it lists, or for a workspace
 // that lists none the one every workspace has, by the name it has here.
 QVariantList stageScreens(const Workspace &workspace);

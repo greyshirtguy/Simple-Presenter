@@ -18,6 +18,8 @@ Item {
     property real progress: 0
 
     signal clicked
+    // The other mouse button, for a button that has a menu
+    signal menuAsked
 
     readonly property color ink: "#e6e6e6"
 
@@ -236,6 +238,7 @@ Item {
 
         anchors.fill: parent
         hoverEnabled: true
-        onClicked: button.clicked()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: (mouse) => mouse.button === Qt.RightButton ? button.menuAsked() : button.clicked()
     }
 }

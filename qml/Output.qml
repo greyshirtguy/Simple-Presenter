@@ -15,6 +15,10 @@ AuxWindow {
     property alias duration: scene.duration
     property alias transitionName: scene.transitionName
     property alias leads: scene.leads
+    property alias slideOn: scene.slideOn
+    property alias mediaOn: scene.mediaOn
+    property alias propsOn: scene.propsOn
+    property alias lookFade: scene.lookFade
     property alias props: scene.props
     property alias propsDuration: scene.propsDuration
     readonly property var liveVideoSink: scene.liveVideoSink
