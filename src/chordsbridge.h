@@ -39,6 +39,10 @@ public:
     Q_INVOKABLE QVariantList chordsOf(const QString &chordPro) const;
     Q_INVOKABLE QString withoutChords(const QString &chordPro) const;
     Q_INVOKABLE bool isPlaceholders(const QString &line) const;
+    // What a ChordPro file holds, for the import to show before it is done: { title,
+    // artist, key, sections: [{ name, lines }] (how many lines each), chords (how
+    // many), error }.
+    Q_INVOKABLE QVariantMap describeFile(const QString &path) const;
 };
 
 // Colours ChordPro text as it is typed (ChordProEditor.qml): chords in the app's orange,

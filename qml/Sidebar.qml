@@ -21,7 +21,13 @@ Rectangle {
     required property Item presentationDrag
     required property Item playlistDrag
     // Whether a playlist is being renamed in place, which has the keyboard
-    readonly property bool renaming: playlistList.editingPath !== ""
+    readonly property bool renaming: playlistList.editingPath !== "" || libraryList.editingPath !== ""
+
+    // Starts naming a library in place: one that has just been made (see newLibrary in
+    // Main.qml).
+    function renameLibrary(path) {
+        libraryList.editingPath = path
+    }
 
     // Starts renaming a playlist or folder in place, bringing its row into view first:
     // a new one may be below the bottom of the pane.
@@ -68,9 +74,48 @@ Rectangle {
 
                 width: sourcesView.width
 
-                SectionTitle {
-                    color: sidebar.win.librariesColor
-                    text: "Libraries"
+                // The libraries, with a button to add one or to import a song into the
+                // one that is open
+                Item {
+                    width: parent.width
+                    height: librariesTitle.height
+
+                    SectionTitle {
+                        id: librariesTitle
+
+                        color: sidebar.win.librariesColor
+                        text: "Libraries"
+                    }
+
+                    Rectangle {
+                        id: addLibraryButton
+
+                        objectName: "addLibraryButton"
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 3
+                        width: 26
+                        height: 22
+                        radius: 5
+                        color: addLibraryMouse.pressed ? "#5c5f67" : addLibraryMouse.containsMouse ? "#53565e" : "#474a51"
+
+                        Text {
+                            anchors.centerIn: parent
+                            anchors.verticalCenterOffset: -1
+                            color: sidebar.win.textColor
+                            font.pixelSize: 16
+                            text: "+"
+                        }
+
+                        MouseArea {
+                            id: addLibraryMouse
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: sidebar.win.showLibraryMenu(addLibraryButton)
+                        }
+                    }
                 }
 
                 SidebarList {
@@ -85,6 +130,8 @@ Rectangle {
                     livePath: sidebar.win.cueLive && sidebar.win.liveDocument && sidebar.win.livePlaylistId === ""
                               ? sidebar.win.liveDocument.path.substring(0, sidebar.win.liveDocument.path.lastIndexOf("/")) : ""
                     onPicked: (entry) => sidebar.win.openLibrary(entry.path)
+                    onRenamed: (entry, name) => sidebar.win.renameLibrary(entry.path, name)
+                    onEditingEnded: sidebar.win.takeFocus()
                 }
 
                 // Playlists and the folders they are kept in, in ProPresenter's

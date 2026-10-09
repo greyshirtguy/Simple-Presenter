@@ -1,5 +1,7 @@
 #include "catalog.h"
 
+#include "songimport.h"
+
 #include "playlistimport.h"
 #include "prodocument.h"
 #include "sessionlog.h"
@@ -177,6 +179,54 @@ QVariantMap Catalog::open(const QString &path) const
 QVariantMap Catalog::openArranged(const QString &path, const QString &arrangement) const
 {
     return open(path, arrangement);
+}
+
+QVariantMap Catalog::createLibrary(const QString &name)
+{
+    const QString wanted = name.simplified();
+    if (wanted.isEmpty() || wanted.contains(u'/') || wanted.startsWith(u'.'))
+        return {{"path", QString()}, {"error", QStringLiteral("A library needs a name, without a slash in it")}};
+    if (m_librariesDirectory.isEmpty())
+        return {{"path", QString()}, {"error", QStringLiteral("There is no workspace open")}};
+    QDir libraries(m_librariesDirectory);
+    if (libraries.exists(wanted))
+        return {{"path", QString()}, {"error", QStringLiteral("There is a library named %1 already").arg(wanted)}};
+    if (!libraries.mkpath(wanted))
+        return {{"path", QString()}, {"error", QStringLiteral("Cannot make the folder %1").arg(libraries.filePath(wanted))}};
+    rescan();
+    return {{"path", libraries.filePath(wanted)}, {"error", QString()}};
+}
+
+QVariantMap Catalog::renameLibrary(const QString &path, const QString &name)
+{
+    const QString wanted = name.simplified();
+    const QFileInfo folder(path);
+    if (wanted == folder.fileName())
+        return {{"path", path}, {"error", QString()}};
+    if (wanted.isEmpty() || wanted.contains(u'/') || wanted.startsWith(u'.'))
+        return {{"path", path}, {"error", QStringLiteral("A library needs a name, without a slash in it")}};
+    if (!folder.isDir() || folder.absolutePath() != QDir(m_librariesDirectory).absolutePath())
+        return {{"path", path}, {"error", QStringLiteral("That is not one of the workspace's libraries")}};
+    if (!QDir(path).isEmpty())
+        return {{"path", path}, {"error", QStringLiteral("Only an empty library can be renamed here: playlists find their presentations by the library's name")}};
+    QDir libraries(m_librariesDirectory);
+    if (libraries.exists(wanted))
+        return {{"path", path}, {"error", QStringLiteral("There is a library named %1 already").arg(wanted)}};
+    if (!libraries.rename(folder.fileName(), wanted))
+        return {{"path", path}, {"error", QStringLiteral("Cannot rename the folder %1").arg(path)}};
+    rescan();
+    return {{"path", libraries.filePath(wanted)}, {"error", QString()}};
+}
+
+QVariantMap Catalog::importSong(const QUrl &file, const QString &library, int linesPerSlide)
+{
+    QString made;
+    const QString error = songimport::importFile(file.isLocalFile() ? file.toLocalFile() : file.toString(), library, linesPerSlide, &made);
+    // The library has one more in it than was listed: the lists are told at once, not
+    // when the folder's watcher gets round to it.
+    if (error.isEmpty())
+        rescan();
+    return {{"path", made}, {"error", error}};
 }
 
 QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arrangement) const

@@ -255,14 +255,37 @@ _KEPT = os.path.join(REPO, "third_party", "ndi-sdk", "download", "Install_NDI_SD
 NDI_INSTALLER = "file://" + (_KEPT if os.path.exists(_KEPT) else "/nonexistent/Install_NDI_SDK_v6_Linux.tar.gz")
 
 
+PLAIN_SONG = """{title: Plain Song}
+{artist: Nobody At All}
+{key: G}
+
+{start_of_verse}
+[G]One two three [D]four
+Five six [Em]seven eight
+[C]Nine ten e[G/B]leven twelve
+Thirteen
+{end_of_verse}
+
+{start_of_chorus}
+[C]Sing it [G]out
+[D]Sing it loud
+{end_of_chorus}
+
+{comment: Outro}
+[G] [D/F#] [Em]
+"""
+
+
 def prepare_chords(workspace, test_dir):
     """Songs that have chords, which Multitracks wrote and ProPresenter kept (copies of the user's own, kept with the
-    other fixtures and not in the repository), in the workspace's first library."""
+    other fixtures and not in the repository), in the workspace's first library; and a ChordPro file to import."""
     libraries = os.path.join(workspace, "Libraries")
     library = os.path.join(libraries, sorted(name for name in os.listdir(libraries) if os.path.isdir(os.path.join(libraries, name)))[0])
     songs = os.path.join(FIXTURES, "songs")
     for name in sorted(os.listdir(songs)):
         shutil.copy(os.path.join(songs, name), library)
+    with open(os.path.join(workspace, "Plain Song.cho"), "w") as out:
+        out.write(PLAIN_SONG)
 
 
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):

@@ -1,6 +1,7 @@
 #include "chordsbridge.h"
 
 #include "chords.h"
+#include "songimport.h"
 
 #include <QRegularExpression>
 #include <QTextCharFormat>
@@ -81,6 +82,27 @@ QString Chords::withoutChords(const QString &chordPro) const
 bool Chords::isPlaceholders(const QString &line) const
 {
     return chords::isPlaceholders(line);
+}
+
+QVariantMap Chords::describeFile(const QString &path) const
+{
+    QString error;
+    const chords::Song song = songimport::readFile(path, &error);
+    QVariantList sections;
+    int chordCount = 0;
+    for (const chords::Section &section : song.sections) {
+        sections.append(QVariantMap {{"name", section.name}, {"lines", int(section.lines.size())}});
+        for (const chords::Line &line : section.lines)
+            chordCount += int(line.chords.size());
+    }
+    return {
+        {"title", song.title},
+        {"artist", song.artist},
+        {"key", song.key},
+        {"sections", sections},
+        {"chords", chordCount},
+        {"error", error},
+    };
 }
 
 namespace {

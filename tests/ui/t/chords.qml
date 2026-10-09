@@ -5,7 +5,7 @@ import "lib.js" as Lib
 // Chords: a song's chords read from a file Multitracks wrote, shown on the stage in the
 // key picked and in each notation; the chord editor (the spot, the keys 1 to 7, typing
 // a chord, dragging one, copying a line's, undo); the ChordPro editor (only chords can
-// be typed).
+// be typed); importing a ChordPro file; and a new library.
 QtObject {
     id: t
 
@@ -354,6 +354,68 @@ QtObject {
                 check("every chord change can be undone, back to the song as it was", JSON.stringify(editScreen.editor.song()) === kept.song, undone + " steps")
                 stopEditing()
                 return 500
+            },
+            () => {
+                // Importing a ChordPro file
+                kept.file = "@WORKSPACES@/ProPresenter MR/Plain Song.cho"
+                const found = Chords.describeFile(kept.file)
+                check("a ChordPro file is read: its title, its key, its parts and its chords", found.error === "" && found.title === "Plain Song" && found.key === "G"
+                      && found.sections.map(s => s.name + ":" + s.lines).join(" ") === "Verse 1:4 Chorus:2 Outro:1" && found.chords === 11, JSON.stringify(found))
+                click(centre(named("addLibraryButton")))
+                return 400
+            },
+            () => {
+                check("the + beside Libraries offers a new library and a ChordPro file", labels() === "New Library, Import ChordPro File…", labels())
+                menu.close()
+                importSongPanel.show(kept.file)
+                return 400
+            },
+            () => {
+                check("the import says what it found and how many slides it makes at two lines each", importSongPanel.visible && importSongPanel.lines === 2 && importSongPanel.slideCount === 4,
+                      importSongPanel.slideCount)
+                testInput.grab("9-import")
+                importSongPanel.lines = 1
+                check("and at another number", importSongPanel.slideCount === 7, importSongPanel.slideCount)
+                importSongPanel.lines = 2
+                click(centre(named("importSongButton")))
+                return 900
+            },
+            () => {
+                check("the song comes into the library that is open, and is opened", document !== null && document.name === "Plain Song" && document.path.endsWith("/Plain Song.pro")
+                      && documents.some(d => d.name === "Plain Song"), document ? document.path : "")
+                check("as a slide for every two lines, in a group for each part, with its key", document.slides.length === 4
+                      && document.slides.map(s => s.group).join("|") === "Verse 1|Verse 1|Chorus|Outro" && document.originalKey === "G" && document.hasChords,
+                      document.slides.map(s => s.group).join("|") + " " + document.originalKey)
+                const first = document.slides[0].elements[0]
+                check("its words are in a text box named Lyrics, with the chords over them", first.name === "Lyrics" && testInput.plain(first.text) === "One two three four\nFive six seven eight"
+                      && first.chords.map(c => c.at + ":" + c.name).join(" ") === "0:G 14:D 28:Em", JSON.stringify(first.chords))
+                const outro = document.slides[3].elements[0]
+                check("and a line of chords alone hangs on stand-ins", outro.chords.map(c => c.at + ":" + c.name).join(" ") === "0:G 2:D/F# 4:Em" && testInput.plain(outro.text).length === 5,
+                      JSON.stringify(outro.chords))
+                testInput.grab("10-imported")
+                click(centre(named("addLibraryButton")))
+                return 400
+            },
+            () => {
+                kept.libraries = catalog.libraries.length
+                click(menuRow("New Library"))
+                return 600
+            },
+            () => {
+                check("New Library makes one, opens it and starts naming it", catalog.libraries.length === kept.libraries + 1 && libraryPath.endsWith("/New Library")
+                      && sidebar.renaming && documents.length === 0, libraryPath)
+                testInput.key(Qt.Key_A, Qt.ControlModifier)
+                testInput.type("Hymns")
+                testInput.key(Qt.Key_Return)
+                return 600
+            },
+            () => {
+                check("and it is called what was typed", catalog.libraries.some(l => l.name === "Hymns") && !catalog.libraries.some(l => l.name === "New Library")
+                      && libraryPath.endsWith("/Hymns") && !sidebar.renaming, catalog.libraries.map(l => l.name).join("|") + " " + libraryPath)
+                const full = catalog.libraries.find(l => l.name !== "Hymns")
+                const renamed = catalog.renameLibrary(full.path, "Other")
+                check("a library with presentations in it is not renamed", renamed.error !== "" && renamed.path === full.path
+                      && catalog.libraries.some(l => l.path === full.path), renamed.error)
             }
         ]
         next()

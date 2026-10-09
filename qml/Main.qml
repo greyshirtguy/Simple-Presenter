@@ -1113,6 +1113,49 @@ Window {
         Log.note("chords", quoted(shown.name) + " is shown in " + key)
     }
 
+    // ---- Libraries
+
+    // The menu of the + beside Libraries.
+    function showLibraryMenu(item) {
+        menu.show([
+            { label: "New Library", run: () => newLibrary() },
+            { label: "Import ChordPro File…", disabled: libraryPath === "", run: () => songDialog.open() }
+        ], item)
+    }
+
+    // Makes an empty library, opens it, and starts naming it in place.
+    function newLibrary() {
+        const names = catalog.libraries.map(library => library.name)
+        let name = "New Library"
+        for (let n = 2; names.includes(name); ++n)
+            name = "New Library " + n
+        const created = catalog.createLibrary(name)
+        if (!report(created.error))
+            return
+        openLibrary(created.path)
+        sidebar.renameLibrary(created.path)
+    }
+
+    function renameLibrary(path, name) {
+        const renamed = catalog.renameLibrary(path, name)
+        if (report(renamed.error) && renamed.path !== path && libraryPath === path)
+            openLibrary(renamed.path)
+    }
+
+    // Makes a presentation of a ChordPro file in the library that is open, with so many
+    // lines of its words on a slide, and opens it.
+    function importSong(file, lines) {
+        const made = catalog.importSong(file, libraryPath, lines)
+        if (!report(made.error))
+            return
+        selectedNode = ""
+        playlistId = ""
+        refreshLists()
+        openDocument(made.path)
+        Search.read(catalog.librariesDirectory)
+        Log.note("import", "A song came in from " + quoted(String(file).replace(/^.*\//, "")) + " as " + quoted(made.path.replace(/^.*\//, "")))
+    }
+
     function showAddMenu(item) {
         menu.show([
             { label: "Add Folder", run: () => newPlaylistNode(true, newNodeParent()) },
@@ -2129,6 +2172,14 @@ Window {
 
     // Presentations go into the library last browsed, playlists where a new one would.
     FileDialog {
+        id: songDialog
+
+        title: "Import ChordPro File"
+        nameFilters: ["ChordPro files (*.cho *.chopro *.chordpro *.crd *.pro *.txt)", "All files (*)"]
+        onAccepted: importSongPanel.show(decodeURIComponent(String(selectedFile).replace(/^file:\/\//, "")))
+    }
+
+    FileDialog {
         id: importDialog
 
         title: "Import Playlist"
@@ -2773,6 +2824,17 @@ Window {
                 return
             event.accepted = true
         }
+    }
+
+    // What a ChordPro file holds, and how it is to come in
+    ImportSong {
+        id: importSongPanel
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 20
+        win: win
+        onClosed: win.takeFocus()
     }
 
     // The small panel in which a timer action or a stage action is set up

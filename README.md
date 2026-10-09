@@ -142,6 +142,7 @@ always wished ProPresenter had them. The list will grow.
   to put one on by hand. Here the editor has a sheet of the whole song for doing it
   with the mouse and the keys 1 to 7, and the same song as ChordPro text. See
   [Chords](#chords).
+- **Importing a ChordPro file** as a new song, chords and all.
 
 ## TODO
 
@@ -197,12 +198,12 @@ promise that any of them will turn out to be possible this way: that is the expe
 - [ ] **More Actions** (timers, clearing, the stage, props and macros are done)
 - [x] **Macros**
 - [x] **Search**, **Looks**, **Themes**
+- [x] **Chords**: shown on the stage in any key and notation, put on by hand in two
+      editors, and brought in from ChordPro files. See [Chords](#chords)
 - [ ] **A theme for a new slide** (now that there are themes, everything that makes a
       new slide, which is the `+` over the editor's slides, New Slide in a slide's menu
       and media dropped between slides, is to offer a theme's slide as well as a blank one)
 - [ ] **Arrangement Editor**
-- [ ] **Importing ChordPro**
-- [ ] **Chord Editor**
 - [ ] **Blackmagic SDI**
 - [ ] **EasyView**
 - [ ] **MIDI**
@@ -1149,7 +1150,8 @@ found from there, and choosing a theme for a new slide.
 A song can have chords over its words, for a stage screen to show the band. They are
 ProPresenter's: it gets them with a song imported from Multitracks, keeps them in the
 song's file, and shows them on a stage layout. This app reads and shows them the same
-way, and adds what ProPresenter has not: ways to put chords on by hand.
+way, and adds what ProPresenter has not: ways to put chords on by hand, and to bring a
+song in from a ChordPro file.
 
 **On the stage.** In a stage layout, a text box that shows the current or the next
 slide's text has **Chords** in its Text tab: **Show**, a colour, and how they are
@@ -1198,14 +1200,20 @@ taken to be in C until one is set.
 words themselves cannot be typed over. `[` brings its `]` with it, and Backspace on a
 bracket takes the whole chord.
 
+**Importing.** The **+** beside Libraries has **Import ChordPro File…**, which makes a
+new song of a ChordPro file in the library that is open: a group for each part the
+file marks (verses, choruses, a bridge, or a line that only says "Verse 2:"), two
+lines of words to a slide unless another number is asked for, the chords over the
+words, and the song's key. The same **+** has **New Library**.
+
 What is a guess, or not done:
 
 - How the chords are kept was worked out from songs ProPresenter imported from
   Multitracks, and what is written here is in the same form. A song with chords put on
-  here has not been opened in ProPresenter yet.
+  here has not been opened in ProPresenter yet; nor has a song imported here.
 - Numbers, numerals and Do Re Mi are written the way musicians write them.
   ProPresenter does not say exactly what it writes, so they may differ in the corners.
-- A song chorded here is not marked as a Multitracks song, which is a mark
+- A song imported or chorded here is not marked as a Multitracks song, which is a mark
   for songs licensed from them.
 - The chord editors do not change words; the Slides editor does, and the chords of
   the rest of the text box stay on their words when it does.
@@ -1491,6 +1499,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/lookfile.*`, `src/looks.*` | The workspace's looks, in ProPresenter's set-up file: which layers each audience screen gets, and in what theme |
 | `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
 | `src/chords.*`, `src/chordsbridge.*` | Chords: what one is, changing key, the four notations, ChordPro text; and the same for QML to call |
+| `src/songimport.*` | A new presentation made of a ChordPro file |
 | `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |
 | `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
 | `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
@@ -1523,6 +1532,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/SearchPanel.qml` | The search window |
 | `qml/ChordSheet.qml`, `qml/ChordProEditor.qml` | The two chord editors: the song as a sheet with its chords in bubbles, and as ChordPro text |
 | `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |
+| `qml/ImportSong.qml` | The panel a ChordPro file is imported from |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps those two windows out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |

@@ -119,6 +119,19 @@ public:
     // at the top level for "". Nothing already on disk is overwritten. The copying runs
     // in the background; importFinished reports the outcome.
     Q_INVOKABLE void importPlaylist(const QUrl &archive, const QString &library, const QString &parent);
+    // Makes a new library: a folder of that name under the workspace's Libraries, which
+    // is all a library is. Returns { path, error }.
+    Q_INVOKABLE QVariantMap createLibrary(const QString &name);
+    // Gives a library another name, which is renaming its folder. Only an empty one:
+    // a playlist finds its presentations by the library's name among other things, so
+    // renaming one that has presentations in it could leave playlists pointing at
+    // nothing. It is for naming a library that has just been made. Returns
+    // { path, error }.
+    Q_INVOKABLE QVariantMap renameLibrary(const QString &path, const QString &name);
+    // Makes a presentation of a ChordPro file in the library folder `library`, with
+    // `linesPerSlide` lines of its words on each slide (see songimport.h). Returns
+    // { path, error }.
+    Q_INVOKABLE QVariantMap importSong(const QUrl &file, const QString &library, int linesPerSlide);
 
     // The same changes for the media playlists, and adding media files to one. Files are
     // referred to where they are, not copied.
