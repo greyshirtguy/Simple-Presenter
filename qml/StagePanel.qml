@@ -23,7 +23,7 @@ Item {
         const added = StageLayouts.add()
         if (!win.report(added.error))
             return
-        win.stageLayoutId = added.id
+        Show.stageLayoutId = added.id
         win.startEditingStage(added.id)
     }
 
@@ -117,7 +117,7 @@ Item {
                 font.pixelSize: 12
                 model: [panel.plain].concat(panel.layouts.map(layout => layout.name))
                 currentIndex: Math.max(0, panel.layouts.findIndex(layout => layout.id === panel.win.stageLayoutId) + 1)
-                onActivated: (index) => panel.win.stageLayoutId = index === 0 ? "" : panel.layouts[index - 1].id
+                onActivated: (index) => Show.stageLayoutId = index === 0 ? "" : panel.layouts[index - 1].id
             }
 
             AppButton {

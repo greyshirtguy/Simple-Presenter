@@ -23,12 +23,18 @@
 //   kept in, laying text out and drawing it with an outline, taking a frame from a
 //   video for a thumbnail.
 //
-//   qml/ is QML, and is everything on screen and all of the app's behaviour: what is
-//   live, what a click or a key does, how the windows are laid out.
+//   qml/ is QML, and is everything on screen: how the windows are laid out, and what a
+//   click or a key does in them.
 //
 //   What passes between them is plain data: lists and maps. A presentation crosses over
 //   as a list of slides, each slide a map of everything needed to draw it. QML never
-//   sees a file format, and C++ never decides what is on the output.
+//   sees a file format.
+//
+//   Between the two is the show itself: what is live, and the rules by which it changes
+//   (src/showstate.h). It is plain values and functions, with nothing of the windows in
+//   it, so that the rules can be tested by themselves (tests/unit). The operator window
+//   asks for a change through Show (src/show.h) and is told what the output is then to
+//   be handed. Anything that decides what the audience sees belongs there.
 //
 // A slide's way from the file to the screen.
 //
@@ -37,7 +43,8 @@
 //   2. proconvert::toSlideMap() (src/proconvert.h) turns each slide into a map: its
 //      size, its elements, and each element's box, fill, stroke, shadows and text. The
 //      text is parsed from RTF (src/rtf.h) into runs of styled text (src/richtext.h).
-//   3. In QML, goLive() in Main.qml hands that map to the output window, whose slide
+//   3. In QML, goLive() in Main.qml asks Show for the slide to go live; Show says what
+//      is to be shown, and Main.qml hands that map to the output window, whose slide
 //      layer (qml/TransitionLayer.qml) gives it to a Slide (qml/Slide.qml), which makes
 //      a SlideElement for each element, which draws its text with a StrokedText
 //      (src/strokedtext.h).

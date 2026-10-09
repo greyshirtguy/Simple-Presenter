@@ -392,16 +392,21 @@ What gets it there:
   a workspace on disk                    C++ (src/)                      QML (qml/)
   -------------------          ---------------------------       --------------------------
   Libraries/*/*.pro    --->    ProDocument, proconvert    --->   Main.qml: what is open,
-  Playlists/Library            PlaylistFile, Timers,             what is live, what a key
-  Playlists/Media              Props, StageLayouts               or a click does
+  Playlists/Library            PlaylistFile, Timers,             what a key or a click
+  Playlists/Media              Props, StageLayouts               does
   Configuration/Timers,        (parse, flatten into                     |
     Props, Stage               lists and maps)                          | goLive(), showMedia(),
   Media/...                                                             | toggleProp()
-        ^                      StrokedText, textlayout                  v
-        |                      (text laid out and drawn   <---   Output.qml: a media layer
-        +--- changes are       with its outline, once)           and a slide layer, each a
-             written back                                        TransitionLayer, and the
-             into the files    ThumbnailProvider, videoframe     props over them
+        ^                                                               v
+        |                      Show, showstate            <---   asks for a change
+        +--- changes are       (what is live, and the     --->   is told what to show
+             written back      rules it changes by)                     |
+             into the files                                             v
+                               StrokedText, textlayout           Output.qml: a media layer
+                               (text laid out and drawn   <---   and a slide layer, each a
+                               with its outline, once)           TransitionLayer, and the
+                                                                 props over them
+                               ThumbnailProvider, videoframe
                                (small pictures, cached)   --->   thumbnails in the lists
 ```
 
@@ -412,12 +417,23 @@ people on stage see.
 
 The code is in two halves. The C++ in `src/` does files and pixels: it reads and writes
 ProPresenter's documents, parses the RTF their text is kept in, lays text out and draws
-it with its outline, and makes thumbnails. The QML in `qml/` is everything on screen and
-all of the behaviour. What passes between them is plain data: a presentation crosses
-over as a list of slides, each a map of everything needed to draw it, so the QML never
-sees a file format and the C++ never decides what is on the output.
+it with its outline, and makes thumbnails. The QML in `qml/` is everything on screen:
+the windows, and what a click or a key does in them. What passes between them is plain
+data: a presentation crosses over as a list of slides, each a map of everything needed
+to draw it, so the QML never sees a file format.
 
-Two rules run through all of it.
+Between the two is the show itself. **What is live, and the rules by which it changes,
+are in one place with nothing of the windows in it** (`src/showstate.*`): which slide
+the show is at, what is on the media layer, which props are on; and what happens to
+those when a slide goes live, media is put on, a layer is cleared or a macro is run.
+When is a background video left to play on? What does a slide that clears itself leave
+marked? What does a macro that runs a macro do? Each is a few lines there, tried by
+tests that need no window ([Tests](#tests)). The operator window only asks for a change
+(through `Show`, which QML can talk to) and is told what the output is then to be
+handed. Anything that decides what the audience sees belongs there, and not in a
+window's script.
+
+Three rules run through all of it.
 
 - **The files are ProPresenter's, and stay that way.** They hold far more than this app
   understands. Every change is made by parsing the whole file, altering only the fields
@@ -427,13 +443,15 @@ Two rules run through all of it.
   thumbnail, in the preview and in the editor, from the same data. Layout is done in
   the slide's own coordinates and scaled, so a line of text breaks at the same word at
   every size.
+- **One keeper of what is live.** Nothing but `Show` changes it, and everything that
+  marks or shows it reads it from there.
 
 Most of what a slide shows is settled when its file is read. The exception is text that
 changes while the slide is on show: a timer's time, or the words of the slide that is
 live. An element linked to a timer is drawn by asking `Timers`, the one object that
 holds the timers and keeps them running, what the time is now, and is drawn again when
-the answer changes; one linked to the live slide asks `Show`, which the operator window
-keeps told of what is live. A stage layout is nothing more than a slide made of such
+the answer changes; one linked to the live slide asks `Show`, which is what keeps what
+is live. A stage layout is nothing more than a slide made of such
 boxes, and a prop nothing more than a slide laid over the others, so both are drawn by
 what draws every slide and edited by what edits every slide.
 
@@ -1148,12 +1166,13 @@ those.
 | `src/presentationeditor.*` | A presentation, the props or the stage layouts open in the editor: its changes, undo, saving and backups |
 | `src/playlistfile.*` | Reads and writes the two playlists files |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
-| `src/keymappings.*` | The workspace's key mappings: the hotkeys of groups, in the file ProPresenter keeps them in |
+| `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
 | `src/cursors.*` | The pointer for turning an element in the editor, and whether Ctrl is held |
 | `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
 | `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |
 | `src/props.*`, `src/stagelayouts.*` | The workspace's props and their collections, and its stage layouts: their files, and adding to, renaming and removing them |
-| `src/show.*` | What is live, for the text boxes that show the words of the live slide or the next |
+| `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a clear, a prop or a macro does |
+| `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |
@@ -1167,7 +1186,8 @@ those.
 | `src/selftest.*` | The self-test |
 | `src/benchmark.*`, `qml/Benchmark.qml`, `benchmark/` | The benchmark: what it works on and measures with, its run, and the script that repeats it and compares it with the baseline |
 | `src/sessionlog.*` | The log of a run: what the app is running on, what it did, a crash's last lines, and the watch for the app not answering |
-| `qml/Main.qml` | The operator window: the app's state and logic |
+| `tests/unit/` | The unit tests, run by `ctest` |
+| `qml/Main.qml` | The operator window: what is open, and what a click or a key does |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
 | `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props and stage screens |

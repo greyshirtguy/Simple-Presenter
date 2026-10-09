@@ -97,30 +97,34 @@ Window {
     property var document: null
     // Which row of `documents` it was opened from
     property string documentKey: ""
-    // The presentation and slide on the slide layer. They stay set while the layer is
-    // cleared, so stepping carries on from where it was.
+    // What is live. It is kept by Show (src/show.h), which is also the only thing that
+    // changes it, by the rules of src/showstate.h: the functions below that put a slide
+    // or media on the output, turn a prop over or clear a layer only ask it to. What it
+    // holds is read back here under the names the rest of the window goes by.
+    //
+    // The presentation the show is at, as it was read (Show is handed its slides one at
+    // a time, as they go live), and the place in it of the slide on the slide layer.
+    // They stay set while the layer is cleared, so stepping carries on from where it was.
     property var liveDocument: null
-    property int liveIndex: -1
+    readonly property int liveIndex: Show.liveIndex
     // The row and playlist it went live from ("" for a library)
-    property string liveKey: ""
-    property string livePlaylistId: ""
-    property bool cleared: true
+    readonly property string liveKey: Show.liveKey
+    readonly property string livePlaylistId: Show.livePlaylistId
+    readonly property bool cleared: Show.cleared
     // Set when the slide that is live took itself off the output: its cue has an action
     // that clears the slide, or everything. Nothing of it is on the slide layer, and
     // `cleared` says so; but it is still the slide the show is at, which is marked as
     // the live one and from which the arrow keys go on.
-    property bool clearedByCue: false
+    readonly property bool clearedByCue: Show.clearedByCue
     // Whether the slide the show is at is to be marked as such: it is on the output, or
     // would be had it not taken itself off
-    readonly property bool cueLive: !cleared || clearedByCue
-    // While the actions of the slide going live are being run
-    property bool runningCue: false
+    readonly property bool cueLive: Show.cueLive
     // What is on the media layer: { name, path, source, video, foreground, loops,
     // retriggers, volume }, or null, and the media playlist it was triggered from, "" if
-    // a slide triggered it. The last four are how it behaves (see goLive() and
-    // alreadyPlaying(), and for the sound MediaContent).
-    property var liveMedia: null
-    property string liveMediaPlaylistId: ""
+    // a slide triggered it. The last four are how it behaves (see show::State::goLive
+    // and alreadyPlaying, and for the sound MediaContent).
+    readonly property var liveMedia: Show.liveMedia
+    readonly property string liveMediaPlaylistId: Show.liveMediaPlaylistId
 
     // The transitions there are to choose from, with what can be adjusted about each
     // (see TransitionCatalogue), the one chosen, and what has been chosen for its
@@ -255,7 +259,7 @@ Window {
     // front. And the same as what the output is handed, [{ id, slide }], which follows
     // the props themselves: one that is edited changes where it is shown, and one that
     // is removed goes.
-    property var liveProps: []
+    readonly property var liveProps: Array.from(Show.liveProps)
     readonly property var shownProps: {
         const all = []
         for (const collection of Props.collections) {
@@ -267,7 +271,7 @@ Window {
     }
     // The stage layout the stage screen has, by id, and the layout itself; "" and null
     // for the plain view the app has of its own.
-    property string stageLayoutId: ""
+    readonly property string stageLayoutId: Show.stageLayoutId
     readonly property var stageLayout: StageLayouts.layouts.find(layout => layout.id === stageLayoutId) ?? null
 
     readonly property bool viewingLive: document !== null && liveDocument !== null
@@ -346,11 +350,6 @@ Window {
         const playlist = catalog.playlists.find(p => p.path === playlistId)
         const library = catalog.libraries.find(l => l.path === libraryPath)
         return playlist ? "the playlist " + quoted(playlist.name) : library ? "the library " + quoted(library.name) : "nowhere"
-    }
-
-    function mediaWords(media) {
-        return (media.foreground ? "foreground " : "background ") + (media.video ? "video " : "picture ") + quoted(media.name)
-               + (media.video && media.loops ? ", looping" : "")
     }
 
     function counted(count, one, many) {
@@ -558,7 +557,7 @@ Window {
             const index = rearranged.slides.findIndex(s => s.id === liveDocument.slides[liveIndex].id)
             if (index >= 0) {
                 liveDocument = rearranged
-                liveIndex = index
+                Show.follow(cueAt(rearranged, key, playlistId, index))
             }
         }
         if (documentKey === key) {
@@ -652,128 +651,33 @@ Window {
 
     // ---- Actions: what a slide's cue, or a macro, does besides (see src/actions.h)
 
-    // Runs a list of actions, in order: a slide's, as it goes live, or a macro's.
-    // `depth` is how many macros deep this is, a macro being able to run a macro.
-    function runActions(actions, depth) {
-        for (const action of actions)
-            runAction(action, depth)
-    }
-
-    function runAction(action, depth) {
-        switch (action.kind) {
-        case "timer":
-            Timers.act(action)
-            break
-        case "clear":
-            // The layers there are here to clear; the others are ProPresenter's.
-            Log.note("action", action.title + (action.done ? "" : ": not done here"))
-            if (!action.done)
-                break
-            if (action.layer === 0)
-                clearAll()
-            else if (action.layer === 2)
-                clearMedia()
-            else if (action.layer === 4)
-                clearProps()
-            else
-                clearSlide()
-            break
-        case "stage": {
-            const layout = stageLayoutOf(action)
-            Log.note("action", action.title + (layout ? "" : ": nothing to change here"))
-            if (layout)
-                stageLayoutId = layout.id
-            break
-        }
-        case "prop": {
-            const prop = propOf(action)
-            Log.note("action", action.title + (prop ? "" : ": there is no such prop here"))
-            if (prop)
-                setProp(prop.id, !action.clear)
-            break
-        }
-        case "macro": {
-            const macro = Macros.find(action.macroId, action.macroName)
-            if (macro.id === undefined) {
-                Log.note("action", action.title + ": there is no such macro here")
-            } else if (depth >= 8) {
-                Log.problem("The macro " + quoted(macro.name) + " was not run again: macros that run each other have gone round eight times")
-            } else {
-                Log.note("action", action.title + ", which has " + macro.actions.length + " action" + (macro.actions.length === 1 ? "" : "s"))
-                runActions(macro.actions, depth + 1)
-            }
-            break
-        }
-        default:
-            Log.note("action", action.title + ": not done here")
-        }
-    }
-
     // Runs a macro by hand, from the show controls.
     function runMacro(id) {
-        const macro = Macros.find(id)
-        if (macro.id === undefined)
-            return
-        Log.note("macro", quoted(macro.name) + " run by hand: " + macro.actions.length + " action" + (macro.actions.length === 1 ? "" : "s"))
-        runActions(macro.actions, 1)
+        Show.runMacro(id)
     }
 
-    // The stage screen this app has, as an action names one. ProPresenter may have
-    // set several up for the workspace, of which the first is taken to be it; a
-    // workspace it has not set up has the one, by the name it has here.
+    // What an action names in this workspace (see Show): the stage screen this app has,
+    // which of a stage action's screens that is, the layout the action gives it, the
+    // action's list of screens with this app's given a layout, and the prop a prop
+    // action is for.
     function stageScreen() {
-        return StageLayouts.screens.length > 0 ? StageLayouts.screens[0] : { id: "", name: "Stage" }
+        return Show.stageScreen()
     }
 
-    // Which of a stage action's screens is this app's: the one it names by id, or by
-    // name; failing that, the first it gives a layout to, the action having been made
-    // somewhere the screens are called something else. -1 if it names none.
     function stageAssignmentOf(action) {
-        const screen = stageScreen()
-        const list = action.assignments
-        const byId = list.findIndex(a => screen.id !== "" && a.screenId === screen.id)
-        const byName = list.findIndex(a => a.screenName === screen.name)
-        const first = list.findIndex(a => a.layoutId !== "" || a.layoutName !== "")
-        return byId >= 0 ? byId : byName >= 0 ? byName : first
+        return Show.stageAssignmentOf(action)
     }
 
-    // The stage layout an action gives this app's stage screen, or null for none, or
-    // for one that is not among the workspace's.
     function stageLayoutOf(action) {
-        const assignment = action.assignments[stageAssignmentOf(action)]
-        if (!assignment || (assignment.layoutId === "" && assignment.layoutName === ""))
-            return null
-        return StageLayouts.layouts.find(layout => layout.id === assignment.layoutId)
-            ?? StageLayouts.layouts.find(layout => layout.name === assignment.layoutName) ?? null
+        return Show.stageLayoutOf(action)
     }
 
-    // A stage action's list of screens, with this app's given a layout (or, for null,
-    // left as it is). An action that is being changed keeps what it says of other
-    // screens; a new one names every screen ProPresenter has set up, the others left
-    // as they are, which is how ProPresenter writes one.
     function stageAssignments(existing, layout) {
-        const mine = { layoutId: layout ? layout.id : "", layoutName: layout ? layout.name : "" }
-        if (existing && existing.assignments.length > 0) {
-            const at = Math.max(0, stageAssignmentOf(existing))
-            return existing.assignments.map((a, i) => i === at ? Object.assign({}, a, mine) : a)
-        }
-        const screens = StageLayouts.screens.length > 0 ? StageLayouts.screens : [stageScreen()]
-        return screens.map((screen, i) => Object.assign({ screenId: screen.id, screenName: screen.name, layoutId: "", layoutName: "" },
-                                                        i === 0 ? mine : {}))
+        return Show.stageAssignments(existing ?? null, layout ?? null)
     }
 
-    // The prop an action is for: by its id, or failing that by its name.
     function propOf(action) {
-        let named = null
-        for (const collection of Props.collections) {
-            for (const prop of collection.props) {
-                if (prop.id === action.propId)
-                    return prop
-                if (named === null && prop.name === action.propName)
-                    named = prop
-            }
-        }
-        return named
+        return Show.propOf(action)
     }
 
     // What an action is added to, changed in or taken from: `target` is { slide } for
@@ -936,13 +840,10 @@ Window {
         const scrolledTo = grid.contentY
         const reloaded = load(currentEntry())
         if (viewingLive) {
-            const live = liveIndex >= 0 && liveIndex < liveDocument.slides.length ? liveDocument.slides[liveIndex].id : ""
-            const place = liveDocument.slides.slice(0, liveIndex + 1).filter(slide => slide.id === live).length
-            let passed = 0
-            const index = reloaded.slides.findIndex(slide => slide.id === live && ++passed === place)
+            // The show follows its slide to wherever it now is.
+            const index = Show.placeAfterReload(liveDocument.slides.map(slide => slide.id), liveIndex, reloaded.slides.map(slide => slide.id))
             liveDocument = reloaded
-            if (index >= 0)
-                liveIndex = index
+            Show.follow(cueAt(reloaded, liveKey, livePlaylistId, index >= 0 ? index : liveIndex))
         }
         document = reloaded
         grid.contentY = scrolledTo
@@ -1475,67 +1376,28 @@ Window {
     }
 
     // Puts a slide on the slide layer, and any media its cue triggers on the media layer.
+    // A slide as Show is handed it when it goes live: which presentation it is of, by
+    // the row it was opened from and the playlist that row is in, where it is in it,
+    // and the slide itself with the one after it.
+    function cueAt(presentation, key, playlist, index) {
+        return { key: key, playlistId: playlist, presentation: presentation.name, index: index, count: presentation.slides.length,
+                 slide: presentation.slides[index] ?? ({}), next: presentation.slides[index + 1] ?? ({}) }
+    }
+
+    // Puts a slide of the presentation being viewed on the output: the slide, the media
+    // it brings, and then what its actions do (see show::State::goLive for the rules).
     // With `withoutMedia`, the slide and its actions and not the media its cue triggers:
     // what a click with Alt held does, as in ProPresenter.
     function goLive(index, withoutMedia) {
         if (!document || index < 0 || index >= document.slides.length)
             return
-        const slide = document.slides[index]
-        const media = withoutMedia ? undefined : slide.media
         liveDocument = document
-        liveIndex = index
-        liveKey = documentKey
-        livePlaylistId = playlistId
-        cleared = false
-        clearedByCue = false
-        Log.note("live", "slide " + (index + 1) + " of " + document.slides.length + " of " + quoted(document.name)
-                 + (slide.label !== "" ? " (" + slide.label + ")" : "")
-                 + (withoutMedia && slide.mediaName !== "" ? "; without its media, as asked"
-                    : media ? (alreadyPlaying(media) ? "; its " + mediaWords(media) + " is playing already"
-                                                     : "; with its " + mediaWords(media))
-                    : slide.mediaName !== "" ? "; its media " + quoted(slide.mediaName) + " was not found"
-                    : liveMedia !== null && liveMedia.foreground ? "; which takes off the foreground media" : "")
-                 + (slide.actions.length > 0 ? "; and has " + slide.actions.length + " action" + (slide.actions.length === 1 ? "" : "s") : ""))
-        if (!withoutMedia && !slide.media && slide.mediaName !== "")
-            Log.problem("The media " + quoted(slide.mediaName) + " of slide " + (index + 1) + " of " + quoted(document.name)
-                        + " was not found in the workspace, so the slide is shown without it")
-        if (!media) {
-            // A foreground is for the moment it was triggered in: a slide that brings no
-            // media of its own ends it. A background plays on.
-            if (liveMedia !== null && liveMedia.foreground)
-                clearMedia()
-            output.showSlide(slide)
-        } else if (alreadyPlaying(media)) {
-            output.showSlideOverMedia(slide)
-        } else {
-            liveMedia = media
-            liveMediaPlaylistId = ""
-            output.showSlideWithMedia(slide, media)
-        }
-        // What else the slide's cue does, such as starting the countdown it shows: the
-        // slide first, and then its actions, in their order. So an action that clears
-        // the slide clears this one, which is how a cue is made that shows nothing of
-        // its own; it is then still the slide the show is at (see clearedByCue).
-        runningCue = true
-        runActions(slide.actions, 0)
-        runningCue = false
+        Show.goLive(cueAt(document, documentKey, playlistId, index), withoutMedia === true)
         grid.positionViewAtIndex(index, GridView.Contain)
     }
 
-    // Whether this media is a background that is the one already playing, which is then
-    // left to play on and not started again (unless it is set always to start again).
-    // For a video that holds only while it is going round: one that plays to its end
-    // and stops is started again, there being nothing of it to play on. And it holds
-    // only for a video that is to play as the one playing does: one that has been set
-    // to play another way since is started again, which is how a change to the way a
-    // slide's video plays takes effect when the slide is next triggered.
     function alreadyPlaying(media) {
-        if (liveMedia === null || liveMedia.foreground || media.foreground || media.retriggers || media.path !== liveMedia.path)
-            return false
-        // (The count and the time only matter for the way of playing that uses them.)
-        return !media.video || (liveMedia.loops && media.playback === liveMedia.playback
-                                && (media.playback !== 2 || media.loopCount === liveMedia.loopCount)
-                                && (media.playback !== 3 || media.loopSeconds === liveMedia.loopSeconds))
+        return Show.alreadyPlaying(media)
     }
 
     // Plays the media a slide brings, and that alone: the slide layer is left as it is.
@@ -1552,12 +1414,7 @@ Window {
     // Puts media on the media layer. `playlist` is the media playlist it was picked
     // from, if it was.
     function showMedia(media, playlist = "") {
-        const playing = alreadyPlaying(media)
-        Log.note("media", mediaWords(media) + (playing ? ", which is playing already and is left to" : ""))
-        liveMedia = media
-        liveMediaPlaylistId = playlist
-        if (!playing)
-            output.showMedia(media)
+        Show.showMedia(media, playlist)
     }
 
     function openMediaPlaylist(id) {
@@ -1641,71 +1498,36 @@ Window {
     // which would only clear itself again); from another presentation it starts at
     // the top.
     function step(delta) {
-        if (!viewingLive)
-            goLive(0)
-        else if (cleared && !clearedByCue)
-            goLive(liveIndex)
-        else
-            goLive(liveIndex + delta)
+        goLive(Show.stepTarget(documentKey, playlistId, delta))
     }
 
     function clearSlide() {
-        if (cleared)
-            return
-        Log.note("clear", "the slide" + (runningCue ? ", by its own action" : ""))
-        cleared = true
-        clearedByCue = runningCue
-        output.showSlide(null)
+        Show.clearSlide()
     }
 
     function clearMedia() {
-        if (liveMedia === null)
-            return
-        Log.note("clear", "the media, " + quoted(liveMedia.name))
-        liveMedia = null
-        liveMediaPlaylistId = ""
-        output.showMedia(null)
+        Show.clearMedia()
     }
 
     // Turns a prop on, over whatever else is on the output and in front of the props
     // that are on already, or off if it is on. A collection set to show one prop at a
     // time gives up whichever of its others is on.
     function toggleProp(id) {
-        const prop = Props.find(id)
-        if (liveProps.includes(id)) {
-            liveProps = liveProps.filter(other => other !== id)
-            Log.note("prop", quoted(prop.name ?? "") + " off; " + liveProps.length + " on")
-            return
-        }
-        if (prop.id === undefined)
-            return
-        const collection = Props.collections.find(candidate => candidate.id === prop.collection)
-        const rivals = prop.single && collection ? collection.props.map(other => other.id) : []
-        const before = liveProps.length
-        liveProps = liveProps.filter(other => !rivals.includes(other)).concat([id])
-        Log.note("prop", quoted(prop.name) + " on" + (liveProps.length <= before ? ", in place of another of its collection" : "")
-                 + "; " + liveProps.length + " on")
+        Show.toggleProp(id)
     }
 
     // Puts a prop on or takes it off, whichever way it was: what an action asks, where
     // a click turns it over.
     function setProp(id, on) {
-        if (liveProps.includes(id) !== on)
-            toggleProp(id)
+        Show.setProp(id, on)
     }
 
     function clearProps() {
-        if (liveProps.length === 0)
-            return
-        Log.note("clear", "the props, " + liveProps.length + " of them")
-        liveProps = []
+        Show.clearProps()
     }
 
     function clearAll() {
-        Log.note("clear", "everything asked for")
-        clearSlide()
-        clearMedia()
-        clearProps()
+        Show.clearAll()
     }
 
     // Reads what else a workspace folder holds for the show: its timers, its props and
@@ -1828,7 +1650,7 @@ Window {
                           : firstMediaPlaylist ? firstMediaPlaylist.path : "")
         // The stage has the layout it had, if the workspace still has that layout.
         const stageLayout = savedSelection("stageLayout")
-        stageLayoutId = StageLayouts.layouts.some(layout => layout.id === stageLayout) ? stageLayout : ""
+        Show.stageLayoutId = StageLayouts.layouts.some(layout => layout.id === stageLayout) ? stageLayout : ""
     }
 
     // Closes the open workspace and opens another: the output is cleared, everything
@@ -1842,9 +1664,7 @@ Window {
         // Nothing is saved while the selections are in between the two workspaces.
         restored = false
         liveDocument = null
-        liveIndex = -1
-        liveKey = ""
-        livePlaylistId = ""
+        Show.leavePresentation()
         document = null
         documentKey = ""
         playlistId = ""
@@ -1852,7 +1672,7 @@ Window {
         libraryPath = ""
         mediaPlaylistId = ""
         selectedMediaNode = ""
-        stageLayoutId = ""
+        Show.stageLayoutId = ""
         notice = ""
         catalog.openWorkspace(path)
         // The timers, the props and the stage layouts are the workspace's too.
@@ -2070,29 +1890,62 @@ Window {
         keyTarget: keys
     }
 
-    // A prop that is no longer there is no longer on.
+    // What a change to the show asks of the output and the timers (see Show): the
+    // output window knows nothing of presentations, and is handed what to show.
     Connections {
-        target: Props
+        target: Show
 
-        function onChanged() {
-            const there = id => Props.find(id).id !== undefined
-            if (!win.liveProps.every(there))
-                win.liveProps = win.liveProps.filter(there)
+        function onSlideShown(showing, media) {
+            const slide = win.liveDocument.slides[Show.liveIndex]
+            if (showing === Show.WithMedia)
+                output.showSlideWithMedia(slide, media)
+            else if (showing === Show.OverMedia)
+                output.showSlideOverMedia(slide)
+            else
+                output.showSlide(slide)
+        }
+
+        function onSlideCleared() {
+            output.showSlide(null)
+        }
+
+        function onMediaShown(media) {
+            output.showMedia(media)
+        }
+
+        function onMediaCleared() {
+            output.showMedia(null)
+        }
+
+        function onTimerAction(action) {
+            Timers.act(action)
         }
     }
 
-    // What is live, for the text boxes that show it: those of a stage layout, mostly
-    // (see Show).
+    // What of the workspace a slide's actions can name, which Show goes by: a prop that
+    // is no longer there, for one thing, is no longer on.
     Binding {
         target: Show
-        property: "currentSlide"
-        value: win.liveSlide ?? ({})
+        property: "props"
+        value: Props.collections
     }
 
     Binding {
         target: Show
-        property: "nextSlide"
-        value: win.nextSlide ?? ({})
+        property: "macros"
+        value: Macros.collections
+    }
+
+    Binding {
+        target: Show
+        property: "stageLayouts"
+        value: StageLayouts.layouts
+    }
+
+    Binding {
+        target: Show
+        property: "stageScreens"
+        value: StageLayouts.screens
     }
 
     // Show mode and edit mode, whichever of the app's windows has the keyboard and

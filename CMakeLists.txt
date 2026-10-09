@@ -185,6 +185,8 @@ qt_add_qml_module(SimplePresenter
         src/stagelayouts.cpp
         src/show.h
         src/show.cpp
+        src/showstate.h
+        src/showstate.cpp
         src/sessionlog.h
         src/sessionlog.cpp
         src/windowlists.h
@@ -257,6 +259,13 @@ target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia proprot
                       PkgConfig::FFmpeg PkgConfig::XCB)
 # The version, for the window's title and for the log.
 target_compile_definitions(SimplePresenter PRIVATE APP_VERSION="${PROJECT_VERSION}")
+
+# Testing. The unit tests are built with the app and run by `ctest`: they try the parts
+# of it that are plain rules, by themselves.
+include(CTest)
+if(BUILD_TESTING)
+    add_subdirectory(tests/unit)
+endif()
 
 # Installing, and the package.
 #
