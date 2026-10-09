@@ -1047,6 +1047,27 @@ depends on what the app is run through:
   leave them out. On other desktops run through Wayland, and on GNOME without it, the
   two windows are in Alt+Tab as any window is.
 
+## Search
+
+**Search** (the magnifying glass at the left of the toolbar, or **Ctrl+F**) finds a
+presentation in the workspace's libraries by its name or by its words, as it is typed.
+Capitals, punctuation and accents make no difference, and the words can be in any order.
+Those found by name come first; one found by its words has the line that has them under
+its name. Beside the list is the one picked, as its words or, with **Slides**, as its
+slides look.
+
+| Key | Does |
+| --- | --- |
+| Up, Down | Pick another |
+| Enter | Open the one picked, in its library |
+| Ctrl+Enter | Add it to the end of the playlist that is open, and stay, to add another |
+| Esc | Put the search away |
+
+The libraries are read for it once, off the thread that draws, when the workspace is
+opened, and afterwards only the files that change are read again, so searching a large
+library is as quick as a small one. Only the libraries are searched (not SongSelect or
+the Bible, which ProPresenter's search also has).
+
 ## NDI
 
 [NDI](https://ndi.video) sends video between programs and computers on a local network.
@@ -1111,6 +1132,7 @@ NDI® is a registered trademark of Vizrt NDI AB.
 | A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
 | Ctrl+E | Edit mode: the editor, for the presentation being viewed |
 | Ctrl+S | Show mode: out of the editor, whichever one is up |
+| Ctrl+F | [Search](#search) |
 | Ctrl+V | Show or hide the media bin |
 | Ctrl+1 / Ctrl+2 | Show or hide the output / stage window |
 | Esc | Close a menu |
@@ -1302,6 +1324,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
+| `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |
 | `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
 | `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
 | `src/ndisetup.*`, `qml/NdiSetup.qml` | Getting NDI's library: reading NDI's installer for its licence and its archive, and the panel that offers to fetch it or says how to by hand |
@@ -1328,6 +1351,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
 | `qml/OutputScene.qml`, `qml/StageScene.qml` | What an audience screen and a stage screen show, whatever they are sent out through |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |
+| `qml/SearchPanel.qml` | The search window |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps those two windows out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |

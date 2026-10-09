@@ -28,3 +28,12 @@ qt_add_executable(tst_ndisetup
 target_include_directories(tst_ndisetup PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_ndisetup PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME ndisetup COMMAND tst_ndisetup)
+
+qt_add_executable(tst_searchindex
+    tst_searchindex.cpp
+    ${PROJECT_SOURCE_DIR}/src/searchindex.h
+    ${PROJECT_SOURCE_DIR}/src/searchindex.cpp
+)
+target_include_directories(tst_searchindex PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_searchindex PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME searchindex COMMAND tst_searchindex)

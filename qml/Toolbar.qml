@@ -108,12 +108,26 @@ Rectangle {
     // Show mode and edit mode, side by side, the one the window is in lit. Show comes
     // out of whichever editor is up; Edit goes into the editor for the presentation
     // being viewed (and, clicked again, comes back out).
+    // Search, and the themes: finding a presentation, and giving slides a look
+    ToolbarIcon {
+        id: searchButton
+
+        objectName: "searchButton"
+        anchors.left: workspacePicker.right
+        anchors.leftMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        kind: "search"
+        label: "Search"
+        on: toolbar.win.searchOpen
+        onClicked: toolbar.win.openSearch()
+    }
+
     ToolbarIcon {
         id: showButton
 
         objectName: "showButton"
-        anchors.left: workspacePicker.right
-        anchors.leftMargin: 8
+        anchors.left: searchButton.right
+        anchors.leftMargin: 2
         anchors.verticalCenter: parent.verticalCenter
         kind: "show"
         label: "Show"
@@ -142,13 +156,14 @@ Rectangle {
 
     // What is open, and the app: in the middle of the window where there is room for it
     // there, and otherwise in what room there is between the edit button and the buttons
-    // on the right
+    // on the right; where that is too little to say anything in, it is left out
     Text {
         readonly property real from: editButton.x + editButton.width + 14
         readonly property real to: toolbarControls.x - 16
 
         x: Math.max(from, Math.min((parent.width - width) / 2, to - width))
         anchors.verticalCenter: parent.verticalCenter
+        visible: to - from >= 90
         width: Math.max(0, Math.min(implicitWidth, to - from))
         elide: Text.ElideRight
         color: toolbar.win.textColor

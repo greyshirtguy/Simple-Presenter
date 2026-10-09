@@ -143,6 +143,15 @@ Window {
     property bool outputEnabled: true
     property bool stageEnabled: true
     property bool settingsOpen: false
+    // Whether the search is up (see SearchPanel)
+    property bool searchOpen: false
+
+    function openSearch() {
+        if (editing || settingsOpen)
+            return
+        searchOpen = true
+        searchPanel.open()
+    }
     // Whether the editor is up, in place of the slides, working on the presentation
     // being viewed
     property bool editing: false
@@ -1638,6 +1647,7 @@ Window {
     // its stage layouts.
     function openShowControls(path) {
         Screens.remember = remember
+        Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
                              Macros.open(path), Screens.open(path)]) {
             if (error !== "")
@@ -1927,6 +1937,8 @@ Window {
     // it is still there and otherwise falling back to the first.
     function followCatalog() {
         refreshLists()
+        // (Only what has changed is read again.)
+        Search.read(catalog.librariesDirectory)
         const firstLibrary = catalog.libraries.length > 0 ? catalog.libraries[0].path : ""
         if (playlistId !== "" && !catalog.playlists.some(p => p.path === playlistId))
             openLibrary(firstLibrary)
@@ -2619,6 +2631,26 @@ Window {
             win.settingsOpen = false
             win.takeFocus()
         }
+    }
+
+    SearchPanel {
+        id: searchPanel
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        visible: win.searchOpen
+        win: win
+        onClosed: {
+            win.searchOpen = false
+            win.takeFocus()
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+F"
+        context: Qt.ApplicationShortcut
+        enabled: !win.settingsOpen && !win.editing
+        onActivated: win.searchOpen ? searchPanel.closed() : win.openSearch()
     }
 
     ResizeGrips {

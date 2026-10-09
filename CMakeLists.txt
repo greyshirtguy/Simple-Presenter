@@ -141,6 +141,7 @@ qt_add_qml_module(SimplePresenter
         qml/RowIcon.qml
         qml/SectionTitle.qml
         qml/ScreensSettings.qml
+        qml/SearchPanel.qml
         qml/SettingsScreen.qml
         qml/SimpleViewToggle.qml
         qml/ShowControl.qml
@@ -192,6 +193,10 @@ qt_add_qml_module(SimplePresenter
         src/awake.cpp
         src/show.h
         src/show.cpp
+        src/search.h
+        src/search.cpp
+        src/searchindex.h
+        src/searchindex.cpp
         src/screenfile.h
         src/screenfile.cpp
         src/screens.h

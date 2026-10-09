@@ -100,6 +100,62 @@ Item {
             }
         }
 
+        // A magnifying glass
+        Shape {
+            anchors.fill: parent
+            visible: button.kind === "search"
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: button.on ? "#ff8a1f" : button.ink
+                strokeWidth: 1.7
+                capStyle: ShapePath.RoundCap
+
+                PathAngleArc {
+                    centerX: 7.5
+                    centerY: 6
+                    radiusX: 4.6
+                    radiusY: 4.6
+                    startAngle: 0
+                    sweepAngle: 360
+                }
+
+                PathMove {
+                    x: 11
+                    y: 9.5
+                }
+
+                PathLine {
+                    x: 15
+                    y: 13.5
+                }
+            }
+        }
+
+        // A slide with lines of text on it, behind another: the looks slides can be given
+        Shape {
+            anchors.fill: parent
+            visible: button.kind === "themes"
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: button.on ? "#ff8a1f" : button.ink
+                strokeWidth: 1.5
+                joinStyle: ShapePath.RoundJoin
+
+                PathMultiline {
+                    paths: [
+                        [Qt.point(1.5, 3.5), Qt.point(13, 3.5), Qt.point(13, 12.5), Qt.point(1.5, 12.5), Qt.point(1.5, 3.5)],
+                        [Qt.point(4.5, 1), Qt.point(16.5, 1), Qt.point(16.5, 9.5)],
+                        [Qt.point(4, 7), Qt.point(10.5, 7)],
+                        [Qt.point(4, 9.7), Qt.point(8.5, 9.7)]
+                    ]
+                }
+            }
+        }
+
         // Four corners turned outwards
         Shape {
             anchors.fill: parent

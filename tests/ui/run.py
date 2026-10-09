@@ -283,6 +283,7 @@ TESTS = {
     "keys2": test("Shapes", SHELL, 60, {"SP_TEST_REMEMBER": "1"}, lambda w, d: prepare_keys(w, d, False), after_keys2),
     "acts": test("Act", after=after_acts),
     "refine": test("Act"),
+    "search": test("Demo"),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)
@@ -361,6 +362,13 @@ class Desktop:
                 process.wait(max(0.1, deadline - time.time()))
             except subprocess.TimeoutExpired:
                 pass
+        # What the desktop's helpers mounted in its runtime folder (the portal's documents, the file system
+        # of network places) is let go of, or the folder cannot be cleared away afterwards.
+        for mounted in ("doc", "gvfs"):
+            for tool in ("fusermount3", "fusermount"):
+                if shutil.which(tool):
+                    subprocess.run([tool, "-u", "-z", os.path.join(self.runtime, mounted)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    break
         # Whatever the desktop started for itself is known by the runtime folder it was given, which is this run's alone.
         for _ in range(2):
             left = self.left()
@@ -493,7 +501,7 @@ def main():
         print("the workspaces the tests run on are not here (%s): see tests/README.md" % FIXTURES, file=sys.stderr)
         return 2
 
-    run = tempfile.TemporaryDirectory(prefix="simplepresenter-tests-")
+    run = tempfile.TemporaryDirectory(prefix="simplepresenter-tests-", ignore_cleanup_errors=True)
     run_dir = run.name
     cache = os.path.join(run_dir, "cache")
     os.makedirs(cache)
