@@ -362,7 +362,9 @@ class Desktop:
                "XDG_CONFIG_HOME": os.path.join(self.root, "config"), "XDG_DATA_HOME": os.path.join(self.root, "data"),
                "XDG_CACHE_HOME": os.path.join(self.root, "cache"), "XDG_STATE_HOME": os.path.join(self.root, "state"), "LANG": "C.UTF-8"}
         shell = dict(env, XDG_SESSION_TYPE="wayland", XDG_CURRENT_DESKTOP="GNOME")
-        monitors = ["--virtual-monitor", "1920x1080"] + ["--virtual-monitor", "1280x720"] * (self.monitors - 1)
+        # The first display is an ordinary 1920 by 1080 unless SP_TEST_MONITOR asks for another size, which is for
+        # taking pictures of the app at twice its size (with QT_SCALE_FACTOR=2 the windows need the room).
+        monitors = ["--virtual-monitor", os.environ.get("SP_TEST_MONITOR", "1920x1080")] + ["--virtual-monitor", "1280x720"] * (self.monitors - 1)
         self.spawn("shell", ["dbus-run-session", "--", "gnome-shell", "--headless"] + monitors + ["--wayland-display", self.display, "--no-x11"], shell)
         for _ in range(60):
             if self.answering():

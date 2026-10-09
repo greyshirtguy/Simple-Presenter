@@ -1,16 +1,196 @@
 # Simple Presenter
 
+**A fun, in-progress, vibe coded presenter for Linux that works on ProPresenter's own
+files, a whole workspace of them at a time.**
+
+Simple Presenter runs a show from a ProPresenter 7 folder as it is. Copy a whole
+ProPresenter workspace onto a Linux computer and it is all there, in a window that
+anyone who has used ProPresenter will know their way around: the libraries and
+playlists, the slides, the media, the timers, props, stage layouts and macros. It reads
+ProPresenter's files and it writes them, so what is changed here opens there again.
+
+It is one person's hobby, built by describing it to an AI model, and it is still being
+built. **It changes the files it opens, so always give it a copy of your ProPresenter
+folder, never your only one.**
+
 ![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and the Search, Themes, Show and Edit buttons at its left and the buttons for Simple View, the media bin, the output and stage screens and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; in the middle the name of the presentation over a grid of its slides, framed in their group colours, some marked with the hotkey that goes to them or with icons for the media and the macro they bring, and the live one ringed in orange, with the transition and the size of the thumbnails in a bar under them and the media bin under that; and down the right the output preview, with the words over a video that is playing, the stage preview with its countdown, the clear buttons, the transport for the video and the show controls, on their tab of macros, each macro with its coloured icon and small icons for its actions](docs/screenshot.png)
 
-## New in 0.5 and since
+> [!WARNING]
+> **This is a personal experiment, not a product.**
+>
+> Simple Presenter is one person's hobby project, and it is *vibe coded*: I describe
+> what it should do to an AI model (Claude), and the model writes the code. It exists
+> to find out how far that goes.
+>
+> So please take it for what it is:
+>
+> - **Nobody supports it.** There is no one to answer questions, fix bugs or add
+>   features, and no promise that anything here works, or will go on working.
+> - **It comes with no warranty** of any kind. Using it is at your own risk, and in
+>   front of a room full of people most of all.
+> - **It has been tried on one laptop**, with one person's ProPresenter files.
+> - **It changes the files it opens.** Give it a copy of your ProPresenter folder,
+>   never your only one.
+> - **It has nothing to do with Renewed Vision**, the makers of ProPresenter.
+>
+> You are very welcome to try it, read it, take it apart, fork it and borrow from it.
+> Just do not count on it.
 
-The big things, up to version 0.8:
+**On this page:** [what it can do](#what-it-can-do) · [what's new](#whats-new) ·
+[what it cannot do yet](#todo) · [installing it](#installing) ·
+[how each part is used](#workspaces) · [how it is built and tested](#building-from-source) ·
+[the licence](#licence)
+
+## What it can do
+
+Run a service from a ProPresenter folder, on Linux, on a modest computer. At more
+length:
+
+**It works on a ProPresenter workspace as it is.** Copy the folder ProPresenter keeps
+everything in onto the Linux computer and pick it in the app. Nothing is converted and
+there is no importing to do: the libraries and their presentations, the playlists and
+their folders, the media bin, the timers, props, stage layouts, macros, screens, looks
+and themes, and the hotkeys of the groups, are all read from the files ProPresenter
+keeps them in. What is changed here (a slide edited, a playlist made, a
+chord put on) is saved into those same files, and whatever is in them that this app
+does not understand is written back exactly as it was found. A playlist exported from
+ProPresenter can be brought into a workspace too. More under [Workspaces](#workspaces).
+
+**It looks and works the way ProPresenter does.** That is the window at the top of this
+page: libraries and playlists at the left, the slides of the presentation in the middle
+in the colours of their groups, the previews, the clear buttons and the show controls
+at the right, and the media bin under the slides. A click on a slide shows it; so do
+the arrow keys, the space bar and the hotkeys of the groups. Slides go over
+[media](#media), which is a background that plays on under them or a foreground with
+its sound, and one thing gives way to the next through a [transition](#transitions):
+there is an equivalent of every slide transition ProPresenter has, under the names it
+gives them, and eighteen more.
+
+**It has timers, props, stage layouts and macros,** on four tabs under the previews: a
+countdown that a slide can start, something to lay over the slides until it is
+cleared, what the people on the stage are shown, and a list of things to do at one
+click. A slide or a macro can carry [actions](#actions) that work them: start a timer,
+clear a layer, give the stage another layout, put a prop on, run a macro, go over to
+another look.
+
+| [Timers](#timers) | [Props](#props) | [Stage layouts](#stage-layouts) |
+|:---:|:---:|:---:|
+| <img src="docs/timers.png" width="240" alt="The timers tab: a countdown of five minutes with its settings open, and a second timer under it"> | <img src="docs/props.png" width="240" alt="The props tab: the default collection, with one prop in it"> | <img src="docs/stage-layouts.png" width="236" alt="The stage tab: the stage screen, with the layout it shows picked from a list and a button to edit it"> |
+
+**It sends the show to as many screens as are needed.** A workspace can have up to
+sixteen [screens](#screens), for the audience and for the stage, each in a window, on
+one of the computer's displays, or on the network as an [NDI](#ndi) source.
+[Looks](#looks) say which layers each audience screen gets, so that the room has the
+words over the video while a stream has the words alone, and ProPresenter's
+[themes](#themes) dress the slides, for good or on one screen only.
+
+**Yes, it has an editor, and it edits ProPresenter's files.** Text boxes, shapes and
+pictures are added to a slide, moved, sized, turned and styled; words are edited where
+they stand; slides are added, copied and deleted. Props, stage layouts and themes are
+edited in it too. Every change is saved as it is made, can be undone, and touches
+nothing in the file but what was changed. More under [Editing](#editing).
+
+![The editor: the presentation's slides down the left, with the elements of the one being worked on listed under them; that slide in the middle, a text box on it picked and showing its handles; and on the right the panel of what can be set for the box, which is its name, position, size and opacity, its fill, stroke and shadow, and the rules for when it shows](docs/editor.png)
+
+**And it has a chord editor, which ProPresenter has not.** A song's chords are shown
+over its words on the stage, in any key, as ProPresenter shows the chords of a song
+that came with them. Here they can be put on by hand as well, and quickly. The whole
+song is one sheet; a bubble follows the pointer to show where the next chord will go;
+and the chord is one key away (1 to 7 are the chords of the song's key) or a letter or
+two typed, with the likely ones offered. Click the next place and carry on. More under
+[Chords](#chords).
+
+![The chord editor: the song as one sheet, each slide's lines in a card under the name of its group, with the chords in small bubbles over the letters they belong to; along the top the song's key and its seven chords on the keys 1 to 7; over one line a bubble in which a chord is being typed, with what it might be going to be offered above it; and on the next slide a bubble in outline where the pointer is, which is where a click would start the next chord](docs/chord-editor.png)
+
+The same song can be worked on as ChordPro text, and a song can be brought in from a
+ChordPro file, chords and all.
+
+| The same song as ChordPro text | On the stage |
+|:---:|:---:|
+| <img src="docs/chordpro-editor.png" width="420" alt="The ChordPro editor: the song's words as plain text, each group named in curly brackets and each chord in square brackets, in orange, where it is played"> | <img src="docs/stage-chords.png" width="420" alt="A stage screen: the live slide's two lines in yellow with their chords over the words, and the next slide's lines in grey under them"> |
+
+**It finds things.** [Search](#search) (Ctrl+F) finds a presentation by its name or by
+any of its words, as it is typed.
+
+**And one idea of my own: Simple View.** Hold the ~ key, or click its button, and
+everything round the slides gets out of the way, so that as many of them as will fit
+can be seen at once. The same again brings it all back. More under
+[Simple View](#simple-view).
+
+![Simple View: the toolbar and every pane gone and the slides filling the window, seven to a row, with the presentation's name at the top left and, in the middle of the top, the bright button that says how to go back](docs/simple-view.png)
+
+**It is made for an old laptop.** Everything here is measured on a 2017 laptop with
+integrated graphics, on which it starts in about a second, costs next to nothing while
+a slide is up, and plays a 4K video under the words with most of the machine to spare:
+see [Built for modest hardware](#built-for-modest-hardware).
+
+**What it cannot do** is a longer list. ProPresenter does a great deal more than this:
+there are no announcements, no messages, no audio bin and no Bible here yet, among much
+else. See [TODO](#todo).
+
+### Custom features
+
+Most of what is here is ProPresenter's way of doing things, followed as closely as
+could be managed. These are the things that are not: ideas of my own, added because I
+always wished ProPresenter had them. The list will grow.
+
+- **[Simple View](#simple-view).** Everything but the slides gets out of the way, and
+  the slides take the whole window.
+- **How a slide's video plays on, at a glance.** A slide with a video has an icon for
+  whether it stops at its end, loops, or loops for a count or a time, under the icon
+  for its being a background or a foreground. See [Media](#media).
+- **Changing a slide's media from the slide.** A right click on either of those icons
+  changes what it shows, there and then, with no inspector to go to.
+- **Playing a slide's media by itself.** The Media caption in a slide's menu is
+  something to click: it plays the slide's media and leaves the slide layer as it is.
+  (The other way about, a slide without its media, is ProPresenter's: a click with Alt
+  held.)
+- **Dragging the clear buttons.** A clear button dragged onto a slide or a macro gives
+  it the action that clears that layer. See [Actions](#actions).
+- **How solid the icons on the slides are** is a setting, from nearly gone to solid.
+- **Two chord editors.** ProPresenter shows the chords a song came with and has no way
+  to put one on by hand. Here the editor has a sheet of the whole song for doing it
+  with the mouse and the keys 1 to 7, and the same song as ChordPro text. See
+  [Chords](#chords).
+- **Importing a ChordPro file** as a new song, chords and all.
+
+### What it is trying to be
+
+Simple Presenter is an experiment in vibe coding, and my first attempt at building
+something non-trivial that way. It has three goals.
+
+- **Linux.** A native Linux application, in Qt and C++ rather than a web page in a
+  wrapper, that reads and writes ProPresenter's own files. A copy of a ProPresenter
+  folder can be opened and run as it stands, and what is changed here can be opened
+  there again.
+- **Simple.** The essentials of running a show, kept easy to find: slides over media,
+  transitions, screens for the audience and the stage, playlists, a media bin, timers,
+  props, macros and an editor. And when even that is in the way,
+  [Simple View](#simple-view) leaves the slides and nothing else.
+- **Lightweight.** Above all it has to perform, even on modest and older computers. It
+  is developed and measured on a 2017 laptop with integrated graphics, and the design
+  choices are made for that machine first: see
+  [Built for modest hardware](#built-for-modest-hardware).
+
+> [!NOTE]
+> ## How the experiment is going
+>
+> **I cannot believe how well Claude is doing at vibe coding this app.**
+>
+> So I am going to keep going, and see how far I can get, knowing full well that the
+> whole experiment may yet come crashing down. There is a list of what I mean to throw
+> at it next under [TODO](#todo).
+
+## What's new
+
+The big things lately, the newest first.
 
 - **Chords.** A song's [chords](#chords) are shown over its words on a stage screen, in
   any key and in ProPresenter's four notations, as ProPresenter shows them. And what
   ProPresenter has not: two editors for putting chords on by hand, one for the mouse
   and the keys 1 to 7 and one that is ChordPro text, and songs brought in from ChordPro
-  files. (New in 0.8.)
+  files. In the first, a chord goes on with one key or a letter or two, and a click on
+  the next place keeps it and starts the next.
 - **Screens.** A workspace can have up to sixteen [screens](#screens), for the audience
   and for the stage, where there was one of each. They are the screens ProPresenter has
   for the workspace. Each goes to a window of its own, to one of the computer's
@@ -38,198 +218,96 @@ The big things, up to version 0.8:
   [ones](#macros).
 - **The screens are kept awake** while the show is on one.
 
-Earlier versions are on the
+Every version, with its package, is on the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page.
-
-> [!WARNING]
-> **This is a personal experiment, not a product.**
->
-> Simple Presenter is one person's hobby project, and it is *vibe coded*: I describe
-> what it should do to an AI model (Claude), and the model writes the code. It exists
-> to find out how far that goes.
->
-> So please take it for what it is:
->
-> - **Nobody supports it.** There is no one to answer questions, fix bugs or add
->   features, and no promise that anything here works, or will go on working.
-> - **It comes with no warranty** of any kind. Using it is at your own risk, and in
->   front of a room full of people most of all.
-> - **It has been tried on one laptop**, with one person's ProPresenter files.
-> - **It changes the files it opens.** Give it a copy of your ProPresenter folder,
->   never your only one.
-> - **It has nothing to do with Renewed Vision**, the makers of ProPresenter.
->
-> You are very welcome to try it, read it, take it apart, fork it and borrow from it.
-> Just do not count on it.
-
-> [!NOTE]
-> ## How the experiment is going
->
-> **I cannot believe how well Claude is doing at vibe coding this app.**
->
-> So I am going to keep going, and see how far I can get, knowing full well that the
-> whole experiment may yet come crashing down. There is a list of what I mean to throw
-> at it next under [TODO](#todo).
-
-**Yes, it has an editor.** A basic one, for the text boxes on a slide: add them, move
-and resize them, and change their words and their looks. Props and stage layouts are
-edited with it too. More under [Editing](#editing).
-
-![The editor: the presentation's slides down the left, with the elements of the one being worked on listed under them; that slide in the middle, a text box on it picked and showing its handles; and on the right the panel of what can be set for the box, which is its name, position, size and opacity, its fill, stroke and shadow, and the rules for when it shows](docs/editor.png)
-
-**It has timers, props, custom stage layouts and macros,** on four tabs under the previews: a
-countdown that a slide can start, something to lay over the slides until it is
-cleared, and what the people on the stage are shown.
-
-| [Timers](#timers) | [Props](#props) | [Stage layouts](#stage-layouts) |
-|:---:|:---:|:---:|
-| <img src="docs/timers.png" width="240" alt="The timers tab: a countdown of five minutes with its settings open, and a second timer under it"> | <img src="docs/props.png" width="240" alt="The props tab: the default collection, with one prop in it"> | <img src="docs/stage-layouts.png" width="236" alt="The stage tab: the stage screen, with the layout it shows picked from a list and a button to edit it"> |
-
-**And chords, with two editors ProPresenter does not have.** A song's chords are shown
-over its words on the stage, in any key. They can be put on by hand, on a sheet of the
-whole song where a chord goes wherever the pointer is with one key, or typed as ChordPro
-text; and a song can be brought in from a ChordPro file. More under [Chords](#chords).
-
-![The chord editor: the song as one sheet, each slide's lines in a card under the name of its group, with the chords in small bubbles over the words they belong to; along the top the song's key and its seven chords on the keys 1 to 7; and over one line a bubble in which a chord is being typed, with the chords it might be going to be offered above it](docs/chord-editor.png)
-
-| The same song as ChordPro text | On the stage |
-|:---:|:---:|
-| <img src="docs/chordpro-editor.png" width="420" alt="The ChordPro editor: the song's words as plain text, each group named in curly brackets and each chord in square brackets, in orange, where it is played"> | <img src="docs/stage-chords.png" width="420" alt="A stage screen: the live slide's two lines in yellow with their chords over the words, the next slide's lines in grey under them, and a countdown"> |
-
-**And one idea of my own: Simple View.** Hold the ~ key, or click its button, and
-everything round the slides gets out of the way, so that as many of them as will fit
-can be seen at once. The same again brings it all back. More under
-[Simple View](#simple-view).
-
-![Simple View: the toolbar and every pane gone and the slides filling the window, seven to a row, with the presentation's name at the top left and, in the middle of the top, the bright button that says how to go back](docs/simple-view.png)
-
-Simple Presenter is an experiment in vibe coding, and my first attempt at building
-something non-trivial that way: a presenter for Linux that works on a ProPresenter 7
-folder as it is. It has three goals.
-
-- **Linux.** A native Linux application, in Qt and C++ rather than a web page in a
-  wrapper, that reads and writes ProPresenter's own files: its presentations, its
-  playlists and its media. A copy of a ProPresenter folder can be opened and run as it
-  stands, and what is changed here can be opened there again.
-- **Simple.** The essentials of running a show and little else: slides over media,
-  transitions, an audience output and a stage display, playlists, a media bin, timers,
-  props and a small editor. There are no messages or announcements. And when even that
-  is in the way, [Simple View](#simple-view) leaves the slides and nothing else.
-- **Lightweight.** Above all it has to perform, even on modest and older computers. It
-  is developed and measured on a 2017 laptop with integrated graphics, and the design
-  choices are made for that machine first: see
-  [Built for modest hardware](#built-for-modest-hardware).
-
-It shows ProPresenter 7 `.pro` presentations on a slide layer over a media layer.
-[Transitions](#transitions) are shaders, which keeps them cheap. Besides a plain cut
-there are fifty-four: an equivalent of every slide transition ProPresenter has, under
-the names it gives them, and eighteen more. It has two outputs, an audience output and
-a stage display, each in its [own window](#the-output-and-stage-windows), and a media
-bin. [Media](#media) plays as a background or as a foreground, a foreground video with
-its sound, with a transport for the video that is playing; it can be dragged in from
-the file manager, onto a slide or between two. There are [timers](#timers), whose time
-a text box on a slide can show. [Props](#props)
-are laid over the slides and stay until they are cleared, and the stage display can be
-given a [stage layout](#stage-layouts) of ProPresenter's or of its own. It can import a
-playlist that has been exported from ProPresenter, and it has a simple
-[editor](#editing) for the text boxes on a slide, a prop or a stage layout.
-
-## Custom features
-
-Most of what is here is ProPresenter's way of doing things, followed as closely as
-could be managed. These are the things that are not: ideas of my own, added because I
-always wished ProPresenter had them. The list will grow.
-
-- **[Simple View](#simple-view).** Everything but the slides gets out of the way, and
-  the slides take the whole window.
-- **How a slide's video plays on, at a glance.** A slide with a video has an icon for
-  whether it stops at its end, loops, or loops for a count or a time, under the icon
-  for its being a background or a foreground. See [Media](#media).
-- **Changing a slide's media from the slide.** A right click on either of those icons
-  changes what it shows, there and then, with no inspector to go to.
-- **Playing a slide's media by itself.** The Media caption in a slide's menu is
-  something to click: it plays the slide's media and leaves the slide layer as it is.
-  (The other way about, a slide without its media, is ProPresenter's: a click with Alt
-  held.)
-- **Dragging the clear buttons.** A clear button dragged onto a slide or a macro gives
-  it the action that clears that layer. See [Actions](#actions).
-- **How solid the icons on the slides are** is a setting, from nearly gone to solid.
-- **Two chord editors.** ProPresenter shows the chords a song came with and has no way
-  to put one on by hand. Here the editor has a sheet of the whole song for doing it
-  with the mouse and the keys 1 to 7, and the same song as ChordPro text. See
-  [Chords](#chords).
-- **Importing a ChordPro file** as a new song, chords and all.
 
 ## TODO
 
-What is not there yet. It is a list of ideas, not of promises: see the note at the top
-of this page.
+What is not there yet. ProPresenter does a great deal that this app does not, and not
+all of it is even on this list. It is a list of ideas, not of promises: see the note at
+the top of this page.
 
-- [ ] **Improve File Compatibility**: render more of what a `.pro` file can hold, such
-      as a video as an element's fill, gradients of more than two colours or that run
-      in a circle, and feathered edges on shapes other than the three plain ones.
-      Drawn so far: text with its fonts, colours, outline, shadow, capitals, underline
-      and spacing, made smaller or larger to suit its box where it is set to be;
-      shapes, from their outlines, whatever they are; fills that are a colour
-      (including one that is only behind the lines of the text), a gradient from one
-      colour to another, or a picture; strokes, shadows and feathered edges; elements
-      that show only when another has text, or while a timer runs; and text linked
-      from another element, from a timer, or from the slide that is live.
+### Partly there
+
+- [ ] **File compatibility**: draw more of what a `.pro` file can hold, such as a video
+      as an element's fill, gradients of more than two colours or that run in a
+      circle, and feathered edges on shapes other than the three plain ones. Drawn so
+      far: text with its fonts, colours, outline, shadow, capitals, underline and
+      spacing, made smaller or larger to suit its box where it is set to be; shapes,
+      from their outlines, whatever they are; fills that are a colour (including one
+      that is only behind the lines of the text), a gradient from one colour to
+      another, or a picture; strokes, shadows and feathered edges; elements that show
+      only when another has text, or while a timer runs; and text linked from another
+      element, from a timer, or from the slide that is live.
 - [ ] **Editor**: text boxes, shapes and pictures can be added, moved, resized, turned
       and removed, and their text and looks changed; slides can be added, copied,
-      pasted and deleted. Still to do: reordering slides, the rest of ProPresenter's
-      shapes, picking several elements at once, lists and scrolling text.
+      pasted and deleted; a song's chords can be put on. Still to do: reordering
+      slides, the rest of ProPresenter's shapes, picking several elements at once,
+      lists and scrolling text, a slide's notes (editing them, and text boxes linked
+      to them), builds (the things on a slide coming on one after another), and a
+      theme for a new slide (everything that makes a new slide, which is the `+` over
+      the editor's slides, New Slide in a slide's menu and media dropped between
+      slides, is to offer a theme's slide as well as a blank one).
 - [ ] **Key mappings**: the hotkeys of groups are there, read from and written to the
       workspace's list of groups as ProPresenter has them, and Ctrl+S and Ctrl+E for
       show mode and edit mode. Still to do: a page of the settings for the app's other
       keys, and the rest of what ProPresenter's key mappings can go to (cues, macros,
       props, timers, clear groups, MIDI notes).
-- [ ] **Playlist Support**: build and run an ordered list of presentations and media
-      for a service. Playlists and folders can be created, renamed, rearranged, removed
-      and run, and their rows added, reordered and removed; still to do are headers and
-      media rows.
-- [x] **Import Playlists**: read ProPresenter's exported `.proplaylist` files, bringing
-      in the playlist, its presentations and, when the export included it, its media.
-- [ ] **Media Inspector**: somewhere to see and set how one piece of media plays: how
+- [ ] **Playlists**: playlists and folders can be created, renamed, rearranged, removed
+      and run, their rows added, reordered and removed, and playlists exported from
+      ProPresenter brought in. Still to do: headers, media rows, and a continuous view
+      of a whole playlist, one presentation under another.
+- [ ] **Media inspector**: somewhere to see and set how one piece of media plays: how
       loud, whether it goes round again, where it starts and stops. For now that is
       settled by a rule: a background video is silent and loops, a foreground one
       plays once with its sound.
-- [ ] **Show Controls**: the timers, the props, the stage layouts and the macros are
-      there. Still to come: more than one stage screen; more of what a stage layout can
-      show (the clock, a slide's notes, pictures of the slides and of the output, stage
-      messages, the time left of a video); a prop's own transition and clearing itself
-      after a time.
+- [ ] **Show controls**: the timers, the props, the stage layouts and the macros are
+      there, for as many stage screens as are wanted. Still to come: more of what a
+      stage layout can show (the clock, a slide's notes, pictures of the slides and of
+      the output, stage messages, the time left of a video); a prop's own transition
+      and clearing itself after a time.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
-      stage, props and macros, and those are run. Still to come: the rest of
-      ProPresenter's kinds (looks, messages, audio, communications, capture and more,
-      which are kept in the files and shown, and not done), an action's delay, putting
-      a slide's or a macro's actions in another order, and the clear layers the app
+      stage, props, macros and looks, and those are run. Still to come: the rest of
+      ProPresenter's kinds (audio, messages, communications, capture and more, which
+      are kept in the files and shown, and not done), an action's delay, putting a
+      slide's or a macro's actions in another order, and the clear layers the app
       does not have yet.
 
 ### To try, and see what happens
 
-Bigger things, each of which ProPresenter does and this does not. No order, and no
-promise that any of them will turn out to be possible this way: that is the experiment.
+Bigger things, nearly all of which ProPresenter does and this does not. No order, and
+no promise that any of them will turn out to be possible this way: that is the
+experiment.
 
-- [ ] **More Actions** (timers, clearing, the stage, props and macros are done)
-- [x] **Macros**
-- [x] **Search**, **Looks**, **Themes**
-- [x] **Chords**: shown on the stage in any key and notation, put on by hand in two
-      editors, and brought in from ChordPro files. See [Chords](#chords)
-- [ ] **A theme for a new slide** (now that there are themes, everything that makes a
-      new slide, which is the `+` over the editor's slides, New Slide in a slide's menu
-      and media dropped between slides, is to offer a theme's slide as well as a blank one)
-- [ ] **Arrangement Editor**
-- [ ] **Blackmagic SDI**
-- [ ] **EasyView**
-- [ ] **MIDI**
-- [ ] **RossTalk**
-- [ ] **Custom HTTP Requests**
-- [ ] **Reflow**
-- [ ] **Masks**
-- [ ] **Audio Bin**
+- [ ] **A simple help file**: the app's own features explained, and how to have an AI
+      model help when something goes wrong, which is the only help there is
 - [ ] **Announcements**
-- [ ] **Video Input**
+- [ ] **Messages**
+- [ ] **Audio bin**
+- [ ] **Audio levels**, shown over the previews
+- [ ] **Masks**
+- [ ] **Video input**
+- [ ] **Clear groups**: named sets of layers to clear together, starting with All. (Each
+      of the layers above needs a clear button of its own when it comes, and a place in
+      Clear All.)
+- [ ] **Clear to logo**
+- [ ] **Communication devices**: MIDI, RossTalk, custom HTTP requests
+- [ ] **The API**: ProPresenter's, over the network, so that the remotes and
+      controllers made for it can work this
+- [ ] **Playback markers**
+- [ ] **Linked text: the colours of a timer**
+- [ ] **Timer markers** (an idea of my own)
+- [ ] **Reflow**
+- [ ] **Text formatter**
+- [ ] **Arrangement editor**
+- [ ] **Bible**, from an online source, as FreeShow has it
+- [ ] **CCLI**: a song's details edited, and the ways of showing them
+- [ ] **More to import**: PowerPoint, to begin with
+- [ ] **Easy View**
+- [ ] **Table View**
+- [ ] **Timecode**
+- [ ] **Blackmagic SDI**
+- [ ] **Streaming and recording** (RTP), perhaps
 
 ## Installing
 
@@ -248,7 +326,7 @@ sudo apt install ./simplepresenter_0.8_amd64.deb
 That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
 among the applications. `sudo apt remove simplepresenter` takes it off again.
 
-The package holds only this program, and is about 2 MB. Qt, FFmpeg and the video
+The package holds only this program, and is about 3 MB. Qt, FFmpeg and the video
 drivers are the system's own, which is why it is small, why video is decoded by whatever
 the machine's drivers can do (see [Hardware video decoding](#hardware-video-decoding)),
 and also why it is tied to one release: it is built against the Qt that Ubuntu 26.04
@@ -262,273 +340,20 @@ and the first time it starts it makes an empty one called `Default`. To give it
 something to show, either
 
 - copy your ProPresenter folder (`Documents/ProPresenter` on a Mac or on Windows) into
-  `WorkSpaces`, and pick it from the workspace picker at the left of the toolbar; or
+  `WorkSpaces`, and pick it from the workspace picker at the left of the toolbar (a
+  copy, always: the app changes what it works on); or
 - put some `.pro` files into a folder of their own inside `WorkSpaces/Default/Libraries`,
   and some images or videos into `WorkSpaces/Default/Media`.
 
 The app works on that copy and saves its changes into it; [Workspaces](#workspaces) has
 the details.
 
-## Building from source
+---
 
-Nothing here is specific to Ubuntu except the names of the packages. It needs Qt 6.9
-or newer.
-
-**1. Install the tools and the libraries.**
-
-```
-sudo apt install git cmake ninja-build g++ pkg-config \
-    qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qt6-shadertools-dev \
-    qml6-module-qtquick-controls qml6-module-qtquick-effects qml6-module-qtmultimedia \
-    qml6-module-qtquick-dialogs qml6-module-qtquick-shapes qt6-image-formats-plugins \
-    protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev libxcb1-dev \
-    libavformat-dev libavcodec-dev libswscale-dev libavutil-dev
-```
-
-| These | are for |
-|---|---|
-| `git`, `cmake`, `ninja-build`, `g++`, `pkg-config` | Fetching the code and building it |
-| `qt6-…-dev` | Qt 6, which the app is written with: windows, drawing, video playback, and the tool that compiles the transition shaders |
-| `qml6-module-…` | The parts of Qt Quick that the app loads when it starts, such as buttons and effects |
-| `qt6-image-formats-plugins` | Reading pictures in the formats Qt does not have built in, WebP among them |
-| `protobuf-compiler`, `libprotobuf-dev` | ProPresenter's files are Protocol Buffers. The build turns the descriptions of the format into C++ that reads and writes it |
-| `libfontconfig-dev` | Finding fonts by the names ProPresenter knows them by |
-| `zlib1g-dev` | Unpacking exported playlists, which are zip archives |
-| `libav…-dev`, `libswscale-dev` | FFmpeg, for taking a frame from a video as its thumbnail |
-| `libxcb1-dev` | X11's own library, for keeping the output and stage windows out of Alt+Tab when the app is run through X11 |
-
-**2. Get the code.**
-
-```
-git clone --recurse-submodules https://github.com/greyshirtguy/Simple-Presenter.git
-cd Simple-Presenter
-```
-
-`--recurse-submodules` also fetches
-[ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto), the
-unofficial descriptions of ProPresenter's file formats that the app is built on. If the
-build complains that `.proto` files are missing, that step was skipped:
-`git submodule update --init` does it afterwards.
-
-**3. Build it.**
-
-```
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build build
-```
-
-The first line checks that everything in step 1 is there and sets the build up in a
-folder called `build`; the second compiles. It takes a few minutes the first time, most
-of it spent on the code generated for ProPresenter's formats. The result is one file,
-`build/SimplePresenter`, with the interface and the shaders compiled into it.
-
-**4. Run it.**
-
-```
-./build/SimplePresenter
-```
-
-See [The first run](#the-first-run) for giving it something to show, and
-`./build/SimplePresenter --help` for its options. Video plays with or without a driver
-for decoding it on the graphics hardware; [Hardware video decoding](#hardware-video-decoding)
-says how to get one.
-
-**5. Look around.** [How it works](#how-it-works) is the short version, and
-`src/main.cpp` opens with a tour of the code that says where everything is. The sources
-are written to be read: each file starts by saying what it is for and why it is the way
-it is. To browse or change them in an editor that understands the project, open
-`CMakeLists.txt` in Qt Creator. After a change, `cmake --build build` again rebuilds
-only what the change touched, and the [self-test](#self-test) shows whether anything
-that is drawn has moved.
-
-**6. Make the package,** if you want one to install or to pass on:
-
-```
-cd build && cpack
-```
-
-writes the same `.deb` as on the Releases page. The program in it has had its names
-taken out, which is most of what keeps it small, so a crash's account of where the app
-was (see [Log](#log)) gives the places inside the app as numbers. The list that turns
-those numbers back into names is made from the program as it was built, and belongs
-with the package it was made for:
-
-```
-nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.8_symbols.txt.xz
-```
-
-A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of
-that list whose number is not greater than `8ae5ac`.
-
-## Built for modest hardware
-
-The machine all of this is measured on is a 2017 Dell laptop: a two-core Core i5-7300U
-with Intel HD 620 graphics. On it, at the time of writing:
-
-| | |
-|---|---|
-| Starting, to the first frame on screen | 0.7 to 0.9 seconds |
-| Sitting with a still slide on the output | next to nothing: three hundredths of a percent of one processor core, which is the app being asked once a second whether it is still answering (see [Log](#log)) |
-| A 4K video under lyrics, full screen at 1080p | the graphics chip a third busy (it is a quarter busy with only the desktop on screen); 5 to 7% of one processor core |
-| Showing the slides of a presentation just picked | about 70 ms |
-| Going into [Simple View](#simple-view) | a third of a second: the panes slide off in a fifth, at sixty frames a second, and the slides fill the window a tenth later |
-| Thumbnails for 112 videos, 47 of them 4K, the first time they are seen | 2.5 seconds, while the window stays responsive |
-| Putting a still on the output, even one of 8000 by 4500 | read in the background; the window is not held up |
-| Memory, with a workspace open | about 260 MB, of which 160 MB is what Qt needs for any window; up to 400 MB while a 4K video plays |
-
-What gets it there:
-
-- **Nothing is drawn twice.** A slide's text is turned into a picture once, when the
-  slide is shown, and from then on costs the graphics chip one rectangle. Nothing is
-  drawn while nothing changes.
-- **A transition costs only while it runs.** It is one shader blending two textures.
-  Between transitions nothing is blended and the output is drawn directly; going
-  through the blend all the time, as the app once did, kept the graphics chip twice as
-  busy for the same picture.
-- **Video is decoded once, by the hardware if it can.** The graphics chip decodes it
-  when a driver is installed, and the preview in the operator window borrows a few of
-  the output's frames a second instead of decoding the file again.
-- **Media files are never read on the thread that runs the windows.** Thumbnails are
-  made on spare processor threads, one keyframe from each video, and kept on disk. A
-  still put on the output is read on another thread, at no more than the size it can be
-  shown at, and brought in when it is ready, so a large picture does not make a
-  transition or a playing video stutter.
-- **The small pictures are honest but plain.** Thumbnails are the real slides drawn
-  small, without their shadows, which cannot be seen at that size and are the dear part.
-- **Lists are only rebuilt when they change.** The app notices when a workspace changes
-  on disk, but rebuilds what is on screen only if what it shows is different.
-- **What follows something moving is drawn with it, and seldom.** A player says where
-  its video has got to twenty times a second. A transport drawn straight from that
-  redrew the operator window twenty times a second, and cost over half as much again as
-  playing a 4K video did. So the transport looks at the player a few times a second,
-  and does it when the preview beside it is about to be redrawn for a new frame: the
-  window is drawn once for both, and the transport costs nothing that can be measured.
-  A timer that is stopped costs nothing, and one that is running a redraw a second: a
-  third of a percent of a core, or half a percent when a slide on the output shows it.
-- **Text that changes fast is drawn a digit at a time.** A timer set to show its
-  hundredths changes thirty times a second, which is not what slide text is drawn for:
-  drawing all of it again that often, large, on a full-screen output, took over a
-  quarter of a core. Such text is laid out glyph by glyph, and only the glyphs that
-  have changed are cleared, drawn and sent to the graphics chip again, which brings it
-  to about a tenth of a core. In the thumbnails, where hundredths cannot be read, it
-  is five times a second.
-- **The log is written when something happens, never when something is drawn.** A line
-  of it costs four millionths of a second and is handed to the system at once: nothing
-  waits for the disk, and nothing is written for a frame. See [Log](#log).
-
-## How it works
-
-```
-  a workspace on disk                    C++ (src/)                      QML (qml/)
-  -------------------          ---------------------------       --------------------------
-  Libraries/*/*.pro    --->    ProDocument, proconvert    --->   Main.qml: what is open,
-  Playlists/Library            PlaylistFile, Timers,             what a key or a click
-  Playlists/Media              Props, StageLayouts               does
-  Configuration/Timers,        (parse, flatten into                     |
-    Props, Stage               lists and maps)                          | goLive(), showMedia(),
-  Media/...                                                             | toggleProp()
-        ^                                                               v
-        |                      Show, showstate            <---   asks for a change
-        +--- changes are       (what is live, and the     --->   is told what to show
-             written back      rules it changes by)                     |
-             into the files                                             v
-                               StrokedText, textlayout           Output.qml: a media layer
-                               (text laid out and drawn   <---   and a slide layer, each a
-                               with its outline, once)           TransitionLayer, and the
-                                                                 props over them
-                               ThumbnailProvider, videoframe
-                               (small pictures, cached)   --->   thumbnails in the lists
-```
-
-The app is a window, some screens and a folder. The folder is the workspace. The operator
-window is where the show is run from; an audience screen is what the audience sees, a media
-layer with a slide layer over it and the props over both, in a window, on a display or
-sent over the network ([Screens](#screens)); a stage screen is what the
-people on stage see.
-
-The code is in two halves. The C++ in `src/` does files and pixels: it reads and writes
-ProPresenter's documents, parses the RTF their text is kept in, lays text out and draws
-it with its outline, and makes thumbnails. The QML in `qml/` is everything on screen:
-the windows, and what a click or a key does in them. What passes between them is plain
-data: a presentation crosses over as a list of slides, each a map of everything needed
-to draw it, so the QML never sees a file format.
-
-Between the two is the show itself. **What is live, and the rules by which it changes,
-are in one place with nothing of the windows in it** (`src/showstate.*`): which slide
-the show is at, what is on the media layer, which props are on; and what happens to
-those when a slide goes live, media is put on, a layer is cleared or a macro is run.
-When is a background video left to play on? What does a slide that clears itself leave
-marked? What does a macro that runs a macro do? Each is a few lines there, tried by
-tests that need no window ([Tests](#tests)). The operator window only asks for a change
-(through `Show`, which QML can talk to) and is told what the output is then to be
-handed. Anything that decides what the audience sees belongs there, and not in a
-window's script.
-
-Three rules run through all of it.
-
-- **The files are ProPresenter's, and stay that way.** They hold far more than this app
-  understands. Every change is made by parsing the whole file, altering only the fields
-  the change is about, and writing the whole thing back in one step, so that whatever
-  the app does not know about goes back exactly as it came.
-- **One drawing of a slide.** The same component draws a slide on the output, in a
-  thumbnail, in the preview and in the editor, from the same data. Layout is done in
-  the slide's own coordinates and scaled, so a line of text breaks at the same word at
-  every size.
-- **One keeper of what is live.** Nothing but `Show` changes it, and everything that
-  marks or shows it reads it from there.
-
-Most of what a slide shows is settled when its file is read. The exception is text that
-changes while the slide is on show: a timer's time, or the words of the slide that is
-live. An element linked to a timer is drawn by asking `Timers`, the one object that
-holds the timers and keeps them running, what the time is now, and is drawn again when
-the answer changes; one linked to the live slide asks `Show`, which is what keeps what
-is live. A stage layout is nothing more than a slide made of such
-boxes, and a prop nothing more than a slide laid over the others, so both are drawn by
-what draws every slide and edited by what edits every slide.
-
-A transition is a small fragment shader that is handed the outgoing and incoming
-pictures and a number that goes from 0 to 1; `shaders/dissolve.frag` explains the
-pattern. Adding one is a shader file, a line for it in the build, and an entry in
-`qml/TransitionCatalogue.qml` that names it and lists what can be adjusted about it.
-
-`src/main.cpp` opens with a longer tour, and the header of each file says how that part
-works.
-
-## Hardware video decoding
-
-Qt Multimedia decodes video through FFmpeg and uses the graphics hardware when a driver
-for it is installed. Without one it falls back to the CPU, which works but costs more,
-and more so with 4K media or several videos at once. Only the Intel case has been
-tested with this app; the AMD and NVIDIA notes are what should apply.
-
-| Graphics | What to install on Ubuntu | Notes |
-|---|---|---|
-| Intel (Broadwell, 2014, or newer) | `intel-media-va-driver` | Tested. Decodes through VA-API. Older Intel chips use `i965-va-driver`. |
-| AMD | Nothing: the driver is part of Mesa (`mesa-libgallium`), installed with the desktop | Decodes through VA-API. On older Ubuntu releases it is the separate `mesa-va-drivers` package. |
-| NVIDIA, proprietary driver | The driver's own decode library, `libnvidia-decode-<version>`, which the `nvidia-driver-<version>` package pulls in | Decodes through VDPAU or NVDEC, not VA-API. |
-| NVIDIA, open-source nouveau driver | Nothing: also part of Mesa | Limited: only some older cards, and it needs firmware. Expect CPU decoding. |
-
-To see what a machine can decode, install `vainfo` and run it: it lists the codecs the
-VA-API driver offers, or fails if there is no driver. That does not apply to NVIDIA's
-proprietary driver.
-
-To see what the app itself chose, run it with Qt's multimedia logging on and play a
-video:
-
-```
-QT_LOGGING_RULES="qt.multimedia.ffmpeg*=true" ./build/SimplePresenter 2>&1 | grep hwaccel
-```
-
-`Checking HW context: vaapi` followed by `Using above hw context` means that method is
-available, and `Selected format ... for hw` means a video is being decoded with it.
-`Could not create hw context` for every method means CPU decoding.
-
-The app's own [log](#log) has a line for each video that is played which says how its
-frames arrive: as textures, which is a video decoded by the graphics chip, or in
-memory, which is one decoded by the processor.
-
-The lines FFmpeg prints at startup about VDPAU or Vulkan failing are it trying methods
-the machine does not have, and are harmless.
+**The rest of this page is in two parts.** First, how each part of the app is used, from
+[workspaces](#workspaces) to the [log](#log). Then, for the curious, how it is made:
+[building it](#building-from-source), [why it is quick](#built-for-modest-hardware),
+[how it works](#how-it-works) and how it is [tested](#tests).
 
 ## Workspaces
 
@@ -545,16 +370,20 @@ Libraries/<library name>/*.pro    presentations, one flat folder per library
 Media/...                         images and videos, in any depth of folders
 Playlists/Library                 playlists and playlist folders, in ProPresenter's format
 Playlists/Media                   media playlists and their folders, in ProPresenter's format
-Configuration/Timers              the timers, in ProPresenter's format
-Configuration/Props               the props and their collections, in ProPresenter's format
-Configuration/Stage               the stage layouts, in ProPresenter's format
+Themes/<theme name>/Theme         the themes, each in a folder of its name
+Configuration/Timers              the timers
+Configuration/Props               the props and their collections
+Configuration/Stage               the stage layouts
+Configuration/Macros              the macros and their collections
+Configuration/Groups              the groups, with their colours and their hotkeys
+Configuration/Workspace           the screens, and the looks
 ```
 
-So a copy of a ProPresenter folder, dropped into `WorkSpaces`, is a workspace. It will
-hold more than this (themes, presets, the rest of its configuration), which the app
-leaves alone. Changes made in the app (a new playlist, a presentation added to one, an
-arrangement chosen, media dropped on a slide, a timer set, a prop made) are written to
-the files in the workspace.
+All of it is in ProPresenter's own formats. So a copy of a ProPresenter folder, dropped
+into `WorkSpaces`, is a workspace. It will hold more than this (presets, the rest of its
+configuration), which the app leaves alone. Changes made in the app (a new playlist, a
+presentation added to one, an arrangement chosen, media dropped on a slide, a timer set,
+a prop made, a chord put on a song) are written to the files in the workspace.
 
 Files are found by their path relative to the workspace first, so a workspace keeps
 working when it is moved or copied from another machine; then by the path recorded for
@@ -567,6 +396,8 @@ one that mirrors the folders under `Media`: a playlist for each folder of media.
 An exported playlist is imported from the "+" beside Playlists. Its presentations go
 into the library last browsed and its media under `Media`, keeping the folders it had
 below ProPresenter's own `Media` folder; files already there are left as they are.
+The "+" beside Libraries makes a new library, which is a folder, and brings a song in
+from a ChordPro file ([Chords](#chords)).
 
 `--workspace <dir>` opens a particular workspace folder, wherever it is; the folders
 beside it are then the ones the picker offers. `--help` lists the other options.
@@ -700,9 +531,9 @@ pause, and to skip fifteen seconds back or on.
 ## Timers
 
 Under the transport are the show controls: a row of tabs, pictures and not words, of
-which the one showing is blue. Timers are the first; [props](#props) and the
-[stage screens](#stage-layouts) are the other two. The `+` under the tabs adds to
-whichever is showing.
+which the one showing is blue. Timers are the first; [props](#props), the
+[stage screens](#stage-layouts) and the [macros](#macros) are the other three. The `+`
+under the tabs adds to whichever is showing.
 
 A workspace's timers are ProPresenter's, and a workspace with none starts with one, a
 five-minute countdown. There are three kinds:
@@ -734,8 +565,8 @@ A slide can also work a timer when it is triggered: start it, stop it, put it ba
 and set it up first, which is how one timer is a minute's countdown on one slide and
 three on another. Presentations made in ProPresenter that do this, such as a slide
 that starts its own countdown, do it here too. What a slide sets a timer up as is not
-written to the workspace until the timers are next changed by hand. Such actions
-cannot yet be added or changed here.
+written to the workspace until the timers are next changed by hand. Such an action is
+given to a slide, and changed, as any [action](#actions) is.
 
 An action finds its timer as a link does: by id, and failing that by name. One that
 finds none either way does nothing, and a text box whose timer is not there shows a
@@ -780,18 +611,19 @@ is marked as the live one, and the arrow keys go on from it.)
   optionally set it up anew first (as a countdown of so long, a countdown to a time of
   day, or an elapsed time).
 - **Clear**: everything, the slide, the media or the props.
-- **Stage**: give the stage screen one of the workspace's [stage layouts](#stage-layouts),
+- **Stage**: give each stage screen one of the workspace's [stage layouts](#stage-layouts),
   or leave it as it is.
 - **Prop**: put a [prop](#props) on (Trigger) or take it off (Clear).
 - **Macro**: run a [macro](#macros).
+- **Audience Look**: make one of the workspace's [looks](#looks) the live one.
 
 Each action a slide has is a small icon in the top left corner of its thumbnail, after
 the icons for its hotkey and its media. A right click on a slide offers **Add Action**,
-which leads to the kinds above: Clear, Prop and Macro to lists to pick from (a prop by
-its collection, then Trigger or Clear; a macro by its collection), Timer and Stage to a
-small panel to fill in. Under it is **Remove Action**, which lists the actions the
-slide has. A right click on an action's icon says what the action is and offers to
-change it, for a timer or a stage action, or to remove it.
+which leads to the kinds above: Clear, Prop, Macro and Audience Look to lists to pick
+from (a prop by its collection, then Trigger or Clear; a macro by its collection), Timer
+and Stage to a small panel to fill in. Under it is **Remove Action**, which lists the
+actions the slide has. A right click on an action's icon says what the action is and
+offers to change it, for a timer or a stage action, or to remove it.
 
 A row of a menu that leads to a menu of its own has an arrowhead at its right, and its
 menu opens beside it when the pointer rests on the row (or on a click). The menu it
@@ -803,17 +635,17 @@ be triggered or cleared; a macro, which needs nothing more. So can the **clear
 buttons** under the previews, each of which gives the slide the action that clears its
 layer; and those can be dropped on a macro as well.
 
-ProPresenter has many more kinds of action than these five (audience looks, messages,
-audio, clear groups, communications and so on). A slide or a macro that has one keeps
+ProPresenter has many more kinds of action than these six (messages, audio, clear
+groups, communications and so on). A slide or a macro that has one keeps
 it: it is shown as a fainter icon, said for what it is, written back untouched and not
-done. An action for a timer, a prop, a macro or a layout that is not in the workspace
-does nothing, and the [log](#log) says so.
+done. An action for a timer, a prop, a macro, a layout or a look that is not in the
+workspace does nothing, and the [log](#log) says so.
 
-A stage action names the stage screens it is for. ProPresenter may have several set
-up for the workspace, where this app has one, which is taken to be the first of them:
-an action made here names them all as ProPresenter does, with the others left as they
-are, and one made in ProPresenter gives this app's screen the layout it gives the
-first screen it changes.
+A stage action names the stage screens it is for, and its panel has a line for each
+stage screen of the workspace: the layout that screen is to be given, or that it is to
+be left as it is. An action made here names every stage screen, as ProPresenter's do.
+One that names no screen of this workspace at all (it was made where the screens were
+others) is taken to be for the first stage screen.
 
 ## Macros
 
@@ -845,10 +677,10 @@ kinds not understood here are kept too.
 
 ## Stage layouts
 
-The third tab lists the stage screens, of which there is one: the stage window. It
-shows either the plain view the app has of its own (the words of the live slide over
+The third tab lists the workspace's stage [screens](#screens), each with what it
+shows: either the plain view the app has of its own (the words of the live slide over
 those of the next) or one of the workspace's **stage layouts**, chosen from the
-drop-down in its row. The choice is remembered for each workspace.
+drop-down in its row. The choices are remembered for each workspace.
 
 A stage layout is a slide whose boxes are linked to what is going on, and it is made
 and changed in the same [editor](#editing) as a slide. A text box of one can show:
@@ -857,20 +689,23 @@ and changed in the same [editor](#editing) as a slide. A text box of one can sho
   text boxes that show, one after another in the order the slide has them (the back
   one first, which is the reverse of the editor's list), as plain words in the box's
   own font and colour;
+- those words with the song's chords over them, in the key picked for it
+  ([Chords](#chords));
 - the time of a [timer](#timers).
 
 The `+` makes a layout to start from, with a box for each of the two slides, gives it
-to the stage and opens it in the editor. The editor's own list of layouts has a `+`
+to the first stage screen and opens it in the editor. The editor's own list of layouts has a `+`
 too, and a right click there renames, copies or removes one.
 
 ProPresenter's own layouts, in `Configuration/Stage`, are read as they are and can be
 given to the stage. What they have that is shown here: boxes for the words of the live
 and the next slide, including those that take only the text of the slide's elements of
-a given name; timers; and boxes that show only while a timer is running, or has run
-out. What they have that is not shown yet (the clock, a slide's notes, the stage
-message, the time left of a video, pictures of the slides or of an output) is left
-empty on the stage, and in the editor is marked with what it is; the links themselves
-are kept, so the layouts still work in ProPresenter.
+a given name, and with a song's chords over them where a box has those switched on;
+timers; and boxes that show only while a timer is running, or has run out. What they
+have that is not shown yet (the clock, a slide's notes, the stage message, the time
+left of a video, pictures of the slides or of an output) is left empty on the stage,
+and in the editor is marked with what it is; the links themselves are kept, so the
+layouts still work in ProPresenter.
 
 ## Editing
 
@@ -887,9 +722,14 @@ being worked on, the one in front first. In the middle is the slide. On the righ
 the properties of the element that is picked, in two parts, as ProPresenter has them:
 **Shape** and **Text**.
 
-The same editor works on the workspace's [props](#props) and [stage layouts](#stage-layouts),
-which are slides too: the list on the left is then of those, and has a `+` to add one
-and a right-click menu to rename, copy or remove one.
+The same editor works on the workspace's [props](#props), [stage layouts](#stage-layouts)
+and [themes](#themes), which are slides too: the list on the left is then of those, and
+has a `+` to add one and a right-click menu to rename, copy or remove one.
+
+With a presentation in the editor, three buttons at the right of the editor's toolbar
+choose between three ways of working. **Slides** is everything described here.
+**Chords** and **ChordPro** are for a song's chords, and have a section of their own:
+[Chords](#chords).
 
 - **Picking and arranging.** Click an element on the slide or in the list. Drag it to
   move it, or drag a handle to resize it; both snap to the slide's edges and middle and
@@ -961,6 +801,122 @@ Fonts are recorded by name, so text set in a font that is not installed here kee
 font unless another is chosen for it; the editor marks such a font as missing, and a
 substitute is used to draw it.
 
+## Chords
+
+A song can have chords over its words, for a stage screen to show the band. They are
+ProPresenter's: it gets them with a song imported from Multitracks, keeps them in the
+song's file, and shows them on a stage layout. This app reads and shows them the same
+way, and adds what ProPresenter has not: a quick way to put chords on by hand, and a
+way to bring a song in from a ChordPro file.
+
+### On the stage
+
+In a stage layout, a text box that shows the current or the next slide's text has
+**Chords** in its Text tab: **Show**, a colour, and how they are written, which are
+ProPresenter's four: **Chords** (C#m7/E), **Numbers** (6m7/1), **Numerals** (vi7/I) and
+**Do Re Mi** (Do#m7/Mi). The chords are drawn over the syllables they belong to. So that
+they stay there, a line of words with chords is never broken in two: text too wide for
+its box is made smaller instead. A slide that is chords and no words (an intro, a
+turnaround) is shown as its chords.
+
+![A stage layout in the editor: the text box that shows the current slide's words is picked, with the live song's chords drawn over them, and at the foot of its Text tab are Chords, with Show ticked and a colour, and As, set to Chords](docs/stage-layout-chords.png)
+
+**The key.** A song's chords are written in the file in its original key. Over the
+slides of a song that has chords there is a **Key** to pick, starting at the key the
+file says the song was last shown in, and the stage shows the chords in the key picked.
+Picking a key changes nothing in the file and lasts while the app is open.
+
+### The chord editor
+
+With a presentation in the editor, the buttons at the right of its toolbar give three
+ways of working: **Slides** (the editor as it always was), **Chords** and **ChordPro**.
+The last two are for a song's chords, and are this app's own: ProPresenter shows the
+chords a song came with and has no way to put one on.
+
+Putting chords on a song by hand is usually a chore. **Chords** was made so that it is
+not, and it has turned out to be the part of this app that is most fun to use. The
+whole song is one sheet, each slide's lines in a card under the name of its group,
+because chording a song a slide at a time would be slow going. (Each chord is still
+kept with its own slide's words, in ProPresenter's file.)
+
+| Point at a letter, and press 1 to 7 | Or type a chord, and take what is offered |
+|:---:|:---:|
+| <img src="docs/chords-point.png" width="420" alt="The top of the chord editor: the key, G, with its seven chords numbered 1 to 7 beside it, and under them the first verse in its card, with a bubble in outline over the word the pointer is on"> | <img src="docs/chords-type.png" width="420" alt="The same card with a bubble open over a word, D and a slash typed in it, and over that the bass notes it might be going on to: D/F#, D/A, D/G, D/B, D/C and D/E"> |
+| **Drag a chord to where it belongs** | **Or type the lot as ChordPro** |
+| <img src="docs/chords-drag.png" width="420" alt="The same card with the chord D being dragged from one word to another: faint where it was, and bright where it would land"> | <img src="docs/chordpro-type.png" width="420" alt="The ChordPro editor: the same song as text, its groups in curly brackets and its chords in square brackets in orange, one of them just typed"> |
+
+What makes it quick:
+
+- **A spot shows where the next chord will go.** It is a bubble in outline that follows
+  the pointer from letter to letter (and the arrow keys from word to word), with its
+  tail on the letter the chord will stand over. Any letter will do: chords fall in the
+  middle of words as often as at their start.
+- **Most chords are one key.** The song's key is at the top of the sheet with its seven
+  chords beside it, numbered. Point at a letter and press **4**, and the key's fourth
+  chord is there: in G, that is C. Most of most songs is those seven.
+- **Typing is helped along.** A letter from A to G opens a bubble to type the chord in.
+  It takes only what could be a chord, and offers what it might be going to be: the
+  chords the song already has, then the key's own, then the usual kinds on that note,
+  and after a slash the likeliest bass notes. Down and Up pick one.
+- **Nothing has to be pressed to say a chord is done.** While one is being typed the
+  spot goes on following the pointer. Click the next place, and the chord is kept and
+  the bubble opens there: click, type, click, type, down the song. Enter keeps a chord
+  too, and Tab keeps it and moves on to the next word. Only Esc throws one away.
+- **Chords are things to pick up.** Drag one to another word, on any slide; hold Ctrl
+  to leave a copy behind.
+- **A verse's chords go onto the next verse in one go.** Ctrl+C copies the chords of a
+  line, or with Shift of a whole group, and Ctrl+V puts them on other lines word for
+  word.
+- **Nothing is lost.** Every change is saved at once, into the song's own file, and
+  Ctrl+Z takes it back. The words are never changed here, only the chords.
+
+All of it, key by key:
+
+| Do this | And |
+| --- | --- |
+| 1 to 7 | The key's own chord on that note of its scale goes on the spot: in C, 1 is C, 4 is F, 6 is Am. The strip along the top shows them, and they can be clicked there |
+| A to G | Starts a chord by name. Only what could be a chord can be typed, and over it are the chords it might be going to be: the song's own first, then the key's, then the usual kinds |
+| Down, Up | Pick one of those; Right puts it in the box to go on from (for a bass note, say) |
+| Enter | Keeps the chord. Tab keeps it and moves the spot on to the next word. Esc throws it away |
+| Click | On a place: type a chord there, or change the one that is there. While a chord is being typed, a click on another place keeps it and starts on the next; a click anywhere else on the sheet keeps it too |
+| Drag a chord | Moves it to another word, on any slide. With Ctrl held it is copied |
+| Delete | Takes off the chord at the spot |
+| Shift | Under the pointer, the spot keeps to the starts of words. With the arrow keys, it goes a letter at a time |
+| Ctrl+C, Ctrl+Shift+C | Copies the chords of the spot's line, or of its whole group |
+| Ctrl+V | Puts them on the lines from the spot's on, word for word: a second verse gets the chords of the first |
+| Ctrl+Z, Ctrl+Shift+Z | Undo and redo |
+
+The **Key** at the top left of the sheet says what key the chords are written in, which
+is what 1 to 7 go by and what the stage transposes from. A song that names no key is
+taken to be in C until one is set.
+
+**ChordPro** is the same song as text, each chord in square brackets where it is played:
+`[G]Amazing [C]grace`. Chords are typed, changed and deleted among the words, and the
+words themselves cannot be typed over. `[` brings its `]` with it, and Backspace on a
+bracket takes the whole chord. It is for someone who thinks in ChordPro, or has a chart
+to copy from.
+
+### Importing a ChordPro file
+
+The **+** beside Libraries has **Import ChordPro File…**, which makes a new song of a
+ChordPro file in the library that is open: a group for each part the file marks
+(verses, choruses, a bridge, or a line that only says "Verse 2:"), two lines of words
+to a slide unless another number is asked for, the chords over the words, and the
+song's key. The same **+** has **New Library**.
+
+### What is a guess, or not done
+
+- How the chords are kept was worked out from songs ProPresenter imported from
+  Multitracks, and what is written here is in the same form. A song with chords put on
+  here has not been opened in ProPresenter yet; nor has a song imported here.
+- Numbers, numerals and Do Re Mi are written the way musicians write them.
+  ProPresenter does not say exactly what it writes, so they may differ in the corners.
+- A song imported or chorded here is not marked as a Multitracks song, which is a mark
+  for songs licensed from them.
+- The chord editors do not change words; the Slides editor does, and the chords of
+  the rest of the text box stay on their words when it does.
+- ProPresenter's other chord thing, a chord chart shown as a picture, is not shown.
+
 ## Transitions
 
 The transition is chosen at the left of the thin bar under the slides (the buttons for
@@ -1018,13 +974,13 @@ Two things are known of a screen, and they are kept in two places.
   in. What ProPresenter says each screen is connected to (a display, a video card) is
   left in its file exactly as it was found, and not gone by here.
 
-Every audience screen shows the same thing, and every stage screen shows what is live
-through its own layout (each has its own, chosen on the Stage tab of the show controls;
-a stage action gives any of them one). But each screen is drawn by itself, at its own
-size: that is what will let a look, later, give one screen the slides and another only
-the media. A video is still played only once however many screens show it, by the first
-audience screen, and the others are handed its frames, so they cannot drift apart and
-its sound is heard once.
+Every audience screen shows the same thing unless the [look](#looks) that is live says
+otherwise (a look gives each screen its layers, and can dress its slides in a theme),
+and every stage screen shows what is live through its own layout (each has its own,
+chosen on the Stage tab of the show controls; a stage action gives any of them one).
+Each screen is drawn by itself, at its own size. A video is still played only once
+however many screens show it, by the first audience screen, and the others are handed
+its frames, so they cannot drift apart and its sound is heard once.
 
 ### A screen in a window
 
@@ -1036,25 +992,15 @@ out filling a second screen if there is one (`--screen`, with a screen's number 
 name, says which; `--list-screens` says what there are), and each window comes back
 the way it was left.
 
-### Kept awake
+A Wayland desktop does not let an application place its own windows, so these windows
+come back wherever the desktop puts them. The settings screen has a switch, under
+Windows, to run the app through X11 instead, where their places are remembered; it says
+what that costs.
 
-**The screens are kept awake.** A desktop left alone blanks its screens after a few
-minutes, and a presenter's computer is left alone for as long as a sermon lasts. So
-while the output or the stage window is switched on, the app asks the desktop not to
-count the time as idle, the way a video player does while a film plays; with both
-switched off, or the app closed, the desktop goes back to its own settings. The
-[log](#log) says when the asking starts and ends, and says so once if the desktop does
-not answer to it (GNOME and KDE do).
-
-A Wayland desktop does not let an application place its own windows, so the two come
-back wherever the desktop puts them. The settings screen has a switch, under Windows,
-to run the app through X11 instead, where their places are remembered; it says what
-that costs.
-
-**Alt+Tab.** These two windows are there to be looked at, not switched to, so they are
-kept out of the desktop's window switcher, its overview and its dock, and switching to
-Simple Presenter always lands on the window that works the show. How that is done
-depends on what the app is run through:
+**Alt+Tab.** The output window and the stage window are there to be looked at, not
+switched to, so they are kept out of the desktop's window switcher, its overview and its
+dock, and switching to Simple Presenter always lands on the window that works the show.
+How that is done depends on what the app is run through:
 
 - **Through X11** the app sees to it itself, and there is nothing to do.
 - **Through Wayland**, which is the default, an application cannot: the desktop alone
@@ -1078,7 +1024,18 @@ depends on what the app is run through:
   The extension is written for GNOME 50, the one Ubuntu 26.04 has, and does only this:
   it finds the two windows by their application and their titles and tells GNOME to
   leave them out. On other desktops run through Wayland, and on GNOME without it, the
-  two windows are in Alt+Tab as any window is.
+  two windows are in Alt+Tab as any window is. (So, through Wayland, is the window of
+  any screen after the first of its kind: the extension knows only the first two.)
+
+### Kept awake
+
+**The screens are kept awake.** A desktop left alone blanks its screens after a few
+minutes, and a presenter's computer is left alone for as long as a sermon lasts. So
+while the audience screens or the stage screens are switched on, the app asks the
+desktop not to count the time as idle, the way a video player does while a film plays;
+with both switched off, or the app closed, the desktop goes back to its own settings.
+The [log](#log) says when the asking starts and ends, and says so once if the desktop
+does not answer to it (GNOME and KDE do).
 
 ## Looks
 
@@ -1160,82 +1117,6 @@ slides are dressed in.
 Not yet: making folders of themes here (ProPresenter's are shown, and a theme can be
 put in one in the file manager), the pictures a theme keeps in its own folder being
 found from there, and choosing a theme for a new slide.
-
-## Chords
-
-A song can have chords over its words, for a stage screen to show the band. They are
-ProPresenter's: it gets them with a song imported from Multitracks, keeps them in the
-song's file, and shows them on a stage layout. This app reads and shows them the same
-way, and adds what ProPresenter has not: ways to put chords on by hand, and to bring a
-song in from a ChordPro file.
-
-**On the stage.** In a stage layout, a text box that shows the current or the next
-slide's text has **Chords** in its Text tab: **Show**, a colour, and how they are
-written, which are ProPresenter's four: **Chords** (C#m7/E), **Numbers** (6m7/1),
-**Numerals** (vi7/I) and **Do Re Mi** (Do#m7/Mi). The chords are drawn over the
-syllables they belong to. So that they stay there, a line of words with chords is never
-broken in two: text too wide for its box is made smaller instead.
-
-![A stage layout in the editor: a text box that shows the current slide's words is picked, with the live song's chords drawn over them, and at the foot of its Text tab are Chords, with Show ticked and a colour, and As, set to Chords](docs/stage-layout-chords.png)
-
-**The key.** A song's chords are written in the file in its original key. Over the
-slides of a song that has chords there is a **Key** to pick, starting at the key the
-file says the song was last shown in, and the stage shows the chords in the key picked.
-Picking a key changes nothing in the file and lasts while the app is open.
-
-**Editing.** With a presentation in the editor, the toolbar has three ways of working:
-**Slides** (the editor as it always was), **Chords** and **ChordPro**. The last two show
-the whole song as one sheet, slide after slide under the names of its groups, because
-chording a song a slide at a time would be slow going. Each chord is still kept with
-its own slide's words. Neither changes the words, only the chords, and every change is
-saved at once and can be undone.
-
-*Chords* is for the mouse and the keys together. Each slide's lines are in a card of
-their own. A spot follows the pointer from letter to letter, since a chord can fall
-anywhere in a word (the arrow keys move it too, a word at a time), and what is pressed
-goes there:
-
-| Do this | And |
-| --- | --- |
-| 1 to 7 | The key's own chord on that note of its scale goes on the spot: in C, 1 is C, 4 is F, 6 is Am. The strip along the top shows them, and they can be clicked there |
-| A to G | Starts a chord by name. Only what could be a chord can be typed, and under it are the chords it might be going to be: the song's own first, then the key's, then the usual kinds |
-| Down, Up | Pick one of those; Right puts it in the box to go on from (for a bass note, say) |
-| Enter | Takes the chord. Tab takes it and moves the spot on to the next word |
-| Click, or Enter | On the spot: type a chord there, or change the one that is there |
-| Drag a chord | Moves it to another word, on any slide. With Ctrl held it is copied |
-| Delete | Takes off the chord at the spot |
-| Shift | Under the pointer, the spot keeps to the starts of words. With the arrow keys, it goes a letter at a time |
-| Ctrl+C, Ctrl+Shift+C | Copies the chords of the spot's line, or of its whole group |
-| Ctrl+V | Puts them on the lines from the spot's on, word for word: a second verse gets the chords of the first |
-| Ctrl+Z, Ctrl+Shift+Z | Undo and redo |
-
-The **Key** at the top left of the sheet says what key the chords are written in, which
-is what 1 to 7 go by and what the stage transposes from. A song that names no key is
-taken to be in C until one is set.
-
-*ChordPro* is the same song as text, each chord in square brackets where it is played:
-`[G]Amazing [C]grace`. Chords are typed, changed and deleted among the words, and the
-words themselves cannot be typed over. `[` brings its `]` with it, and Backspace on a
-bracket takes the whole chord.
-
-**Importing.** The **+** beside Libraries has **Import ChordPro File…**, which makes a
-new song of a ChordPro file in the library that is open: a group for each part the
-file marks (verses, choruses, a bridge, or a line that only says "Verse 2:"), two
-lines of words to a slide unless another number is asked for, the chords over the
-words, and the song's key. The same **+** has **New Library**.
-
-What is a guess, or not done:
-
-- How the chords are kept was worked out from songs ProPresenter imported from
-  Multitracks, and what is written here is in the same form. A song with chords put on
-  here has not been opened in ProPresenter yet; nor has a song imported here.
-- Numbers, numerals and Do Re Mi are written the way musicians write them.
-  ProPresenter does not say exactly what it writes, so they may differ in the corners.
-- A song imported or chorded here is not marked as a Multitracks song, which is a mark
-  for songs licensed from them.
-- The chord editors do not change words; the Slides editor does, and the chords of
-  the rest of the text box stay on their words when it does.
-- ProPresenter's other chord thing, a chord chart shown as a picture, is not shown.
 
 ## Search
 
@@ -1324,7 +1205,7 @@ NDI® is a registered trademark of Vizrt NDI AB.
 | Ctrl+S | Show mode: out of the editor, whichever one is up |
 | Ctrl+F | [Search](#search) |
 | Ctrl+V | Show or hide the media bin |
-| Ctrl+1 / Ctrl+2 | Show or hide the output / stage window |
+| Ctrl+1 / Ctrl+2 | Switch the audience screens / the stage screens on or off |
 | Esc | Close a menu |
 
 A group's hotkey is set on the settings screen, under Groups, where each group has its
@@ -1370,6 +1251,8 @@ In the editor:
 | Shift while dragging | Move in a straight line; resize from a corner in proportion |
 | Ctrl while dragging | No snapping |
 | F1 / F2 / F3 / F4 | The clears, as when showing |
+
+The chord editor has keys of its own, which are listed with it: [Chords](#chords).
 
 ## Log
 
@@ -1430,6 +1313,274 @@ second gets through. A log that grows past 2 MB carries on in a new file and kee
 one before, so a session's log is never more than twice that. The one thing done by
 the clock is the question put to the app once a second, to see that it is answering.
 
+---
+
+**From here on it is about how the app is made**, for anyone who wants to build it,
+change it, or see how it was done.
+
+## Building from source
+
+Nothing here is specific to Ubuntu except the names of the packages. It needs Qt 6.9
+or newer.
+
+**1. Install the tools and the libraries.**
+
+```
+sudo apt install git cmake ninja-build g++ pkg-config \
+    qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qt6-shadertools-dev \
+    qml6-module-qtquick-controls qml6-module-qtquick-effects qml6-module-qtmultimedia \
+    qml6-module-qtquick-dialogs qml6-module-qtquick-shapes qt6-image-formats-plugins \
+    protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev libxcb1-dev \
+    libavformat-dev libavcodec-dev libswscale-dev libavutil-dev
+```
+
+| These | are for |
+|---|---|
+| `git`, `cmake`, `ninja-build`, `g++`, `pkg-config` | Fetching the code and building it |
+| `qt6-…-dev` | Qt 6, which the app is written with: windows, drawing, video playback, and the tool that compiles the transition shaders |
+| `qml6-module-…` | The parts of Qt Quick that the app loads when it starts, such as buttons and effects |
+| `qt6-image-formats-plugins` | Reading pictures in the formats Qt does not have built in, WebP among them |
+| `protobuf-compiler`, `libprotobuf-dev` | ProPresenter's files are Protocol Buffers. The build turns the descriptions of the format into C++ that reads and writes it |
+| `libfontconfig-dev` | Finding fonts by the names ProPresenter knows them by |
+| `zlib1g-dev` | Unpacking exported playlists, which are zip archives |
+| `libav…-dev`, `libswscale-dev` | FFmpeg, for taking a frame from a video as its thumbnail |
+| `libxcb1-dev` | X11's own library, for keeping the output and stage windows out of Alt+Tab when the app is run through X11 |
+
+**2. Get the code.**
+
+```
+git clone --recurse-submodules https://github.com/greyshirtguy/Simple-Presenter.git
+cd Simple-Presenter
+```
+
+`--recurse-submodules` also fetches
+[ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto), the
+unofficial descriptions of ProPresenter's file formats that the app is built on. If the
+build complains that `.proto` files are missing, that step was skipped:
+`git submodule update --init` does it afterwards.
+
+**3. Build it.**
+
+```
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build
+```
+
+The first line checks that everything in step 1 is there and sets the build up in a
+folder called `build`; the second compiles. It takes a few minutes the first time, most
+of it spent on the code generated for ProPresenter's formats. The result is one file,
+`build/SimplePresenter`, with the interface and the shaders compiled into it.
+
+**4. Run it.**
+
+```
+./build/SimplePresenter
+```
+
+See [The first run](#the-first-run) for giving it something to show, and
+`./build/SimplePresenter --help` for its options. Video plays with or without a driver
+for decoding it on the graphics hardware; [Hardware video decoding](#hardware-video-decoding)
+says how to get one.
+
+**5. Look around.** [How it works](#how-it-works) is the short version, and
+`src/main.cpp` opens with a tour of the code that says where everything is. The sources
+are written to be read: each file starts by saying what it is for and why it is the way
+it is. To browse or change them in an editor that understands the project, open
+`CMakeLists.txt` in Qt Creator. After a change, `cmake --build build` again rebuilds
+only what the change touched, and the [self-test](#self-test) shows whether anything
+that is drawn has moved.
+
+**6. Make the package,** if you want one to install or to pass on:
+
+```
+cd build && cpack
+```
+
+writes the same `.deb` as on the Releases page. The program in it has had its names
+taken out, which is most of what keeps it small, so a crash's account of where the app
+was (see [Log](#log)) gives the places inside the app as numbers. The list that turns
+those numbers back into names is made from the program as it was built, and belongs
+with the package it was made for:
+
+```
+nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.8_symbols.txt.xz
+```
+
+A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of
+that list whose number is not greater than `8ae5ac`.
+
+## Built for modest hardware
+
+The machine all of this is measured on is a 2017 Dell laptop: a two-core Core i5-7300U
+with Intel HD 620 graphics. On it, when each of these was last measured:
+
+| | |
+|---|---|
+| Starting, to the first frame on screen | about a second |
+| Sitting with a still slide on the output | next to nothing: three hundredths of a percent of one processor core, which is the app being asked once a second whether it is still answering (see [Log](#log)) |
+| A 4K video under lyrics, full screen at 1080p | the graphics chip a third busy (it is a quarter busy with only the desktop on screen); 5 to 7% of one processor core |
+| Showing the slides of a presentation just picked | about 80 ms |
+| Going into [Simple View](#simple-view) | a third of a second: the panes slide off in a fifth, at sixty frames a second, and the slides fill the window a tenth later |
+| Thumbnails for 112 videos, 47 of them 4K, the first time they are seen | 2.5 seconds, while the window stays responsive |
+| Putting a still on the output, even one of 8000 by 4500 | read in the background; the window is not held up |
+| Memory, with a workspace open | about 290 MB, of which 160 MB is what Qt needs for any window; up to 450 MB while a 4K video plays |
+
+What gets it there:
+
+- **Nothing is drawn twice.** A slide's text is turned into a picture once, when the
+  slide is shown, and from then on costs the graphics chip one rectangle. Nothing is
+  drawn while nothing changes.
+- **A transition costs only while it runs.** It is one shader blending two textures.
+  Between transitions nothing is blended and the output is drawn directly; going
+  through the blend all the time, as the app once did, kept the graphics chip twice as
+  busy for the same picture.
+- **Video is decoded once, by the hardware if it can.** The graphics chip decodes it
+  when a driver is installed, and the preview in the operator window borrows a few of
+  the output's frames a second instead of decoding the file again.
+- **Media files are never read on the thread that runs the windows.** Thumbnails are
+  made on spare processor threads, one keyframe from each video, and kept on disk. A
+  still put on the output is read on another thread, at no more than the size it can be
+  shown at, and brought in when it is ready, so a large picture does not make a
+  transition or a playing video stutter.
+- **The small pictures are honest but plain.** Thumbnails are the real slides drawn
+  small, without their shadows, which cannot be seen at that size and are the dear part.
+- **Lists are only rebuilt when they change.** The app notices when a workspace changes
+  on disk, but rebuilds what is on screen only if what it shows is different.
+- **What follows something moving is drawn with it, and seldom.** A player says where
+  its video has got to twenty times a second. A transport drawn straight from that
+  redrew the operator window twenty times a second, and cost over half as much again as
+  playing a 4K video did. So the transport looks at the player a few times a second,
+  and does it when the preview beside it is about to be redrawn for a new frame: the
+  window is drawn once for both, and the transport costs nothing that can be measured.
+  A timer that is stopped costs nothing, and one that is running a redraw a second: a
+  third of a percent of a core, or half a percent when a slide on the output shows it.
+- **Text that changes fast is drawn a digit at a time.** A timer set to show its
+  hundredths changes thirty times a second, which is not what slide text is drawn for:
+  drawing all of it again that often, large, on a full-screen output, took over a
+  quarter of a core. Such text is laid out glyph by glyph, and only the glyphs that
+  have changed are cleared, drawn and sent to the graphics chip again, which brings it
+  to about a tenth of a core. In the thumbnails, where hundredths cannot be read, it
+  is five times a second.
+- **The log is written when something happens, never when something is drawn.** A line
+  of it costs four millionths of a second and is handed to the system at once: nothing
+  waits for the disk, and nothing is written for a frame. See [Log](#log).
+
+## How it works
+
+```
+  a workspace on disk                    C++ (src/)                      QML (qml/)
+  -------------------          ---------------------------       --------------------------
+  Libraries/*/*.pro    --->    ProDocument, proconvert    --->   Main.qml: what is open,
+  Playlists/Library            PlaylistFile, Timers,             what a key or a click
+  Playlists/Media              Props, StageLayouts,              does
+  Configuration/Timers,        Macros, Screens, Looks,                  |
+    Props, Stage, Macros,      Themes                                   | goLive(), showMedia(),
+    Groups, Workspace          (parse, flatten into                     | toggleProp()
+  Themes/..., Media/...        lists and maps)                          |
+        ^                                                               v
+        |                      Show, showstate            <---   asks for a change
+        +--- changes are       (what is live, and the     --->   is told what to show
+             written back      rules it changes by)                     |
+             into the files                                             v
+                               StrokedText, textlayout           OutputScene.qml, for each
+                               (text laid out and drawn   <---   audience screen: a media
+                               with its outline, once)           layer and a slide layer,
+                                                                 each a TransitionLayer,
+                                                                 and the props over them
+                               ThumbnailProvider, videoframe
+                               (small pictures, cached)   --->   thumbnails in the lists
+```
+
+The app is a window, some screens and a folder. The folder is the workspace. The operator
+window is where the show is run from; an audience screen is what the audience sees, a media
+layer with a slide layer over it and the props over both, in a window, on a display or
+sent over the network ([Screens](#screens)); a stage screen is what the
+people on stage see.
+
+The code is in two halves. The C++ in `src/` does files and pixels: it reads and writes
+ProPresenter's documents, parses the RTF their text is kept in, lays text out and draws
+it with its outline, and makes thumbnails. The QML in `qml/` is everything on screen:
+the windows, and what a click or a key does in them. What passes between them is plain
+data: a presentation crosses over as a list of slides, each a map of everything needed
+to draw it, so the QML never sees a file format.
+
+Between the two is the show itself. **What is live, and the rules by which it changes,
+are in one place with nothing of the windows in it** (`src/showstate.*`): which slide
+the show is at, what is on the media layer, which props are on; and what happens to
+those when a slide goes live, media is put on, a layer is cleared or a macro is run.
+When is a background video left to play on? What does a slide that clears itself leave
+marked? What does a macro that runs a macro do? Each is a few lines there, tried by
+tests that need no window ([Tests](#tests)). The operator window only asks for a change
+(through `Show`, which QML can talk to) and is told what the output is then to be
+handed. Anything that decides what the audience sees belongs there, and not in a
+window's script.
+
+Three rules run through all of it.
+
+- **The files are ProPresenter's, and stay that way.** They hold far more than this app
+  understands. Every change is made by parsing the whole file, altering only the fields
+  the change is about, and writing the whole thing back in one step, so that whatever
+  the app does not know about goes back exactly as it came.
+- **One drawing of a slide.** The same component draws a slide on the output, in a
+  thumbnail, in the preview and in the editor, from the same data. Layout is done in
+  the slide's own coordinates and scaled, so a line of text breaks at the same word at
+  every size.
+- **One keeper of what is live.** Nothing but `Show` changes it, and everything that
+  marks or shows it reads it from there.
+
+Most of what a slide shows is settled when its file is read. The exception is text that
+changes while the slide is on show: a timer's time, or the words of the slide that is
+live. An element linked to a timer is drawn by asking `Timers`, the one object that
+holds the timers and keeps them running, what the time is now, and is drawn again when
+the answer changes; one linked to the live slide asks `Show`, which is what keeps what
+is live. A stage layout is nothing more than a slide made of such
+boxes, and a prop nothing more than a slide laid over the others, so both are drawn by
+what draws every slide and edited by what edits every slide.
+
+A transition is a small fragment shader that is handed the outgoing and incoming
+pictures and a number that goes from 0 to 1; `shaders/dissolve.frag` explains the
+pattern. Adding one is a shader file, a line for it in the build, and an entry in
+`qml/TransitionCatalogue.qml` that names it and lists what can be adjusted about it.
+
+`src/main.cpp` opens with a longer tour, and the header of each file says how that part
+works.
+
+## Hardware video decoding
+
+Qt Multimedia decodes video through FFmpeg and uses the graphics hardware when a driver
+for it is installed. Without one it falls back to the CPU, which works but costs more,
+and more so with 4K media or several videos at once. Only the Intel case has been
+tested with this app; the AMD and NVIDIA notes are what should apply.
+
+| Graphics | What to install on Ubuntu | Notes |
+|---|---|---|
+| Intel (Broadwell, 2014, or newer) | `intel-media-va-driver` | Tested. Decodes through VA-API. Older Intel chips use `i965-va-driver`. |
+| AMD | Nothing: the driver is part of Mesa (`mesa-libgallium`), installed with the desktop | Decodes through VA-API. On older Ubuntu releases it is the separate `mesa-va-drivers` package. |
+| NVIDIA, proprietary driver | The driver's own decode library, `libnvidia-decode-<version>`, which the `nvidia-driver-<version>` package pulls in | Decodes through VDPAU or NVDEC, not VA-API. |
+| NVIDIA, open-source nouveau driver | Nothing: also part of Mesa | Limited: only some older cards, and it needs firmware. Expect CPU decoding. |
+
+To see what a machine can decode, install `vainfo` and run it: it lists the codecs the
+VA-API driver offers, or fails if there is no driver. That does not apply to NVIDIA's
+proprietary driver.
+
+To see what the app itself chose, run it with Qt's multimedia logging on and play a
+video:
+
+```
+QT_LOGGING_RULES="qt.multimedia.ffmpeg*=true" ./build/SimplePresenter 2>&1 | grep hwaccel
+```
+
+`Checking HW context: vaapi` followed by `Using above hw context` means that method is
+available, and `Selected format ... for hw` means a video is being decoded with it.
+`Could not create hw context` for every method means CPU decoding.
+
+The app's own [log](#log) has a line for each video that is played which says how its
+frames arrive: as textures, which is a video decoded by the graphics chip, or in
+memory, which is one decoded by the processor.
+
+The lines FFmpeg prints at startup about VDPAU or Vulkan failing are it trying methods
+the machine does not have, and are harmless.
+
 ## Benchmark
 
 ```
@@ -1470,7 +1621,8 @@ There are two kinds, and both are in `tests/` ([tests/README.md](tests/README.md
 the whole of it).
 
 **Unit tests** try the parts of the app that are plain rules, by themselves, with no
-window and no workspace: so far the rules of the show (`src/showstate.*`). They are
+window and no workspace: the rules of the show (`src/showstate.*`), chords, the screens
+and the looks in ProPresenter's file, search, and the matching of themes. They are
 built with the app and take a few milliseconds:
 
 ```
@@ -1478,8 +1630,8 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: some twenty scripts and about a
-thousand checks. They run on a desktop of their own that shows nowhere, on copies of
+and look at what its windows then hold and show: nearly thirty scripts and over eleven
+hundred checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
 which a release does not have:
@@ -1502,7 +1654,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/workspacefiles.*` | How documents refer to files, and how those files are found again |
 | `src/prodocument.*` | Reads `.pro` files for showing, and makes the changes show mode can |
 | `src/proconvert.*` | Turns a slide in a `.pro` file into what is drawn, and changes back into the file's terms |
-| `src/presentationeditor.*` | A presentation, the props or the stage layouts open in the editor: its changes, undo, saving and backups |
+| `src/presentationeditor.*` | A presentation, the props, the stage layouts or a theme open in the editor: its changes (a song's chords among them), undo, saving and backups |
 | `src/playlistfile.*` | Reads and writes the two playlists files |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
@@ -1541,9 +1693,11 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/Main.qml` | The operator window: what is open, and what a click or a key does |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
 | `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |
-| `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props and stage screens |
-| `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
-| `qml/OutputScene.qml`, `qml/StageScene.qml` | What an audience screen and a stage screen show, whatever they are sent out through |
+| `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml`, `MacrosPanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props, stage screens and macros |
+| `qml/ActionDialog.qml`, `qml/PopupMenu.qml` | The panel a timer action or a stage action is set up in, and the menus, which open one out of another |
+| `qml/SettingsScreen.qml` | The settings: groups, slides, screens, looks, windows, and what the app is |
+| `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists and its three ways of working, the slide being worked on, and the properties panel |
+| `qml/OutputScene.qml`, `qml/StageScene.qml`, `qml/StageView.qml` | What an audience screen and a stage screen show, whatever they are sent out through; and the plain view a stage screen has without a layout |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |
 | `qml/LooksSettings.qml` | The Looks section of the settings |
 | `qml/ThemesPanel.qml` | The themes, let down from the toolbar's button |
@@ -1552,7 +1706,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |
 | `qml/ImportSong.qml` | The panel a ChordPro file is imported from |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
-| `src/windowlists.*` | Keeps those two windows out of Alt+Tab where the app can see to that itself (through X11) |
+| `src/windowlists.*` | Keeps the windows of the screens out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
 | `qml/PropsLayer.qml` | The props that are on, over the other layers |
 | `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |

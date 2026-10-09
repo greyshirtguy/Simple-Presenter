@@ -119,6 +119,14 @@ loaded in the operator window's own scope, it calls the window's functions and r
 properties by name. Then give it a line in the `TESTS` table of `run.py`, which says the
 workspace it runs on and whether it has to be really drawn.
 
+**Pictures.** The pictures of the chord editors in the main README were taken this way
+and not by hand: a script that sets a scene and calls `testInput.grab("name")`, run with
+`--keep`, leaves `frames/<test>/name.png` in the run's folder. For pictures at twice the
+size, as a high-density display would show the app, give the test's line in `TESTS`
+`env={"QT_SCALE_FACTOR": "2"}` and the test desktop a display large enough for the
+window, with `SP_TEST_MONITOR=3840x2160 tests/ui/run.py <test> --keep`. Such a script
+is not a test, and is not kept here.
+
 ## And two more, in the app itself
 
 `SimplePresenter --selftest <dir>` saves pictures of a fixed run for comparing before

@@ -12,7 +12,7 @@
     <p>
       A simple, lightweight presenter for Linux that works on ProPresenter 7 folders as
       they are: its presentations, playlists and media. Slides go on a slide layer over a
-      media layer, with shader transitions, an audience output and a stage display.
+      media layer, with shader transitions, on screens for the audience and for the stage.
     </p>
     <p>
       It is a native application, made to run a show comfortably on modest and older
