@@ -38,6 +38,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.8" date="2026-10-10">
+      <description>
+        <p>
+          Chords: shown on the stage in any key, put on by hand in two editors, and brought in from
+          ChordPro files.
+        </p>
+      </description>
+    </release>
     <release version="0.7" date="2026-10-09">
       <description>
         <p>

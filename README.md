@@ -4,8 +4,13 @@
 
 ## New in 0.5 and since
 
-The big things, up to version 0.7:
+The big things, up to version 0.8:
 
+- **Chords.** A song's [chords](#chords) are shown over its words on a stage screen, in
+  any key and in ProPresenter's four notations, as ProPresenter shows them. And what
+  ProPresenter has not: two editors for putting chords on by hand, one for the mouse
+  and the keys 1 to 7 and one that is ChordPro text, and songs brought in from ChordPro
+  files. (New in 0.8.)
 - **Screens.** A workspace can have up to sixteen [screens](#screens), for the audience
   and for the stage, where there was one of each. They are the screens ProPresenter has
   for the workspace. Each goes to a window of its own, to one of the computer's
@@ -222,11 +227,11 @@ the package as much as for the code: it is an experiment, passed on as it is.
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download
-`simplepresenter_0.7_amd64.deb` from the
+`simplepresenter_0.8_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.7_amd64.deb
+sudo apt install ./simplepresenter_0.8_amd64.deb
 ```
 
 That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
@@ -338,7 +343,7 @@ those numbers back into names is made from the program as it was built, and belo
 with the package it was made for:
 
 ```
-nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.7_symbols.txt.xz
+nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.8_symbols.txt.xz
 ```
 
 A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of
