@@ -15,8 +15,10 @@
 - Underneath: what is live, and the rules it changes by, are now in one place with
   [tests of their own](#tests), and the tests of the whole app are in the repository.
 
-**0.61** changes the [licence](#licence) to MIT: do with it what you like. Nothing else
-is different from 0.6.
+**0.61** changes the [licence](#licence) to MIT: do with it what you like.
+
+**0.62** makes [NDI](#ndi)'s library easy to get: set a screen to NDI without it and
+the app offers to fetch it, showing NDI's licence for you to agree to first.
 
 Earlier versions are on the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page.
@@ -203,11 +205,11 @@ the package as much as for the code: it is an experiment, passed on as it is.
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download
-`simplepresenter_0.61_amd64.deb` from the
+`simplepresenter_0.62_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.61_amd64.deb
+sudo apt install ./simplepresenter_0.62_amd64.deb
 ```
 
 That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
@@ -319,7 +321,7 @@ those numbers back into names is made from the program as it was built, and belo
 with the package it was made for:
 
 ```
-nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.61_symbols.txt.xz
+nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.62_symbols.txt.xz
 ```
 
 A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of
