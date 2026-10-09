@@ -48,6 +48,7 @@ QtObject {
 
     function run() {
         const herald = "Hark the herald angels sing"
+        const peace = "Peace on earth and mercy mild"
         const born = "Born to raise the sons of earth"
         steps = [
             () => {
@@ -306,6 +307,87 @@ QtObject {
                 check("one more is put on its end, and the characters it hangs on are made for it", row.chords.length === kept.aloneCount + 1
                       && row.chords[kept.aloneCount].name === "E" && row.text.length === (kept.aloneCount + 1) * 2 - 1 && row.alone,
                       names(kept.alone) + " over " + row.text.length + " characters")
+                // A run of chords with the mouse and the letters alone: type one, click where the next goes.
+                kept.peace = lineOf(peace)
+                kept.god = lineOf("God and sinners reconciled")
+                // (The third is the slide that is one line, "Glory to the newborn King", over those two.)
+                kept.glory = kept.line + 2
+                check("found the lines to go by", kept.peace >= 0 && kept.god >= 0 && sheet().rows[kept.glory].first && names(kept.peace) === "0:E 19:Asus2"
+                      && names(kept.god) === "0:Bsus4" && names(kept.glory) === "0:Bsus4 13:C#m", names(kept.peace) + " / " + names(kept.god) + " / " + names(kept.glory))
+                const a = over(kept.peace, 9)
+                testInput.mouse(1, a.x, a.y)
+                testInput.key(Qt.Key_G, 0, "g")
+                return 300
+            },
+            () => {
+                check("a chord is being typed on one word", sheet().typing && sheet().typingRow === kept.peace && sheet().typingAt === 9 && named("chordField").text === "G",
+                      sheet().typingRow + ":" + sheet().typingAt + " " + named("chordField").text)
+                const b = over(kept.god, 8)
+                testInput.mouse(1, b.x, b.y)
+                return 300
+            },
+            () => {
+                const entryBox = named("chordEntry")
+                check("while it is, the spot goes on following the pointer, and shows where the next chord would go",
+                      sheet().typing && sheet().spotRow === kept.god && sheet().spotAt === 8 && named("chordSpot").visible
+                      && entryBox.visible && entryBox.item.index === kept.peace && named("chordField").text === "G" && named("chordField").activeFocus,
+                      "spot " + sheet().spotRow + ":" + sheet().spotAt + " shown " + named("chordSpot").visible + ", typing at " + sheet().typingRow + ":" + sheet().typingAt)
+                testInput.grab("7b-typing-and-pointing")
+                click(over(kept.god, 8))
+                return 500
+            },
+            () => {
+                check("a click there keeps the chord that was being typed, and opens the bubble on the place clicked",
+                      names(kept.peace) === "0:E 9:G 19:Asus2" && sheet().typing && sheet().typingRow === kept.god && sheet().typingAt === 8
+                      && named("chordField").text === "" && named("chordField").activeFocus && named("chordEntry").item.index === kept.god,
+                      names(kept.peace) + ", typing at " + sheet().typingRow + ":" + sheet().typingAt + " '" + named("chordField").text + "'")
+                testInput.type("d")
+                click(over(kept.glory, 9))
+                return 500
+            },
+            () => {
+                check("and so on, chord after chord, with no key between to say it is done", names(kept.god) === "0:Bsus4 8:D" && sheet().typing
+                      && sheet().typingRow === kept.glory && sheet().typingAt === 9, names(kept.god) + ", typing at " + sheet().typingRow + ":" + sheet().typingAt)
+                const disk = onDisk(kept.path, peace)
+                check("each of them in the file", disk !== null && disk.chords.some(c => c.at === 9 && c.name === "G") && disk.chords.some(c => c.name === "D"),
+                      disk ? JSON.stringify(disk.chords) : "")
+                testInput.type("a")
+                testInput.key(Qt.Key_Escape)
+                check("Esc is what throws a chord being typed away", !sheet().typing && names(kept.glory) === "0:Bsus4 13:C#m", names(kept.glory))
+                const c = over(kept.glory, 9)
+                testInput.mouse(1, c.x + 1, c.y)
+                testInput.key(Qt.Key_C, 0, "c")
+                return 300
+            },
+            () => {
+                check("another is being typed", sheet().typing && named("chordField").text === "C")
+                // Beside the cards there is nothing but the sheet.
+                const view = named("chordSheetView")
+                click(view.mapToItem(null, view.width - 40, 70))
+                return 400
+            },
+            () => {
+                check("a click on the bare sheet keeps it too, and ends the typing", !sheet().typing && names(kept.glory) === "0:Bsus4 9:C 13:C#m", names(kept.glory))
+                const g = over(kept.god, 16)
+                testInput.mouse(1, g.x, g.y)
+                testInput.key(Qt.Key_F, 0, "f")
+                return 300
+            },
+            () => {
+                check("and another", sheet().typing && sheet().typingRow === kept.god && sheet().typingAt === 16, sheet().typingRow + ":" + sheet().typingAt)
+                click(centre(named("keyChord5")))
+                return 400
+            },
+            () => {
+                check("one of the key's chords clicked while typing goes where the typing was, in place of what was typed",
+                      !sheet().typing && names(kept.god) === "0:Bsus4 8:D 16:B", names(kept.god))
+                const m = over(kept.peace, 15)
+                testInput.mouse(1, m.x, m.y)
+                testInput.key(Qt.Key_A, 0, "a")
+                return 300
+            },
+            () => {
+                check("one more, left in its bubble", sheet().typing && named("chordField").text === "A")
                 click(centre(named("chordProMode")))
                 return 700
             },
@@ -314,6 +396,8 @@ QtObject {
                 check("ChordPro shows the same song as text, its groups named and its chords in brackets", editScreen.mode === "chordpro" && area !== null
                       && area.text.includes("{c: Verse 1}") && area.text.includes("H[E]ark the [F#m7]herald [Asus2]angels [" + kept.picked + "]sing"),
                       area ? area.text.split("\n").find(line => line.includes("herald")) : "")
+                check("and the chord that was still in its bubble when the sheet was left was kept", area.text.includes("[E]Peace on [G]earth [A]and [Asus2]mercy mild"),
+                      area.text.split("\n").find(line => line.includes("mercy")))
                 testInput.grab("8-chordpro")
                 kept.text = area.text
                 area.forceActiveFocus()

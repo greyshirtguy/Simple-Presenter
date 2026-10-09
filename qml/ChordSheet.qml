@@ -44,6 +44,10 @@ import "chordlayout.js" as ChordLayout
 //     moves on to the next word, a click takes it; Right puts the picked one in the
 //     box to be gone on with (for a bass note, say).
 //   - A click on the spot, or Enter, opens the same bubble on what is there.
+//   - While a chord is being typed the spot goes on following the pointer, and a click
+//     on another place keeps what was typed and opens the bubble there. So a run of
+//     chords is click, type, click, type, with no key between to say "done". Typing
+//     is only ever thrown away by Esc: a click anywhere else on the sheet keeps it too.
 //   - A chord is dragged to another word, on any slide; with Ctrl held it is copied.
 //     Delete takes off the one at the spot.
 //   - Ctrl+C copies the chords of the spot's line and Ctrl+Shift+C those of its whole
@@ -82,8 +86,13 @@ FocusScope {
     // it is a chord's stand-in (every other character) or, past the last, a new one.
     property int spotRow: -1
     property int spotAt: 0
-    // The bubble for typing a chord is open, on the spot
+    // The bubble for typing a chord is open, and the place the chord being typed belongs
+    // to. That place is not the spot: the spot goes on following the pointer while a
+    // chord is typed, so that the next place can be pointed at before this chord is
+    // done with (see pick()).
     property bool typing: false
+    property int typingRow: -1
+    property int typingAt: 0
     // Where the pointer last was, on the sheet. The spot follows the pointer only when
     // the pointer itself moves: a row that is laid out again under a pointer that is
     // lying still is told the pointer is over it, as is one that scrolls under it, and
@@ -160,6 +169,11 @@ FocusScope {
         used = editor.usedChords()
         if (spotRow >= rows.length || (spotRow >= 0 && !usable(spotRow)))
             spotRow = -1
+        // The line a chord was being typed on may have gone (an undo from the toolbar).
+        if (typing && !usable(typingRow)) {
+            typing = false
+            takeKeys()
+        }
     }
 
     // ---- Where a chord can go
@@ -306,6 +320,8 @@ FocusScope {
 
     // Puts a chord on a place, in place of the one there if there is one.
     function put(index, at, name, joined) {
+        // A slash typed on the way to a bass note that never came is not part of the chord.
+        name = name.replace(/\/+$/, "")
         if (!usable(index) || !Chords.isChord(name))
             return false
         const line = rows[index]
@@ -424,27 +440,69 @@ FocusScope {
         }
     }
 
-    // Gives the sheet the keyboard: the arrows, 1 to 7, the letters.
+    // Gives the sheet the keyboard: the arrows, 1 to 7, the letters. Or, while a chord
+    // is being typed, gives it back to the box it is typed in: a click on the toolbar or
+    // on the key does not end the typing.
     function takeKeys() {
-        keys.forceActiveFocus()
+        if (typing)
+            field.forceActiveFocus()
+        else
+            keys.forceActiveFocus()
     }
 
     // ---- Typing a chord
 
+    // Opens the bubble on the spot: with `seed` to go on from (the letter that was
+    // pressed), or without, on the chord that is there, all of it picked to be typed over.
     function startTyping(seed) {
         if (!usable(spotRow))
             return
+        typingRow = spotRow
+        typingAt = spotAt
         typing = true
         entry.begin(seed !== undefined ? seed : chordAt(spotRow, spotAt), seed === undefined)
     }
 
+    // Ends the typing. With a name, that chord goes on the place it was being typed
+    // for; with none, nothing is changed (Esc). `onward` then moves the spot on from
+    // that place to the next word (Tab), wherever the pointer has been meanwhile.
     function finishTyping(name, onward) {
+        const row = typingRow
+        const at = typingAt
         typing = false
-        sheet.takeKeys()
+        takeKeys()
         if (name !== undefined && name !== "")
-            put(spotRow, spotAt, name)
-        if (onward)
+            put(row, at, name)
+        if (onward) {
+            setSpot(row, at)
             step(1, false)
+        }
+    }
+
+    // Keeps the chord that is being typed, if one is: what a click anywhere else does,
+    // and what leaving the sheet does, so that going on to the next thing never loses it.
+    function settle() {
+        if (typing)
+            finishTyping(entry.taken(), false)
+    }
+
+    // A click on a place of a line: the chord being typed elsewhere is kept, and the
+    // bubble opens here, on the chord that is here or for a new one.
+    //
+    // (It is done here, by row and character, and not in the row's own handler, because
+    // keeping a chord lays the whole sheet out again, the row that was clicked with it:
+    // nothing of that row can be counted on after settle().)
+    function pick(index, at) {
+        // A new chord at the end of a line of chords alone is one place further along
+        // once the chord that was being typed on that same line has gone in before it.
+        const fresh = usable(index) && rows[index].alone && at >= rows[index].chords.length * 2
+        settle()
+        takeKeys()
+        if (!usable(index))
+            return
+        setSpot(index, fresh ? rows[index].chords.length * 2 : at)
+        rowPicked(rows[index].row)
+        startTyping()
     }
 
     function handleKey(event) {
@@ -657,8 +715,13 @@ FocusScope {
                     anchors.verticalCenter: parent.verticalCenter
                     caption: String(index + 1)
                     label: modelData
+                    // On the spot; or, while a chord is being typed, in place of what
+                    // is typed, where it was being typed.
                     onClicked: {
-                        sheet.put(sheet.spotRow, sheet.spotAt, modelData)
+                        if (sheet.typing)
+                            sheet.finishTyping(modelData, false)
+                        else
+                            sheet.put(sheet.spotRow, sheet.spotAt, modelData)
                         sheet.takeKeys()
                     }
                 }
@@ -694,15 +757,13 @@ FocusScope {
 
         KineticWheel {}
 
-        // A click on the bare sheet takes the keys back from wherever they were.
+        // A click on the bare sheet takes the keys back from wherever they were, and
+        // keeps the chord that was being typed.
         MouseArea {
             width: flick.contentWidth
             height: flick.contentHeight
-            onPressed: {
-                if (sheet.typing)
-                    sheet.finishTyping(undefined, false)
-                sheet.takeKeys()
-            }
+            onPressed: sheet.takeKeys()
+            onClicked: sheet.settle()
         }
 
         Column {
@@ -838,23 +899,24 @@ FocusScope {
                         color: "#3a3c42"
                     }
 
-                    // Following the pointer, and a click to type a chord there
+                    // Following the pointer, and a click to type a chord there. It is as
+                    // wide as the slide's card and no wider: beside the cards is bare
+                    // sheet. The spot follows the pointer while a chord is being typed
+                    // too, to show where a click would start the next (sheet.pick).
                     MouseArea {
-                        anchors.fill: parent
+                        width: Math.min(parent.width, sheet.gutter + sheet.cardWidth - sheet.cardPad)
+                        height: parent.height
                         enabled: line.isLine && line.words.length > 0
                         hoverEnabled: true
                         onPositionChanged: (mouse) => {
-                            if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.typing && !sheet.dragged)
+                            if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged)
                                 sheet.setSpot(line.index, line.placeAt(mouse.x, (mouse.modifiers & Qt.ShiftModifier) === 0))
                         }
                         onPressed: (mouse) => {
-                            if (sheet.typing)
-                                sheet.finishTyping(undefined, false)
                             sheet.takeKeys()
                             sheet.setSpot(line.index, line.placeAt(mouse.x, (mouse.modifiers & Qt.ShiftModifier) === 0))
-                            sheet.rowPicked(line.modelData.row)
                         }
-                        onClicked: sheet.startTyping()
+                        onClicked: (mouse) => sheet.pick(line.index, line.placeAt(mouse.x, (mouse.modifiers & Qt.ShiftModifier) === 0))
                     }
 
                     // The chords, each a bubble with its tail on its character
@@ -917,8 +979,6 @@ FocusScope {
                                 cursorShape: sheet.dragged ? Qt.ClosedHandCursor : Qt.PointingHandCursor
                                 preventStealing: true
                                 onPressed: (mouse) => {
-                                    if (sheet.typing)
-                                        sheet.finishTyping(undefined, false)
                                     sheet.takeKeys()
                                     sheet.setSpot(line.index, bubble.modelData.at)
                                     pressedAt = Qt.point(mouse.x, mouse.y)
@@ -926,10 +986,15 @@ FocusScope {
                                 }
                                 onPositionChanged: (mouse) => {
                                     if (!pressed) {
-                                        if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.typing && !sheet.dragged)
+                                        if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged)
                                             sheet.setSpot(line.index, bubble.modelData.at)
                                         return
                                     }
+                                    // A chord is not carried off while another is being
+                                    // typed: letting go of it then is a click on it,
+                                    // which keeps the one and opens this one.
+                                    if (sheet.typing)
+                                        return
                                     if (!moved && Math.abs(mouse.x - pressedAt.x) + Math.abs(mouse.y - pressedAt.y) < 6)
                                         return
                                     moved = true
@@ -948,7 +1013,7 @@ FocusScope {
                                     if (from)
                                         sheet.move(from.row, from.at, sheet.spotRow, sheet.spotAt, (mouse.modifiers & Qt.ControlModifier) !== 0)
                                     else if (!moved)
-                                        sheet.startTyping()
+                                        sheet.pick(line.index, bubble.modelData.at)
                                 }
                                 onCanceled: sheet.dragged = null
                             }
@@ -960,14 +1025,17 @@ FocusScope {
 
         // The spot, where there is no chord yet: a bubble in outline with its tail on
         // the character. Where there is one, that chord's own bubble is lit instead.
+        // It is shown while a chord is being typed as well, wherever the pointer has
+        // gone on to, and not where the typing is, which has its own bubble.
         Item {
             id: ghost
 
             readonly property var item: sheet.laid >= 0 && sheet.spotRow >= 0 ? list.itemAt(sheet.spotRow) : null
             readonly property bool free: item !== null && sheet.rows.length > 0 && sheet.chordAt(sheet.spotRow, sheet.spotAt) === ""
+            readonly property bool underTyping: sheet.typing && sheet.spotRow === sheet.typingRow && sheet.spotAt === sheet.typingAt
 
             objectName: "chordSpot"
-            visible: item !== null && !sheet.typing && (free || sheet.dragged !== null)
+            visible: item !== null && !underTyping && (free || sheet.dragged !== null)
             x: item ? column.x + item.x + item.xOf(sheet.spotAt) : 0
             y: item ? column.y + item.y + item.chordTop : 0
             width: Math.max(26, sheet.dragged ? chordMetrics.advanceWidth(sheet.dragged.name) + 2 * sheet.bubblePad : 0)
@@ -1000,13 +1068,14 @@ FocusScope {
             }
         }
 
-        // The bubble a chord is typed in, on the spot, with what it might be going to
-        // be over it. It grows upwards from where the chord will stand, so that the
-        // word being given the chord, and the rest of its line, stay in sight.
+        // The bubble a chord is typed in, at the place it is being typed for, with what
+        // it might be going to be over it. It grows upwards from where the chord will
+        // stand, so that the word being given the chord, and the rest of its line, stay
+        // in sight.
         Rectangle {
             id: entry
 
-            readonly property var item: sheet.laid >= 0 && sheet.spotRow >= 0 ? list.itemAt(sheet.spotRow) : null
+            readonly property var item: sheet.laid >= 0 && sheet.typingRow >= 0 ? list.itemAt(sheet.typingRow) : null
             property string last
             property int pick: -1
             readonly property var offered: sheet.typing ? Chords.completions(field.text, sheet.key, sheet.used).slice(0, 14) : []
@@ -1029,7 +1098,7 @@ FocusScope {
 
             objectName: "chordEntry"
             visible: sheet.typing && item !== null
-            x: item ? Math.min(column.x + item.x + item.xOf(sheet.spotAt), flick.contentX + flick.width - width - 12) : 0
+            x: item ? Math.min(column.x + item.x + item.xOf(sheet.typingAt), flick.contentX + flick.width - width - 12) : 0
             y: item ? Math.max(flick.contentY + 4, column.y + item.y + item.chordTop + sheet.bubbleHeight + 3 - height) : 0
             z: 5
             width: 330
@@ -1098,9 +1167,11 @@ FocusScope {
                         entry.pick = -1
                     } else if ((event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) && text === "") {
                         // Nothing left of it: the chord goes
+                        const row = sheet.typingRow
+                        const at = sheet.typingAt
                         sheet.typing = false
                         sheet.takeKeys()
-                        sheet.take(sheet.spotRow, sheet.spotAt)
+                        sheet.take(row, at)
                     } else {
                         return
                     }

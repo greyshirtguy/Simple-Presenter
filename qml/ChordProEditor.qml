@@ -202,6 +202,12 @@ FocusScope {
         area.forceActiveFocus()
     }
 
+    // Saves what has been typed, without waiting for the typing to pause: what the
+    // editor asks of whichever chord editor is up before it turns to something else.
+    function settle() {
+        apply()
+    }
+
     function lineOf(position) {
         return area.text.substring(0, position).split("\n").length - 1
     }

@@ -267,10 +267,10 @@ Rectangle {
     function finish() {
         canvas.finishText()
         canvas.settle()
-        // Chords typed as ChordPro text are saved a moment after the typing stops:
-        // now, if that moment has not come.
-        if (mode === "chordpro" && chordView.item)
-            chordView.item.apply()
+        // Whichever chord editor is up keeps what was being typed in it: a chord in its
+        // bubble, or ChordPro text that is saved a moment after the typing stops.
+        if (mode !== "slides" && chordView.item)
+            chordView.item.settle()
     }
 
     function close() {
@@ -1033,7 +1033,7 @@ Rectangle {
             font.pixelSize: 12
             text: screen.notice !== "" ? screen.notice
                 : screen.toolHint !== "" ? screen.toolHint
-                : screen.mode === "chords" ? "1 to 7: the key's chords  ·  A to G: type one  ·  The spot follows the pointer (Shift: starts of words) and the arrows (Shift: letter by letter)  ·  Drag a chord to move it, Ctrl to copy  ·  Delete removes  ·  Ctrl+C a line's chords, Ctrl+Shift+C a group's, Ctrl+V onto the spot's line"
+                : screen.mode === "chords" ? "1 to 7: the key's chords  ·  A to G: type one, and a click on the next place keeps it  ·  Drag moves a chord, with Ctrl copies it  ·  Delete removes  ·  Ctrl+C and Ctrl+V: a line's chords onto another"
                 : screen.mode === "chordpro" ? "[ opens a chord and closes it  ·  Backspace on a bracket removes the chord  ·  The words cannot be changed here"
                 : canvas.editing ? "Select text to format part of it  ·  Esc or a click elsewhere finishes  ·  Ctrl+B, I, U"
                 : canvas.selected ? "Drag to move, handles to resize  ·  Shift: straight, or in proportion  ·  Ctrl: no snapping  ·  Arrows nudge  ·  Double-click or Enter edits the text"

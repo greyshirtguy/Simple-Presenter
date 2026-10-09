@@ -152,6 +152,8 @@ private slots:
         const QStringList bass = completions("D/", "G", {});
         QCOMPARE(bass.mid(0, 2), QStringList({"D/F#", "D/A"}));
         QCOMPARE(completions("Am/", "C", {}).first(), "Am/C");
+        // Then the notes of the key, and never the chord's own root
+        QVERIFY(bass.contains("D/G") && bass.contains("D/E") && !bass.contains("D/D"));
         QVERIFY(completions("x", "C", {}).isEmpty());
     }
 

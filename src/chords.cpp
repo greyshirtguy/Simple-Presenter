@@ -355,8 +355,12 @@ QStringList completions(const QString &typed, const QString &key, const QStringL
             ? QStringList{flatNames, flatNames + 12} : QStringList{sharpNames, sharpNames + 12};
         offer(before + names.at((root.pitch() + (minor ? 3 : 4)) % 12));
         offer(before + names.at((root.pitch() + 7) % 12));
-        for (const QString &chord : inKey)
-            offer(before + parts(chord).root);
+        for (const QString &chord : inKey) {
+            // (A chord over its own root is only the chord.)
+            const QString note = parts(chord).root;
+            if (note != typedParts.root)
+                offer(before + note);
+        }
         return result;
     }
     // The usual kinds of chord on the note typed.
