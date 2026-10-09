@@ -313,7 +313,7 @@ install(FILES packaging/io.github.greyshirtguy.SimplePresenter.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
 install(FILES packaging/io.github.greyshirtguy.SimplePresenter.metainfo.xml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
-install(FILES COPYING COPYING.LESSER DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/simplepresenter)
+install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/simplepresenter)
 # The GNOME Shell extension that keeps the output and stage windows out of Alt+Tab when
 # the app is run through Wayland (src/windowlists.h says why it takes one). GNOME finds
 # it here the next time someone logs in; it does nothing until it is switched on.

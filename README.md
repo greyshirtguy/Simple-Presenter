@@ -1318,14 +1318,19 @@ repository's to publish), so on another computer only the unit tests run as they
 
 ## Licence
 
-SimplePresenter is free software, licensed under the GNU Lesser General Public License
-version 3. See `COPYING.LESSER`, and `COPYING` for the GNU General Public License it
-builds on. It comes with no warranty: the licence says so at length, and the note at
-the top of this page in short.
+SimplePresenter is free software under the MIT licence: do with it what you like, and
+keep the notice. See `LICENSE`. It comes with no warranty: the licence says so, and the
+note at the top of this page says it at more length.
+
+(Versions up to 0.6 were released under the GNU Lesser General Public License version 3,
+and those releases stay under it.)
 
 It uses, under their own licences:
 
 - [Qt](https://www.qt.io) 6, under the LGPL version 3, linked dynamically.
+- NDI's header files, under the MIT licence: everything in `third_party/ndi/include`,
+  each of which says so at its top. NDI's library is not here; whoever installs it does
+  so under NDI's own licence ([NDI](#ndi)).
 - [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto), under the
   MIT licence.
 - Transitions ported from [gl-transitions](https://gl-transitions.com), under the MIT

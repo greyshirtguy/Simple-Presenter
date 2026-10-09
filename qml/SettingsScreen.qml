@@ -557,7 +557,7 @@ Rectangle {
                 wrapMode: Text.Wrap
                 color: "#9a9da3"
                 font.pixelSize: 13
-                text: "It is free software, under the GNU Lesser General Public License, version 3, and has "
+                text: "It is free software, under the MIT licence: do with it what you like. It has "
                     + "nothing to do with Renewed Vision, the makers of ProPresenter.\n\n"
                     + "Each time the app runs it keeps a log: a text file that says what it was running on and "
                     + "what it did, for working out what happened when something has gone wrong. It holds the "
