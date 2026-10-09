@@ -2,23 +2,18 @@
 
 ![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and the Show and Edit buttons at its left and the buttons for Simple View, the media bin, the output and stage windows and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; in the middle the name of the presentation over a grid of its slides, framed in their group colours, some marked with the hotkey that goes to them and the live one ringed in orange, with the transition and the size of the thumbnails in a bar under them and the media bin under that; and down the right the output and stage previews, the clear buttons, the transport for the video that is playing and the show controls, on their tab of timers](docs/screenshot.png)
 
-## New in 0.6
+## New in 0.7
 
-- **Screens.** A workspace can have up to sixteen [screens](#screens), for the audience
-  and for the stage, where there was one of each. They are the screens ProPresenter has
-  for the workspace; each goes to a window of its own, to one of the computer's
-  displays, or over the network as [NDI](#ndi), and each stage screen has its own
-  layout. A video is still played once, however many screens show it.
-- **NDI output.** A screen can be an NDI source on the local network. NDI's own library
-  does the sending and is not part of the app: it is looked for when the app starts.
-- **The screens are kept awake** while the show is on one.
-- Underneath: what is live, and the rules it changes by, are now in one place with
-  [tests of their own](#tests), and the tests of the whole app are in the repository.
-
-**0.61** changes the [licence](#licence) to MIT: do with it what you like.
-
-**0.62** makes [NDI](#ndi)'s library easy to get: set a screen to NDI without it and
-the app offers to fetch it, showing NDI's licence for you to agree to first.
+- **Looks.** Which layers of the show each audience screen gets (the slides, the media,
+  the props), by name, with one [look](#looks) live at a time: the room can have the
+  words over the media while a stream has the words alone. They are ProPresenter's own
+  looks, and a slide or a macro can go over to one.
+- **Themes.** ProPresenter's [themes](#themes), browsed from the toolbar: dress a whole
+  presentation or one slide in a theme slide, make and edit themes in the editor, and
+  have a look dress a screen's slides in a theme as they are shown, with the
+  presentation left as it was.
+- **Search** (Ctrl+F): find a presentation by its name or its words, and open it or add
+  it to the playlist.
 
 Earlier versions are on the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page.
@@ -204,11 +199,11 @@ the package as much as for the code: it is an experiment, passed on as it is.
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download
-`simplepresenter_0.62_amd64.deb` from the
+`simplepresenter_0.7_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.62_amd64.deb
+sudo apt install ./simplepresenter_0.7_amd64.deb
 ```
 
 That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
@@ -320,7 +315,7 @@ those numbers back into names is made from the program as it was built, and belo
 with the package it was made for:
 
 ```
-nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.62_symbols.txt.xz
+nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.7_symbols.txt.xz
 ```
 
 A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of
