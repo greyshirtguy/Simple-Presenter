@@ -1,6 +1,6 @@
 // SimplePresenter: where to start reading.
 //
-// The app is three windows and a folder.
+// The app is a window, some screens and a folder.
 //
 //   The folder is a workspace: libraries of ProPresenter 7 presentations, media files,
 //   two playlists files, the timers, the props and the stage layouts, laid out exactly
@@ -11,10 +11,14 @@
 //   The operator window (qml/Main.qml) is where the show is run from: pick a
 //   presentation, click a slide, and it is on the output.
 //
-//   The output window (qml/Output.qml) is what the audience sees: a media layer with a
-//   slide layer over it, and over both whichever props are on. The stage window
-//   (qml/Stage.qml) is what the people on stage see: the words of this slide and the
-//   next, plainly, or laid out as one of the workspace's stage layouts has them.
+//   An audience screen (qml/OutputScene.qml) is what the audience sees: a media layer
+//   with a slide layer over it, and over both whichever props are on. A stage screen
+//   (qml/StageScene.qml) is what the people on stage see: the words of this slide and
+//   the next, plainly, or laid out as one of the workspace's stage layouts has them.
+//   A workspace has as many of each as it is given (src/screens.h), and each is sent
+//   out through a window of its own (qml/Output.qml, qml/Stage.qml), a display, or the
+//   network as an NDI source (src/ndi.h). Every screen has a scene of its own, drawn by
+//   itself; a video is played once for all of them.
 //
 // The two halves of the code.
 //

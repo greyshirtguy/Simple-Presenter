@@ -184,12 +184,10 @@ promise that any of them will turn out to be possible this way: that is the expe
 - [ ] **Themes** (when there are themes, everything that makes a new slide, which is
       the `+` over the editor's slides, New Slide in a slide's menu and media dropped
       between slides, is to offer a theme's slide as well as a blank one)
-- [ ] **Screens**
 - [ ] **Looks**
 - [ ] **Arrangement Editor**
 - [ ] **Importing ChordPro**
 - [ ] **Chord Editor**
-- [ ] **NDI**
 - [ ] **Blackmagic SDI**
 - [ ] **EasyView**
 - [ ] **MIDI**
@@ -410,9 +408,10 @@ What gets it there:
                                (small pictures, cached)   --->   thumbnails in the lists
 ```
 
-The app is three windows and a folder. The folder is the workspace. The operator window
-is where the show is run from; the output window is what the audience sees, a media
-layer with a slide layer over it and the props over both; the stage window is what the
+The app is a window, some screens and a folder. The folder is the workspace. The operator
+window is where the show is run from; an audience screen is what the audience sees, a media
+layer with a slide layer over it and the props over both, in a window, on a display or
+sent over the network ([Screens](#screens)); a stage screen is what the
 people on stage see.
 
 The code is in two halves. The C++ in `src/` does files and pixels: it reads and writes
@@ -956,17 +955,56 @@ On the laptop in [Built for modest hardware](#built-for-modest-hardware), with a
 and its media changing at once on a full-screen 1080p output, all of them keep sixty
 frames a second but one, Cross Zoom, which manages fifty-seven.
 
-## The output and stage windows
+## Screens
 
-The audience output and the stage display are windows of their own, switched on and off
-by the pair of buttons at the right of the toolbar (or Ctrl+1 and Ctrl+2). Each is
-either a small window with a slim title bar that floats over the operator window, or
+A **screen** is somewhere the show is drawn for. An **audience** screen gets the slides,
+the media and the props; a **stage** screen gets a stage layout. A workspace can have
+sixteen, of both kinds together, and the pair of buttons at the right of the toolbar
+(or Ctrl+1 and Ctrl+2) switch all the screens of a kind on and off together.
+
+The screens are set up under **Settings → Screens**: a line for each, with its name and
+what it is sent out through, and **+ Add** for another of either kind. A screen goes to
+one of four things:
+
+| It is sent to | What that is |
+| --- | --- |
+| **A window of its own** | A small window that floats over the operator window, and can be made to fill whatever display it is on (see below). What the one output and the one stage display always were, and what the first screen of each kind is until it is set to something else |
+| **A display** | One of the computer's displays, by its name (`HDMI-A-1`, say), filled. While that display is not plugged in the screen is not shown, and the settings say so; plugged in again, it is back |
+| **NDI** | The local network, as an NDI source: see [NDI](#ndi) |
+| **Nothing** | The screen is there for things to name (a stage action, say), and is not drawn. What a screen ProPresenter made is until it is set to something here |
+
+Two things are known of a screen, and they are kept in two places.
+
+- **What it is** (its name, its kind, and the id other things know it by) is the
+  workspace's, and is in ProPresenter's own file of how the workspace is set up
+  (`Configuration/Workspace`). So the screens ProPresenter has for a workspace are the
+  screens here, a stage action made there finds the screen it names, and a screen added
+  here is in the file for ProPresenter to find, written the way it writes one that is
+  connected to nothing. (That last has not been tried in ProPresenter itself.)
+- **What it is sent out through** is this computer's, and is in the app's own settings.
+  The same workspace on another computer has the same screens and other things plugged
+  in. What ProPresenter says each screen is connected to (a display, a video card) is
+  left in its file exactly as it was found, and not gone by here.
+
+Every audience screen shows the same thing, and every stage screen shows what is live
+through its own layout (each has its own, chosen on the Stage tab of the show controls;
+a stage action gives any of them one). But each screen is drawn by itself, at its own
+size: that is what will let a look, later, give one screen the slides and another only
+the media. A video is still played only once however many screens show it, by the first
+audience screen, and the others are handed its frames, so they cannot drift apart and
+its sound is heard once.
+
+### A screen in a window
+
+The small window with a slim title bar that floats over the operator window, or
 fills a screen. The small window is moved by dragging any part of it, and resized by
 its edges; double-click its title bar to have it fill the screen it is on, and move
 the mouse over it there for the control that brings it back. The output starts
 out filling a second screen if there is one (`--screen`, with a screen's number or
 name, says which; `--list-screens` says what there are), and each window comes back
 the way it was left.
+
+### Kept awake
 
 **The screens are kept awake.** A desktop left alone blanks its screens after a few
 minutes, and a presenter's computer is left alone for as long as a sermon lasts. So
@@ -1009,6 +1047,43 @@ depends on what the app is run through:
   it finds the two windows by their application and their titles and tells GNOME to
   leave them out. On other desktops run through Wayland, and on GNOME without it, the
   two windows are in Alt+Tab as any window is.
+
+## NDI
+
+[NDI](https://ndi.video) sends video between programs and computers on a local network.
+A screen set to **NDI** (Settings → Screens) is announced on the network under the name
+given it there, after the computer's name, and anything that takes NDI can pick it: a
+vision mixer, OBS, NDI's own Studio Monitor on another computer. It is the screen as a
+display would show it, at the size and the frames a second set for it; it needs no
+display, and a screen can go nowhere else.
+
+The screen is drawn out of sight by the graphics card, read back and handed to NDI's
+library to compress and send, all on this computer, which is work for it: 1920 × 1080 at
+30 frames a second is a fair place to start, and on a modest laptop a good place to
+stay. The work is only done while something is taking the source. With nothing taking
+it, one picture goes out a second, enough for it to be found and looked at. The
+settings say, for each such screen, whether it is on the network and how many are
+taking it.
+
+**NDI's library is not part of this app.** It is NDI's own and is not open, though it is
+free to have, and the app is built without it: it looks for `libndi.so.6` when it
+starts, and without it a screen set to NDI says where to get one. It is looked for
+
+1. in the folder the environment variable `NDI_RUNTIME_DIR_V6` names, which is what
+   NDI's own installers set;
+2. in the app's own folder for it, `~/.local/share/SimplePresenter/SimplePresenter/ndi/`
+   (a screen set to NDI says exactly where, if the library is not found);
+3. wherever the system keeps its libraries.
+
+The library is in the NDI SDK and in NDI Tools, both from [ndi.video](https://ndi.video),
+under NDI's own licence, which whoever installs it accepts. The few header files that
+say how the library is talked to are in `third_party/ndi/include`; those are NDI's under
+the MIT licence, as each says at its top.
+
+Plain NDI is what is sent (full frames, lightly compressed, a good deal of network), not
+NDI|HX. There is no sound in it yet, and nothing is received.
+
+NDI® is a registered trademark of Vizrt NDI AB.
 
 ## Keys
 
@@ -1182,6 +1257,9 @@ those.
 | `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a clear, a prop or a macro does |
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
+| `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
+| `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
+| `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs. The folder has NDI's header files |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |
@@ -1201,7 +1279,9 @@ those.
 | `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props and stage screens |
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists, the slide being worked on, and the properties panel |
-| `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | The output and stage windows |
+| `qml/OutputScene.qml`, `qml/StageScene.qml` | What an audience screen and a stage screen show, whatever they are sent out through |
+| `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |
+| `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps those two windows out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
 | `qml/PropsLayer.qml` | The props that are on, over the other layers |

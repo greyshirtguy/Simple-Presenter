@@ -11,7 +11,7 @@ project(SimplePresenter VERSION 0.51 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Multimedia ShaderTools DBus)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Multimedia ShaderTools DBus OpenGL)
 find_package(Protobuf REQUIRED)
 find_package(Fontconfig REQUIRED)
 find_package(ZLIB REQUIRED)
@@ -28,10 +28,11 @@ qt_standard_project_setup(REQUIRES 6.9)
 # they import.
 set(PRO_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ProPresenter7-Proto/autogen-proto)
 set(PRO_PROTO_NAMES
-    action alignmentGuide alphaType applicationInfo background collectionElementType color cue
+    action alignmentGuide alphaType applicationInfo audio background collectionElementType color cue
     customOptions digitalAudio effects fileProperties font graphicsData groups hotKey input
     intRange keymapping layers macros messages musicKeyScale planningCenter playlist presentation
-    presentationSlide propDocument propresenter propSlide rvtimestamp
+    presentationSlide proAudienceLook proMask propDocument propresenter propSlide proscreen proworkspace
+    recording rvtimestamp screens
     slide stage templateIdentification timers url uuid version
 )
 list(TRANSFORM PRO_PROTO_NAMES PREPEND ${PRO_PROTO_DIR}/ OUTPUT_VARIABLE PRO_PROTO_FILES)
@@ -125,6 +126,7 @@ qt_add_qml_module(SimplePresenter
         qml/MediaBadge.qml
         qml/MediaBin.qml
         qml/Output.qml
+        qml/OutputScene.qml
         qml/PopupMenu.qml
         qml/PreviewPanel.qml
         qml/PropsLayer.qml
@@ -137,6 +139,7 @@ qt_add_qml_module(SimplePresenter
         qml/RowDrag.qml
         qml/RowIcon.qml
         qml/SectionTitle.qml
+        qml/ScreensSettings.qml
         qml/SettingsScreen.qml
         qml/SimpleViewToggle.qml
         qml/ShowControl.qml
@@ -144,6 +147,7 @@ qt_add_qml_module(SimplePresenter
         qml/SidebarList.qml
         qml/SlideGrid.qml
         qml/Stage.qml
+        qml/StageScene.qml
         qml/StagePanel.qml
         qml/StageView.qml
         qml/TimeField.qml
@@ -187,6 +191,12 @@ qt_add_qml_module(SimplePresenter
         src/awake.cpp
         src/show.h
         src/show.cpp
+        src/screenfile.h
+        src/screenfile.cpp
+        src/screens.h
+        src/screens.cpp
+        src/ndi.h
+        src/ndi.cpp
         src/showstate.h
         src/showstate.cpp
         src/sessionlog.h
@@ -257,8 +267,13 @@ qt_add_shaders(SimplePresenter "shaders"
         shaders/gl-transitions/wipeUp.frag
 )
 
-target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia Qt6::DBus proproto Fontconfig::Fontconfig ZLIB::ZLIB
+target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia Qt6::DBus Qt6::OpenGL proproto Fontconfig::Fontconfig ZLIB::ZLIB
                       PkgConfig::FFmpeg PkgConfig::XCB)
+# NDI's header files, which say how its library is talked to. They are NDI's, under the
+# MIT licence (each says so at its top); the library itself is not here, and is looked
+# for when the app runs (see src/ndi.h).
+target_include_directories(SimplePresenter SYSTEM PRIVATE third_party/ndi/include)
+
 # The version, for the window's title and for the log.
 target_compile_definitions(SimplePresenter PRIVATE APP_VERSION="${PROJECT_VERSION}")
 

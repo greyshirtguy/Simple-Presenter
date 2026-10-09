@@ -16,6 +16,17 @@ Window {
 
     // Index into Qt.application.screens to start fullscreen on, or -1 to start as remembered.
     property int fullScreenOn: -1
+    // The display it is to fill, by its name, for a screen that has been set to one (see
+    // Screens); "" for a window that floats, and fills whatever display it is on when
+    // asked. While that display is not plugged in the window is not shown at all.
+    property string display: ""
+    readonly property var displayScreen: {
+        for (const candidate of Qt.application.screens) {
+            if (display !== "" && candidate.name === display)
+                return candidate
+        }
+        return null
+    }
     // The window to stay in front of while floating.
     property Window owner: null
     // Key presses in this window are passed on to this item.
@@ -37,8 +48,15 @@ Window {
     property real floatHeight: 189
 
     function present() {
-        if (!shown) {
+        if (!shown || (display !== "" && displayScreen === null)) {
             hide()
+        } else if (display !== "") {
+            // (A window that is showing is not moved to another display by being told
+            // of it: it is taken off and put up again there.)
+            if (visible && screen !== displayScreen)
+                hide()
+            screen = displayScreen
+            showFullScreen()
         } else if (wantFullScreen) {
             showFullScreen()
         } else {
@@ -74,8 +92,8 @@ Window {
     // Wayland has no always-on-top, so there the window floats by being transient for
     // its owner; elsewhere the hint does it. Neither applies to an output started on its
     // own screen, which must not follow the operator window when that is minimised.
-    flags: Qt.Window | Qt.FramelessWindowHint | (fullScreenOn < 0 ? Qt.WindowStaysOnTopHint : 0)
-    transientParent: fullScreenOn < 0 ? owner : null
+    flags: Qt.Window | Qt.FramelessWindowHint | (fullScreenOn < 0 && display === "" ? Qt.WindowStaysOnTopHint : 0)
+    transientParent: fullScreenOn < 0 && display === "" ? owner : null
 
     Component.onCompleted: {
         if (remember) {
@@ -102,6 +120,8 @@ Window {
         present()
     }
     onShownChanged: if (restored) present()
+    onDisplayChanged: if (restored) present()
+    onDisplayScreenChanged: if (restored) present()
     onWidthChanged: saveGeometry("width", width)
     onHeightChanged: saveGeometry("height", height)
     onXChanged: saveGeometry("x", x)
@@ -261,7 +281,7 @@ Window {
         width: exitLabel.implicitWidth + 28
         height: 36
         radius: 8
-        visible: win.fullScreen && win.controlsShown
+        visible: win.fullScreen && win.controlsShown && win.display === ""
         color: exitMouse.containsMouse ? "#45484e" : "#2b2d31"
         border.width: 1
         border.color: "#6c6f75"

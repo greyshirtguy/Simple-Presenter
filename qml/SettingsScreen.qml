@@ -21,7 +21,11 @@ Rectangle {
     // How solid the icons on the slides are: see Main.qml
     property real actionIconOpacity: 0.8
 
+    // What sends each screen that goes over NDI, by the screen's id: see ScreensSettings
+    property var senders: ({})
+
     signal groupsEdited(var groups)
+    signal screensFailed(string text)
     signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
     signal closed
@@ -29,9 +33,10 @@ Rectangle {
     // What the app is running on now: "wayland", "xcb" (X11), "windows", "cocoa", ...
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
-        ? [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Windows", path: "windows" },
+        ? [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Screens", path: "screens" },
+           { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
+        : [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Screens", path: "screens" },
            { name: "About", path: "about" }]
-        : [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -416,6 +421,20 @@ Rectangle {
                     }
                 }
             }
+        }
+
+        // Screens: the workspace's, and what each is sent out through here
+        ScreensSettings {
+            objectName: "screensSettings"
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            visible: screen.section === "screens"
+            senders: screen.senders
+            onFailed: (text) => screen.screensFailed(text)
         }
 
         // Windows

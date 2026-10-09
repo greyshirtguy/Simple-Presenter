@@ -10,3 +10,12 @@ qt_add_executable(tst_showstate
 target_include_directories(tst_showstate PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_showstate PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME showstate COMMAND tst_showstate)
+
+qt_add_executable(tst_screenfile
+    tst_screenfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/screenfile.h
+    ${PROJECT_SOURCE_DIR}/src/screenfile.cpp
+)
+target_include_directories(tst_screenfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_screenfile PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME screenfile COMMAND tst_screenfile)

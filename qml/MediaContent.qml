@@ -32,12 +32,21 @@ import SimplePresenterApp
 // when there is content but nothing to show yet: `ready` says when that is over, and
 // TransitionLayer waits for it before it brings the content in. Without the wait, a cut
 // to a video was a cut to black first.
+//
+// With several screens there are several of these showing the same video, one in each
+// screen's scene, and the video is still played once: by the scene that `leads`, which
+// offers the frames it is sent to the others (see MediaFeeds). In a scene that does not
+// lead, a video is a picture fed from there, with no player and no sound of its own, so
+// the screens cannot drift apart and the sound is heard once. (A still each scene reads
+// for itself: it is read once whatever asks, and kept.)
 Item {
     id: root
 
     // { source, video, loops, volume, playback, loopCount, loopSeconds }, or null for
     // nothing (the last three as workspace::MediaBehaviour has them)
     property var content: null
+    // Whether this plays a video itself, or is fed the frames of the scene that does
+    property bool leads: true
     // How much of this instance is on show, from 0 to 1: kept by the layer it is in
     // (see TransitionLayer), and all of it when it is used by itself
     property real level: 1
@@ -53,7 +62,7 @@ Item {
         id: loader
 
         anchors.fill: parent
-        sourceComponent: root.content === null ? null : root.content.video ? video : image
+        sourceComponent: root.content === null ? null : !root.content.video ? image : root.leads ? video : fed
     }
 
     Component {
@@ -134,6 +143,11 @@ Item {
                 Component.onCompleted: play()
             }
 
+            // The other screens' scenes take their frames from here.
+            readonly property int playId: root.content?.playId ?? 0
+            Component.onCompleted: MediaFeeds.offer(playId, output.videoSink)
+            Component.onDestruction: MediaFeeds.withdraw(playId, output.videoSink)
+
             // A video that goes round for a length of time stops where it is when the
             // time is up.
             Timer {
@@ -194,6 +208,50 @@ Item {
                              + (mediaPlayer.duration > 0 ? ", " + (mediaPlayer.duration / 1000).toFixed(1) + " s long" : "")
                              + "; " + heard)
                 }
+            }
+        }
+    }
+
+    // A video another scene is playing, shown from its frames.
+    Component {
+        id: fed
+
+        Item {
+            readonly property var videoSink: output.videoSink
+            readonly property var player: null
+            // Once a frame has been handed over; or, the scene that plays it having none
+            // to hand over after a while (the file will not play), without one, so that
+            // this screen is not left showing what was there before.
+            readonly property bool ready: firstFrame.arrived || waited.lapsed
+
+            VideoOutput {
+                id: output
+
+                anchors.fill: parent
+                fillMode: VideoOutput.PreserveAspectFit
+                endOfStreamPolicy: VideoOutput.KeepLastFrame
+            }
+
+            FrameRelay {
+                source: MediaFeeds.revision >= 0 ? MediaFeeds.sink(root.content?.playId ?? 0) : null
+                target: output.videoSink
+                interval: 0
+            }
+
+            FirstFrame {
+                id: firstFrame
+
+                sink: output.videoSink
+            }
+
+            Timer {
+                id: waited
+
+                property bool lapsed: false
+
+                interval: 3000
+                running: !firstFrame.arrived
+                onTriggered: lapsed = true
             }
         }
     }

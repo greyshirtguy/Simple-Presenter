@@ -9,7 +9,6 @@
 #include <QRectF>
 #include <QSet>
 
-#include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/wire_format_lite.h>
 
 namespace {
@@ -62,44 +61,6 @@ void addWords(rv::data::Slide *slide, const QString &name, const QRectF &box, qr
 
 } // namespace
 
-namespace {
-
-// The stage screens of a workspace, from ProPresenter's file of how the workspace is
-// set up. That file holds a great deal (the screens and their hardware, the looks, the
-// audio), of which the one list wanted here is read and the rest stepped over: the
-// stage screens, each with the layout it has, which is the file's sixth field.
-QVariantList stageScreens(const QString &workspace)
-{
-    QVariantList screens;
-    QFile file(workspace + QStringLiteral("/Configuration/Workspace"));
-    if (workspace.isEmpty() || !file.open(QIODevice::ReadOnly))
-        return screens;
-    const QByteArray bytes = file.readAll();
-    google::protobuf::io::CodedInputStream in(reinterpret_cast<const uint8_t *>(bytes.constData()), int(bytes.size()));
-    const uint32_t wanted = (6u << 3) | 2u;
-    while (const uint32_t tag = in.ReadTag()) {
-        if (tag != wanted) {
-            if (!google::protobuf::internal::WireFormatLite::SkipField(&in, tag))
-                break;
-            continue;
-        }
-        uint32_t length = 0;
-        std::string part;
-        rv::data::Stage::ScreenAssignment assignment;
-        if (!in.ReadVarint32(&length) || !in.ReadString(&part, int(length)))
-            break;
-        if (assignment.ParseFromString(part) && !assignment.screen().parameter_uuid().string().empty()) {
-            screens.append(QVariantMap {
-                {"id", QString::fromStdString(assignment.screen().parameter_uuid().string())},
-                {"name", QString::fromStdString(assignment.screen().parameter_name())},
-            });
-        }
-    }
-    return screens;
-}
-
-} // namespace
-
 QString StageLayouts::path() const
 {
     return m_workspace.isEmpty() ? QString() : m_workspace + QStringLiteral("/Configuration/Stage");
@@ -117,7 +78,6 @@ QString StageLayouts::reload()
     const QString error = read(&document);
     if (!error.isEmpty())
         document.Clear();
-    m_screens = stageScreens(m_workspace);
     show(document);
     return error;
 }

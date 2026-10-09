@@ -35,18 +35,11 @@ class StageLayouts : public QObject
     Q_PROPERTY(QVariantList layouts READ layouts NOTIFY changed)
     // The file, which is what the editor opens. It may not exist yet.
     Q_PROPERTY(QString path READ path NOTIFY changed)
-    // The stage screens ProPresenter has set up for the workspace, { id, name } each,
-    // from its Configuration/Workspace file; none if there is no such file. Only what
-    // they are called is taken from there: an action that gives the stage a layout
-    // says which screens it is for, and one made here is to say so in ProPresenter's
-    // terms. (This app has the one stage screen, which is taken to be the first.)
-    Q_PROPERTY(QVariantList screens READ screens NOTIFY changed)
 
 public:
     using QObject::QObject;
 
     QVariantList layouts() const { return m_layouts; }
-    QVariantList screens() const { return m_screens; }
     QString path() const;
 
     // Reads the layouts of a workspace folder. A workspace with no file of them has
@@ -77,5 +70,4 @@ private:
 
     QString m_workspace;
     QVariantList m_layouts;
-    QVariantList m_screens;
 };

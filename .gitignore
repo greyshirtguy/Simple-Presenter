@@ -8,3 +8,6 @@
 # Qt Creator
 /.qtcreator/
 CMakeLists.txt.user*
+
+# The NDI SDK, as downloaded from ndi.video: not this repository's to publish (see README, NDI)
+/third_party/ndi-sdk/

@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Controls.Basic
 import SimplePresenterApp
 
-// The stage screens, and the layout each shows. There is one stage screen so far, the
-// stage window; ProPresenter has as many as are wanted, which is why this is a list.
+// The stage screens, and the layout each shows. A workspace has as many as it has been
+// given (see Screens, and the Screens section of the settings).
 //
 // A screen shows either the plain layout the app has always had (the words of the live
 // slide over those of the next) or one of the workspace's stage layouts, which are
@@ -23,7 +23,8 @@ Item {
         const added = StageLayouts.add()
         if (!win.report(added.error))
             return
-        Show.stageLayoutId = added.id
+        if (Screens.stage.length > 0)
+            Show.setStageLayout(Screens.stage[0].id, added.id)
         win.startEditingStage(added.id)
     }
 
@@ -32,109 +33,118 @@ Item {
         anchors.right: parent.right
         spacing: 6
 
-        Rectangle {
-            id: screen
+        Repeater {
+            model: Screens.stage
 
-            objectName: "stageScreenRow"
-            width: parent.width
-            height: 64
-            radius: 6
-            color: "#2b2d31"
+            Rectangle {
+                id: screen
 
-            // The screen can be dragged onto a slide, by its name and its picture, to
-            // give the slide an action that changes the layout it shows.
-            DragSource {
-                objectName: "stageScreenDrag"
+                required property var modelData
+                required property int index
+                // The id of the layout this screen has, "" for the plain view
+                readonly property string layoutId: Show.screenLayouts[modelData.id] ?? ""
+
+                objectName: index === 0 ? "stageScreenRow" : "stageScreenRow" + (index + 1)
                 width: parent.width
-                height: 30
-                win: panel.win
-                payload: ({ kind: "stage", id: "", name: "Stage" })
-            }
+                height: 64
+                radius: 6
+                color: "#2b2d31"
 
-            // A screen on its stand, and what the screen is called
-            Item {
-                id: icon
+                // The screen can be dragged onto a slide, by its name and its picture, to
+                // give the slide an action that changes the layout it shows.
+                DragSource {
+                    objectName: screen.index === 0 ? "stageScreenDrag" : "stageScreenDrag" + (screen.index + 1)
+                    width: parent.width
+                    height: 30
+                    win: panel.win
+                    payload: ({ kind: "stage", id: screen.modelData.id, name: screen.modelData.name })
+                }
 
-                x: 10
-                y: 9
-                width: 18
-                height: 16
+                // A screen on its stand, and what the screen is called
+                Item {
+                    id: icon
 
-                Rectangle {
+                    x: 10
+                    y: 9
                     width: 18
-                    height: 11.5
-                    radius: 2
-                    color: "transparent"
-                    border.width: 1.5
-                    border.color: "#c9cdd6"
+                    height: 16
+
+                    Rectangle {
+                        width: 18
+                        height: 11.5
+                        radius: 2
+                        color: "transparent"
+                        border.width: 1.5
+                        border.color: "#c9cdd6"
+                    }
+
+                    Rectangle {
+                        x: 8.25
+                        y: 11.5
+                        width: 1.5
+                        height: 3
+                        color: "#c9cdd6"
+                    }
+
+                    Rectangle {
+                        x: 5
+                        y: 14.5
+                        width: 8
+                        height: 1.5
+                        color: "#c9cdd6"
+                    }
                 }
 
-                Rectangle {
-                    x: 8.25
-                    y: 11.5
-                    width: 1.5
-                    height: 3
-                    color: "#c9cdd6"
+                Text {
+                    anchors.left: icon.right
+                    anchors.leftMargin: 8
+                    anchors.verticalCenter: icon.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 13
+                    text: Screens.stage.length > 1 ? screen.modelData.name : "Stage"
                 }
 
-                Rectangle {
-                    x: 5
-                    y: 14.5
-                    width: 8
-                    height: 1.5
-                    color: "#c9cdd6"
+                // On or off, as the toolbar has it
+                Text {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 10
+                    anchors.verticalCenter: icon.verticalCenter
+                    color: "#9a9da3"
+                    font.pixelSize: 11
+                    text: screen.modelData.output === "none" ? "not drawn" : panel.win.stageEnabled ? "" : screen.modelData.output === "ndi" ? "off" : "window off"
                 }
-            }
 
-            Text {
-                anchors.left: icon.right
-                anchors.leftMargin: 8
-                anchors.verticalCenter: icon.verticalCenter
-                color: "#e6e6e6"
-                font.pixelSize: 13
-                text: "Stage"
-            }
+                // The layout it shows
+                AppComboBox {
+                    id: choice
 
-            // On or off, as the toolbar has it
-            Text {
-                anchors.right: parent.right
-                anchors.rightMargin: 10
-                anchors.verticalCenter: icon.verticalCenter
-                color: "#9a9da3"
-                font.pixelSize: 11
-                text: panel.win.stageEnabled ? "" : "window off"
-            }
+                    objectName: screen.index === 0 ? "stageLayoutChoice" : "stageLayoutChoice" + (screen.index + 1)
+                    x: 8
+                    y: 32
+                    width: parent.width - edit.width - 22
+                    height: 24
+                    font.pixelSize: 12
+                    model: [panel.plain].concat(panel.layouts.map(layout => layout.name))
+                    currentIndex: Math.max(0, panel.layouts.findIndex(layout => layout.id === screen.layoutId) + 1)
+                    onActivated: (index) => Show.setStageLayout(screen.modelData.id, index === 0 ? "" : panel.layouts[index - 1].id)
+                }
 
-            // The layout it shows
-            AppComboBox {
-                id: choice
+                AppButton {
+                    id: edit
 
-                objectName: "stageLayoutChoice"
-                x: 8
-                y: 32
-                width: parent.width - edit.width - 22
-                height: 24
-                font.pixelSize: 12
-                model: [panel.plain].concat(panel.layouts.map(layout => layout.name))
-                currentIndex: Math.max(0, panel.layouts.findIndex(layout => layout.id === panel.win.stageLayoutId) + 1)
-                onActivated: (index) => Show.stageLayoutId = index === 0 ? "" : panel.layouts[index - 1].id
-            }
-
-            AppButton {
-                id: edit
-
-                objectName: "stageLayoutEdit"
-                anchors.right: parent.right
-                anchors.rightMargin: 8
-                anchors.verticalCenter: choice.verticalCenter
-                height: 24
-                leftPadding: 10
-                rightPadding: 10
-                font.pixelSize: 12
-                text: "Edit"
-                enabled: panel.layouts.length > 0
-                // The layout the stage has, or the first there is if it has the plain one
-                onClicked: panel.win.startEditingStage(panel.win.stageLayout ? panel.win.stageLayout.id : panel.layouts[0].id)
+                    objectName: screen.index === 0 ? "stageLayoutEdit" : "stageLayoutEdit" + (screen.index + 1)
+                    anchors.right: parent.right
+                    anchors.rightMargin: 8
+                    anchors.verticalCenter: choice.verticalCenter
+                    height: 24
+                    leftPadding: 10
+                    rightPadding: 10
+                    font.pixelSize: 12
+                    text: "Edit"
+                    enabled: panel.layouts.length > 0
+                    // The layout the stage has, or the first there is if it has the plain one
+                    onClicked: panel.win.startEditingStage(screen.layoutId !== "" ? screen.layoutId : panel.layouts[0].id)
+                }
             }
         }
 

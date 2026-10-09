@@ -38,6 +38,21 @@ Rectangle {
     // The layout this app's stage screen is given: one of the workspace's, by id, or
     // "" for no change
     property string layoutId: ""
+    // And what every stage screen is given, by the screen's id: a layout's id, or ""
+    // to leave that screen as it is. (`layoutId` is the first screen's.)
+    property var layoutIds: ({})
+
+    function giveLayout(screenId, id) {
+        const all = Object.assign({}, layoutIds)
+        all[screenId] = id
+        layoutIds = all
+        if (Screens.stage.length > 0 && Screens.stage[0].id === screenId)
+            layoutId = id
+    }
+    onLayoutIdChanged: {
+        if (Screens.stage.length > 0 && (layoutIds[Screens.stage[0].id] ?? "") !== layoutId)
+            giveLayout(Screens.stage[0].id, layoutId)
+    }
 
     readonly property var timerActions: ["Start", "Stop", "Reset", "Reset and Start", "Stop and Reset"]
     readonly property var kinds: ["countdown", "countdownTo", "elapsed"]
@@ -77,8 +92,12 @@ Rectangle {
     function openStage(target, existing) {
         dialog.target = target
         dialog.existing = existing
-        const layout = existing ? win.stageLayoutOf(existing) : null
-        layoutId = layout ? layout.id : ""
+        const given = existing ? Show.stageLayoutsOf(existing) : ({})
+        const all = {}
+        for (const screen of Screens.stage)
+            all[screen.id] = given[screen.id] ? given[screen.id].id : ""
+        layoutIds = all
+        layoutId = Screens.stage.length > 0 ? all[Screens.stage[0].id] : ""
         mode = "stage"
         forceActiveFocus()
     }
@@ -98,8 +117,11 @@ Rectangle {
                        setKind: setKind, setDuration: setDuration, setTimeOfDay: setTimeOfDay, setStartTime: setStartTime,
                        setEndTime: 0, setHasEndTime: false, setOverrun: setOverrun }
         } else {
-            const layout = StageLayouts.layouts.find(candidate => candidate.id === layoutId) ?? null
-            action = { kind: "stage", assignments: win.stageAssignments(existing, layout) }
+            // Every stage screen has its say: a layout, or (null) to be left as it is.
+            const chosen = {}
+            for (const screen of Screens.stage)
+                chosen[screen.id] = StageLayouts.layouts.find(candidate => candidate.id === (layoutIds[screen.id] ?? "")) ?? null
+            action = { kind: "stage", assignments: Show.stageAssignmentsFor(existing ?? null, chosen) }
         }
         const target = dialog.target
         const existingId = existing ? existing.id : ""
@@ -273,21 +295,29 @@ Rectangle {
                 }
             }
 
-            // ---- A stage action: a line for each stage screen, of which there is one
-            Line {
-                caption: "Stage"
-                visible: dialog.mode === "stage"
+            // ---- A stage action: a line for each stage screen
+            Repeater {
+                model: dialog.mode === "stage" ? Screens.stage : []
 
-                AppComboBox {
-                    objectName: "actionStageLayout"
-                    width: content.width - 92
-                    height: 26
-                    font.pixelSize: 13
-                    model: ["-- No Change --"].concat(StageLayouts.layouts.map(layout => layout.name))
-                    currentIndex: Math.max(0, StageLayouts.layouts.findIndex(layout => layout.id === dialog.layoutId) + 1)
-                    onActivated: (index) => {
-                        dialog.layoutId = index === 0 ? "" : StageLayouts.layouts[index - 1].id
-                        dialog.forceActiveFocus()
+                Line {
+                    id: stageLine
+
+                    required property var modelData
+                    required property int index
+
+                    caption: Screens.stage.length > 1 ? modelData.name : "Stage"
+
+                    AppComboBox {
+                        objectName: stageLine.index === 0 ? "actionStageLayout" : "actionStageLayout" + (stageLine.index + 1)
+                        width: content.width - 92
+                        height: 26
+                        font.pixelSize: 13
+                        model: ["-- No Change --"].concat(StageLayouts.layouts.map(layout => layout.name))
+                        currentIndex: Math.max(0, StageLayouts.layouts.findIndex(layout => layout.id === (dialog.layoutIds[stageLine.modelData.id] ?? "")) + 1)
+                        onActivated: (index) => {
+                            dialog.giveLayout(stageLine.modelData.id, index === 0 ? "" : StageLayouts.layouts[index - 1].id)
+                            dialog.forceActiveFocus()
+                        }
                     }
                 }
             }

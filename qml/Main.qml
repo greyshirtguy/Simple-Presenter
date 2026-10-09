@@ -1376,6 +1376,110 @@ Window {
     }
 
     // Puts a slide on the slide layer, and any media its cue triggers on the media layer.
+    // ---- The screens' scenes
+    //
+    // The ids of the screens of each kind that are drawn, in the workspace's order: all
+    // but those sent out through nothing. What draws them is made from the two models,
+    // which are changed a screen at a time, so that a screen coming or going leaves the
+    // others, and whatever is playing on them, as they were.
+    property var audienceIds: []
+    property var stageIds: []
+    readonly property ListModel audienceDrawn: ListModel {}
+    readonly property ListModel stageDrawn: ListModel {}
+    // What draws each audience screen, by the screen's id: its Output window, or the
+    // OutputScene of one sent over NDI. All are told what to show; the first also plays
+    // the media, and is what the preview and the transport go by.
+    property var scenes: ({})
+    readonly property var output: scenes[audienceIds[0]] ?? null
+    // The media the scenes were last told to play, with the number that playing was
+    // given (see MediaFeeds), or null: what a scene made later is told to show.
+    property var lastPlayed: null
+    property int plays: 0
+    // What sends each screen that goes over NDI, by the screen's id
+    property var senders: ({})
+
+    function senderMade(id, sender) {
+        const all = Object.assign({}, senders)
+        all[id] = sender
+        senders = all
+    }
+
+    function senderGone(id, sender) {
+        if (senders[id] !== sender)
+            return
+        const all = Object.assign({}, senders)
+        delete all[id]
+        senders = all
+    }
+
+    function followScreens() {
+        const drawn = kind => Screens.screens.filter(screen => screen.kind === kind && screen.output !== "none").map(screen => screen.id)
+        // Brings a model into line with a list of ids: what is gone taken out, what is
+        // new put in at its place.
+        const follow = (model, ids) => {
+            for (let i = model.count - 1; i >= 0; --i) {
+                if (!ids.includes(model.get(i).screenId))
+                    model.remove(i)
+            }
+            for (let i = 0; i < ids.length; ++i) {
+                if (i >= model.count || model.get(i).screenId !== ids[i]) {
+                    let at = -1
+                    for (let j = i + 1; j < model.count; ++j) {
+                        if (model.get(j).screenId === ids[i])
+                            at = j
+                    }
+                    if (at >= 0)
+                        model.move(at, i, 1)
+                    else
+                        model.insert(i, { screenId: ids[i] })
+                }
+            }
+        }
+        const audience = drawn("audience")
+        const stage = drawn("stage")
+        if (audience.join("\n") !== audienceIds.join("\n")) {
+            audienceIds = audience
+            follow(audienceDrawn, audience)
+        }
+        if (stage.join("\n") !== stageIds.join("\n")) {
+            stageIds = stage
+            follow(stageDrawn, stage)
+        }
+    }
+
+    function eachAudienceScene(act) {
+        for (const id of audienceIds) {
+            if (scenes[id])
+                act(scenes[id])
+        }
+    }
+
+    // Media as the scenes are told to play it: with a number for this playing of it.
+    function playing(media) {
+        lastPlayed = Object.assign({}, media, { playId: ++plays })
+        return lastPlayed
+    }
+
+    // A scene has been made: it is told what is live, which the others were told as it
+    // happened.
+    function sceneMade(id, scene) {
+        const all = Object.assign({}, scenes)
+        all[id] = scene
+        scenes = all
+        if (lastPlayed !== null)
+            scene.showMedia(lastPlayed)
+        if (liveSlide)
+            scene.showSlide(liveSlide)
+    }
+
+    function sceneGone(id, scene) {
+        if (scenes[id] !== scene)
+            return
+        const all = Object.assign({}, scenes)
+        delete all[id]
+        scenes = all
+    }
+
     // A slide as Show is handed it when it goes live: which presentation it is of, by
     // the row it was opened from and the playlist that row is in, where it is in it,
     // and the slide itself with the one after it.
@@ -1533,11 +1637,13 @@ Window {
     // Reads what else a workspace folder holds for the show: its timers, its props and
     // its stage layouts.
     function openShowControls(path) {
+        Screens.remember = remember
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
-                             Macros.open(path)]) {
+                             Macros.open(path), Screens.open(path)]) {
             if (error !== "")
                 report(error)
         }
+        followScreens()
         readGroupKeys()
     }
 
@@ -1648,9 +1754,23 @@ Window {
         const firstMediaPlaylist = catalog.mediaPlaylists.find(p => !p.folder)
         openMediaPlaylist(catalog.mediaPlaylists.some(p => p.path === mediaPlaylist && !p.folder) ? mediaPlaylist
                           : firstMediaPlaylist ? firstMediaPlaylist.path : "")
-        // The stage has the layout it had, if the workspace still has that layout.
-        const stageLayout = savedSelection("stageLayout")
-        Show.stageLayoutId = StageLayouts.layouts.some(layout => layout.id === stageLayout) ? stageLayout : ""
+        // Each stage screen has the layout it had, if the workspace still has that
+        // layout: as it was left here, or, for a screen nothing is remembered of, as
+        // ProPresenter's own file has it. (What was remembered before there could be
+        // several stage screens is the first one's.)
+        let had = {}
+        try {
+            had = JSON.parse(savedSelection("stageLayouts") || "{}")
+        } catch (error) {
+            had = {}
+        }
+        const before = savedSelection("stageLayout")
+        Screens.stage.forEach((screen, at) => {
+            const layout = had[screen.id] !== undefined ? had[screen.id]
+                         : at === 0 && before !== "" ? before
+                         : Object.keys(had).length === 0 && before === "" ? (Screens.layouts[screen.id] ?? "") : ""
+            Show.setStageLayout(screen.id, StageLayouts.layouts.some(candidate => candidate.id === layout) ? layout : "")
+        })
     }
 
     // Closes the open workspace and opens another: the output is cleared, everything
@@ -1672,7 +1792,8 @@ Window {
         libraryPath = ""
         mediaPlaylistId = ""
         selectedMediaNode = ""
-        Show.stageLayoutId = ""
+        for (const screen of Screens.stage)
+            Show.setStageLayout(screen.id, "")
         notice = ""
         catalog.openWorkspace(path)
         // The timers, the props and the stage layouts are the workspace's too.
@@ -1771,12 +1892,27 @@ Window {
     onPlaylistIdChanged: saveSelection("playlist", playlistId)
     onDocumentKeyChanged: saveSelection("presentation", documentKey)
     onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
-    onStageLayoutIdChanged: {
-        saveSelection("stageLayout", stageLayoutId)
-        // (Found here, and not read from `stageLayout`, which may not have followed yet.)
-        const layout = StageLayouts.layouts.find(candidate => candidate.id === stageLayoutId)
-        if (restored)
-            Log.note("stage", layout ? "the stage has the layout " + quoted(layout.name) : "the stage has the plain view")
+    // What each stage screen has, as last noted in the log
+    property var notedLayouts: ({})
+
+    Connections {
+        target: Show
+
+        function onScreenLayoutsChanged() {
+            const layouts = Show.screenLayouts
+            win.saveSelection("stageLayouts", JSON.stringify(layouts))
+            win.saveSelection("stageLayout", Show.stageLayoutId)
+            for (const screen of Screens.stage) {
+                const id = layouts[screen.id] ?? ""
+                if ((win.notedLayouts[screen.id] ?? "") === id)
+                    continue
+                const layout = StageLayouts.layouts.find(candidate => candidate.id === id)
+                if (win.restored)
+                    Log.note("stage", (Screens.stage.length > 1 ? "the stage screen " + win.quoted(screen.name) : "the stage")
+                             + (layout ? " has the layout " + win.quoted(layout.name) : " has the plain view"))
+            }
+            win.notedLayouts = Object.assign({}, layouts)
+        }
     }
 
     TransitionCatalogue {
@@ -1862,32 +1998,144 @@ Window {
         onAccepted: win.report(win.catalog.addMedia(win.mediaPlaylistId, selectedFiles))
     }
 
-    Output {
-        id: output
+    // The screens. Each one that is sent out through something (see Screens) has a scene
+    // of its own, which draws what that screen shows: in a window, or out of sight for
+    // NDI. Every audience scene is told the same things (see the Connections to Show
+    // below) and every stage scene follows what is live, so they all show the same; but
+    // each draws for itself, at its own size.
+    Instantiator {
+        model: win.audienceDrawn
+        delegate: QtObject {
+            id: audienceHost
 
-        owner: win
-        remember: win.remember
-        shown: win.outputEnabled
-        fullScreenOn: win.outputScreen
-        shader: transitionCatalogue.shaderUrl(win.transition)
-        options: win.transitionUniforms.options
-        tint: win.transitionUniforms.tint
-        direction: win.transitionUniforms.direction
-        duration: Math.round(win.transitionDuration * 1000)
-        transitionName: win.transition.name
-        props: win.shownProps
-        propsDuration: Math.round(Props.transitionDuration * 1000)
-        keyTarget: keys
+            required property string screenId
+            required property int index
+            readonly property string modelData: screenId
+            readonly property var screen: Screens.screens.find(candidate => candidate.id === audienceHost.modelData) ?? ({ output: "none", name: "" })
+            // The first plays the media, for all of them (see MediaContent).
+            readonly property bool leads: index === 0
+            readonly property bool overNdi: screen.output === "ndi"
+
+            property Instantiator inWindow: Instantiator {
+                model: audienceHost.overNdi ? 0 : 1
+                delegate: Output {
+                    objectName: audienceHost.leads ? "output" : "output-" + audienceHost.modelData
+                    title: audienceHost.leads ? "Output" : "Output: " + audienceHost.screen.name
+                    owner: win
+                    remember: win.remember
+                    shown: win.outputEnabled
+                    display: audienceHost.screen.output === "display" ? audienceHost.screen.display : ""
+                    fullScreenOn: audienceHost.leads && audienceHost.screen.output === "window" ? win.outputScreen : -1
+                    leads: audienceHost.leads
+                    shader: transitionCatalogue.shaderUrl(win.transition)
+                    options: win.transitionUniforms.options
+                    tint: win.transitionUniforms.tint
+                    direction: win.transitionUniforms.direction
+                    duration: Math.round(win.transitionDuration * 1000)
+                    transitionName: win.transition.name
+                    props: win.shownProps
+                    propsDuration: Math.round(Props.transitionDuration * 1000)
+                    keyTarget: keys
+                    Component.onCompleted: win.sceneMade(audienceHost.modelData, this, true)
+                    Component.onDestruction: win.sceneGone(audienceHost.modelData, this)
+                }
+            }
+
+            property Instantiator sentOverNdi: Instantiator {
+                model: audienceHost.overNdi ? 1 : 0
+                delegate: NdiScreen {
+                    objectName: "ndi-" + audienceHost.modelData
+                    name: audienceHost.screen.ndiName
+                    width: audienceHost.screen.ndiWidth
+                    height: audienceHost.screen.ndiHeight
+                    rateNumerator: Screens.rateOf(audienceHost.screen.ndiRate).numerator
+                    rateDenominator: Screens.rateOf(audienceHost.screen.ndiRate).denominator
+                    active: win.outputEnabled
+                    Component.onCompleted: win.senderMade(audienceHost.modelData, this)
+                    Component.onDestruction: win.senderGone(audienceHost.modelData, this)
+
+                    OutputScene {
+                        id: ndiScene
+
+                        leads: audienceHost.leads
+                        shader: transitionCatalogue.shaderUrl(win.transition)
+                        options: win.transitionUniforms.options
+                        tint: win.transitionUniforms.tint
+                        direction: win.transitionUniforms.direction
+                        duration: Math.round(win.transitionDuration * 1000)
+                        transitionName: win.transition.name
+                        props: win.shownProps
+                        propsDuration: Math.round(Props.transitionDuration * 1000)
+                        Component.onCompleted: win.sceneMade(audienceHost.modelData, ndiScene, true)
+                        Component.onDestruction: win.sceneGone(audienceHost.modelData, ndiScene)
+                    }
+                }
+            }
+        }
     }
 
-    Stage {
-        owner: win
-        remember: win.remember
-        shown: win.stageEnabled
-        layout: win.stageLayout ? win.stageLayout.slide : null
-        currentText: win.stageCurrentText
-        nextText: win.stageNextText
-        keyTarget: keys
+    Instantiator {
+        model: win.stageDrawn
+        delegate: QtObject {
+            id: stageHost
+
+            required property string screenId
+            required property int index
+            readonly property string modelData: screenId
+            readonly property var screen: Screens.screens.find(candidate => candidate.id === stageHost.modelData) ?? ({ output: "none", name: "" })
+            readonly property bool overNdi: screen.output === "ndi"
+            // The slide of the layout this stage screen has, or null for the plain view
+            readonly property var layout: {
+                const id = Show.screenLayouts[stageHost.modelData] ?? ""
+                const found = id === "" ? undefined : StageLayouts.layouts.find(candidate => candidate.id === id)
+                return found ? found.slide : null
+            }
+
+            property Instantiator inWindow: Instantiator {
+                model: stageHost.overNdi ? 0 : 1
+                delegate: Stage {
+                    objectName: stageHost.index === 0 ? "stage" : "stage-" + stageHost.modelData
+                    title: stageHost.index === 0 ? "Stage" : "Stage: " + stageHost.screen.name
+                    owner: win
+                    remember: win.remember
+                    shown: win.stageEnabled
+                    display: stageHost.screen.output === "display" ? stageHost.screen.display : ""
+                    layout: stageHost.layout
+                    currentText: win.stageCurrentText
+                    nextText: win.stageNextText
+                    keyTarget: keys
+                }
+            }
+
+            property Instantiator sentOverNdi: Instantiator {
+                model: stageHost.overNdi ? 1 : 0
+                delegate: NdiScreen {
+                    objectName: "ndi-" + stageHost.modelData
+                    name: stageHost.screen.ndiName
+                    width: stageHost.screen.ndiWidth
+                    height: stageHost.screen.ndiHeight
+                    rateNumerator: Screens.rateOf(stageHost.screen.ndiRate).numerator
+                    rateDenominator: Screens.rateOf(stageHost.screen.ndiRate).denominator
+                    active: win.stageEnabled
+                    Component.onCompleted: win.senderMade(stageHost.modelData, this)
+                    Component.onDestruction: win.senderGone(stageHost.modelData, this)
+
+                    StageScene {
+                        layout: stageHost.layout
+                        currentText: win.stageCurrentText
+                        nextText: win.stageNextText
+                    }
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: Screens
+
+        function onChanged() {
+            win.followScreens()
+        }
     }
 
     // While the show is on a screen, the screens are not to go to sleep (see Awake).
@@ -1904,24 +2152,29 @@ Window {
 
         function onSlideShown(showing, media) {
             const slide = win.liveDocument.slides[Show.liveIndex]
-            if (showing === Show.WithMedia)
-                output.showSlideWithMedia(slide, media)
-            else if (showing === Show.OverMedia)
-                output.showSlideOverMedia(slide)
-            else
-                output.showSlide(slide)
+            const played = showing === Show.WithMedia ? win.playing(media) : null
+            win.eachAudienceScene(scene => {
+                if (showing === Show.WithMedia)
+                    scene.showSlideWithMedia(slide, played)
+                else if (showing === Show.OverMedia)
+                    scene.showSlideOverMedia(slide)
+                else
+                    scene.showSlide(slide)
+            })
         }
 
         function onSlideCleared() {
-            output.showSlide(null)
+            win.eachAudienceScene(scene => scene.showSlide(null))
         }
 
         function onMediaShown(media) {
-            output.showMedia(media)
+            const played = win.playing(media)
+            win.eachAudienceScene(scene => scene.showMedia(played))
         }
 
         function onMediaCleared() {
-            output.showMedia(null)
+            win.lastPlayed = null
+            win.eachAudienceScene(scene => scene.showMedia(null))
         }
 
         function onTimerAction(action) {
@@ -1952,7 +2205,7 @@ Window {
     Binding {
         target: Show
         property: "stageScreens"
-        value: StageLayouts.screens
+        value: Screens.stage.map(screen => ({ id: screen.id, name: screen.name }))
     }
 
     // Show mode and edit mode, whichever of the app's windows has the keyboard and
@@ -2098,8 +2351,8 @@ Window {
             visible: win.chromeShown
             transform: Translate { x: win.chromeAway * sidePanel.width }
             win: win
-            liveVideoSink: output.liveVideoSink
-            livePlayer: win.clocksHeld ? null : output.livePlayer
+            liveVideoSink: win.output ? win.output.liveVideoSink : null
+            livePlayer: win.clocksHeld || !win.output ? null : win.output.livePlayer
             onShowControlTabChanged: win.save("showControlTab", showControlTab)
         }
 
@@ -2360,6 +2613,8 @@ Window {
         onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))
         useX11: win.useX11
         onUseX11Edited: (useX11) => win.useX11 = useX11
+        senders: win.senders
+        onScreensFailed: (text) => win.report(text)
         onClosed: {
             win.settingsOpen = false
             win.takeFocus()
