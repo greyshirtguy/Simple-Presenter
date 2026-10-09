@@ -38,6 +38,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.6" date="2026-10-09">
+      <description>
+        <p>
+          Up to sixteen screens, for the audience and for the stage, each sent to a window, a display or
+          the network as an NDI source. The screens are kept awake while the show is on one.
+        </p>
+      </description>
+    </release>
     <release version="0.51" date="2026-10-09">
       <description>
         <p>
