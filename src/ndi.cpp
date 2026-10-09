@@ -4,8 +4,19 @@
 
 #include <Processing.NDI.Lib.h>
 
+#include "ndisetup.h"
+
+#include <QDesktopServices>
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QProcess>
+#include <QSysInfo>
+#include <QTemporaryDir>
+#include <QUrl>
 #include <QGuiApplication>
 #include <QLibrary>
 #include <QOffscreenSurface>
@@ -31,9 +42,9 @@ struct Library
     QString folder;
 };
 
-const Library &library()
+Library find()
 {
-    static const Library found = [] {
+    {
         Library lib;
         lib.folder = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/ndi");
         // Where NDI's own installer says it has put it; the app's own folder for it;
@@ -69,10 +80,279 @@ const Library &library()
                           .arg(QLatin1String(NDILIB_LIBRARY_NAME), lib.folder);
         SessionLog::write("ndi", QStringLiteral("NDI's library was not found, so no screen can be sent over NDI"));
         return lib;
-    }();
+    }
+}
+
+// The library as it was found when first asked for, or since (see Ndi::lookAgain).
+Library &library()
+{
+    static Library found = find();
     return found;
 }
 
+// Where NDI gives its installer for Linux out. (A test points this at a file of its own.)
+QUrl installerUrl()
+{
+    const QString other = qEnvironmentVariable("SIMPLEPRESENTER_NDI_SDK_URL");
+    return QUrl(other.isEmpty() ? QStringLiteral("https://downloads.ndi.tv/SDK/NDI_SDK_Linux/Install_NDI_SDK_v6_Linux.tar.gz") : other);
+}
+
+}
+
+NdiNotifier *NdiNotifier::instance()
+{
+    static NdiNotifier notifier;
+    return &notifier;
+}
+
+Ndi::Ndi(QObject *parent)
+    : QObject(parent)
+{
+    connect(NdiNotifier::instance(), &NdiNotifier::found, this, &Ndi::changed);
+}
+
+Ndi::~Ndi()
+{
+    giveUp();
+}
+
+QString Ndi::fileName() const
+{
+    return QLatin1String(NDILIB_LIBRARY_NAME);
+}
+
+QString Ndi::sdkFolder() const
+{
+    return ndisetup::libraryFolder(QSysInfo::currentCpuArchitecture());
+}
+
+QString Ndi::source() const
+{
+    return installerUrl().toString();
+}
+
+void Ndi::lookAgain()
+{
+    if (library().functions)
+        return;
+    library() = find();
+    if (library().functions)
+        emit NdiNotifier::instance()->found();
+    else
+        emit changed();
+}
+
+void Ndi::showFolder() const
+{
+    QDir().mkpath(folder());
+    QDesktopServices::openUrl(QUrl::fromLocalFile(folder()));
+}
+
+void Ndi::went(const QString &where)
+{
+    m_fetching = where;
+    emit fetchingChanged();
+}
+
+void Ndi::failed(const QString &why)
+{
+    SessionLog::write("ndi", QStringLiteral("fetching NDI's library did not work: %1").arg(why));
+    // (Told to stop without being listened to any more: stopping says "finished" too.)
+    if (m_reply) {
+        m_reply->disconnect(this);
+        m_reply->abort();
+        m_reply->deleteLater();
+    }
+    if (m_tar) {
+        m_tar->disconnect(this);
+        m_tar->kill();
+        m_tar->deleteLater();
+    }
+    m_download.close();
+    m_script.close();
+    m_fetchProblem = why;
+    went(QStringLiteral("failed"));
+}
+
+void Ndi::giveUp()
+{
+    if (m_reply) {
+        m_reply->disconnect(this);
+        m_reply->abort();
+        m_reply->deleteLater();
+    }
+    if (m_tar) {
+        m_tar->disconnect(this);
+        m_tar->kill();
+        m_tar->deleteLater();
+    }
+    m_download.close();
+    m_script.close();
+    m_folder.reset();
+    m_licence.clear();
+    m_fetchProblem.clear();
+    m_fetched = 0;
+    if (!m_fetching.isEmpty())
+        went(QString());
+}
+
+void Ndi::fetch()
+{
+    if (m_fetching == QLatin1String("downloading") || m_fetching == QLatin1String("installing"))
+        return;
+    giveUp();
+    if (sdkFolder().isEmpty()) {
+        failed(QStringLiteral("NDI has no library for this computer's kind of processor (%1).").arg(QSysInfo::currentCpuArchitecture()));
+        return;
+    }
+    m_folder = std::make_unique<QTemporaryDir>();
+    m_download.setFileName(m_folder->filePath(QStringLiteral("installer.tar.gz")));
+    if (!m_folder->isValid() || !m_download.open(QIODevice::WriteOnly)) {
+        failed(QStringLiteral("there is nowhere to put the download (%1).").arg(m_download.errorString()));
+        return;
+    }
+    if (!m_network)
+        m_network = new QNetworkAccessManager(this);
+    SessionLog::write("ndi", QStringLiteral("fetching NDI's installer from %1").arg(source()));
+    QNetworkRequest request(installerUrl());
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    m_reply = m_network->get(request);
+    m_fetched = 0;
+    emit fetchedChanged();
+    went(QStringLiteral("downloading"));
+    connect(m_reply, &QNetworkReply::readyRead, this, [this] { m_download.write(m_reply->readAll()); });
+    connect(m_reply, &QNetworkReply::downloadProgress, this, [this](qint64 received, qint64 total) {
+        m_fetched = total > 0 ? double(received) / double(total) : 0;
+        emit fetchedChanged();
+    });
+    connect(m_reply, &QNetworkReply::finished, this, [this] {
+        QNetworkReply *reply = m_reply;
+        reply->deleteLater();
+        m_download.write(reply->readAll());
+        m_download.close();
+        if (reply->error() != QNetworkReply::NoError)
+            failed(QStringLiteral("NDI's installer could not be downloaded: %1.").arg(reply->errorString()));
+        else
+            unpack();
+    });
+}
+
+// The download is an archive of one file, the installer script: it is taken out, and the
+// licence read from it.
+void Ndi::unpack()
+{
+    const QString out = m_folder->filePath(QStringLiteral("installer"));
+    QDir().mkpath(out);
+    m_tar = new QProcess(this);
+    connect(m_tar, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart)
+            failed(QStringLiteral("the download could not be unpacked: there is no `tar` on this computer."));
+    });
+    connect(m_tar, &QProcess::finished, this, [this, out](int code) {
+        m_tar->deleteLater();
+        const QStringList scripts = QDir(out).entryList({QStringLiteral("*.sh")}, QDir::Files);
+        if (code != 0 || scripts.isEmpty()) {
+            failed(QStringLiteral("what was downloaded is not NDI's installer (it would not unpack). NDI may have moved it."));
+            return;
+        }
+        m_script.setFileName(out + u'/' + scripts.first());
+        if (!m_script.open(QIODevice::ReadOnly)) {
+            failed(QStringLiteral("NDI's installer could not be read once unpacked."));
+            return;
+        }
+        // (Read whole to find the two places in it; it is some sixty megabytes, for a moment.)
+        const ndisetup::Installer installer = ndisetup::read(m_script.readAll());
+        if (!installer.understood()) {
+            failed(QStringLiteral("NDI's installer is not laid out as this app expects, so it is left alone. NDI may have changed it."));
+            return;
+        }
+        m_archiveAt = installer.archiveAt;
+        m_licence = installer.licence;
+        went(QStringLiteral("licence"));
+    });
+    m_tar->start(QStringLiteral("tar"), {QStringLiteral("-xzf"), m_download.fileName(), QStringLiteral("-C"), out});
+}
+
+// The licence having been agreed to: the library, the licence and what the library is
+// itself made with are taken out of the archive in the script, and put in the app's folder.
+void Ndi::agree()
+{
+    if (m_fetching != QLatin1String("licence"))
+        return;
+    SessionLog::write("ndi", QStringLiteral("NDI's licence was agreed to here; putting its library in %1").arg(folder()));
+    went(QStringLiteral("installing"));
+    const QString out = m_folder->filePath(QStringLiteral("sdk"));
+    QDir().mkpath(out);
+    m_tar = new QProcess(this);
+    connect(m_tar, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart)
+            failed(QStringLiteral("the installer's archive could not be unpacked: there is no `tar` on this computer."));
+    });
+    connect(m_tar, &QProcess::started, this, &Ndi::feed);
+    connect(m_tar, &QProcess::bytesWritten, this, &Ndi::feed);
+    connect(m_tar, &QProcess::finished, this, [this] {
+        m_tar->deleteLater();
+        place();
+    });
+    m_script.seek(m_archiveAt);
+    m_tar->start(QStringLiteral("tar"), {QStringLiteral("-xz"), QStringLiteral("-C"), out, QStringLiteral("--wildcards"),
+                                          QStringLiteral("*/lib/%1/*").arg(sdkFolder()), QStringLiteral("*/NDI SDK License Agreement.txt"),
+                                          QStringLiteral("*/licenses/*")});
+}
+
+// Hands the archive to `tar` a piece at a time, as fast as it takes it.
+void Ndi::feed()
+{
+    if (!m_tar || !m_script.isOpen())
+        return;
+    while (m_tar->bytesToWrite() < (1 << 20)) {
+        const QByteArray piece = m_script.read(1 << 18);
+        if (piece.isEmpty()) {
+            m_script.close();
+            m_tar->closeWriteChannel();
+            return;
+        }
+        m_tar->write(piece);
+    }
+}
+
+void Ndi::place()
+{
+    const QString out = m_folder->filePath(QStringLiteral("sdk"));
+    // The library itself, by whatever version it is called: the file, not the names that point at it
+    QString found;
+    QDirIterator libraries(out, {QStringLiteral("libndi.so*")}, QDir::Files | QDir::NoSymLinks, QDirIterator::Subdirectories);
+    while (libraries.hasNext()) {
+        const QString candidate = libraries.next();
+        if (candidate.contains(u'/' + sdkFolder() + u'/'))
+            found = candidate;
+    }
+    if (found.isEmpty()) {
+        failed(QStringLiteral("NDI's installer has no library for this computer in it (%1).").arg(sdkFolder()));
+        return;
+    }
+    const QString target = folder() + u'/' + fileName();
+    QDir().mkpath(folder());
+    QFile::remove(target);
+    if (!QFile::copy(found, target)) {
+        failed(QStringLiteral("the library could not be put in %1.").arg(folder()));
+        return;
+    }
+    // The licence it was agreed to under, and those of what the library is made with, beside it
+    QDirIterator papers(out, {QStringLiteral("*.txt")}, QDir::Files, QDirIterator::Subdirectories);
+    while (papers.hasNext()) {
+        const QString paper = papers.next();
+        const QString beside = folder() + u'/' + QFileInfo(paper).fileName();
+        QFile::remove(beside);
+        QFile::copy(paper, beside);
+    }
+    m_folder.reset();
+    lookAgain();
+    if (!library().functions) {
+        failed(library().problem);
+        return;
+    }
+    went(QStringLiteral("done"));
 }
 
 bool Ndi::available() const
@@ -107,6 +387,12 @@ NdiScreen::NdiScreen(QObject *parent)
     m_timer.setTimerType(Qt::PreciseTimer);
     connect(&m_timer, &QTimer::timeout, this, &NdiScreen::tick);
     connect(this, &NdiScreen::rateChanged, this, [this] { m_due = 0; });
+    // A screen that was waiting for NDI's library goes on the network when it is found.
+    connect(NdiNotifier::instance(), &NdiNotifier::found, this, [this] {
+        m_problem.clear();
+        settle();
+        emit statusChanged();
+    });
     m_clock.start();
 }
 
@@ -135,6 +421,7 @@ void NdiScreen::setWidth(int width)
     if (m_size.width() == width)
         return;
     m_size.setWidth(width);
+    fit();
     emit sizeChanged();
     settle();
 }
@@ -145,8 +432,20 @@ void NdiScreen::setHeight(int height)
     if (m_size.height() == height)
         return;
     m_size.setHeight(height);
+    fit();
     emit sizeChanged();
     settle();
+}
+
+// The window nobody sees and the scene in it are the size the screen is, sending or not.
+void NdiScreen::fit()
+{
+    if (m_window) {
+        m_window->setGeometry(0, 0, m_size.width(), m_size.height());
+        m_window->contentItem()->setSize(m_size);
+    }
+    if (m_scene)
+        m_scene->setSize(m_size);
 }
 
 void NdiScreen::setActive(bool active)

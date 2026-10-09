@@ -18,6 +18,8 @@ Flickable {
 
     // Something went wrong changing the list
     signal failed(string text)
+    // A screen has been set to NDI and NDI's library is not here: how to get it is wanted
+    signal ndiWanted
 
     readonly property var sizes: [[1280, 720], [1920, 1080], [2560, 1440], [3840, 2160]]
 
@@ -67,9 +69,13 @@ Flickable {
                     font.pixelSize: 13
                     text: row.screen.name
                     onEditingFinished: {
-                        if (text.trim() !== row.screen.name)
-                            section.say(Screens.rename(row.screen.id, text))
+                        const typed = text.trim()
+                        const settings = section
+                        const id = row.screen.id
+                        const changed = typed !== row.screen.name
                         text = Qt.binding(() => row.screen.name)
+                        if (changed)
+                            settings.say(Screens.rename(id, typed))
                     }
                 }
 
@@ -81,7 +87,16 @@ Flickable {
                     model: row.outputs.map(entry => entry.label)
                     currentIndex: Math.max(0, row.outputs.findIndex(entry => entry.output === row.screen.output
                                                                              && (entry.output !== "display" || entry.display === row.screen.display)))
-                    onActivated: (index) => Screens.setOutput(row.screen.id, { output: row.outputs[index].output, display: row.outputs[index].display })
+                    // (What is to be done is worked out first: changing a screen makes
+                    // the list anew, and this line of it with it.)
+                    onActivated: (index) => {
+                        const chosen = row.outputs[index]
+                        const ask = chosen.output === "ndi" && !Ndi.available
+                        const settings = section
+                        Screens.setOutput(row.screen.id, { output: chosen.output, display: chosen.display })
+                        if (ask)
+                            settings.ndiWanted()
+                    }
                 }
 
                 // Remove
@@ -117,9 +132,12 @@ Flickable {
                     font.pixelSize: 12
                     text: row.screen.ndiName
                     onEditingFinished: {
-                        if (text.trim() !== "" && text.trim() !== row.screen.ndiName)
-                            Screens.setOutput(row.screen.id, { ndiName: text.trim() })
+                        const typed = text.trim()
+                        const id = row.screen.id
+                        const changed = typed !== "" && typed !== row.screen.ndiName
                         text = Qt.binding(() => row.screen.ndiName)
+                        if (changed)
+                            Screens.setOutput(id, { ndiName: typed })
                     }
                 }
 
@@ -169,13 +187,26 @@ Flickable {
                 text: row.screen.output === "none" ? "Not drawn. Things that name this screen still find it."
                     : row.screen.output === "display" ? (row.screen.displayThere ? "Fills that display." : "That display is not plugged in, so this screen is not shown.")
                     : row.screen.output === "window" ? "A small window that floats over this one. Double-click its title bar to fill the display it is on."
-                    : !Ndi.available ? Ndi.problem
+                    : !Ndi.available ? "NDI's library is not on this computer yet, so this screen is not being sent."
                     : row.sender === null ? ""
                     : row.sender.problem !== "" ? row.sender.problem
                     : !row.sender.sending ? "Switched off with the " + (row.screen.kind === "stage" ? "stage" : "audience") + " screens, on the toolbar."
                     : "On the network, " + row.sender.width + " × " + row.sender.height + ". "
                       + (row.sender.receivers === 0 ? "Nothing is taking it yet." : row.sender.receivers === 1 ? "One thing is taking it."
                                                                                                                  : row.sender.receivers + " things are taking it.")
+            }
+
+            AppButton {
+                id: getNdi
+
+                objectName: "screenGetNdi"
+                height: 26
+                leftPadding: 10
+                rightPadding: 10
+                font.pixelSize: 12
+                visible: row.screen.output === "ndi" && !Ndi.available
+                text: "Get NDI's Library…"
+                onClicked: section.ndiWanted()
             }
         }
     }
@@ -259,11 +290,13 @@ Flickable {
             wrapMode: Text.Wrap
             color: "#9a9da3"
             font.pixelSize: 12
-            textFormat: Text.PlainText
+            textFormat: Text.StyledText
+            linkColor: "#6fb3ff"
+            onLinkActivated: (link) => Qt.openUrlExternally(link)
             text: (Ndi.available ? "NDI: " + Ndi.version + ". " : "")
                 + "NDI sends a screen over the local network to anything that takes it: a vision mixer, OBS, a monitor on another computer. "
                 + "It is drawn and compressed on this computer, which is work: 1920 × 1080 at 30 frames a second is a fair place to start. "
-                + "NDI® is a registered trademark of Vizrt NDI AB (https://ndi.video)."
+                + "NDI® is a registered trademark of Vizrt NDI AB: <a href=\"https://ndi.video\">ndi.video</a>."
         }
     }
 }

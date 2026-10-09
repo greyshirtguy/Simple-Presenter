@@ -11,7 +11,7 @@ project(SimplePresenter VERSION 0.61 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Multimedia ShaderTools DBus OpenGL)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Multimedia ShaderTools DBus OpenGL Network)
 find_package(Protobuf REQUIRED)
 find_package(Fontconfig REQUIRED)
 find_package(ZLIB REQUIRED)
@@ -125,6 +125,7 @@ qt_add_qml_module(SimplePresenter
         qml/Main.qml
         qml/MediaBadge.qml
         qml/MediaBin.qml
+        qml/NdiSetup.qml
         qml/Output.qml
         qml/OutputScene.qml
         qml/PopupMenu.qml
@@ -197,6 +198,8 @@ qt_add_qml_module(SimplePresenter
         src/screens.cpp
         src/ndi.h
         src/ndi.cpp
+        src/ndisetup.h
+        src/ndisetup.cpp
         src/showstate.h
         src/showstate.cpp
         src/sessionlog.h
@@ -267,7 +270,7 @@ qt_add_shaders(SimplePresenter "shaders"
         shaders/gl-transitions/wipeUp.frag
 )
 
-target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia Qt6::DBus Qt6::OpenGL proproto Fontconfig::Fontconfig ZLIB::ZLIB
+target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia Qt6::DBus Qt6::OpenGL Qt6::Network proproto Fontconfig::Fontconfig ZLIB::ZLIB
                       PkgConfig::FFmpeg PkgConfig::XCB)
 # NDI's header files, which say how its library is talked to. They are NDI's, under the
 # MIT licence (each says so at its top); the library itself is not here, and is looked

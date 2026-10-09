@@ -1062,20 +1062,36 @@ it, one picture goes out a second, enough for it to be found and looked at. The
 settings say, for each such screen, whether it is on the network and how many are
 taking it.
 
-**NDI's library is not part of this app.** It is NDI's own and is not open, though it is
-free to have, and the app is built without it: it looks for `libndi.so.6` when it
-starts, and without it a screen set to NDI says where to get one. It is looked for
+**NDI's library is not part of this app**, and does not come with it. It is NDI's own
+and is not open, though it is free to have, under NDI's licence, which whoever has it
+has to have agreed to themselves. Everything else in the app works without it.
 
-1. in the folder the environment variable `NDI_RUNTIME_DIR_V6` names, which is what
-   NDI's own installers set;
-2. in the app's own folder for it, `~/.local/share/SimplePresenter/SimplePresenter/ndi/`
-   (a screen set to NDI says exactly where, if the library is not found);
-3. wherever the system keeps its libraries.
+**Getting it.** The first time a screen is set to NDI without the library, a panel comes
+up with the two ways:
 
-The library is in the NDI SDK and in NDI Tools, both from [ndi.video](https://ndi.video),
-under NDI's own licence, which whoever installs it accepts. The few header files that
-say how the library is talked to are in `third_party/ndi/include`; those are NDI's under
-the MIT licence, as each says at its top.
+- **Let the app fetch it.** *Download NDI's Library* downloads NDI's own installer for
+  Linux from NDI's site (about 60 MB), shows NDI's licence, and, if you agree to it,
+  takes the library out and puts it where the app looks. Nothing is put anywhere if you
+  do not. The screen is then on the network without the app being started again.
+- **By hand**, on a computer that is not on the internet, or if you would rather:
+  1. Get the *NDI SDK for Linux* from
+     [ndi.video](https://ndi.video/for-developers/ndi-sdk/) and run the installer it
+     gives you (`sh Install_NDI_SDK_v6_Linux.sh`), which shows NDI's licence and
+     unpacks a folder.
+  2. Copy `lib/x86_64-linux-gnu/libndi.so.6.x.x` from that folder to
+     `~/.local/share/SimplePresenter/SimplePresenter/ndi/libndi.so.6` (the panel names
+     the folder exactly, and has a button that opens it).
+  3. Press *Look Again* in the panel, or start the app again.
+
+A screen still without the library has a *Get NDI's Library…* button on its line in
+the settings, which brings the panel back.
+
+The app looks for `libndi.so.6` in the folder the environment variable
+`NDI_RUNTIME_DIR_V6` names, which is what NDI's own installers set; then in its own
+folder above; then wherever the system keeps its libraries.
+
+The few header files that say how the library is talked to are in
+`third_party/ndi/include`; those are NDI's under the MIT licence, as each says at its top.
 
 Plain NDI is what is sent (full frames, lightly compressed, a good deal of network), not
 NDI|HX. There is no sound in it yet, and nothing is received.
@@ -1285,7 +1301,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
 | `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
-| `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs. The folder has NDI's header files |
+| `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
+| `src/ndisetup.*`, `qml/NdiSetup.qml` | Getting NDI's library: reading NDI's installer for its licence and its archive, and the panel that offers to fetch it or says how to by hand |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |

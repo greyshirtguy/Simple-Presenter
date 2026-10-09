@@ -19,3 +19,12 @@ qt_add_executable(tst_screenfile
 target_include_directories(tst_screenfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_screenfile PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME screenfile COMMAND tst_screenfile)
+
+qt_add_executable(tst_ndisetup
+    tst_ndisetup.cpp
+    ${PROJECT_SOURCE_DIR}/src/ndisetup.h
+    ${PROJECT_SOURCE_DIR}/src/ndisetup.cpp
+)
+target_include_directories(tst_ndisetup PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_ndisetup PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME ndisetup COMMAND tst_ndisetup)

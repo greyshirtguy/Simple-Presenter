@@ -14,10 +14,11 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are two:
+So far there are three:
 
 | Test | What it tries |
 | --- | --- |
+| `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
 | `tst_screenfile` | The list of a workspace's screens in ProPresenter's set-up file (`src/screenfile.h`): what a workspace with no file has, what adding, renaming and removing a screen write, and that the rest of a file ProPresenter wrote goes back as it came |
 | `tst_showstate` | The rules of the show (`src/showstate.h`): what a slide going live puts on the output and in what order, when the media it brings is started and when what is playing is left to, what a slide's actions do, what clearing leaves, how props stack and give way, what a macro does, where a step takes the show, and how the show follows a presentation that is read again |
 
@@ -68,6 +69,13 @@ also sends a screen over NDI if NDI's library is there to be found (the main REA
 where the app looks; `NDI_RUNTIME_DIR_V6=<folder> tests/ui/run.py screens` points it at
 one), and checks what the app says without it if not. While it runs with the library, a
 source called "Test Screen" is on the local network for a few seconds.
+
+Another, `ndisetup`, tries getting NDI's library through the app: the panel that comes
+up, NDI's licence shown and declined and agreed to, and the screen going on the network
+once the library is in place. It does not download anything: it is pointed at a copy
+of NDI's installer kept on this computer (`third_party/ndi-sdk/download/`, which is not
+in the repository), and where there is no such copy it tries what the app says when
+the download fails instead.
 
 **What a run leaves.** A line for each test, and its failures:
 

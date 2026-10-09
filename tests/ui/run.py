@@ -249,6 +249,10 @@ def after_screens(workspace, test_dir):
 # ---- the tests: the workspace each runs on, how it is drawn, and what else it needs
 
 SHELL, MEMORY = "shell", "memory"
+# NDI's installer as NDI gives it out, where a copy has been kept beside the repository's own files (it is not in
+# the repository): what the test of fetching NDI's library fetches, in place of the real download.
+_KEPT = os.path.join(REPO, "third_party", "ndi-sdk", "download", "Install_NDI_SDK_v6_Linux.tar.gz")
+NDI_INSTALLER = "file://" + (_KEPT if os.path.exists(_KEPT) else "/nonexistent/Install_NDI_SDK_v6_Linux.tar.gz")
 
 
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
@@ -281,6 +285,8 @@ TESTS = {
     "refine": test("Act"),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
+    # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)
+    "ndisetup": test("Demo", env={"NDI_RUNTIME_DIR_V6": "", "SIMPLEPRESENTER_NDI_SDK_URL": NDI_INSTALLER}),
 }
 
 

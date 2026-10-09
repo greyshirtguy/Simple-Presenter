@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QElapsedTimer>
+#include <QFile>
 #include <QObject>
 #include <QPointer>
 #include <QQuickItem>
@@ -11,7 +12,11 @@
 #include <memory>
 #include <vector>
 
+class QNetworkAccessManager;
+class QNetworkReply;
 class QOffscreenSurface;
+class QProcess;
+class QTemporaryDir;
 class QSurface;
 class QWindow;
 class QOpenGLContext;
@@ -40,30 +45,114 @@ class QQuickWindow;
 // stands still and says why.
 //
 // NDI(R) is a registered trademark of Vizrt NDI AB. https://ndi.video
+//
+// Getting the library. It cannot come with the app, but the app can fetch it for whoever
+// asks (fetch(), from the panel NdiSetup.qml puts up when a screen is set to NDI and the
+// library is not there). It downloads NDI's own installer for Linux from NDI's site,
+// which is a script holding NDI's licence and an archive (see ndisetup.h); shows that
+// licence, as the script would; and only if it is agreed to takes the library out of
+// the archive and puts it in the app's own folder for it, with the licence beside it.
+// Nothing of the script is run. The library is then found without the app being
+// started again, and every screen waiting for it goes on the network.
+
+// Says that NDI's library has been found, to whatever was waiting for it.
+class NdiNotifier : public QObject
+{
+    Q_OBJECT
+
+public:
+    static NdiNotifier *instance();
+
+signals:
+    void found();
+};
+
 class Ndi : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
     QML_SINGLETON
     // Whether NDI's library was found, and can be used on this processor
-    Q_PROPERTY(bool available READ available CONSTANT)
+    Q_PROPERTY(bool available READ available NOTIFY changed)
     // Which it is, as it says itself; and where it was found
-    Q_PROPERTY(QString version READ version CONSTANT)
-    Q_PROPERTY(QString path READ path CONSTANT)
+    Q_PROPERTY(QString version READ version NOTIFY changed)
+    Q_PROPERTY(QString path READ path NOTIFY changed)
     // Why it is not available, for whoever is setting a screen up: where it was looked
     // for, and where to get it
-    Q_PROPERTY(QString problem READ problem CONSTANT)
-    // The folder of the app's own that the library can be put in
+    Q_PROPERTY(QString problem READ problem NOTIFY changed)
+    // The folder of the app's own that the library can be put in, and what the file is
+    // to be called there
     Q_PROPERTY(QString folder READ folder CONSTANT)
+    Q_PROPERTY(QString fileName READ fileName CONSTANT)
+    // Which folder of the SDK's `lib` has the library for this computer's processor
+    Q_PROPERTY(QString sdkFolder READ sdkFolder CONSTANT)
+
+    // Fetching it. Where that has got to:
+    //   ""            not begun
+    //   "downloading" NDI's installer is coming, `fetched` of it so far, from 0 to 1
+    //   "licence"     it has come: `licence` is NDI's licence, to be agreed to or not
+    //   "installing"  agreed to: the library is being taken out and put in place
+    //   "done"        the library is there and has been found
+    //   "failed"      it could not be done, and `fetchProblem` says what went wrong
+    Q_PROPERTY(QString fetching READ fetching NOTIFY fetchingChanged)
+    Q_PROPERTY(double fetched READ fetched NOTIFY fetchedChanged)
+    Q_PROPERTY(QString licence READ licence NOTIFY fetchingChanged)
+    Q_PROPERTY(QString fetchProblem READ fetchProblem NOTIFY fetchingChanged)
+    // Where the installer is fetched from
+    Q_PROPERTY(QString source READ source CONSTANT)
 
 public:
-    using QObject::QObject;
+    explicit Ndi(QObject *parent = nullptr);
+    ~Ndi() override;
 
     bool available() const;
     QString version() const;
     QString path() const;
     QString problem() const;
     QString folder() const;
+    QString fileName() const;
+    QString sdkFolder() const;
+    QString fetching() const { return m_fetching; }
+    double fetched() const { return m_fetched; }
+    QString licence() const { return m_licence; }
+    QString fetchProblem() const { return m_fetchProblem; }
+    QString source() const;
+
+    // Downloads NDI's installer and reads its licence out of it.
+    Q_INVOKABLE void fetch();
+    // The licence has been agreed to: the library is put in place.
+    Q_INVOKABLE void agree();
+    // Stops, wherever it has got to, and forgets what was fetched.
+    Q_INVOKABLE void giveUp();
+    // Looks for the library again, for whoever has put it in place by hand.
+    Q_INVOKABLE void lookAgain();
+    // Shows the app's folder for the library in the desktop's file manager, making it first.
+    Q_INVOKABLE void showFolder() const;
+
+signals:
+    void changed();
+    void fetchingChanged();
+    void fetchedChanged();
+
+private:
+    void went(const QString &where);
+    void failed(const QString &why);
+    void unpack();
+    void place();
+    void feed();
+
+    QString m_fetching;
+    double m_fetched = 0;
+    QString m_licence;
+    QString m_fetchProblem;
+    std::unique_ptr<QTemporaryDir> m_folder;
+    QNetworkAccessManager *m_network = nullptr;
+    QPointer<QNetworkReply> m_reply;
+    QPointer<QProcess> m_tar;
+    QFile m_download;
+    // The installer script, and where in it the archive starts and how far it has been handed on
+    QFile m_script;
+    qint64 m_archiveAt = -1;
 };
 
 class NdiScreen : public QObject
@@ -125,6 +214,7 @@ private:
     bool start();
     void stop();
     bool prepareDrawing();
+    void fit();
     void releaseDrawing();
     void tick();
     bool draw();

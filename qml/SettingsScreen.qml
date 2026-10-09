@@ -435,6 +435,7 @@ Rectangle {
             visible: screen.section === "screens"
             senders: screen.senders
             onFailed: (text) => screen.screensFailed(text)
+            onNdiWanted: ndiSetup.visible = true
         }
 
         // Windows
@@ -576,6 +577,30 @@ Rectangle {
                 enabled: Log.folder !== ""
                 onClicked: Log.showFolder()
             }
+
+            // What of other people's is used, and whose it is
+            Text {
+                objectName: "aboutNdi"
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                textFormat: Text.StyledText
+                linkColor: "#6fb3ff"
+                onLinkActivated: (link) => Qt.openUrlExternally(link)
+                text: "A screen can be sent over the network with NDI®, by NDI's own library, which is not part of this app "
+                    + "(Screens has how to get it). NDI® is a registered trademark of Vizrt NDI AB. "
+                    + "<a href=\"https://ndi.video\">ndi.video</a>"
+            }
         }
+    }
+
+    // How to get NDI's library, when a screen is set to NDI without it
+    NdiSetup {
+        id: ndiSetup
+
+        anchors.fill: parent
+        visible: false
+        onClosed: visible = false
     }
 }
