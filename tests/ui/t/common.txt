@@ -1,0 +1,87 @@
+    property var steps: []
+    property int at: 0
+    property int failures: 0
+    property int checks: 0
+    property var kept: ({})
+    property Timer clock: Timer {
+        onTriggered: t.next()
+    }
+
+    function check(what, ok, detail) {
+        ++checks
+        if (!ok)
+            ++failures
+        testInput.say((ok ? "  ok      " : "  FAILED  ") + what + (detail !== undefined ? "   [" + detail + "]" : ""))
+    }
+
+    function next() {
+        if (at >= steps.length) {
+            testInput.say(failures === 0 ? "ALL " + checks + " CHECKS PASSED" : failures + " OF " + checks + " CHECKS FAILED")
+            testInput.quit()
+            return
+        }
+        const step = steps[at++]
+        let wait = 300
+        try {
+            // The window behaves as if it had the keyboard, whatever the desktop thinks.
+            testInput.focus()
+            const asked = step()
+            if (typeof asked === "number")
+                wait = asked
+        } catch (error) {
+            ++failures
+            testInput.say("  FAILED  step " + at + " threw: " + error + " " + (error.stack ?? ""))
+        }
+        clock.interval = wait
+        clock.start()
+    }
+
+    function entry(name) {
+        return documents.find(d => d.name === name && openable(d))
+    }
+
+    function centre(item) {
+        return item.mapToItem(null, item.width / 2, item.height / 2)
+    }
+
+    function click(p, button) {
+        testInput.mouse(0, p.x, p.y, 0, button ?? Qt.LeftButton)
+        testInput.mouse(2, p.x, p.y, 0, button ?? Qt.LeftButton)
+    }
+
+    function drag(from, to) {
+        testInput.mouse(0, from.x, from.y)
+        for (let i = 1; i <= 10; ++i)
+            testInput.mouse(1, from.x + (to.x - from.x) * i / 10, from.y + (to.y - from.y) * i / 10)
+        testInput.mouse(2, to.x, to.y)
+    }
+
+    function labels() {
+        return menu.shown.map(i => i.header !== undefined ? "[" + i.header + "]" : (i.current ? "*" : "") + (i.label ?? "(note)") + (i.disabled ? "(off)" : "")).join(", ")
+    }
+
+    function menuRow(label) {
+        const found = Lib.find(menu.contentItem, item => item.modelData !== undefined && item.modelData !== null && item.modelData.label === label)
+        return found ? centre(found) : null
+    }
+
+    function named(name) {
+        return Lib.find(win.contentItem, item => item.objectName === name)
+    }
+
+    function slideCell(index) {
+        const view = named("slideGrid")
+        view.positionViewAtIndex(index, GridView.Contain)
+        return view.itemAtIndex(index)
+    }
+
+    function binCell(test) {
+        const view = named("mediaGrid")
+        const index = mediaFiles.findIndex(test)
+        view.positionViewAtIndex(index, GridView.Contain)
+        return view.itemAtIndex(index)
+    }
+
+    function player() {
+        return output.livePlayer
+    }

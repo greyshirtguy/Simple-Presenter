@@ -104,6 +104,9 @@
 #include "selftest.h"
 #include "sessionlog.h"
 #include "thumbnailprovider.h"
+#ifdef SIMPLEPRESENTER_TEST_HOOK
+#include "testhook.h"
+#endif
 
 #include <QCommandLineParser>
 #include <QDir>
@@ -177,6 +180,9 @@ int main(int argc, char *argv[])
     const QCommandLineOption selfTestOption("selftest", "Drive the output through a fixed sequence, save frames as PNGs into <dir>, then quit.", "dir");
     const QCommandLineOption benchmarkOption("benchmark", "Time a fixed run on a workspace of the benchmark's own making, write the times to <file>, then quit.", "file");
     parser.addOptions({listOption, workspaceOption, screenOption, selfTestOption, benchmarkOption});
+#ifdef SIMPLEPRESENTER_TEST_HOOK
+    testhook::addOptions(parser);
+#endif
     parser.process(app);
 
     QTextStream out(stdout);
@@ -250,14 +256,18 @@ int main(int argc, char *argv[])
     engine.addImageProvider("thumbnail", new ThumbnailProvider);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
-    engine.setInitialProperties({
+    QVariantMap initial {
         {"catalog", QVariant::fromValue(&catalog)},
         {"outputScreen", outputScreen},
         // The self-test must not read or disturb the user's saved session,
         {"remember", !parser.isSet(selfTestOption) && !benchmarking},
         // and its pictures must not depend on when it is run or how long it takes.
         {"clocksHeld", parser.isSet(selfTestOption)},
-    });
+    };
+#ifdef SIMPLEPRESENTER_TEST_HOOK
+    testhook::prepare(engine, parser, initial);
+#endif
+    engine.setInitialProperties(initial);
     engine.loadFromModule("SimplePresenterApp", "Main");
 
     auto *operatorWindow = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0));
@@ -266,6 +276,10 @@ int main(int argc, char *argv[])
         SessionLog::finish();
         return 1;
     }
+
+#ifdef SIMPLEPRESENTER_TEST_HOOK
+    testhook::start(engine, operatorWindow, parser);
+#endif
 
     if (parser.isSet(selfTestOption)) {
         QQuickWindow *output = nullptr;

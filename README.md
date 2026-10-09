@@ -1237,6 +1237,35 @@ without putting windows on the screen, and every run gives the same frames; that
 drawing leaves out shadows, transitions and video, so it checks layout and text, not
 those.
 
+## Tests
+
+There are two kinds, and both are in `tests/` ([tests/README.md](tests/README.md) has
+the whole of it).
+
+**Unit tests** try the parts of the app that are plain rules, by themselves, with no
+window and no workspace: so far the rules of the show (`src/showstate.*`). They are
+built with the app and take a few milliseconds:
+
+```
+ctest --test-dir build
+```
+
+**Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
+and look at what its windows then hold and show: some twenty scripts and about a
+thousand checks. They run on a desktop of their own that shows nowhere, on copies of
+workspaces, with settings of their own, so nothing of a run touches the real desktop,
+settings or workspaces. The app is built for them with a door the scripts come in by,
+which a release does not have:
+
+```
+cmake -B build-tests -G Ninja -DSIMPLEPRESENTER_TEST_HOOK=ON
+cmake --build build-tests
+tests/ui/run.py
+```
+
+The workspaces those scripts run on are not in the repository (they are not the
+repository's to publish), so on another computer only the unit tests run as they are.
+
 ## Layout
 
 | Path | What it is |
@@ -1273,7 +1302,9 @@ those.
 | `src/selftest.*` | The self-test |
 | `src/benchmark.*`, `qml/Benchmark.qml`, `benchmark/` | The benchmark: what it works on and measures with, its run, and the script that repeats it and compares it with the baseline |
 | `src/sessionlog.*` | The log of a run: what the app is running on, what it did, a crash's last lines, and the watch for the app not answering |
+| `src/testhook.*` | The door the scripted tests come in by; only in a build made for testing |
 | `tests/unit/` | The unit tests, run by `ctest` |
+| `tests/ui/` | The scripted tests, the scripts' shared helpers, and the program that runs them on a desktop of their own |
 | `qml/Main.qml` | The operator window: what is open, and what a click or a key does |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
 | `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |

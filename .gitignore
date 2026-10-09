@@ -9,5 +9,9 @@
 /.qtcreator/
 CMakeLists.txt.user*
 
+# What the scripted tests are run on: workspaces and media that are not the repo's to
+# publish (see tests/README.md)
+/tests/ui/fixtures/
+
 # The NDI SDK, as downloaded from ndi.video: not this repository's to publish (see README, NDI)
 /third_party/ndi-sdk/

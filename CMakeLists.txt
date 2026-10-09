@@ -277,8 +277,20 @@ target_include_directories(SimplePresenter SYSTEM PRIVATE third_party/ndi/includ
 # The version, for the window's title and for the log.
 target_compile_definitions(SimplePresenter PRIVATE APP_VERSION="${PROJECT_VERSION}")
 
-# Testing. The unit tests are built with the app and run by `ctest`: they try the parts
-# of it that are plain rules, by themselves.
+# Testing (see tests/README.md).
+#
+# The unit tests are built with the app and run by `ctest`: they try the parts of it
+# that are plain rules, by themselves.
+#
+# The scripted tests work the whole app through a door (src/testhook.h) that is only
+# there when it is asked for here, so that no release has it:
+#   cmake -B build-tests -DSIMPLEPRESENTER_TEST_HOOK=ON
+option(SIMPLEPRESENTER_TEST_HOOK "Build the door the scripted tests of tests/ui come in by" OFF)
+if(SIMPLEPRESENTER_TEST_HOOK)
+    target_sources(SimplePresenter PRIVATE src/testhook.h src/testhook.cpp)
+    target_compile_definitions(SimplePresenter PRIVATE SIMPLEPRESENTER_TEST_HOOK)
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory(tests/unit)
