@@ -968,6 +968,14 @@ out filling a second screen if there is one (`--screen`, with a screen's number 
 name, says which; `--list-screens` says what there are), and each window comes back
 the way it was left.
 
+**The screens are kept awake.** A desktop left alone blanks its screens after a few
+minutes, and a presenter's computer is left alone for as long as a sermon lasts. So
+while the output or the stage window is switched on, the app asks the desktop not to
+count the time as idle, the way a video player does while a film plays; with both
+switched off, or the app closed, the desktop goes back to its own settings. The
+[log](#log) says when the asking starts and ends, and says so once if the desktop does
+not answer to it (GNOME and KDE do).
+
 A Wayland desktop does not let an application place its own windows, so the two come
 back wherever the desktop puts them. The settings screen has a switch, under Windows,
 to run the app through X11 instead, where their places are remembered; it says what
@@ -1173,6 +1181,7 @@ those.
 | `src/props.*`, `src/stagelayouts.*` | The workspace's props and their collections, and its stage layouts: their files, and adding to, renaming and removing them |
 | `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a clear, a prop or a macro does |
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
+| `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |

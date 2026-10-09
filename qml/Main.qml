@@ -1890,6 +1890,13 @@ Window {
         keyTarget: keys
     }
 
+    // While the show is on a screen, the screens are not to go to sleep (see Awake).
+    Binding {
+        target: Awake
+        property: "wanted"
+        value: win.outputEnabled || win.stageEnabled
+    }
+
     // What a change to the show asks of the output and the timers (see Show): the
     // output window knows nothing of presentations, and is handed what to show.
     Connections {
