@@ -38,6 +38,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.81" date="2026-10-10">
+      <description>
+        <p>
+          In the chord editor, a click on the next place keeps the chord that was being typed and
+          starts the next one.
+        </p>
+      </description>
+    </release>
     <release version="0.8" date="2026-10-10">
       <description>
         <p>
