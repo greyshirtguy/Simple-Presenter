@@ -1,0 +1,361 @@
+import QtQuick
+import SimplePresenterApp
+import "lib.js" as Lib
+
+// Chords: a song's chords read from a file Multitracks wrote, shown on the stage in the
+// key picked and in each notation; the chord editor (the spot, the keys 1 to 7, typing
+// a chord, dragging one, copying a line's, undo); the ChordPro editor (only chords can
+// be typed).
+QtObject {
+    id: t
+
+//COMMON
+    function sheet() {
+        return named("chordSheet")
+    }
+
+    function lineItem(index) {
+        return Lib.find(sheet(), item => item.isLine === true && item.index === index)
+    }
+
+    function lineOf(words) {
+        return sheet().rows.findIndex(row => row.kind === "line" && row.text === words)
+    }
+
+    // Where a character of a line is on the window, in the words
+    function over(index, at) {
+        const item = lineItem(index)
+        return item.mapToItem(null, item.xOf(at) + 3, item.wordsTop + 6)
+    }
+
+    function names(index) {
+        return sheet().rows[index].chords.map(c => c.at + ":" + c.name).join(" ")
+    }
+
+    function onDisk(path, words) {
+        for (const slide of catalog.open(path).slides) {
+            for (const element of slide.elements) {
+                if (testInput.plain(element.text).split("\n").includes(words))
+                    return { text: testInput.plain(element.text), chords: element.chords ?? [] }
+            }
+        }
+        return null
+    }
+
+    function lineNames(lines) {
+        return lines.map(line => line.text + " <" + line.chords.map(c => c.at + ":" + c.name).join(" ") + ">").join(" | ")
+    }
+
+    function run() {
+        const herald = "Hark the herald angels sing"
+        const born = "Born to raise the sons of earth"
+        steps = [
+            () => {
+                openLibrary(catalog.libraries[0].path)
+                openEntry(entry("Hark2"))
+                kept.path = document.path
+                check("a song's chords are read, with the key they are written in and the one it was last shown in",
+                      document.hasChords === true && document.originalKey === "E" && document.userKey === "C#",
+                      document.hasChords + " " + document.originalKey + " " + document.userKey)
+                const picker = named("chordKeyPicker")
+                check("a song with chords has a key to pick over its slides, at the key the file says", picker.visible && picker.currentText === "C#", picker.currentText)
+                openEntry(entry("Abandoned") ?? documents.find(d => openable(d) && d.name !== "Hark2" && d.name !== "Great Are You Lord"))
+                check("and a presentation with none has not", document.hasChords === false && !named("chordKeyPicker").visible, document.name)
+                openEntry(entry("Hark2"))
+                kept.slide = document.slides.findIndex(slide => slide.plainText.startsWith(herald))
+                check("found the slide to go by", kept.slide >= 0, kept.slide)
+                goLive(kept.slide)
+                return 500
+            },
+            () => {
+                const lines = Show.chordLines(false, Show.Words, "", 0, 0)
+                check("the live words come line by line with their chords, moved from the song's key to the one picked",
+                      lines.length === 2 && lines[0].text === herald && lineNames(lines).includes("<1:C# 16:F#sus2>") && lineNames(lines).includes("<0:G#sus4 13:A#m>"),
+                      lineNames(lines))
+                setChordKey(document, "E")
+                check("picking the song's own key shows them as written", lineNames(Show.chordLines(false, Show.Words, "", 0, 0)).includes("<1:E 16:Asus2>"),
+                      lineNames(Show.chordLines(false, Show.Words, "", 0, 0)))
+                check("as numbers, numerals and Do Re Mi", lineNames(Show.chordLines(false, Show.Words, "", 0, 1)).includes("<1:1 16:4sus2>")
+                      && lineNames(Show.chordLines(false, Show.Words, "", 0, 2)).includes("<1:I 16:IVsus2>")
+                      && lineNames(Show.chordLines(false, Show.Words, "", 0, 3)).includes("<1:Mi 16:Lasus2>"),
+                      lineNames(Show.chordLines(false, Show.Words, "", 0, 1)) + " // " + lineNames(Show.chordLines(false, Show.Words, "", 0, 3)))
+                check("the next slide's too", Show.chordLines(true, Show.Words, "", 0, 0).length > 0)
+                check("text transformed on the way has no chords", Show.chordLines(false, Show.Words, "", 1, 0).every(line => line.chords.length === 0))
+                check("the file is not touched by picking a key", catalog.open(kept.path).userKey === "C#")
+                // A stage layout whose text box shows the live slide's words is set to draw their chords.
+                const layout = StageLayouts.layouts.find(l => l.slide.elements.some(e => e.linkKind === "slideText" && !e.linkSlideNext))
+                check("a stage layout shows the live slide's words", layout !== undefined, StageLayouts.layouts.map(l => l.name).join("|"))
+                kept.layout = layout.id
+                kept.element = layout.slide.elements.find(e => e.linkKind === "slideText" && !e.linkSlideNext).id
+                startEditingStage(layout.id)
+                return 500
+            },
+            () => {
+                check("the stage layout is in the editor, where the chord editors are not offered", editing && editScreen.editor.kind === "stage" && !named("chordsMode").visible)
+                editScreen.canvas.pick(kept.element)
+                editScreen.inspector.tab = "text"
+                return 300
+            },
+            () => {
+                const box = named("chordsCheck")
+                check("a text box that shows a slide's words has its chords to switch on", box !== null && box.visible && box.checked === false)
+                check(editScreen.editor.setProperties(editScreen.canvas.row, kept.element, { chordsOn: true, chordColor: "#ffcc00", chordNotation: 0 }) === "", true)
+                testInput.grab("1-stage-layout-chords")
+                stopEditing()
+                return 500
+            },
+            () => {
+                const element = StageLayouts.layouts.find(l => l.id === kept.layout).slide.elements.find(e => e.id === kept.element)
+                check("the switch, the colour and the notation are in ProPresenter's file of layouts", element.chordsOn === true && String(element.chordColor) === "#ffcc00"
+                      && element.chordNotation === 0 && element.chordStyle !== undefined && element.chordStyle.size > 0,
+                      element.chordsOn + " " + element.chordColor + " " + JSON.stringify(element.chordStyle ?? null))
+                Show.stageLayoutId = kept.layout
+                stageEnabled = true
+                goLive(kept.slide)
+                return 1200
+            },
+            () => {
+                testInput.grabStage("2-stage-chords-E")
+                setChordKey(document, "G")
+                return 600
+            },
+            () => {
+                testInput.grabStage("3-stage-chords-G")
+                check("the stage is told when the key changes", lineNames(Show.chordLines(false, Show.Words, "", 0, 0)).includes("<1:G 16:Csus2>"))
+                // Every chord of both songs reaches the stage, as the current slide's and as the next's: none is lost
+                // on a slide of chords alone, whose chords hang on spaces in one song and on zero-width spaces in the other.
+                for (const name of ["Hark2", "Great Are You Lord"]) {
+                    openEntry(entry(name))
+                    let inFile = 0, asCurrent = 0, asNext = 0
+                    for (let i = 0; i < document.slides.length; ++i) {
+                        const own = document.slides[i].elements.reduce((n, e) => n + (e.chords ?? []).length, 0)
+                        inFile += own
+                        goLive(i)
+                        asCurrent += Show.chordLines(false, Show.Words, "", 0, 0).reduce((n, l) => n + l.chords.length, 0)
+                        if (i > 0) {
+                            goLive(i - 1)
+                            asNext += Show.chordLines(true, Show.Words, "", 0, 0).reduce((n, l) => n + l.chords.length, 0)
+                        } else {
+                            asNext += own
+                        }
+                    }
+                    check("every chord of " + name + " reaches the stage, on whichever slide it is", inFile > 40 && asCurrent === inFile && asNext === inFile,
+                          inFile + " in the file, " + asCurrent + " as the current slide, " + asNext + " as the next")
+                }
+                // Its second slide is six chords and no words, in the key the file says it was last shown in (A to D flat).
+                const instrumental = document.slides.findIndex(s => s.plainText.trim() === "" && s.elements.some(e => (e.chords ?? []).length === 6))
+                goLive(instrumental)
+                const alone = Show.chordLines(false, Show.Words, "", 0, 0)
+                check("a slide of chords alone is shown, moved to the key like any other", lineNames(alone).includes("<0:Gb 2:Bbm 4:Ab>") && alone.length === 2
+                      && Show.originalKey === "A" && Show.chordKey === "Db", lineNames(alone) + " " + Show.originalKey + ">" + Show.chordKey)
+                check("and stays moved from slide to slide and back", (goLive(instrumental + 1), Show.chordLines(false, Show.Words, "", 0, 0).every(l => l.chords.every(c => !c.name.includes("#"))))
+                      && Show.chordKey === "Db")
+                openEntry(entry("Hark2"))
+                goLive(kept.slide)
+                check("going back to the first song goes back to the key picked for it", Show.chordKey === "G" && Show.originalKey === "E", Show.originalKey + ">" + Show.chordKey)
+                startEditing(entry("Hark2"))
+                return 600
+            },
+            () => {
+                check("a presentation in the editor has the three ways of working, the slides first", editing && named("chordsMode").visible && editScreen.mode === "slides")
+                click(centre(named("chordsMode")))
+                return 700
+            },
+            () => {
+                check("Chords lays the song out as one sheet: its groups, and every line of every slide", editScreen.mode === "chords" && sheet() !== null
+                      && sheet().rows.filter(r => r.kind === "group").length >= 4 && sheet().rows.filter(r => r.kind === "line").length >= 20 && lineOf(herald) >= 0,
+                      sheet() ? sheet().rows.filter(r => r.kind === "group").map(r => r.name).join("|") + " " + sheet().rows.length : "")
+                check("the key is the one the chords are written in, and its chords are on the keys 1 to 7", sheet().key === "E" && named("chordKeyBox").currentText === "E"
+                      && named("keyChord4").label === "A" && named("keyChord6").label === "C#m", sheet().key + " " + sheet().inKey.join(" "))
+                kept.song = JSON.stringify(editScreen.editor.song())
+                kept.line = lineOf(herald)
+                check("the line's chords are in their bubbles", names(kept.line) === "1:E 16:Asus2", names(kept.line))
+                testInput.grab("4-chord-sheet")
+                // The pointer over the middle of "herald": the spot goes to the start of the word.
+                const p = over(kept.line, 11)
+                testInput.mouse(1, p.x, p.y)
+                return 300
+            },
+            () => {
+                check("the spot follows the pointer, to the letter under it, in the middle of a word", sheet().spotRow === kept.line && sheet().spotAt === 11,
+                      sheet().spotRow + " " + sheet().spotAt)
+                const p = over(kept.line, 11)
+                testInput.mouse(1, p.x + 1, p.y, Qt.ShiftModifier)
+                check("and with Shift to the start of the word", sheet().spotAt === 9, sheet().spotAt)
+                testInput.grab("5-spot")
+                testInput.key(Qt.Key_4, 0, "4")
+                return 400
+            },
+            () => {
+                check("4 puts the key's fourth chord on the spot", names(kept.line) === "1:E 9:A 16:Asus2", names(kept.line))
+                const disk = onDisk(kept.path, herald)
+                check("and it is in the file at once, on that slide's own words", disk !== null && disk.chords.map(c => c.at + ":" + c.name).join(" ").startsWith("1:E 9:A 16:Asus2"),
+                      disk ? JSON.stringify(disk.chords) : "")
+                testInput.key(Qt.Key_F, 0, "f")
+                return 300
+            },
+            () => {
+                const field = named("chordField")
+                check("a letter opens the bubble to type the chord in, as a capital", sheet().typing && field.activeFocus && field.text === "F", field.text)
+                testInput.type("#m7")
+                check("a chord is typed", field.text === "F#m7", field.text)
+                testInput.type("!")
+                testInput.type(" ")
+                check("and nothing that could not be part of one", field.text === "F#m7", field.text)
+                const entryBox = named("chordEntry")
+                check("what it might be going to be is offered under it", entryBox.offered.length > 0 && entryBox.offered.every(c => c.startsWith("F#m7")), entryBox.offered.join(" "))
+                check("the bubble is on the sheet, at the spot, though the sheet was laid out again by the chord before", entryBox.visible && entryBox.item !== null
+                      && entryBox.item.index === kept.line && entryBox.height > 40, entryBox.visible + " " + entryBox.height)
+                testInput.grab("6-typing")
+                testInput.key(Qt.Key_Return)
+                return 400
+            },
+            () => {
+                check("Enter puts it there, in place of the one that was", !sheet().typing && names(kept.line) === "1:E 9:F#m7 16:Asus2", names(kept.line))
+                testInput.key(Qt.Key_Right)
+                check("Right moves the spot to the next word", sheet().spotAt === 16, sheet().spotAt)
+                testInput.key(Qt.Key_Right)
+                testInput.key(Qt.Key_B, 0, "b")
+                return 300
+            },
+            () => {
+                const entryBox = named("chordEntry")
+                check("the song's own chords that start so are offered first", sheet().spotAt === 23 && entryBox.offered[0].startsWith("B") && sheet().used.includes(entryBox.offered[0]),
+                      sheet().spotAt + " " + entryBox.offered.join(" "))
+                testInput.key(Qt.Key_Down)
+                kept.picked = entryBox.offered[0]
+                testInput.key(Qt.Key_Tab)
+                return 400
+            },
+            () => {
+                check("Down picks one, and Tab takes it and moves on to the next word, on the next line",
+                      names(kept.line) === "1:E 9:F#m7 16:Asus2 23:" + kept.picked && sheet().spotRow === kept.line + 1 && sheet().spotAt === 0,
+                      names(kept.line) + " then " + sheet().spotRow + ":" + sheet().spotAt)
+                // The chord on "herald" is dragged to "sons" of another slide's line.
+                kept.other = lineOf(born)
+                const bubble = named("chord:" + kept.line + ":9")
+                const from = bubble.mapToItem(null, bubble.width / 2, 8)
+                const to = over(kept.other, 18)
+                testInput.mouse(0, from.x, from.y)
+                for (let i = 1; i <= 10; ++i)
+                    testInput.mouse(1, from.x + (to.x - from.x) * i / 10, from.y + (to.y - from.y) * i / 10)
+                testInput.grab("7-dragging")
+                check("a chord being dragged shows where it would land", sheet().dragged !== null && sheet().spotRow === kept.other && sheet().spotAt === 18,
+                      sheet().spotRow + ":" + sheet().spotAt)
+                testInput.mouse(2, to.x, to.y)
+                return 400
+            },
+            () => {
+                check("dropped, it has left its word and is on the other, in place of the chord that was there",
+                      names(kept.line) === "1:E 16:Asus2 23:" + kept.picked && names(kept.other) === "0:A 18:F#m7", names(kept.line) + " / " + names(kept.other))
+                check(editScreen.editor.undo() === "", true)
+                return 300
+            },
+            () => {
+                check("which is one thing to undo, though it was two slides", names(kept.line) === "1:E 9:F#m7 16:Asus2 23:" + kept.picked && names(kept.other) === "0:A 18:F#m",
+                      names(kept.line) + " / " + names(kept.other))
+                // The line's chords are copied onto the line under it.
+                let p = over(kept.line, 0)
+                testInput.mouse(1, p.x, p.y)
+                testInput.key(Qt.Key_C, Qt.ControlModifier)
+                p = over(kept.line + 1, 0)
+                testInput.mouse(1, p.x, p.y)
+                testInput.key(Qt.Key_V, Qt.ControlModifier)
+                return 400
+            },
+            () => {
+                // "Hark the herald angels sing" onto "Glory to the newborn King": word for word.
+                check("a line's chords are copied onto another, word for word", names(kept.line + 1) === "1:E 9:F#m7 13:Asus2 21:" + kept.picked, names(kept.line + 1))
+                const p = over(kept.line + 1, 9)
+                testInput.mouse(1, p.x, p.y)
+                testInput.key(Qt.Key_Delete)
+                return 300
+            },
+            () => {
+                check("Delete takes off the chord at the spot", names(kept.line + 1) === "1:E 13:Asus2 21:" + kept.picked, names(kept.line + 1))
+                // A chord in the middle of a word: on the r of "Glory".
+                const r = over(kept.line + 1, 3)
+                testInput.mouse(1, r.x, r.y)
+                testInput.key(Qt.Key_2, 0, "2")
+                return 300
+            },
+            () => {
+                const disk = onDisk(kept.path, herald)
+                check("a chord goes on any letter, and is kept on that letter in the file", names(kept.line + 1) === "1:E 3:F#m 13:Asus2 21:" + kept.picked
+                      && disk !== null && disk.chords.some(c => c.at === herald.length + 1 + 3 && c.name === "F#m"), names(kept.line + 1))
+                const cards = sheet().rows.filter(row => row.kind === "line" && row.first)
+                const tall = lineItem(sheet().rows.findIndex(row => row.kind === "line" && row.count === sheet().mostLines && row.first))
+                check("each slide's lines are in a card, all of one size: that of the slide with the most lines", cards.length >= 20 && sheet().mostLines >= 2
+                      && sheet().cardHeight > sheet().mostLines * 40 && sheet().cardWidth > 300 && tall !== null, cards.length + " cards of " + sheet().mostLines + " lines, "
+                      + Math.round(sheet().cardWidth) + " by " + Math.round(sheet().cardHeight))
+                const one = sheet().rows.findIndex(row => row.kind === "line" && row.first && row.last && row.count === 1)
+                const next = sheet().rows.findIndex((row, index) => index > one && row.kind === "line" && row.first)
+                check("so a slide of one line takes as much room as one of two", one >= 0 && next > one
+                      && Math.abs((lineItem(next).mapToItem(null, 0, 0).y - lineItem(one).mapToItem(null, 0, 0).y) - (sheet().cardHeight + sheet().cardGap)) < 40,
+                      one + " " + next)
+                // A line of chords with no words: one more on the end.
+                kept.alone = sheet().rows.findIndex(row => row.kind === "line" && row.alone)
+                kept.aloneCount = sheet().rows[kept.alone].chords.length
+                check("an intro's chords, which have no words, are on the sheet too", kept.alone >= 0 && kept.aloneCount >= 3, names(kept.alone))
+                sheet().setSpot(kept.alone, kept.aloneCount * 2)
+                testInput.key(Qt.Key_1, 0, "1")
+                return 400
+            },
+            () => {
+                const row = sheet().rows[kept.alone]
+                check("one more is put on its end, and the characters it hangs on are made for it", row.chords.length === kept.aloneCount + 1
+                      && row.chords[kept.aloneCount].name === "E" && row.text.length === (kept.aloneCount + 1) * 2 - 1 && row.alone,
+                      names(kept.alone) + " over " + row.text.length + " characters")
+                click(centre(named("chordProMode")))
+                return 700
+            },
+            () => {
+                const area = named("chordProText")
+                check("ChordPro shows the same song as text, its groups named and its chords in brackets", editScreen.mode === "chordpro" && area !== null
+                      && area.text.includes("{c: Verse 1}") && area.text.includes("H[E]ark the [F#m7]herald [Asus2]angels [" + kept.picked + "]sing"),
+                      area ? area.text.split("\n").find(line => line.includes("herald")) : "")
+                testInput.grab("8-chordpro")
+                kept.text = area.text
+                area.forceActiveFocus()
+                area.cursorPosition = area.text.indexOf("Born to raise") + 5
+                testInput.type("x")
+                check("the words cannot be typed over", area.text === kept.text, area.text.length + " " + kept.text.length)
+                testInput.type("[")
+                check("a bracket brings its other with it, and the caret is between them", area.text.includes("Born []to raise")
+                      && area.cursorPosition === area.text.indexOf("Born []to raise") + 6, area.text.split("\n").find(l => l.includes("to raise")))
+                testInput.type("G/B")
+                return 1200
+            },
+            () => {
+                const area = named("chordProText")
+                const line = area.text.split("\n").find(l => l.includes("to raise"))
+                check("a chord is typed between them", line.includes("[G/B]to raise"), line)
+                const disk = onDisk(kept.path, born)
+                check("and a moment later is in the file", disk !== null && disk.chords.some(c => c.at === 5 && c.name === "G/B"), disk ? JSON.stringify(disk.chords) : "")
+                area.cursorPosition = area.text.indexOf("[G/B]") + 5
+                testInput.key(Qt.Key_Backspace)
+                return 1200
+            },
+            () => {
+                const area = named("chordProText")
+                const disk = onDisk(kept.path, born)
+                check("Backspace on its bracket takes the whole chord away", !area.text.includes("[G/B]") && disk !== null && !disk.chords.some(c => c.name === "G/B"),
+                      disk ? JSON.stringify(disk.chords) : "")
+                click(centre(named("slidesMode")))
+                return 400
+            },
+            () => {
+                check("Slides is the editor as it was", editScreen.mode === "slides" && editScreen.canvas.visible && named("chordSheet") === null && named("chordProText") === null)
+                let undone = 0
+                while (editScreen.editor.canUndo && undone < 60) {
+                    editScreen.editor.undo()
+                    ++undone
+                }
+                check("every chord change can be undone, back to the song as it was", JSON.stringify(editScreen.editor.song()) === kept.song, undone + " steps")
+                stopEditing()
+                return 500
+            }
+        ]
+        next()
+    }
+}

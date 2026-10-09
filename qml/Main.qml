@@ -1092,6 +1092,27 @@ Window {
         return !selected ? "" : selected.folder ? selected.path : selected.parent
     }
 
+    // ---- Chords
+
+    // The key each presentation's chords are being shown in, by its path, where one has
+    // been picked. It is a matter of this sitting: nothing is written to the file, in
+    // which the chords stay in the song's own key (see chords.h).
+    property var chordKeys: ({})
+
+    // The key a presentation's chords are shown in: the one picked here, else the one
+    // its file says it was last shown in, else C, which is what a song that names no
+    // key is taken to be in.
+    function keyOf(shown) {
+        return chordKeys[shown.path] ?? (shown.userKey ? shown.userKey : "C")
+    }
+
+    function setChordKey(shown, key) {
+        const keys = Object.assign({}, chordKeys)
+        keys[shown.path] = key
+        chordKeys = keys
+        Log.note("chords", quoted(shown.name) + " is shown in " + key)
+    }
+
     function showAddMenu(item) {
         menu.show([
             { label: "Add Folder", run: () => newPlaylistNode(true, newNodeParent()) },
@@ -2331,6 +2352,19 @@ Window {
         target: Show
         property: "props"
         value: Props.collections
+    }
+
+    // The key the live song's chords are written in, and the one they are shown in
+    Binding {
+        target: Show
+        property: "originalKey"
+        value: win.liveDocument ? (win.liveDocument.originalKey ? win.liveDocument.originalKey : "C") : ""
+    }
+
+    Binding {
+        target: Show
+        property: "chordKey"
+        value: win.liveDocument ? win.keyOf(win.liveDocument) : ""
     }
 
     Binding {

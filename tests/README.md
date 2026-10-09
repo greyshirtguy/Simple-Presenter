@@ -14,11 +14,12 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are six:
+So far there are seven:
 
 | Test | What it tries |
 | --- | --- |
 | `tst_lookfile` | The looks in ProPresenter's set-up file (`src/lookfile.h`): what each gives each screen, a theme known by its place whatever computer named it, and changes that leave the rest of the file alone |
+| `tst_chords` | Chords (`src/chords.h`): a chord's parts, changing key, the four notations, a key's own chords, what a typed chord might become, ChordPro there and back, a song read from a ChordPro file |
 | `tst_thememath` | Which text box of a slide goes into which text box of a theme (`src/thememath.h`): by name, by size, in order |
 | `tst_searchindex` | Finding presentations by their names and words (`src/searchindex.h`): capitals, punctuation and accents, the order of what is found, the line that is shown |
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
@@ -106,6 +107,7 @@ What the folder holds:
 | `workspaces/ProPresenter MR` | Presentations, timers, props, stage layouts and playlists as ProPresenter itself wrote them |
 | `workspaces/Act` | The same presentations with ProPresenter's macros, groups, its own account of the workspace (screens and looks) and its themes |
 | `workspaces/Shapes` | One presentation and two pictures, for the editor |
+| `songs/` | Two songs with chords, as Multitracks and ProPresenter wrote them, which the `chords` test copies into its workspace |
 | `made/` | Small videos and pictures made for the tests: one keyframe in twenty seconds, dark until nine seconds in, VP9, HEVC, one with sound |
 
 **Writing one.** Start from a short one (`t/rapid.qml`). A script is a `QtObject` with a

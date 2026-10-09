@@ -55,3 +55,12 @@ qt_add_executable(tst_thememath
 target_include_directories(tst_thememath PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_thememath PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME thememath COMMAND tst_thememath)
+
+qt_add_executable(tst_chords
+    tst_chords.cpp
+    ${PROJECT_SOURCE_DIR}/src/chords.h
+    ${PROJECT_SOURCE_DIR}/src/chords.cpp
+)
+target_include_directories(tst_chords PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_chords PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME chords COMMAND tst_chords)

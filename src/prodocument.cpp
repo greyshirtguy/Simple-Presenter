@@ -1,5 +1,7 @@
 #include "prodocument.h"
 
+#include "chords.h"
+
 #include "themefile.h"
 
 #include "actions.h"
@@ -97,6 +99,16 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                                                  : QString::fromStdString(presentation.name());
     for (const auto &candidate : presentation.arrangements())
         document.arrangements << QString::fromStdString(candidate.name());
+    // The key. A file with no `music` block names none; one with a block and no key in
+    // it means A flat, that being number 0, which the file format leaves unwritten.
+    if (presentation.has_music()) {
+        using Scale = rv::data::MusicKeyScale;
+        const auto name = [](const Scale &key) {
+            return chords::keyName(int(key.music_key()), key.music_scale() == Scale::MUSIC_SCALE_MINOR);
+        };
+        document.originalKey = name(presentation.music().original());
+        document.userKey = presentation.music().has_user() ? name(presentation.music().user()) : document.originalKey;
+    }
 
     // Which arrangement: the one asked for by name, or the one the document has selected.
     const rv::data::Presentation::Arrangement *chosen = nullptr;
@@ -210,7 +222,31 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
 
     if (document.slides.isEmpty())
         *error = QStringLiteral("%1 contains no slides").arg(QFileInfo(path).fileName());
+    for (const QVariant &slide : std::as_const(document.slides)) {
+        const QVariantList elements = slide.toMap().value("elements").toList();
+        if (std::any_of(elements.cbegin(), elements.cend(), [](const QVariant &element) { return element.toMap().contains("chords"); })) {
+            document.hasChords = true;
+            break;
+        }
+    }
     return document;
+}
+
+QString ProDocument::setOriginalKey(const QString &path, const QString &key)
+{
+    const int number = chords::keyNumber(key);
+    if (number < 0)
+        return QStringLiteral("%1 is not a key").arg(key);
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    using Scale = rv::data::MusicKeyScale;
+    for (Scale *target : {presentation.mutable_music()->mutable_original(), presentation.mutable_music()->mutable_user()}) {
+        target->set_music_key(Scale::MusicKey(number));
+        target->set_music_scale(chords::keyIsMinor(key) ? Scale::MUSIC_SCALE_MINOR : Scale::MUSIC_SCALE_MAJOR);
+    }
+    return writePresentation(path, presentation);
 }
 
 // Every list of presentations shows each one's arrangement, and the lists are read again

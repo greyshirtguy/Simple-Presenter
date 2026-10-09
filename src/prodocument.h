@@ -51,6 +51,12 @@ struct ProDocument
     // empty means every group in stored order.
     QStringList arrangements;
     QString arrangement;
+    // Whether any slide has chords over its words, and the key they are written in
+    // (see chords.h), "" if the file names none. `userKey` is the key the file says
+    // they were last shown in, which is the original one if it names no other.
+    bool hasChords = false;
+    QString originalKey;
+    QString userKey;
 
     // Reads a ProPresenter 7 .pro file. `arrangement` names the arrangement to follow,
     // "" (or a name the file does not have) being every group in stored order; without
@@ -86,6 +92,11 @@ struct ProDocument
     static QString addCueAction(const QString &path, const QString &cueId, const QVariantMap &action);
     static QString changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action);
     static QString removeCueAction(const QString &path, const QString &cueId, const QString &actionId);
+    // Sets the key the presentation's chords are written in, as chords.h names keys.
+    // The chords themselves are not changed: this says what key they are in, for
+    // showing them in another. The key they are shown in is made the same, as it is
+    // for a song that has never been shown in another. Writes the file back.
+    static QString setOriginalKey(const QString &path, const QString &key);
     // Removes the media the cue triggers, if any, and writes the file back.
     static QString removeCueMedia(const QString &path, const QString &cueId);
     // Removes the cue with this id, and so its slide, from the presentation and from

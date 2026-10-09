@@ -81,6 +81,11 @@ Item {
             return undefined
         }
     }
+    // Whether this is a text box that draws the chords of the slide whose words it
+    // shows: then the words are drawn line by line with a row of chords over each
+    // (ChordedText), in place of the usual drawing. Only a stage layout has such a
+    // box, and nothing is set up for it anywhere else.
+    readonly property bool chorded: source.chordsOn === true && source.linkKind === "slideText" && textOverride === undefined
     // Whether to draw shadows. Each one is an extra texture and a blur, which is nothing
     // for the one slide on the output and adds up for a grid of thumbnails, where a
     // shadow is a pixel wide and cannot be seen anyway. It is also taken to say whether
@@ -294,7 +299,7 @@ Item {
     StrokedText {
         anchors.fill: parent
         anchors.margins: -element.textBleed * element.unit
-        visible: element.source.hasText || element.textOverride !== undefined
+        visible: !element.chorded && (element.source.hasText || element.textOverride !== undefined)
         content: element.textOverride !== undefined ? element.textOverride : element.source.displayText
         replacement: element.textOverride !== undefined ? undefined : element.liveLinkText
         lineFill: element.source.fillEnabled && element.source.fillLinesOnly ? element.source.fillColor : "transparent"
@@ -315,6 +320,33 @@ Item {
         layer.enabled: element.effects && element.source.textShadowEnabled
         layer.effect: Shadow {
             which: "textShadow"
+        }
+    }
+
+    Loader {
+        anchors.fill: parent
+        active: element.chorded
+
+        sourceComponent: ChordedText {
+            // Reading the revision is what has this follow what is live, and the key.
+            lines: Show.revision >= 0
+                   ? Show.chordLines(element.source.linkSlideNext, element.source.linkSlideSource, element.source.linkSlideName,
+                                     element.source.linkTransform, element.source.chordNotation)
+                   : []
+            style: element.source.chordStyle ?? ({})
+            chordColor: element.source.chordColor
+            unit: element.unit
+            fit: element.fitted ? element.source.textScale : 0
+            verticalAlignment: element.source.verticalAlignment
+            insetLeft: element.source.marginLeft
+            insetTop: element.source.marginTop
+            insetRight: element.source.marginRight
+            insetBottom: element.source.marginBottom
+
+            layer.enabled: element.effects && element.source.textShadowEnabled
+            layer.effect: Shadow {
+                which: "textShadow"
+            }
         }
     }
 }

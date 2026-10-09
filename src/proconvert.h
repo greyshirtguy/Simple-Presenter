@@ -1,5 +1,6 @@
 #pragma once
 
+#include "chords.h"
 #include "richtext.h"
 
 #include "presentation.pb.h"
@@ -46,7 +47,25 @@ RichText readText(const rv::data::Graphics::Text &text);
 // carry capitalisation and the families of fonts. Ranges of kinds this app does not
 // understand are kept if only the format is changing, and dropped if the characters
 // are, since they are tied to character positions that the new text no longer has.
+// Chords are the exception: they are carried over to the new words (chords::carried),
+// so that correcting a word does not cost a song its chords.
 void writeText(rv::data::Graphics::Text *text, const RichText &rich);
+
+// The chords over a text element's words, in order, and replacing them.
+//
+// How ProPresenter keeps them (worked out from songs it imported from Multitracks, and
+// a few it changed afterwards). A chord is one of the "custom attributes" the file
+// keeps beside the RTF, the same list that has the capitalisation and the fonts: a
+// range of characters and the chord's name, in the song's original key. The range
+// starts at the character the chord stands over. Where it ends varies a little from
+// file to file (at the next chord, or the end of the line, and now and then past it),
+// so only its start is read; what is written is chords::ranges(), the commonest form.
+// Places are counted along the text as plainText() gives it, a line break being one.
+//
+// Writing touches nothing but the chord ranges: the RTF and every other range are left
+// exactly as they were.
+QList<chords::Chord> readChords(const rv::data::Graphics::Text &text);
+void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &chords);
 
 // A slide as the QML side consumes it: size, background, label, plain text, and a list
 // of elements. Each element is a map of
@@ -81,6 +100,13 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 //     smaller if it does not fit, 3 made larger if there is room, 4 either; see
 //     StrokedText),
 //     textTransform
+//   chords: the chords over its own words, each { at, name } (see readChords), in
+//     order; the key is left out of an element that has none, which is nearly all of
+//     them. And how chords are drawn by an element that shows the words of the live
+//     slide, which is where ProPresenter shows them: chordsOn, chordNotation (as
+//     chords::Notation) and chordColor; and, only when chordsOn, chordStyle: the
+//     style of its words as plain values { family, size, bold, italic, color,
+//     capitals, alignment (0 left, 1 centred, 2 right) } for ChordedText.qml
 //   linkKind ("none", "element", "timer", "slideText" or "other"): where the element's
 //     text comes from, if it is not its own. For another element of the slide,
 //     linkElementId, linkElementName and linkTransform. For a timer, linkTimerId and
@@ -130,6 +156,7 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 //   shadowEnabled, shadowColor, shadowAngle, shadowOffset, shadowRadius, and the same
 //     for textShadow...
 //   verticalAlignment, textScale, marginLeft, marginTop, marginRight, marginBottom
+//   chordsOn, chordNotation, chordColor
 //   linkKind ("none", "element", "timer" or "slideText"), linkElementId,
 //     linkTransform, linkTimerId, linkTimerName, linkTimerHours, linkTimerMinutes,
 //     linkTimerSeconds, linkTimerHundredths, linkSlideNext, linkSlideSource,

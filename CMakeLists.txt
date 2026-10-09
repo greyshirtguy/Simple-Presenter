@@ -120,6 +120,10 @@ qt_add_qml_module(SimplePresenter
         qml/IconButton.qml
         qml/KineticWheel.qml
         qml/LiveRing.qml
+        qml/chordlayout.js
+        qml/ChordedText.qml
+        qml/ChordProEditor.qml
+        qml/ChordSheet.qml
         qml/LooksSettings.qml
         qml/MacroGlyph.qml
         qml/MacrosPanel.qml
@@ -207,6 +211,10 @@ qt_add_qml_module(SimplePresenter
         src/themes.cpp
         src/screenfile.h
         src/screenfile.cpp
+        src/chords.h
+        src/chords.cpp
+        src/chordsbridge.h
+        src/chordsbridge.cpp
         src/thememath.h
         src/thememath.cpp
         src/themefile.h

@@ -57,7 +57,7 @@ Item {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             // Up to half of the header: the rest is for what there is to say
-            width: Math.min(implicitWidth, (arrangementLabel.x - 16) * (slides.win.notice !== "" ? 0.5 : 1))
+            width: Math.min(implicitWidth, ((keyBox.visible ? keyLabel.x : arrangementLabel.x) - 16) * (slides.win.notice !== "" ? 0.5 : 1))
             elide: Text.ElideRight
             color: slides.win.textColor
             font.pixelSize: 13
@@ -69,13 +69,50 @@ Item {
             objectName: "gridNotice"
             anchors.left: gridTitle.right
             anchors.leftMargin: gridTitle.text !== "" ? 14 : 0
-            anchors.right: arrangementLabel.left
+            anchors.right: keyBox.visible ? keyLabel.left : arrangementLabel.left
             anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
             color: slides.win.noticeIsError ? "#ff6b6b" : slides.win.dimTextColor
             font.pixelSize: 13
             text: slides.win.notice
+        }
+
+        // The key a song's chords are shown in, where a stage screen shows them. It is
+        // there only for a presentation that has chords. Picking a key changes what is
+        // shown and nothing in the file: the chords stay written in the song's own key,
+        // and the pick lasts while the app is open.
+        Text {
+            id: keyLabel
+
+            anchors.right: keyBox.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            visible: keyBox.visible
+            color: slides.win.dimTextColor
+            font.pixelSize: 12
+            text: "Key"
+        }
+
+        AppComboBox {
+            id: keyBox
+
+            objectName: "chordKeyPicker"
+            anchors.right: arrangementBox.visible ? arrangementLabel.left : parent.right
+            anchors.rightMargin: arrangementBox.visible ? 14 : 0
+            anchors.verticalCenter: parent.verticalCenter
+            width: 70
+            height: 24
+            font.pixelSize: 12
+            visible: slides.win.document !== null && slides.win.document.hasChords === true
+            // The major keys, or for a song in a minor key the minor ones; and the key
+            // it is in first if that is not one of the usual names (C sharp major, which
+            // ProPresenter's files can say and a musician would call D flat).
+            readonly property string shownKey: slides.win.document ? slides.win.keyOf(slides.win.document) : ""
+            readonly property var usual: shownKey.length > 1 && shownKey.endsWith("m") ? Chords.minorKeys : Chords.majorKeys
+            model: shownKey === "" || usual.includes(shownKey) ? usual : [shownKey].concat(usual)
+            currentIndex: model.indexOf(shownKey)
+            onActivated: (index) => slides.win.setChordKey(slides.win.document, model[index])
         }
 
         Text {

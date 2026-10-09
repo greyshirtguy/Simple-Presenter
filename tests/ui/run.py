@@ -255,6 +255,16 @@ _KEPT = os.path.join(REPO, "third_party", "ndi-sdk", "download", "Install_NDI_SD
 NDI_INSTALLER = "file://" + (_KEPT if os.path.exists(_KEPT) else "/nonexistent/Install_NDI_SDK_v6_Linux.tar.gz")
 
 
+def prepare_chords(workspace, test_dir):
+    """Songs that have chords, which Multitracks wrote and ProPresenter kept (copies of the user's own, kept with the
+    other fixtures and not in the repository), in the workspace's first library."""
+    libraries = os.path.join(workspace, "Libraries")
+    library = os.path.join(libraries, sorted(name for name in os.listdir(libraries) if os.path.isdir(os.path.join(libraries, name)))[0])
+    songs = os.path.join(FIXTURES, "songs")
+    for name in sorted(os.listdir(songs)):
+        shutil.copy(os.path.join(songs, name), library)
+
+
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
             "monitors": monitors}
@@ -286,6 +296,7 @@ TESTS = {
     "search": test("Demo"),
     "looks": test("Act"),
     "themes": test("Act"),
+    "chords": test("ProPresenter MR", prepare=prepare_chords),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)

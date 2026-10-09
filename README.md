@@ -138,6 +138,10 @@ always wished ProPresenter had them. The list will grow.
 - **Dragging the clear buttons.** A clear button dragged onto a slide or a macro gives
   it the action that clears that layer. See [Actions](#actions).
 - **How solid the icons on the slides are** is a setting, from nearly gone to solid.
+- **Two chord editors.** ProPresenter shows the chords a song came with and has no way
+  to put one on by hand. Here the editor has a sheet of the whole song for doing it
+  with the mouse and the keys 1 to 7, and the same song as ChordPro text. See
+  [Chords](#chords).
 
 ## TODO
 
@@ -1140,6 +1144,73 @@ Not yet: making folders of themes here (ProPresenter's are shown, and a theme ca
 put in one in the file manager), the pictures a theme keeps in its own folder being
 found from there, and choosing a theme for a new slide.
 
+## Chords
+
+A song can have chords over its words, for a stage screen to show the band. They are
+ProPresenter's: it gets them with a song imported from Multitracks, keeps them in the
+song's file, and shows them on a stage layout. This app reads and shows them the same
+way, and adds what ProPresenter has not: ways to put chords on by hand.
+
+**On the stage.** In a stage layout, a text box that shows the current or the next
+slide's text has **Chords** in its Text tab: **Show**, a colour, and how they are
+written, which are ProPresenter's four: **Chords** (C#m7/E), **Numbers** (6m7/1),
+**Numerals** (vi7/I) and **Do Re Mi** (Do#m7/Mi). The chords are drawn over the
+syllables they belong to. So that they stay there, a line of words with chords is never
+broken in two: text too wide for its box is made smaller instead.
+
+**The key.** A song's chords are written in the file in its original key. Over the
+slides of a song that has chords there is a **Key** to pick, starting at the key the
+file says the song was last shown in, and the stage shows the chords in the key picked.
+Picking a key changes nothing in the file and lasts while the app is open.
+
+**Editing.** With a presentation in the editor, the toolbar has three ways of working:
+**Slides** (the editor as it always was), **Chords** and **ChordPro**. The last two show
+the whole song as one sheet, slide after slide under the names of its groups, because
+chording a song a slide at a time would be slow going. Each chord is still kept with
+its own slide's words. Neither changes the words, only the chords, and every change is
+saved at once and can be undone.
+
+*Chords* is for the mouse and the keys together. Each slide's lines are in a card of
+their own. A spot follows the pointer from letter to letter, since a chord can fall
+anywhere in a word (the arrow keys move it too, a word at a time), and what is pressed
+goes there:
+
+| Do this | And |
+| --- | --- |
+| 1 to 7 | The key's own chord on that note of its scale goes on the spot: in C, 1 is C, 4 is F, 6 is Am. The strip along the top shows them, and they can be clicked there |
+| A to G | Starts a chord by name. Only what could be a chord can be typed, and under it are the chords it might be going to be: the song's own first, then the key's, then the usual kinds |
+| Down, Up | Pick one of those; Right puts it in the box to go on from (for a bass note, say) |
+| Enter | Takes the chord. Tab takes it and moves the spot on to the next word |
+| Click, or Enter | On the spot: type a chord there, or change the one that is there |
+| Drag a chord | Moves it to another word, on any slide. With Ctrl held it is copied |
+| Delete | Takes off the chord at the spot |
+| Shift | Under the pointer, the spot keeps to the starts of words. With the arrow keys, it goes a letter at a time |
+| Ctrl+C, Ctrl+Shift+C | Copies the chords of the spot's line, or of its whole group |
+| Ctrl+V | Puts them on the lines from the spot's on, word for word: a second verse gets the chords of the first |
+| Ctrl+Z, Ctrl+Shift+Z | Undo and redo |
+
+The **Key** at the top left of the sheet says what key the chords are written in, which
+is what 1 to 7 go by and what the stage transposes from. A song that names no key is
+taken to be in C until one is set.
+
+*ChordPro* is the same song as text, each chord in square brackets where it is played:
+`[G]Amazing [C]grace`. Chords are typed, changed and deleted among the words, and the
+words themselves cannot be typed over. `[` brings its `]` with it, and Backspace on a
+bracket takes the whole chord.
+
+What is a guess, or not done:
+
+- How the chords are kept was worked out from songs ProPresenter imported from
+  Multitracks, and what is written here is in the same form. A song with chords put on
+  here has not been opened in ProPresenter yet.
+- Numbers, numerals and Do Re Mi are written the way musicians write them.
+  ProPresenter does not say exactly what it writes, so they may differ in the corners.
+- A song chorded here is not marked as a Multitracks song, which is a mark
+  for songs licensed from them.
+- The chord editors do not change words; the Slides editor does, and the chords of
+  the rest of the text box stay on their words when it does.
+- ProPresenter's other chord thing, a chord chart shown as a picture, is not shown.
+
 ## Search
 
 **Search** (the magnifying glass at the left of the toolbar, or **Ctrl+F**) finds a
@@ -1419,6 +1490,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
 | `src/lookfile.*`, `src/looks.*` | The workspace's looks, in ProPresenter's set-up file: which layers each audience screen gets, and in what theme |
 | `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
+| `src/chords.*`, `src/chordsbridge.*` | Chords: what one is, changing key, the four notations, ChordPro text; and the same for QML to call |
 | `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |
 | `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
 | `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
@@ -1449,6 +1521,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/LooksSettings.qml` | The Looks section of the settings |
 | `qml/ThemesPanel.qml` | The themes, let down from the toolbar's button |
 | `qml/SearchPanel.qml` | The search window |
+| `qml/ChordSheet.qml`, `qml/ChordProEditor.qml` | The two chord editors: the song as a sheet with its chords in bubbles, and as ChordPro text |
+| `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps those two windows out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |

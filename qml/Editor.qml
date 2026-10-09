@@ -74,6 +74,14 @@ Rectangle {
     // What is open: "presentation", "props" or "stage"; and what a row of the list on
     // the left is then called
     readonly property string kind: editor.kind
+    // Which of the editor's three ways of working is on. "slides" is the editor as
+    // ProPresenter has it: a slide at a time, its elements moved and styled. The other
+    // two are for a song's chords and are this app's own: "chords", the song as one
+    // sheet with its chords in bubbles (ChordSheet), and "chordpro", the same as
+    // ChordPro text (ChordProEditor). They are for a presentation only: props, stage
+    // layouts and themes have no chords.
+    property string mode: "slides"
+    readonly property bool chordable: kind === "presentation"
     readonly property string rowWord: kind === "props" ? "Prop" : kind === "stage" ? "Layout" : kind === "theme" ? "Theme Slide" : "Slide"
     // For a theme: its place under the workspace's Themes folder (see Themes)
     readonly property string themePlace: kind === "theme" ? editor.path.replace(/^.*\/Themes\//, "").replace(/\/Theme$/, "") : ""
@@ -90,10 +98,12 @@ Rectangle {
                                     : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
     // What the toolbar button under the pointer does, in words, or ""
     readonly property string toolHint: {
-        for (let i = 0; i < actions.children.length; ++i) {
-            const tool = actions.children[i]
-            if (tool.hovered === true && tool.hint)
-                return tool.hint
+        for (const tools of [actions.children, modes.children]) {
+            for (let i = 0; i < tools.length; ++i) {
+                const tool = tools[i]
+                if (tool.hovered === true && tool.hint)
+                    return tool.hint
+            }
         }
         return ""
     }
@@ -140,6 +150,7 @@ Rectangle {
         if (error !== "")
             return error
         screen.workspace = workspace
+        mode = "slides"
         notice = ""
         renamingId = ""
         renamingRow = ""
@@ -256,15 +267,33 @@ Rectangle {
     function finish() {
         canvas.finishText()
         canvas.settle()
+        // Chords typed as ChordPro text are saved a moment after the typing stops:
+        // now, if that moment has not come.
+        if (mode === "chordpro" && chordView.item)
+            chordView.item.apply()
     }
 
     function close() {
         finish()
+        // The chord editors go before what they were editing does.
+        mode = "slides"
         editor.close()
     }
 
     function takeFocus() {
-        canvas.takeFocus()
+        if (mode !== "slides" && chordView.item)
+            chordView.item.takeKeys()
+        else
+            canvas.takeFocus()
+    }
+
+    function setMode(next) {
+        if (next === mode || (next !== "slides" && !chordable))
+            return
+        // What was being typed on the slide is finished first.
+        finish()
+        mode = next
+        takeFocus()
     }
 
     function report(error) {
@@ -791,6 +820,8 @@ Rectangle {
     EditorInspector {
         id: inspector
 
+        visible: screen.mode === "slides"
+
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -812,7 +843,7 @@ Rectangle {
         id: strip
 
         anchors.left: left.right
-        anchors.right: inspector.left
+        anchors.right: screen.mode === "slides" ? inspector.left : parent.right
         anchors.top: parent.top
         height: 46
         color: "#23252b"
@@ -831,7 +862,7 @@ Rectangle {
                 objectName: "addTextTool"
                 kind: "text"
                 hint: "Add a text box"
-                available: canvas.slide !== null
+                available: canvas.slide !== null && screen.mode === "slides"
                 onClicked: canvas.addText()
             }
 
@@ -841,7 +872,7 @@ Rectangle {
                 objectName: "addShapeTool"
                 kind: "shapes"
                 hint: "Add a shape: a rectangle, a rounded rectangle, an ellipse or an arrow"
-                available: canvas.slide !== null
+                available: canvas.slide !== null && screen.mode === "slides"
                 onClicked: screen.showMenu([
                     { header: "Shapes" },
                     { label: "Rectangle", run: () => canvas.addShape("rectangle") },
@@ -855,7 +886,7 @@ Rectangle {
                 objectName: "addMediaTool"
                 kind: "media"
                 hint: "Add a picture or a video from a file"
-                available: canvas.slide !== null
+                available: canvas.slide !== null && screen.mode === "slides"
                 onClicked: screen.chooseMedia("add")
             }
 
@@ -867,14 +898,14 @@ Rectangle {
             EditorTool {
                 kind: "duplicate"
                 hint: "Duplicate the picked element (Ctrl+D)"
-                available: canvas.selected !== null
+                available: canvas.selected !== null && screen.mode === "slides"
                 onClicked: canvas.duplicate()
             }
 
             EditorTool {
                 kind: "delete"
                 hint: "Delete the picked element (Delete)"
-                available: canvas.selected !== null
+                available: canvas.selected !== null && screen.mode === "slides"
                 onClicked: canvas.removeSelected()
             }
 
@@ -887,21 +918,68 @@ Rectangle {
                 kind: "undo"
                 hint: "Undo (Ctrl+Z)"
                 available: editor.canUndo || canvas.typed
-                onClicked: canvas.undo()
+                onClicked: {
+                    if (screen.mode === "slides")
+                        canvas.undo()
+                    else
+                        screen.report(editor.undo())
+                    screen.takeFocus()
+                }
             }
 
             EditorTool {
                 kind: "redo"
                 hint: "Redo (Ctrl+Shift+Z)"
                 available: editor.canRedo
-                onClicked: canvas.redo()
+                onClicked: {
+                    if (screen.mode === "slides")
+                        canvas.redo()
+                    else
+                        screen.report(editor.redo())
+                    screen.takeFocus()
+                }
+            }
+        }
+
+        // The three ways of working on a presentation (see `mode`)
+        Row {
+            id: modes
+
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            visible: screen.chordable
+            spacing: 2
+
+            EditorTool {
+                objectName: "slidesMode"
+                label: "Slides"
+                on: screen.mode === "slides"
+                hint: "The slides: move, size and style what is on each"
+                onClicked: screen.setMode("slides")
+            }
+
+            EditorTool {
+                objectName: "chordsMode"
+                label: "Chords"
+                on: screen.mode === "chords"
+                hint: "The song's chords: point at a word and press 1 to 7, or type a chord; drag chords about"
+                onClicked: screen.setMode("chords")
+            }
+
+            EditorTool {
+                objectName: "chordProMode"
+                label: "ChordPro"
+                on: screen.mode === "chordpro"
+                hint: "The song as ChordPro text: type chords in square brackets among the words"
+                onClicked: screen.setMode("chordpro")
             }
         }
 
         Text {
             anchors.left: actions.right
             anchors.leftMargin: 14
-            anchors.right: parent.right
+            anchors.right: modes.visible ? modes.left : parent.right
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
@@ -919,6 +997,7 @@ Rectangle {
         anchors.right: inspector.left
         anchors.top: strip.bottom
         anchors.bottom: hint.top
+        visible: screen.mode === "slides"
         clip: true
         editor: editor
         bridge: bridge
@@ -935,7 +1014,7 @@ Rectangle {
         id: hint
 
         anchors.left: left.right
-        anchors.right: inspector.left
+        anchors.right: screen.mode === "slides" ? inspector.left : parent.right
         anchors.bottom: parent.bottom
         height: Math.max(26, hintText.implicitHeight + 10)
         color: screen.notice === "" ? "#191a1d" : screen.noticeIsError ? "#4a1f1f" : "#23324a"
@@ -954,9 +1033,51 @@ Rectangle {
             font.pixelSize: 12
             text: screen.notice !== "" ? screen.notice
                 : screen.toolHint !== "" ? screen.toolHint
+                : screen.mode === "chords" ? "1 to 7: the key's chords  ·  A to G: type one  ·  The spot follows the pointer (Shift: starts of words) and the arrows (Shift: letter by letter)  ·  Drag a chord to move it, Ctrl to copy  ·  Delete removes  ·  Ctrl+C a line's chords, Ctrl+Shift+C a group's, Ctrl+V onto the spot's line"
+                : screen.mode === "chordpro" ? "[ opens a chord and closes it  ·  Backspace on a bracket removes the chord  ·  The words cannot be changed here"
                 : canvas.editing ? "Select text to format part of it  ·  Esc or a click elsewhere finishes  ·  Ctrl+B, I, U"
                 : canvas.selected ? "Drag to move, handles to resize  ·  Shift: straight, or in proportion  ·  Ctrl: no snapping  ·  Arrows nudge  ·  Double-click or Enter edits the text"
                 : "Click an element to pick it  ·  Double-click text to edit it  ·  Arrows change slide"
+        }
+    }
+
+    // The two chord editors, each made when it is turned to and gone when it is left,
+    // so that an editor nobody has asked for costs nothing.
+    Loader {
+        id: chordView
+
+        anchors.left: left.right
+        anchors.right: parent.right
+        anchors.top: strip.bottom
+        anchors.bottom: hint.top
+        active: screen.mode !== "slides" && screen.chordable
+        sourceComponent: screen.mode === "chords" ? chordSheet : chordPro
+        onLoaded: item.takeKeys()
+    }
+
+    Component {
+        id: chordSheet
+
+        ChordSheet {
+            objectName: "chordSheet"
+            editor: screen.editor
+            groupColor: screen.groupColor
+            row: canvas.row
+            onFailed: (error) => screen.report(error)
+            onTold: (message) => screen.tell(message)
+            onRowPicked: (row) => screen.showRow(row)
+        }
+    }
+
+    Component {
+        id: chordPro
+
+        ChordProEditor {
+            objectName: "chordProEditor"
+            editor: screen.editor
+            row: canvas.row
+            onFailed: (error) => screen.report(error)
+            onRowPicked: (row) => screen.showRow(row)
         }
     }
 }

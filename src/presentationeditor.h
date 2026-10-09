@@ -47,6 +47,9 @@ class PresentationEditor : public QAbstractListModel
     Q_PROPERTY(bool changed READ changed NOTIFY historyChanged)
     // Where the copy made before the first change went, or empty if there is none yet.
     Q_PROPERTY(QString backupPath READ backupPath NOTIFY historyChanged)
+    // The key the presentation's chords are written in, as chords.h names keys; "" for
+    // a presentation that names none (and for props, layouts and themes).
+    Q_PROPERTY(QString key READ key NOTIFY keyChanged)
 
 public:
     enum Roles { SlideRole = Qt::UserRole + 1 };
@@ -65,6 +68,7 @@ public:
     bool canRedo() const { return !m_redo.isEmpty(); }
     bool changed() const { return m_changed; }
     QString backupPath() const { return m_backupPath; }
+    QString key() const;
 
     // Opens a presentation file from the workspace folder `workspace`, in place of any
     // open already. Returns an error message, empty on success.
@@ -104,6 +108,28 @@ public:
     // back.
     Q_INVOKABLE QString move(int row, const QString &element, int index);
 
+    // ---- Chords (see chords.h, and proconvert::readChords for how they are kept)
+
+    // The presentation as one song: every text box that has words of its own, slide
+    // after slide, as { row, slideId, group, groupColor, groupStart, label, element,
+    // text, chords: [{ at, name }] }. It is what the two chord editors lay out as one
+    // sheet, there being no such thing in the file, where each slide has its own words.
+    Q_INVOKABLE QVariantList song() const;
+    // Every chord in the presentation, as often as it comes up: what the chord editor
+    // offers first.
+    Q_INVOKABLE QStringList usedChords() const;
+    // Replaces the chords of a text box. With `joined` it is undone together with the
+    // change made just before it (a chord dragged from one slide to another is taken
+    // from the one and given to the other, and is one thing to undo).
+    Q_INVOKABLE QString setChords(int row, const QString &element, const QVariantList &chords, bool joined = false);
+    // Replaces one line of a text box, a line of chords with no words, by these chords:
+    // the line's stand-in characters are made anew, one for each (see
+    // chords::placeholders). It is the one change the chord editors make to the words.
+    Q_INVOKABLE QString setChordsAlone(int row, const QString &element, int line, const QStringList &names, bool joined = false);
+    // Says what key the chords are written in. Not a change to any slide, so not one
+    // that undo takes back.
+    Q_INVOKABLE QString setKey(const QString &key);
+
     // The same changes as setProperties and formatText, shown but neither saved nor
     // undoable yet, for following a slider or a colour being dragged. Any number may
     // follow one another; commitPreview() then saves the outcome as one change, and
@@ -120,6 +146,7 @@ public:
 signals:
     void documentChanged();
     void historyChanged();
+    void keyChanged();
     // The slide in this row is not as it was.
     void slideChanged(int row);
     // An undo or a redo changed the slide in this row.
@@ -142,6 +169,8 @@ private:
         int row;
         std::string before;
         std::string after;
+        // Undone and redone together with the step before it
+        bool joined = false;
     };
 
     void start(Kind kind, const QString &path, const QString &workspace, const QString &name);
@@ -176,6 +205,8 @@ private:
     bool m_changed = false;
     QString m_backupPath;
     // The row a preview is under way in, or -1, and its cue as it was before.
+    // Whether the change being made is joined to the one before it (see Step)
+    bool m_joinNext = false;
     int m_previewRow = -1;
     std::string m_previewBefore;
 };

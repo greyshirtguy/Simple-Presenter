@@ -1141,6 +1141,53 @@ Rectangle {
                     }
                 }
 
+                // Chords, for a text box that shows a slide's words: whether the song's
+                // chords are drawn over them, in what colour, and how they are written.
+                // They are ProPresenter's own three settings, with its names for the
+                // four ways of writing a chord; it is on a stage layout that they are
+                // wanted. (How they are drawn is ChordedText.qml's business.)
+                Line {
+                    caption: "Chords"
+                    visible: linkLine.kind === "slideText"
+
+                    AppCheck {
+                        objectName: "chordsCheck"
+                        width: 76
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Show"
+                        checked: inspector.element !== null && inspector.element.chordsOn === true
+                        onToggled: (checked) => inspector.setProperties({ chordsOn: checked }, false)
+                    }
+
+                    ColorButton {
+                        objectName: "chordColor"
+                        hasAlpha: false
+                        value: inspector.element ? inspector.element.chordColor : "white"
+                        onChanging: (value) => inspector.setProperties({ chordColor: value }, true)
+                        onPicked: (value) => inspector.setProperties({ chordColor: value }, false)
+                        onClosed: inspector.finished()
+                    }
+                }
+
+                Line {
+                    caption: "As"
+                    visible: linkLine.kind === "slideText" && inspector.element !== null && inspector.element.chordsOn === true
+
+                    Choice {
+                        objectName: "chordNotation"
+                        width: textTab.width - 78
+                        model: ["Chords", "Numbers", "Numerals", "Do Re Mi"]
+                        choice: inspector.element ? inspector.element.chordNotation : 0
+                        onChosen: (index) => inspector.setProperties({ chordNotation: index }, false)
+                    }
+                }
+
+                Note {
+                    visible: linkLine.kind === "slideText" && inspector.element !== null && inspector.element.chordsOn === true
+                    text: "A song's chords are drawn over its words, in the key picked for it over its slides. So that each chord"
+                          + " stays over its word, a line is never broken: text too wide for the box is made smaller instead."
+                }
+
                 // How each part of the timer's time is written, as ProPresenter has it:
                 // a drop-down for each of the four
                 Repeater {

@@ -487,6 +487,36 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     map.insert("marginBottom", text.margins().bottom());
     map.insert("textTransform", int(text.transform()));
     map.insert("textTransformDelimiter", QString::fromStdString(text.transformdelimiter()));
+    // Its chords, if it has any. Most elements have none, and are spared the key.
+    QVariantList chordList;
+    for (const auto &custom : text.attributes().custom_attributes()) {
+        if (custom.has_chord())
+            chordList.append(QVariantMap {{"at", int(custom.range().start())}, {"name", QString::fromStdString(custom.chord())}});
+    }
+    if (!chordList.isEmpty())
+        map.insert("chords", chordList);
+    // How it draws the chords of the slide whose words it shows (a stage layout's
+    // text box). A colour that was never set is white, which is what ProPresenter
+    // starts one at.
+    map.insert("chordsOn", text.chord_pro().enabled());
+    map.insert("chordNotation", int(text.chord_pro().notation()));
+    map.insert("chordColor", text.chord_pro().has_color() ? toColor(text.chord_pro().color()) : QColor(Qt::white));
+    if (text.chord_pro().enabled()) {
+        // Words with chords over them are drawn line by line by ChordedText.qml, which
+        // is plain QML text and wants the element's style as plain values. Only an
+        // element that draws chords is given them.
+        const TextRun first = words.firstRun();
+        const Qt::Alignment alignment = words.paragraphs.isEmpty() ? Qt::AlignLeft : words.paragraphs.first().alignment;
+        map.insert("chordStyle", QVariantMap {
+            {"family", first.family},
+            {"size", first.size},
+            {"bold", first.bold},
+            {"italic", first.italic},
+            {"color", first.fill},
+            {"capitals", first.capitalization == TextRun::AllCaps},
+            {"alignment", alignment & Qt::AlignHCenter ? 1 : alignment & Qt::AlignRight ? 2 : 0},
+        });
+    }
 
     map.insert("linkKind", QStringLiteral("none"));
     map.insert("linkElementId", QString());
@@ -729,13 +759,58 @@ RichText readText(const Text &text)
     return rich;
 }
 
+QList<chords::Chord> readChords(const Text &text)
+{
+    QList<chords::Chord> result;
+    for (const auto &custom : text.attributes().custom_attributes()) {
+        if (custom.has_chord())
+            result.append({int(custom.range().start()), QString::fromStdString(custom.chord())});
+    }
+    std::stable_sort(result.begin(), result.end(), [](const chords::Chord &a, const chords::Chord &b) { return a.at < b.at; });
+    return result;
+}
+
+namespace {
+
+void addChordRanges(Attributes *attributes, const QString &plainText, const QList<chords::Chord> &chordList)
+{
+    const QList<chords::Range> written = chords::ranges(plainText, chordList);
+    for (const chords::Range &range : written) {
+        auto *custom = attributes->add_custom_attributes();
+        custom->mutable_range()->set_start(range.start);
+        custom->mutable_range()->set_end(range.end);
+        custom->set_chord(range.name.toStdString());
+    }
+}
+
+}
+
+void writeChords(Text *text, const QList<chords::Chord> &chordList)
+{
+    // Everything but the chords stays, in its order; the chords go after, in theirs.
+    Attributes *attributes = text->mutable_attributes();
+    QList<Attributes::CustomAttribute> others;
+    for (const auto &custom : attributes->custom_attributes()) {
+        if (!custom.has_chord())
+            others.append(custom);
+    }
+    attributes->clear_custom_attributes();
+    for (const auto &custom : std::as_const(others))
+        *attributes->add_custom_attributes() = custom;
+    addChordRanges(attributes, readText(*text).plainText(), chordList);
+}
+
 void writeText(Text *text, const RichText &rich)
 {
     // Ranges are tied to character positions. The ones this app does not understand
-    // (a chord, a gradient over part of the text) can stay only while the characters
-    // do: when the text is being given a new format but is otherwise the same.
+    // (a gradient over part of the text, say) can stay only while the characters do:
+    // when the text is being given a new format but is otherwise the same. Chords it
+    // does understand, and they go over to the new words (see chords::carried).
+    const QString before = readText(*text).plainText();
+    const QString after = rich.plainText();
+    const QList<chords::Chord> chordList = chords::carried(before, after, readChords(*text));
     QList<Attributes::CustomAttribute> kept;
-    if (readText(*text).plainText() == rich.plainText()) {
+    if (before == after) {
         for (const auto &custom : text->attributes().custom_attributes()) {
             switch (custom.Attribute_case()) {
             // These are written afresh below, or describe a scaling of the old font.
@@ -743,6 +818,7 @@ void writeText(Text *text, const RichText &rich)
             case Attributes::CustomAttribute::kOriginalFont:
             case Attributes::CustomAttribute::kOriginalFontSize:
             case Attributes::CustomAttribute::kFontScaleFactor:
+            case Attributes::CustomAttribute::kChord:
                 break;
             default:
                 kept.append(custom);
@@ -858,6 +934,7 @@ void writeText(Text *text, const RichText &rich)
     }
     for (const auto &custom : std::as_const(kept))
         *attributes->add_custom_attributes() = custom;
+    addChordRanges(attributes, after, chordList);
 }
 
 QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
@@ -1149,6 +1226,21 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
         element->mutable_text()->mutable_margins()->set_right(qMax(0.0, number("marginRight")));
     if (changes.contains("marginBottom"))
         element->mutable_text()->mutable_margins()->set_bottom(qMax(0.0, number("marginBottom")));
+
+    // Chords: whether the element draws those of the slide whose words it shows, and how.
+    // The colour is written with the switch as ProPresenter writes it, which always
+    // has one.
+    if (changes.contains("chordsOn") || changes.contains("chordNotation") || changes.contains("chordColor")) {
+        auto *chordPro = element->mutable_text()->mutable_chord_pro();
+        if (changes.contains("chordsOn"))
+            chordPro->set_enabled(changes.value("chordsOn").toBool());
+        if (changes.contains("chordNotation"))
+            chordPro->set_notation(rv::data::Graphics::Text::ChordPro::Notation(qBound(0, changes.value("chordNotation").toInt(), 3)));
+        if (changes.contains("chordColor"))
+            setColor(chordPro->mutable_color(), changes.value("chordColor").value<QColor>());
+        else if (!chordPro->has_color())
+            setColor(chordPro->mutable_color(), QColor(Qt::white));
+    }
 
     // Where the text comes from: the element itself, another element of the slide, a
     // timer, or the slide that is live or the one after it. It is one of them, so making

@@ -88,6 +88,12 @@ class Show : public QObject
     Q_PROPERTY(QVariantMap nextSlide READ nextSlide NOTIFY changed)
     // Goes up whenever either changes: read it in a binding to have the binding follow.
     Q_PROPERTY(int revision READ revision NOTIFY changed)
+    // The key the chords of the presentation the show is at are written in, and the
+    // key they are to be shown in ("" for as written): see chords.h. The window sets
+    // both, from the presentation and from the key picked for it, which is a matter
+    // of this sitting and is never written to the file.
+    Q_PROPERTY(QString originalKey READ originalKey WRITE setOriginalKey NOTIFY changed)
+    Q_PROPERTY(QString chordKey READ chordKey WRITE setChordKey NOTIFY changed)
 
 public:
     // Which of a slide's text a link asks for, as ProPresenter's files have it: all of
@@ -131,6 +137,10 @@ public:
     QVariantMap currentSlide() const { return m_state.cleared ? QVariantMap() : m_state.slide; }
     QVariantMap nextSlide() const { return m_state.next; }
     int revision() const { return m_revision; }
+    QString originalKey() const { return m_originalKey; }
+    void setOriginalKey(const QString &key);
+    QString chordKey() const { return m_chordKey; }
+    void setChordKey(const QString &key);
 
     // A slide goes live: it is shown, with the media it brings, and then its actions
     // are done, in their order. `cue` says which slide and what it is:
@@ -192,6 +202,12 @@ public:
     // text linked from another element (see proconvert). Nothing for a slide's notes,
     // which this app does not read.
     Q_INVOKABLE QString slideText(bool next, int source, const QString &name, int transform) const;
+    // The same words line by line with their chords, for a text box set to draw them:
+    // a list of { text, chords: [{ at, name }] }, each chord's place counted along its
+    // line and its name already in the key being shown and in `notation` (a
+    // chords::Notation). Text that has been transformed on the way has no chords:
+    // their places are places in the words as they were written.
+    Q_INVOKABLE QVariantList chordLines(bool next, int source, const QString &name, int transform, int notation) const;
 
 signals:
     void slideChanged();
@@ -219,4 +235,6 @@ private:
     show::State m_state;
     show::Workspace m_workspace;
     int m_revision = 0;
+    QString m_originalKey;
+    QString m_chordKey;
 };

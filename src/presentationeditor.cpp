@@ -1,5 +1,7 @@
 #include "presentationeditor.h"
 
+#include "chords.h"
+
 #include "proconvert.h"
 #include "richtext.h"
 #include "workspacefiles.h"
@@ -121,6 +123,7 @@ void PresentationEditor::finishOpening()
 
     emit documentChanged();
     emit historyChanged();
+    emit keyChanged();
 }
 
 QString PresentationEditor::open(const QString &path, const QString &workspace)
@@ -423,7 +426,7 @@ QString PresentationEditor::commit(int row, const std::string &before)
         return error;
     }
     m_changed = true;
-    m_undo.append({row, before, after});
+    m_undo.append({row, before, after, m_joinNext && !m_undo.isEmpty()});
     if (m_undo.size() > undoLimit)
         m_undo.removeFirst();
     m_redo.clear();
@@ -663,7 +666,178 @@ QString PresentationEditor::restore(QList<Step> *from, QList<Step> *to, bool for
     refresh(step.row);
     emit historyChanged();
     emit restored(step.row);
+    // A step joined to the one before it goes with it: back, the one before follows;
+    // forwards, the one that was joined to this follows.
+    if (!from->isEmpty() && (forwards ? from->last().joined : step.joined))
+        return restore(from, to, forwards);
     return {};
+}
+
+QString PresentationEditor::key() const
+{
+    if (m_kind != Kind::Presentation || !m_presentation.has_music())
+        return {};
+    const rv::data::MusicKeyScale &original = m_presentation.music().original();
+    return chords::keyName(int(original.music_key()), original.music_scale() == rv::data::MusicKeyScale::MUSIC_SCALE_MINOR);
+}
+
+QString PresentationEditor::setKey(const QString &key)
+{
+    using Scale = rv::data::MusicKeyScale;
+    const int number = chords::keyNumber(key);
+    if (m_kind != Kind::Presentation || number < 0)
+        return QStringLiteral("%1 is not a key").arg(key);
+    if (key == this->key())
+        return {};
+    const rv::data::Presentation::Music before = m_presentation.music();
+    const bool had = m_presentation.has_music();
+    // The key the chords are shown in goes with it: until someone shows the song in
+    // another key, that is the key it is in.
+    for (Scale *target : {m_presentation.mutable_music()->mutable_original(), m_presentation.mutable_music()->mutable_user()}) {
+        target->set_music_key(Scale::MusicKey(number));
+        target->set_music_scale(chords::keyIsMinor(key) ? Scale::MUSIC_SCALE_MINOR : Scale::MUSIC_SCALE_MAJOR);
+    }
+    backUp();
+    const QString error = write();
+    if (!error.isEmpty()) {
+        if (had)
+            *m_presentation.mutable_music() = before;
+        else
+            m_presentation.clear_music();
+        return error;
+    }
+    m_changed = true;
+    emit historyChanged();
+    emit keyChanged();
+    return {};
+}
+
+QVariantList PresentationEditor::song() const
+{
+    QVariantList blocks;
+    if (m_kind != Kind::Presentation)
+        return blocks;
+    for (int row = 0; row < m_slides.size(); ++row) {
+        const QVariantMap slide = m_slides.at(row).toMap();
+        const QVariantList elements = slide.value("elements").toList();
+        for (const QVariant &entry : elements) {
+            const QVariantMap element = entry.toMap();
+            // Words of its own: not another element's, a timer's or the live slide's
+            if (element.value("linkKind").toString() != QLatin1String("none"))
+                continue;
+            const QString text = element.value("text").value<RichText>().plainText();
+            // A box with no words is left out, unless it is a line of chords alone: it
+            // has chords, or the characters Multitracks hangs them on. (A box with
+            // only a stray space in it, which files are full of, is neither.)
+            if (text.trimmed().isEmpty() && !element.contains("chords") && !text.contains(QChar(0x200B)) && !text.contains(QChar(0x2001)))
+                continue;
+            blocks.append(QVariantMap {
+                {"row", row},
+                {"slideId", slide.value("id")},
+                {"group", slide.value("group")},
+                {"groupColor", slide.value("groupColor")},
+                {"groupStart", slide.value("groupStart")},
+                {"label", slide.value("label")},
+                {"element", element.value("id")},
+                {"text", text},
+                {"chords", element.value("chords").toList()},
+            });
+        }
+    }
+    return blocks;
+}
+
+QStringList PresentationEditor::usedChords() const
+{
+    QStringList used;
+    const QVariantList blocks = song();
+    for (const QVariant &block : blocks) {
+        const QVariantList chordList = block.toMap().value("chords").toList();
+        for (const QVariant &chord : chordList)
+            used << chord.toMap().value("name").toString();
+    }
+    return used;
+}
+
+QString PresentationEditor::setChords(int row, const QString &element, const QVariantList &chordList, bool joined)
+{
+    QList<chords::Chord> wanted;
+    for (const QVariant &entry : chordList) {
+        const QVariantMap chord = entry.toMap();
+        wanted.append({chord.value("at").toInt(), chords::tidied(chord.value("name").toString())});
+    }
+    m_joinNext = joined;
+    const QString error = change(row, [&](rv::data::Slide *slide) {
+        rv::data::Slide::Element *target = findElement(slide, element);
+        if (!target)
+            return elementGone;
+        proconvert::writeChords(target->mutable_element()->mutable_text(), wanted);
+        return QString();
+    });
+    m_joinNext = false;
+    return error;
+}
+
+QString PresentationEditor::setChordsAlone(int row, const QString &element, int line, const QStringList &names, bool joined)
+{
+    m_joinNext = joined;
+    const QString error = change(row, [&](rv::data::Slide *slide) {
+        rv::data::Slide::Element *target = findElement(slide, element);
+        if (!target)
+            return elementGone;
+        rv::data::Graphics::Text *text = target->mutable_element()->mutable_text();
+        RichText rich = proconvert::readText(*text);
+        // The line is a paragraph, or part of one that has line breaks in it. Its
+        // words become the stand-ins, in the format the paragraph starts in.
+        // In the character the line hangs its chords on now, if it has one.
+        const QStringList linesNow = rich.plainText().split(u'\n');
+        const bool spaces = line < linesNow.size() && !linesNow.at(line).contains(QChar(0x200B)) && linesNow.at(line).contains(u' ');
+        const QString standIns = chords::placeholders(int(names.size()), spaces ? QChar(u' ') : QChar(0x200B));
+        int first = 0;
+        int start = 0;
+        bool found = false;
+        for (TextParagraph &paragraph : rich.paragraphs) {
+            QString whole;
+            for (const TextRun &run : std::as_const(paragraph.runs))
+                whole += run.text;
+            QStringList lines = whole.split(QChar::LineSeparator);
+            if (line < first + lines.size()) {
+                for (int i = 0; i < line - first; ++i)
+                    start += int(lines.at(i).size()) + 1;
+                lines[line - first] = standIns;
+                TextRun run = paragraph.runs.isEmpty() ? rich.firstRun() : paragraph.runs.first();
+                run.text = lines.join(QChar::LineSeparator);
+                paragraph.runs = {run};
+                found = true;
+                break;
+            }
+            first += int(lines.size());
+            start += int(whole.size()) + 1;
+        }
+        if (!found)
+            return QStringLiteral("The text has no such line");
+        // The chords of the other lines keep their characters; those after this line
+        // move by as much as it has grown or shrunk. This line's are put on its new
+        // stand-ins, every other character (see chords::placeholders).
+        QList<chords::Chord> kept;
+        const QStringList beforeLines = proconvert::readText(*text).plainText().split(u'\n');
+        const int oldLength = line < beforeLines.size() ? int(beforeLines.at(line).size()) : 0;
+        const int shift = int(standIns.size()) - oldLength;
+        const QList<chords::Chord> had = proconvert::readChords(*text);
+        for (const chords::Chord &chord : had) {
+            if (chord.at < start)
+                kept.append(chord);
+            else if (chord.at > start + oldLength)
+                kept.append({chord.at + shift, chord.name});
+        }
+        proconvert::writeText(text, rich);
+        for (int i = 0; i < names.size(); ++i)
+            kept.append({start + i * 2, chords::tidied(names.at(i))});
+        proconvert::writeChords(text, kept);
+        return QString();
+    });
+    m_joinNext = false;
+    return error;
 }
 
 QString PresentationEditor::undo()

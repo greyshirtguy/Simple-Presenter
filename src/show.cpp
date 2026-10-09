@@ -1,5 +1,7 @@
 #include "show.h"
 
+#include "chords.h"
+
 #include "proconvert.h"
 #include "richtext.h"
 #include "sessionlog.h"
@@ -275,6 +277,94 @@ QVariantList Show::stageAssignmentsFor(const QVariant &existing, const QVariantM
     for (auto layout = layouts.constBegin(); layout != layouts.constEnd(); ++layout)
         chosen.insert(layout.key(), mapOf(layout.value()));
     return show::stageAssignments(mapOf(existing), chosen, m_workspace);
+}
+
+void Show::setOriginalKey(const QString &key)
+{
+    if (key == m_originalKey)
+        return;
+    m_originalKey = key;
+    // The words have not changed, but what is drawn over them has.
+    ++m_revision;
+    emit changed();
+}
+
+void Show::setChordKey(const QString &key)
+{
+    if (key == m_chordKey)
+        return;
+    m_chordKey = key;
+    ++m_revision;
+    emit changed();
+}
+
+QVariantList Show::chordLines(bool next, int source, const QString &name, int transform, int notation) const
+{
+    const QVariantMap slide = next ? nextSlide() : currentSlide();
+    QVariantList lines;
+    const auto plain = [&lines](const QString &text) {
+        const QStringList parts = text.split(u'\n');
+        for (const QString &part : parts)
+            lines.append(QVariantMap {{"text", part}, {"chords", QVariantList()}});
+    };
+    if (source == Notes)
+        return lines;
+    if (transform != 0) {
+        const QString text = slideText(next, source, name, transform);
+        if (!text.isEmpty())
+            plain(text);
+        return lines;
+    }
+    // The same elements, in the same order, as the slide's words are made of (see
+    // proconvert::toSlideMap), each with the chords it has of its own.
+    const QVariantList elements = slide.value("elements").toList();
+    for (const QVariant &entry : elements) {
+        const QVariantMap element = entry.toMap();
+        if (!element.value("visible").toBool())
+            continue;
+        const QString kind = element.value("linkKind").toString();
+        if (source == ElementNamed ? element.value("name").toString().compare(name, Qt::CaseInsensitive) != 0
+                                   : kind != QLatin1String("none"))
+            continue;
+        const QString shown = element.value("displayText").value<RichText>().plainText();
+        // Chords belong to the element's own words: one that shows other words has none.
+        const bool own = shown == element.value("text").value<RichText>().plainText();
+        const QVariantList chordList = own ? element.value("chords").toList() : QVariantList();
+        // No words is nothing to show, unless there are chords over the nothing: an
+        // intro or a turnaround is a slide of chords alone, hung on spaces (see
+        // chords::placeholders), and its chords are the whole point of it.
+        if (shown.trimmed().isEmpty() && chordList.isEmpty())
+            continue;
+        int start = 0;
+        QVariantList elementLines;
+        const QStringList parts = shown.split(u'\n');
+        for (const QString &part : parts) {
+            QVariantList onLine;
+            for (const QVariant &chord : chordList) {
+                const QVariantMap one = chord.toMap();
+                const int at = one.value("at").toInt();
+                if (at < start || at >= start + qMax(qsizetype(1), part.size()))
+                    continue;
+                onLine.append(QVariantMap {
+                    {"at", at - start},
+                    {"name", chords::shown(one.value("name").toString(), m_originalKey, m_chordKey, notation)},
+                });
+            }
+            elementLines.append(QVariantMap {{"text", part}, {"chords", onLine}});
+            start += int(part.size()) + 1;
+        }
+        // As the words are trimmed: no empty lines before or after them.
+        const auto empty = [](const QVariant &line) {
+            const QVariantMap map = line.toMap();
+            return map.value("text").toString().trimmed().isEmpty() && map.value("chords").toList().isEmpty();
+        };
+        while (!elementLines.isEmpty() && empty(elementLines.first()))
+            elementLines.removeFirst();
+        while (!elementLines.isEmpty() && empty(elementLines.last()))
+            elementLines.removeLast();
+        lines += elementLines;
+    }
+    return lines;
 }
 
 QString Show::slideText(bool next, int source, const QString &name, int transform) const

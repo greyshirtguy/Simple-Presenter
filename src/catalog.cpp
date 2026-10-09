@@ -189,6 +189,9 @@ QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arr
         {"slides", document.slides},
         {"arrangements", document.arrangements},
         {"arrangement", document.arrangement},
+        {"hasChords", document.hasChords},
+        {"originalKey", document.originalKey},
+        {"userKey", document.userKey},
         {"error", error},
     };
 }
