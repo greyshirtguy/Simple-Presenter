@@ -674,6 +674,28 @@ QString ProDocument::insertBlankCue(const QString &path, const QString &cueId, b
     return writePresentation(path, presentation);
 }
 
+QString ProDocument::create(const QString &library, const QString &name, QString *made)
+{
+    if (library.isEmpty() || !QFileInfo(library).isDir())
+        return QStringLiteral("There is no library to put it in");
+    QString unique;
+    const QString path = proconvert::presentationFileFor(library, name, QStringLiteral("New Presentation"), &unique);
+    rv::data::Presentation presentation = proconvert::newPresentation(unique);
+    // Its one slide, in a group of its own that has an id and no name. (ProPresenter
+    // keeps every slide in a group: one that is in none to look at is in one with no
+    // name, with an empty hot key beside its id, in 101 of the 103 such groups looked
+    // at.)
+    auto *group = presentation.add_cue_groups();
+    group->mutable_group()->mutable_uuid()->set_string(newUuid());
+    group->mutable_group()->mutable_hotkey();
+    const rv::data::Cue *cue = proconvert::addBlankCue(&presentation, std::string(), QSizeF(1920, 1080));
+    group->add_cue_identifiers()->set_string(cue->uuid().string());
+    const QString error = writePresentation(path, presentation);
+    if (error.isEmpty())
+        *made = path;
+    return error;
+}
+
 QByteArray ProDocument::copyCue(const QString &path, const QString &cueId, QString *error)
 {
     rv::data::Presentation presentation;

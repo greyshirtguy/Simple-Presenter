@@ -1149,6 +1149,7 @@ Window {
     // The menu of the + beside Libraries.
     function showLibraryMenu(item) {
         menu.show([
+            { label: "New Presentation…", disabled: libraryPath === "", run: () => newPresentationPanel.show() },
             { label: "New Library", run: () => newLibrary() },
             { label: "Import ChordPro File…", disabled: libraryPath === "", run: () => songDialog.open() }
         ], item)
@@ -1171,6 +1172,21 @@ Window {
         const renamed = catalog.renameLibrary(path, name)
         if (report(renamed.error) && renamed.path !== path && libraryPath === path)
             openLibrary(renamed.path)
+    }
+
+    // Makes a presentation called `name` in the library that is open, with one slide
+    // with nothing on it, and opens it.
+    function newPresentation(name) {
+        const made = catalog.createPresentation(libraryPath, name)
+        if (!report(made.error))
+            return
+        selectedNode = ""
+        playlistId = ""
+        refreshLists()
+        openDocument(made.path)
+        Search.read(catalog.librariesDirectory)
+        Log.note("edit", "a new presentation, " + quoted(made.path.replace(/^.*\//, "")) + ", made in the library "
+                 + quoted(libraryPath.replace(/^.*\//, "")))
     }
 
     // Makes a presentation of a ChordPro file in the library that is open, with so many
@@ -2896,6 +2912,17 @@ Window {
         visible: win.looksOpen
         win: win
         onClosed: win.closeLooks()
+    }
+
+    // What a new presentation is to be called
+    NewPresentation {
+        id: newPresentationPanel
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 20
+        win: win
+        onClosed: win.takeFocus()
     }
 
     // What a ChordPro file holds, and how it is to come in

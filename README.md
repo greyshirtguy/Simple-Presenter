@@ -186,6 +186,9 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **New presentations.** The **+** beside Libraries has **New Presentation…**: give it
+  a name, and it is made in the library that is open, with one slide to start on.
+  Until now a presentation could only be brought in from elsewhere.
 - **Chords on a slide with no words.** An intro or an instrumental is often a slide
   with nothing on it, and such a slide is now on the [chord editor](#the-chord-editor)'s
   sheet, and in its ChordPro text, to be given chords like any other. They are kept
@@ -266,8 +269,9 @@ the top of this page.
       lists and scrolling text, a slide's notes (editing them, and text boxes linked
       to them), builds (the things on a slide coming on one after another), and a
       theme for a new slide (everything that makes a new slide, which is the `+` over
-      the editor's slides, New Slide in a slide's menu and media dropped between
-      slides, is to offer a theme's slide as well as a blank one).
+      the editor's slides, New Slide in a slide's menu, media dropped between slides
+      and the first slide of a new presentation, is to offer a theme's slide as well
+      as a blank one).
 - [ ] **Key mappings**: the hotkeys of groups are there, read from and written to the
       workspace's list of groups as ProPresenter has them, and Ctrl+S and Ctrl+E for
       show mode and edit mode. Still to do: a page of the settings for the app's other
@@ -483,8 +487,15 @@ one that mirrors the folders under `Media`: a playlist for each folder of media.
 An exported playlist is imported from the "+" beside Playlists. Its presentations go
 into the library last browsed and its media under `Media`, keeping the folders it had
 below ProPresenter's own `Media` folder; files already there are left as they are.
-The "+" beside Libraries makes a new library, which is a folder, and brings a song in
-from a ChordPro file ([Chords](#chords)).
+The "+" beside Libraries makes a new presentation in the library that is open, makes a
+new library, which is a folder, and brings a song in from a ChordPro file
+([Chords](#chords)). **New Presentation…** asks for a name first, the name being the
+file's and what playlists find it by, and gives the presentation one slide with nothing
+on it, which the [editor](#editing) then puts text boxes, shapes and pictures on. A
+second of the same name gets a number after it. The file starts as ProPresenter's own
+presentations do, with a slide written as ProPresenter writes an empty one; but that
+ProPresenter opens a presentation that was made here is a guess, and has not been
+tried.
 
 `--workspace <dir>` opens a particular workspace folder, wherever it is; the folders
 beside it are then the ones the picker offers. `--help` lists the other options.
@@ -1007,7 +1018,7 @@ The **+** beside Libraries has **Import ChordPro File…**, which makes a new so
 ChordPro file in the library that is open: a group for each part the file marks
 (verses, choruses, a bridge, or a line that only says "Verse 2:"), two lines of words
 to a slide unless another number is asked for, the chords over the words, and the
-song's key. The same **+** has **New Library**.
+song's key. The same **+** has **New Presentation…** and **New Library**.
 
 ### What is a guess, or not done
 
@@ -1871,6 +1882,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/ChordSheet.qml`, `qml/ChordProEditor.qml` | The two chord editors: the song as a sheet with its chords in bubbles, and as ChordPro text |
 | `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |
 | `qml/ImportSong.qml` | The panel a ChordPro file is imported from |
+| `qml/NewPresentation.qml` | The panel a new presentation is named in |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps the windows of the screens out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |

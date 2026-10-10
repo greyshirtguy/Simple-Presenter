@@ -144,6 +144,7 @@ qt_add_qml_module(SimplePresenter
         qml/Slide.qml
         qml/SlideElement.qml
         qml/MediaContent.qml
+        qml/NewPresentation.qml
         qml/NumberField.qml
         qml/ResizeGrips.qml
         qml/RowDrag.qml

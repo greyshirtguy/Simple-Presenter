@@ -128,6 +128,9 @@ public:
     // nothing. It is for naming a library that has just been made. Returns
     // { path, error }.
     Q_INVOKABLE QVariantMap renameLibrary(const QString &path, const QString &name);
+    // Makes a new presentation in the library folder `library`, called `name`: one
+    // slide with nothing on it (see ProDocument::create). Returns { path, error }.
+    Q_INVOKABLE QVariantMap createPresentation(const QString &library, const QString &name);
     // Makes a presentation of a ChordPro file in the library folder `library`, with
     // `linesPerSlide` lines of its words on each slide (see songimport.h). Returns
     // { path, error }.

@@ -7,8 +7,8 @@ import "lib.js" as Lib
 // a chord, dragging one, copying a line's, undo); a blank slide given chords in both
 // editors, with and without a text box of its own, and left as it was found when they
 // are taken off again; the ChordPro editor (only chords can be typed); importing a
-// ChordPro file; and a new library. What the file then holds is looked at when the
-// test is over, by after_chords in run.py.
+// ChordPro file; a new presentation; and a new library. What the files then hold is
+// looked at when the test is over, by after_chords in run.py.
 QtObject {
     id: t
 
@@ -662,7 +662,8 @@ QtObject {
                 return 400
             },
             () => {
-                check("the + beside Libraries offers a new library and a ChordPro file", labels() === "New Library, Import ChordPro File…", labels())
+                check("the + beside Libraries offers a new presentation, a new library and a ChordPro file",
+                      labels() === "New Presentation…, New Library, Import ChordPro File…", labels())
                 menu.close()
                 importSongPanel.show(kept.file)
                 return 400
@@ -695,6 +696,99 @@ QtObject {
                 check("and a line of chords alone hangs on stand-ins", outro.chords.map(c => c.at + ":" + c.name).join(" ") === "0:G 2:D/F# 4:Em" && testInput.plain(outro.text).length === 5,
                       JSON.stringify(outro.chords))
                 testInput.grab("10-imported")
+                // A new presentation, in the library that is open.
+                kept.before = documents.length
+                click(centre(named("addLibraryButton")))
+                return 400
+            },
+            () => {
+                click(menuRow("New Presentation…"))
+                return 500
+            },
+            () => {
+                const field = named("newPresentationName")
+                check("New Presentation asks for its name first, with a name to type over", named("newPresentationPanel").visible && field.activeFocus
+                      && field.text === "New Presentation" && field.selectedText === field.text, field.text + " / " + field.selectedText)
+                testInput.grab("11-new-presentation")
+                testInput.key(Qt.Key_Escape)
+                return 300
+            },
+            () => {
+                check("Esc makes nothing", !named("newPresentationPanel").visible && documents.length === kept.before, documents.length + " " + kept.before)
+                click(centre(named("addLibraryButton")))
+                return 400
+            },
+            () => {
+                click(menuRow("New Presentation…"))
+                return 500
+            },
+            () => {
+                testInput.type("Sunday Notes")
+                testInput.key(Qt.Key_Return)
+                return 900
+            },
+            () => {
+                check("with a name typed and Enter, it is made in the library that is open, and opened", document !== null && document.name === "Sunday Notes"
+                      && document.path === libraryPath + "/Sunday Notes.pro" && documents.length === kept.before + 1
+                      && documents.some(d => d.name === "Sunday Notes") && !named("newPresentationPanel").visible, document ? document.path : "")
+                check("it has one slide, with nothing on it", document.slides.length === 1 && document.slides[0].elements.length === 0
+                      && document.slides[0].group === "" && document.hasChords === false,
+                      document.slides.length + " slides, " + (document.slides[0] ? document.slides[0].elements.length : "?") + " elements")
+                kept.made = document.path
+                kept.madeHash = testInput.fileHash(kept.made)
+                // And as the operator sees it, in what is drawn: its name over the slides, its row in the list of
+                // presentations brought into view and picked out, and one slide in the grid, a black one, with
+                // nothing where a second would be.
+                const title = named("gridTitle")
+                const titled = strokes(title)
+                const inList = listed("Sunday Notes")
+                check("its name is drawn over the slides", title.visible && title.text === "Sunday Notes" && titled.light >= 3 && titled.dark >= 3,
+                      title.text + " " + JSON.stringify(titled))
+                check("and in the list of presentations, which is brought to it: its row is in view and picked out",
+                      inList.inView && inList.picked && inList.light >= 3 && inList.dark >= 3, JSON.stringify(inList))
+                const view = named("slideGrid")
+                const tile = view.itemAtIndex(0)
+                const middle = tile ? tile.mapToItem(null, view.cellWidth / 2, (view.cellHeight - view.labelHeight) / 2) : null
+                const pixels = middle ? [[0, 0], [view.cellWidth, 0], [0, view.cellHeight]].map(by => String(testInput.windowPixel(middle.x + by[0], middle.y + by[1]))) : []
+                check("the grid draws one slide, a black one, and nothing where a second would be, beside it or below", view.count === 1 && view.columns >= 2
+                      && pixels[0] === "#000000" && pixels[1] !== "#000000" && pixels[1] === pixels[2], pixels.join(" ") + ", " + view.columns + " to a row")
+                check("and the log has a line for it, with the name of its file and of its library",
+                      testInput.readText(Log.path).includes("a new presentation, " + JSON.stringify("Sunday Notes.pro") + ", made in the library "
+                                                            + JSON.stringify(libraryPath.replace(/^.*\//, ""))))
+                testInput.grab("12-new-presentation-made")
+                // A name the library has already, and one a file cannot have.
+                const again = catalog.createPresentation(libraryPath, "Sunday Notes")
+                const slashed = catalog.createPresentation(libraryPath, " . ./Odd/Name ")
+                const nowhere = catalog.createPresentation(libraryPath + "/No Such Folder", "Lost")
+                check("a second of the same name has a number after it, in the file's name and inside the file", again.error === ""
+                      && again.path === libraryPath + "/Sunday Notes 2.pro" && catalog.open(again.path).name === "Sunday Notes 2", again.path + " " + again.error)
+                check("a name is cleared of what a file's name cannot have, and of the dots and spaces that would start it", slashed.error === ""
+                      && slashed.path === libraryPath + "/-Odd-Name.pro" && catalog.open(slashed.path).name === "-Odd-Name",
+                      slashed.path + " " + slashed.error)
+                check("and with no library to put it in nothing is made, and it says so", nowhere.error !== "" && nowhere.path === "", nowhere.error)
+                check("the first one made is not touched by the others", testInput.fileHash(kept.made) === kept.madeHash)
+                startEditing(entry("Sunday Notes"))
+                return 600
+            },
+            () => {
+                // Its one slide has no text box, and the song no other to make one like: a chord put there is given
+                // a text box as the T of the editor makes one, and it goes again with the chord.
+                const editor = editScreen.editor
+                const blank = editor.song()
+                check("in the chord editors its slide is a blank one, with no text box behind it", blank.length === 1 && blank[0].blank && blank[0].element === "",
+                      JSON.stringify(blank))
+                const put = editor.setChordsAlone(0, "", 0, ["G"])
+                const given = editor.song()
+                check("a chord put there is given a text box, though the song has none to make it like", put === "" && given.length === 1 && !given[0].blank
+                      && given[0].element !== "" && given[0].text === zeroWidth && given[0].chords.length === 1
+                      && catalog.open(kept.made).slides[0].elements.length === 1, put + " " + JSON.stringify(given))
+                const off = editor.setChordsAlone(0, given[0].element, 0, [])
+                check("and taken off again, the presentation's file is byte for byte as it was made", off === "" && editor.song()[0].element === ""
+                      && testInput.fileHash(kept.made) === kept.madeHash, off + " " + JSON.stringify(editor.song()))
+                stopEditing()
+                return 500
+            },
+            () => {
                 click(centre(named("addLibraryButton")))
                 return 400
             },

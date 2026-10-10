@@ -218,6 +218,16 @@ QVariantMap Catalog::renameLibrary(const QString &path, const QString &name)
     return {{"path", libraries.filePath(wanted)}, {"error", QString()}};
 }
 
+QVariantMap Catalog::createPresentation(const QString &library, const QString &name)
+{
+    QString made;
+    const QString error = ProDocument::create(library, name, &made);
+    // As when a song is imported: the lists are told at once.
+    if (error.isEmpty())
+        rescan();
+    return {{"path", made}, {"error", error}};
+}
+
 QVariantMap Catalog::importSong(const QUrl &file, const QString &library, int linesPerSlide)
 {
     QString made;

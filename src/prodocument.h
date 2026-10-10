@@ -116,6 +116,15 @@ struct ProDocument
     // Adds a slide with nothing on it, placed as insertMediaCues places one, and gives
     // the id of its cue. Writes the file back.
     static QString insertBlankCue(const QString &path, const QString &cueId, bool after, QString *madeId);
+    // Makes a new presentation in the library folder `library`, called `name` (with a
+    // number after it if the library has one of that name already), and gives its
+    // file's path. It has one slide with nothing on it, of an HD screen's size, in a
+    // group with no name, which is how ProPresenter keeps slides that are in no
+    // group. One slide and not none: a presentation is opened to be worked on, and
+    // there is then a slide to put a text box or a picture on. (A GUESS: that
+    // ProPresenter starts a new presentation with one slide too. It has not been
+    // looked at.) Returns an error message, empty on success.
+    static QString create(const QString &library, const QString &name, QString *made);
     // A cue as it is in the file, to be pasted; empty, with *error set, if it is not there.
     static QByteArray copyCue(const QString &path, const QString &cueId, QString *error);
     // Adds a copy of a cue that copyCue gave, from this presentation or another, placed

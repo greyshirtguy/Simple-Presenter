@@ -381,6 +381,29 @@ def after_chords(workspace, test_dir):
             said(names(box) == names(before) + " A" and spans(box) == " ".join("%d-%d" % (2 * i, 2 * i + 1) for i in range(count + 1)),
                  "in the song's file: and so are they written here, with one more on the end", names(box) + " over " + spans(box)),
         ]
+    # The presentation that was made new, and the one made after it by the same name
+    new, second = (decoded(song(name)) if song(name) else "" for name in ("Sunday Notes.pro", "Sunday Notes 2.pro"))
+    top = sorted(set(re.findall(r"^([a-z_A-Z]+)(?: \{|:)", new, re.M)))
+    group = re.search(r"^cue_groups \{\n(.*?)^\}", new, re.S | re.M)
+    cue_ids = re.findall(r'^cues \{\n  uuid \{\n    string: "([^"]+)"', new, re.M)
+    lines += [
+        said(top == ["application_info", "background", "ccli", "chord_chart", "cue_groups", "cues", "name", "timeline", "uuid"]
+             and 'name: "Sunday Notes"' in new and re.search(r"^timeline \{\n  duration: 300\n\}", new, re.M) is not None,
+             "in the new presentation's file: what every presentation of ProPresenter's starts with, and its name", " ".join(top)),
+        said(len(cue_ids) == 1 and new.count("\ncues {") + new.startswith("cues {") == 1 and "elements {" not in new and "base_slide {" in new,
+             "in the new presentation's file: one slide, with nothing on it", "%d cues" % len(cue_ids)),
+        said(group is not None and len(re.findall(r"^cue_groups \{", new, re.M)) == 1 and "name:" not in group.group(1) and "hotKey {" in group.group(1)
+             and len(cue_ids) == 1 and ('string: "%s"' % cue_ids[0]) in group.group(1).split("cue_identifiers {")[-1],
+             "in the new presentation's file: the slide is in one group with an id and no name, as ProPresenter keeps a slide that is in none"),
+        said(re.search(r"^\s*\d+(?::| \{)", new, re.M) is None,
+             "in the new presentation's file: nothing the descriptions of ProPresenter's files have no name for"),
+        said('name: "Sunday Notes 2"' in second and re.search(r'^uuid \{\n  string: "([^"]+)"', second, re.M) is not None
+             and re.search(r'^uuid \{\n  string: "([^"]+)"', second, re.M).group(1) != re.search(r'^uuid \{\n  string: "([^"]+)"', new, re.M).group(1),
+             "in the second one's file: its own name and an id of its own"),
+    ]
+    imported = decoded(song("Plain Song.pro")) if song("Plain Song.pro") else ""
+    lines.append(said(re.search(r"^timeline \{\n  duration: 300\n\}", imported, re.M) is not None and re.search(r"^ccli \{", imported, re.M) is not None,
+                      "in the imported song's file: the same beginning as a new presentation's"))
     made = boxes(decoded(song("Plain Song.pro"))) if song("Plain Song.pro") else []
     worded = [box for box in made if names(box) == "G D Em"]
     alone = [box for box in made if names(box) == "G D/F# Em"]
