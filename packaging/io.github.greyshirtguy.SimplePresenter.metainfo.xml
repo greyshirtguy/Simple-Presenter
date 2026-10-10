@@ -38,6 +38,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.82" date="2026-10-10">
+      <description>
+        <p>
+          Looks as ProPresenter has them: the live look by name in the toolbar, the Looks window with
+          the screens across and the layers down, and a live look of its own that can be changed and
+          saved. ProPresenter's own pictures on the buttons and the actions. And what an AI coding
+          agent is told, so that it can help someone find out what is wrong on their own computer.
+        </p>
+      </description>
+    </release>
     <release version="0.81" date="2026-10-10">
       <description>
         <p>
