@@ -2,171 +2,46 @@ import QtQuick
 import QtQuick.Shapes
 
 // The small picture of what an action does, for an ActionIcon and for the lists of
-// actions: `kind` is "timer" (a stopwatch), "clear" (a crossed circle), "stage" (a
-// screen on its stand), "prop" (something laid over a corner), "macro" (an M in
-// brackets: see MacroGlyph) or "other" (three dots), as the kinds of action are named
-// (see src/actions.h); or, for how a video plays on from its end, "stop" (a square) or
-// "loop" (an arrow going round). Drawn in a box twelve high and twelve wide, sixteen
-// for a macro, in `ink`.
+// actions. `kind` is the kind of action, as they are named (see src/actions.h):
+// "timer", "clear", "look", "stage", "prop", "macro" or "other".
+//
+// For all but the last ProPresenter has a picture of its own, and that is what is
+// drawn (see ProIcon): its timer, its crossed circle, its glasses and moustache for a
+// look, its speaker at a lectern for the stage, its pile of layers for a prop, its M
+// in brackets. An action can say which picture is its own more exactly than its kind
+// does, in `picture`: one that clears the media has ProPresenter's picture of clearing
+// the media and not the plain crossed circle (see actions::describe, which chooses).
+// "other" is three dots.
+//
+// And, for how a video plays on from its end, "stop" (a square) or "loop" (an arrow
+// going round), which are this app's own.
+//
+// It takes up a box twelve high and twelve wide, sixteen wide for a picture that is
+// wider than it is high, and is drawn in `ink`.
 Item {
     id: glyph
 
     property string kind
+    // ProPresenter's picture for it, by name, where the action has said (see above)
+    property string picture: ""
     property color ink: "#e3e5e9"
 
-    width: kind === "macro" ? 16 : 12
+    // The picture for a kind that has not said which is its own
+    readonly property var pictures: ({ timer: "Countdown", clear: "Clear", look: "Looks", stage: "Stage", prop: "Prop", macro: "Macro" })
+    readonly property string shown: picture !== "" ? picture : (pictures[kind] ?? "")
+    readonly property bool wide: shown === "Looks" || shown === "Macro" || shown === "ClearVideoInput" || shown === "ClearPresentation"
+
+    width: wide ? 16 : 12
     height: 12
 
-    // A stopwatch
-    Item {
-        width: 12
-        height: 12
-        visible: glyph.kind === "timer"
-
-        Rectangle {
-            x: 4.5
-            width: 3
-            height: 1.5
-            color: glyph.ink
-        }
-
-        Rectangle {
-            y: 2
-            width: 12
-            height: 10
-            radius: 5
-            color: "transparent"
-            border.width: 1.3
-            border.color: glyph.ink
-        }
-
-        Rectangle {
-            x: 5.4
-            y: 4
-            width: 1.2
-            height: 3.6
-            color: glyph.ink
-        }
-
-        Rectangle {
-            x: 5.4
-            y: 6.6
-            width: 3
-            height: 1.2
-            color: glyph.ink
-        }
-    }
-
-    // A crossed circle
-    Rectangle {
-        anchors.fill: parent
-        visible: glyph.kind === "clear"
-        radius: 6
-        color: "transparent"
-        border.width: 1.3
-        border.color: glyph.ink
-
-        Rectangle {
-            anchors.centerIn: parent
-            width: 7
-            height: 1.3
-            rotation: 45
-            color: glyph.ink
-        }
-
-        Rectangle {
-            anchors.centerIn: parent
-            width: 7
-            height: 1.3
-            rotation: -45
-            color: glyph.ink
-        }
-    }
-
-    // Two layers, one over the other: a look
-    Item {
-        anchors.fill: parent
-        visible: glyph.kind === "look"
-
-        Rectangle {
-            x: 0
-            y: 0
-            width: 9
-            height: 7
-            radius: 1.2
-            color: "transparent"
-            border.width: 1.3
-            border.color: glyph.ink
-        }
-
-        Rectangle {
-            x: 3
-            y: 4
-            width: 9
-            height: 7
-            radius: 1.2
-            color: glyph.ink
-        }
-    }
-
-    // A screen on its stand
-    Item {
-        anchors.fill: parent
-        visible: glyph.kind === "stage"
-
-        Rectangle {
-            width: 12
-            height: 8
-            radius: 1.5
-            color: "transparent"
-            border.width: 1.3
-            border.color: glyph.ink
-        }
-
-        Rectangle {
-            x: 5.4
-            y: 8
-            width: 1.2
-            height: 2.6
-            color: glyph.ink
-        }
-
-        Rectangle {
-            x: 3
-            y: 10.5
-            width: 6
-            height: 1.3
-            color: glyph.ink
-        }
-    }
-
-    // Something laid over the corner of the picture
-    Rectangle {
-        y: 1.5
-        width: 12
-        height: 9
-        visible: glyph.kind === "prop"
-        radius: 1.5
-        color: "transparent"
-        border.width: 1.3
-        border.color: glyph.ink
-
-        Rectangle {
-            x: 6
-            y: 4.3
-            width: 4
-            height: 2.6
-            radius: 0.6
-            color: glyph.ink
-        }
-    }
-
-    Loader {
-        active: glyph.kind === "macro"
-
-        sourceComponent: MacroGlyph {
-            ink: glyph.ink
-        }
+    // ProPresenter's picture. Its drawing is the middle of the square it is asked for
+    // in, so the square overhangs this box all round and the drawing fills it.
+    ProIcon {
+        anchors.centerIn: parent
+        visible: glyph.shown !== ""
+        name: glyph.shown
+        ink: glyph.ink
+        size: 18
     }
 
     Text {

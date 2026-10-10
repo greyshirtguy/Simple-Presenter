@@ -101,6 +101,7 @@
 
 #include "benchmark.h"
 #include "catalog.h"
+#include "iconprovider.h"
 #include "selftest.h"
 #include "sessionlog.h"
 #include "thumbnailprovider.h"
@@ -254,6 +255,7 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     engine.addImageProvider("thumbnail", new ThumbnailProvider);
+    engine.addImageProvider("icon", new IconProvider);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     QVariantMap initial {

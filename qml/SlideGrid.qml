@@ -369,7 +369,8 @@ Item {
                                 required property var modelData
 
                                 objectName: "actionBadge"
-                                width: modelData.kind === "macro" ? 22 : 18
+                                // (A little wider for a picture that is.)
+                                width: actionGlyph.wide ? 22 : 18
                                 strength: slides.win.actionIconOpacity
 
                                 function open() {
@@ -377,8 +378,11 @@ Item {
                                 }
 
                                 ActionGlyph {
+                                    id: actionGlyph
+
                                     anchors.centerIn: parent
                                     kind: actionIcon.modelData.kind
+                                    picture: actionIcon.modelData.picture ?? ""
                                     // Fainter for a kind that is kept and not done here
                                     ink: actionIcon.modelData.done ? "#e3e5e9" : "#8a8d93"
                                 }

@@ -6,8 +6,9 @@ import QtQuick.Shapes
 // "alignCenter", "alignRight" and "alignJustify" are lines of text; "alignTop",
 // "alignMiddle" and "alignBottom" are a block against an edge; "eye" and "lock" are for
 // the rows of a list; "sliders" is three sliders, for things to adjust; "play", "pause",
-// "stop" and "restart" (back to the start) are for something that runs; anything else
-// shows `text`. `on` draws it as switched on. Never takes keyboard focus.
+// "stop" and "restart" (back to the start) are for something that runs, the first two
+// being ProPresenter's own pictures; anything else shows `text`. `on` draws it as
+// switched on. Never takes keyboard focus.
 Rectangle {
     id: button
 
@@ -130,12 +131,26 @@ Rectangle {
         }
     }
 
-    // For something that runs: a triangle to play, two bars to pause, a square to stop,
-    // and a bar with a triangle up against it to go back to the start. Only made for a
-    // button of one of those kinds, the triangles being shapes and not rectangles.
+    // For something that runs. To play and to pause are ProPresenter's own pictures
+    // (see ProIcon); to stop is a square, and to go back to the start a bar with a
+    // triangle up against it, which are this app's, the pack of ProPresenter's
+    // pictures having neither.
     Loader {
         anchors.centerIn: parent
-        active: button.kind === "play" || button.kind === "pause" || button.kind === "stop" || button.kind === "restart"
+        active: button.kind === "play" || button.kind === "pause"
+
+        sourceComponent: ProIcon {
+            name: button.kind === "play" ? "TransportPlay" : "TransportPause"
+            ink: button.ink
+            size: 20
+        }
+    }
+
+    // Only made for a button of one of those kinds, the triangle being a shape and not
+    // a rectangle.
+    Loader {
+        anchors.centerIn: parent
+        active: button.kind === "stop" || button.kind === "restart"
 
         sourceComponent: Item {
             width: 12
@@ -143,7 +158,7 @@ Rectangle {
 
             Shape {
                 anchors.fill: parent
-                visible: button.kind === "play" || button.kind === "restart"
+                visible: button.kind === "restart"
                 preferredRendererType: Shape.CurveRenderer
 
                 ShapePath {
@@ -151,8 +166,7 @@ Rectangle {
                     strokeColor: "transparent"
 
                     PathPolyline {
-                        path: button.kind === "play" ? [Qt.point(1.5, 0), Qt.point(11.5, 6), Qt.point(1.5, 12), Qt.point(1.5, 0)]
-                                                     : [Qt.point(12, 0), Qt.point(3.5, 6), Qt.point(12, 12), Qt.point(12, 0)]
+                        path: [Qt.point(12, 0), Qt.point(3.5, 6), Qt.point(12, 12), Qt.point(12, 0)]
                     }
                 }
             }
@@ -162,19 +176,6 @@ Rectangle {
                 width: 2.5
                 height: 12
                 color: button.ink
-            }
-
-            Repeater {
-                model: button.kind === "pause" ? [1, 7.5] : []
-
-                delegate: Rectangle {
-                    required property real modelData
-
-                    x: modelData
-                    width: 3.5
-                    height: 12
-                    color: button.ink
-                }
             }
 
             Rectangle {

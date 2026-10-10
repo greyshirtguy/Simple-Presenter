@@ -54,12 +54,18 @@ QtObject {
                 const inPair = Lib.findAll(pair, item => item.label !== undefined && item.kind !== undefined).map(item => item.label)
                 check("the output and stage switches drawn as one control, the two of them and nothing else", pair !== null && inPair.join("|") === "Output|Stage" && pair.border.width === 1
                       && near(pair.width, 52 * 2 + 1 + 2) && pair.height === 40, inPair.join("|") + " in " + (pair ? pair.width + "x" + pair.height : "none"))
+                const shows = (name) => { const found = Lib.find(named(name), i => i.inkName !== undefined && i.name !== undefined && i.visible === true); return found ? found.name + "/" + found.inkName : "none" }
+                check("the looks, the screens and the stage have ProPresenter's own pictures; the screens' is the green one while they are on, the stage's is drawn green",
+                      shows("looksButton") === "Looks/e6e6e6" && shows("outputToggle") === (outputEnabled ? "ScreensOn/" : "Screens/e6e6e6")
+                      && shows("stageToggle") === (stageEnabled ? "Stage/5ab53b" : "Stage/e6e6e6"),
+                      shows("looksButton") + " " + shows("outputToggle") + " " + shows("stageToggle"))
                 check("each half still switching its own window", (() => {
                     // (Its being clicked is said for it: the toolbar does not take this script's made-up clicks, only a
                     // real pointer's, which was tried by hand in the headless desktop.)
                     const was = [outputEnabled, stageEnabled]
                     named("outputToggle").clicked()
                     const afterOutput = [outputEnabled, stageEnabled]
+                    kept.outputPicture = shows("outputToggle")
                     named("stageToggle").clicked()
                     const afterStage = [outputEnabled, stageEnabled]
                     named("outputToggle").clicked()
@@ -67,6 +73,7 @@ QtObject {
                     return afterOutput[0] === !was[0] && afterOutput[1] === was[1] && afterStage[0] === !was[0] && afterStage[1] === !was[1]
                            && outputEnabled === was[0] && stageEnabled === was[1]
                 })())
+                check("the screens' picture changed with the switch", kept.outputPicture === (outputEnabled ? "Screens/e6e6e6" : "ScreensOn/"), kept.outputPicture)
                 check("and nothing of the transition, which is under the slides now", !texts(toolbar).some(x => x === transition.name) && Lib.find(toolbar, item => item.objectName === "transitionButton") === null)
                 // ---- the panes
                 check("the right pane runs from the toolbar to the bottom of the window", near(sidePanel.y, 48) && near(sidePanel.y + sidePanel.height, win.height)
@@ -92,7 +99,16 @@ QtObject {
                       && near(clears[2].width, clears[3].width)
                       && near(clears[0].mapToItem(sidePanel, 0, 0).x, 12) && near(clears[3].mapToItem(sidePanel, clears[3].width, 0).x, sidePanel.width - 12),
                       clears.map(c => c ? c.width.toFixed(1) : "none").join(", ") + " in " + sidePanel.width)
-                check("with pictures on them and no words", clears.every(c => texts(c).length === 0 && Lib.find(c, item => item.preferredRendererType !== undefined) !== null))
+                const pictureOf = (item) => { const found = Lib.find(item, i => i.inkName !== undefined && i.name !== undefined && i.visible === true); return found ? found.name : "none" }
+                check("with pictures on them and no words: ProPresenter's own, of clearing each layer", clears.every(c => texts(c).length === 0)
+                      && clears.map(pictureOf).join() === "Clear,ClearPresentation,ClearMedia,ClearProps", clears.map(pictureOf).join())
+                const tabs = Lib.findAll(sidePanel, i => i.chosen !== undefined && i.modelData !== undefined && i.modelData.picture !== undefined)
+                check("and so are the tabs of the show controls: a timer, a pile of layers, a speaker at a lectern, an M in brackets",
+                      tabs.map(pictureOf).join() === "Countdown,Prop,Stage,Macro", tabs.map(pictureOf).join())
+                const pictures = Lib.findAll(win.contentItem, i => i.inkName !== undefined && i.name !== undefined && i.name !== "")
+                check("every one of those pictures that is asked for anywhere in the window is there to be had", pictures.length >= 10
+                      && pictures.every(p => p.status === Image.Ready && p.implicitWidth > 0),
+                      pictures.length + " asked for; not had: " + pictures.filter(p => p.status !== Image.Ready).map(p => p.name).join())
                 check("grey while there is nothing to clear", clears.every(c => !c.live && Qt.colorEqual(c.color, "#2b2d31")))
                 kept.clears = clears
                 goLive(6)

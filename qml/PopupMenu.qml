@@ -12,8 +12,9 @@ import QtQuick.Effects
 //   { label: "…", run: () => … } something to do, which may also be marked
 //                               `current` (ticked), `danger` (red) or `disabled`
 //                               (greyed, and does nothing), and may have a `glyph`,
-//                               the kind of a small picture drawn before its label
-//                               (see ActionGlyph)
+//                               the kind of a small picture drawn before its label,
+//                               and a `picture` that says which exactly (see
+//                               ActionGlyph)
 //   { label: "…", items: […] }  a row that leads to a menu of its own, which opens
 //                               beside it when the pointer rests on the row, or on a
 //                               click. `items` is the rows of that menu, or a function
@@ -302,6 +303,7 @@ Popup {
 
                                     sourceComponent: ActionGlyph {
                                         kind: row.modelData.glyph
+                                        picture: row.modelData.picture ?? ""
                                         ink: row.unavailable ? "#6c6f75" : "#c9cdd6"
                                     }
                                 }

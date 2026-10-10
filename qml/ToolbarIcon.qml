@@ -1,19 +1,26 @@
 import QtQuick
 import QtQuick.Shapes
 
-// A toolbar button drawn as a small icon with a caption under it. `kind` picks the icon:
-// "dot" is a status light, green when `on`; "bin" is a window with its bottom pane filled
-// when `on`; "settings" is a set of sliders; "edit" is a pencil, orange when `on`;
-// "show" is the triangle that means play, orange when `on`;
-// "expand" is four corners turned outwards, the sign for filling the screen, orange
-// when `on`; "looks" is three sheets one over another, for the layers a look deals out.
+// A toolbar button drawn as a small icon with a caption under it. `kind` picks the icon.
+//
+// Three are ProPresenter's own pictures (see ProIcon), for the three things in this
+// toolbar that are in ProPresenter's: "looks" is its glasses and moustache, orange
+// while `on`; "screens" is its screen on a stand, which is green while `on` (the
+// audience screens are being sent out); "stage" is its speaker at a lectern, green
+// while `on` likewise.
+//
+// The rest are this app's, for what ProPresenter's pack has no picture of: "bin" is a
+// window with its bottom pane filled when `on`; "settings" is a set of sliders; "edit"
+// is a pencil, orange when `on`; "show" is the triangle that means play, orange when
+// `on`; "search" is a magnifying glass; "themes" is one slide behind another; "expand"
+// is four corners turned outwards, the sign for filling the screen, orange when `on`.
 //
 // A caption is as wide as it needs to be, up to `captionWidth`, and the button with it:
 // most say one short word, and the Looks button says the name of the look that is live.
 Item {
     id: button
 
-    property string kind: "dot"
+    property string kind
     property string label
     property bool on: false
     // For a button whose work can also be done by holding a key: how far the hold has
@@ -23,6 +30,15 @@ Item {
     signal clicked
 
     readonly property color ink: "#e6e6e6"
+    readonly property color accent: "#ff8a1f"
+    // The green of ProPresenter's own picture of the screens switched on
+    readonly property color lit: "#5ab53b"
+    // ProPresenter's picture for this kind of button, if it has one, and what it is
+    // drawn in. (The screens switched on are a picture with its own colours.)
+    readonly property string picture: kind === "looks" ? "Looks" : kind === "stage" ? "Stage"
+                                    : kind === "screens" ? (on ? "ScreensOn" : "Screens") : ""
+    readonly property color pictureInk: kind === "looks" ? (on ? accent : ink) : kind === "stage" ? (on ? lit : ink)
+                                      : on ? "transparent" : ink
     // The widest a caption gets before it is cut short with an ellipsis
     property real captionWidth: 120
 
@@ -44,13 +60,14 @@ Item {
         width: 18
         height: 14
 
-        Rectangle {
+        // One of ProPresenter's pictures. Its drawing is the middle of the square, so
+        // the square overhangs this box, above and below.
+        ProIcon {
             anchors.centerIn: parent
-            width: 12
-            height: 12
-            radius: 6
-            visible: button.kind === "dot"
-            color: button.on ? "#3ddc68" : "#5c5f66"
+            visible: button.picture !== ""
+            name: button.picture
+            ink: button.pictureInk
+            size: 23
         }
 
         Rectangle {
@@ -73,7 +90,7 @@ Item {
             }
         }
 
-        // A pencil, point down to the left, with a line drawn under it
+        // The triangle that means play
         Shape {
             anchors.fill: parent
             visible: button.kind === "show"
@@ -89,6 +106,7 @@ Item {
             }
         }
 
+        // A pencil, point down to the left
         Shape {
             anchors.fill: parent
             visible: button.kind === "edit"
@@ -156,28 +174,6 @@ Item {
                         [Qt.point(4.5, 1), Qt.point(16.5, 1), Qt.point(16.5, 9.5)],
                         [Qt.point(4, 7), Qt.point(10.5, 7)],
                         [Qt.point(4, 9.7), Qt.point(8.5, 9.7)]
-                    ]
-                }
-            }
-        }
-
-        // Three sheets, one over another: layers
-        Shape {
-            anchors.fill: parent
-            visible: button.kind === "looks"
-            preferredRendererType: Shape.CurveRenderer
-
-            ShapePath {
-                fillColor: "transparent"
-                strokeColor: button.on ? "#ff8a1f" : button.ink
-                strokeWidth: 1.5
-                joinStyle: ShapePath.RoundJoin
-
-                PathMultiline {
-                    paths: [
-                        [Qt.point(9, 0.8), Qt.point(16.5, 4.3), Qt.point(9, 7.8), Qt.point(1.5, 4.3), Qt.point(9, 0.8)],
-                        [Qt.point(1.5, 7.3), Qt.point(9, 10.8), Qt.point(16.5, 7.3)],
-                        [Qt.point(1.5, 10.3), Qt.point(9, 13.8), Qt.point(16.5, 10.3)]
                     ]
                 }
             }

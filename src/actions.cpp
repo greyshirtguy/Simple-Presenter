@@ -121,6 +121,31 @@ void buildTimer(const QVariantMap &wanted, Action::TimerType *timer)
 }
 
 // The layers there are to clear, as words; and whether clearing that one is done here.
+// ProPresenter's own picture of clearing what a clear action clears, by name. It has
+// one for each layer but the logo and the audio effects, which get the plain one.
+QString clearPicture(const Action::ClearType &clear)
+{
+    using Clear = Action::ClearType;
+    if (clear.content_destination() == Action::CONTENT_DESTINATION_ANNOUNCEMENTS)
+        return QStringLiteral("ClearAnnouncements");
+    switch (clear.target_layer()) {
+    case Clear::CLEAR_TARGET_LAYER_BACKGROUND:
+        return QStringLiteral("ClearMedia");
+    case Clear::CLEAR_TARGET_LAYER_PROP:
+        return QStringLiteral("ClearProps");
+    case Clear::CLEAR_TARGET_LAYER_SLIDE:
+        return QStringLiteral("ClearPresentation");
+    case Clear::CLEAR_TARGET_LAYER_AUDIO:
+        return QStringLiteral("ClearAudio");
+    case Clear::CLEAR_TARGET_LAYER_LIVE_VIDEO:
+        return QStringLiteral("ClearVideoInput");
+    case Clear::CLEAR_TARGET_LAYER_MESSAGES:
+        return QStringLiteral("ClearMessages");
+    default:
+        return QStringLiteral("Clear");
+    }
+}
+
 QString layerWords(const Action::ClearType &clear, bool *done)
 {
     using Clear = Action::ClearType;
@@ -174,6 +199,7 @@ QVariantMap describe(const rv::data::Action &action)
         bool done = false;
         map.insert("kind", QStringLiteral("clear"));
         map.insert("layer", int(action.clear().target_layer()));
+        map.insert("picture", clearPicture(action.clear()));
         map.insert("title", layerWords(action.clear(), &done));
         map.insert("done", done);
     } else if (action.has_stage()) {
@@ -221,6 +247,9 @@ QVariantMap describe(const rv::data::Action &action)
     } else {
         const QString about = subject(action);
         map.insert("kind", QStringLiteral("other"));
+        // (Of the kinds not done here, ProPresenter's pack has a picture for a message.)
+        if (action.has_message())
+            map.insert("picture", QStringLiteral("Message"));
         map.insert("title", typeWords(action.type()) + (about.isEmpty() ? QString() : QStringLiteral(": ") + about));
         map.insert("done", false);
     }

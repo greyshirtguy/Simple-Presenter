@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Shapes
 import QtMultimedia
 import SimplePresenterApp
 
@@ -66,7 +65,7 @@ Rectangle {
 
     // A button that clears a layer of the output, or all of them: red while there is
     // something there for it to clear, and grey once there is not. What it clears is
-    // drawn on it in thin lines, which leave the red to be seen.
+    // on it as ProPresenter's own picture of clearing that layer (see ProIcon).
     component ClearButton: Rectangle {
         id: clearButton
 
@@ -78,6 +77,8 @@ Rectangle {
         readonly property int clears: ({ "all": 0, "slide": 5, "media": 2, "props": 4 })[kind] ?? 0
         readonly property string title: ({ "all": "Clear Everything", "slide": "Clear the Slide", "media": "Clear the Media",
                                            "props": "Clear the Props" })[kind] ?? ""
+        readonly property string picture: ({ "all": "Clear", "slide": "ClearPresentation", "media": "ClearMedia",
+                                             "props": "ClearProps" })[kind] ?? "Clear"
         readonly property color ink: live ? "#ececec" : "#6c6f75"
 
         signal clicked
@@ -87,62 +88,12 @@ Rectangle {
         radius: 6
         color: !live ? "#2b2d31" : clearMouse.pressed ? "#e25555" : clearMouse.containsMouse ? "#d84343" : "#c62828"
 
-        Shape {
+        // ProPresenter's own picture of clearing that layer
+        ProIcon {
             anchors.centerIn: parent
-            width: 18
-            height: 16
-            preferredRendererType: Shape.CurveRenderer
-
-            // All: a cross in a circle
-            ShapePath {
-                strokeColor: clearButton.kind === "all" ? clearButton.ink : "transparent"
-                strokeWidth: 1.5
-                fillColor: "transparent"
-                capStyle: ShapePath.RoundCap
-
-                PathSvg {
-                    path: "M 9 1 A 7 7 0 1 1 8.99 1 Z M 6.3 5.3 L 11.7 10.7 M 11.7 5.3 L 6.3 10.7"
-                }
-            }
-
-            // The slide: a square with three lines of words in it
-            ShapePath {
-                strokeColor: clearButton.kind === "slide" ? clearButton.ink : "transparent"
-                strokeWidth: 1.5
-                fillColor: "transparent"
-                capStyle: ShapePath.RoundCap
-                joinStyle: ShapePath.RoundJoin
-
-                PathSvg {
-                    path: "M 2.5 1 L 15.5 1 L 15.5 15 L 2.5 15 Z M 5.5 4.8 L 12.5 4.8 M 5.5 8 L 12.5 8 M 5.5 11.2 L 10.5 11.2"
-                }
-            }
-
-            // The media: two mountains, and the sun over them
-            ShapePath {
-                strokeColor: clearButton.kind === "media" ? clearButton.ink : "transparent"
-                strokeWidth: 1.5
-                fillColor: "transparent"
-                capStyle: ShapePath.RoundCap
-                joinStyle: ShapePath.RoundJoin
-
-                PathSvg {
-                    path: "M 0.8 14.5 L 6.2 5.5 L 9.6 11.2 L 11.8 7.6 L 17.2 14.5 Z M 14.2 1.4 A 1.5 1.5 0 1 1 14.19 1.4 Z"
-                }
-            }
-
-            // The props: the picture, with something laid over its corner
-            ShapePath {
-                strokeColor: clearButton.kind === "props" ? clearButton.ink : "transparent"
-                strokeWidth: 1.5
-                fillColor: "transparent"
-                capStyle: ShapePath.RoundCap
-                joinStyle: ShapePath.RoundJoin
-
-                PathSvg {
-                    path: "M 1 2 L 17 2 L 17 14 L 1 14 Z M 9 7.5 L 14 7.5 L 14 11 L 9 11 Z"
-                }
-            }
+            name: clearButton.picture
+            ink: clearButton.ink
+            size: 26
         }
 
         // A click clears, when there is something to clear. And the button can be
@@ -153,7 +104,7 @@ Rectangle {
 
             anchors.fill: parent
             win: sidePanel.win
-            payload: ({ kind: "clear", id: "", layer: clearButton.clears, name: clearButton.title })
+            payload: ({ kind: "clear", id: "", layer: clearButton.clears, name: clearButton.title, picture: clearButton.picture })
             hoverEnabled: true
             onClicked: {
                 if (!dragged && clearButton.live)

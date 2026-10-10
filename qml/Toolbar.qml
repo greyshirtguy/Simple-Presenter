@@ -259,6 +259,7 @@ Rectangle {
                 ToolbarIcon {
                     objectName: "outputToggle"
                     height: 38
+                    kind: "screens"
                     label: "Output"
                     on: toolbar.win.outputEnabled
                     onClicked: toolbar.win.outputEnabled = !toolbar.win.outputEnabled
@@ -274,6 +275,7 @@ Rectangle {
                 ToolbarIcon {
                     objectName: "stageToggle"
                     height: 38
+                    kind: "stage"
                     label: "Stage"
                     on: toolbar.win.stageEnabled
                     onClicked: toolbar.win.stageEnabled = !toolbar.win.stageEnabled

@@ -55,6 +55,8 @@ qt_add_executable(SimplePresenter
     src/main.cpp
     src/fontresolver.cpp
     src/fontresolver.h
+    src/iconprovider.cpp
+    src/iconprovider.h
     src/playlistfile.cpp
     src/playlistfile.h
     src/playlistimport.cpp
@@ -136,6 +138,7 @@ qt_add_qml_module(SimplePresenter
         qml/OutputScene.qml
         qml/PopupMenu.qml
         qml/PreviewPanel.qml
+        qml/ProIcon.qml
         qml/PropsLayer.qml
         qml/PropsPanel.qml
         qml/Slide.qml
@@ -234,6 +237,32 @@ qt_add_qml_module(SimplePresenter
         src/sessionlog.cpp
         src/windowlists.h
         src/windowlists.cpp
+)
+
+# ProPresenter's own pictures, for what this app has that ProPresenter has too: read as
+# :/icons/<name>.png by IconProvider (src/iconprovider.h). icons/README.md says where
+# they are from, and icons/make.py made these files from them.
+qt_add_resources(SimplePresenter "icons"
+    PREFIX "/"
+    FILES
+        icons/Clear.png
+        icons/ClearAnnouncements.png
+        icons/ClearAudio.png
+        icons/ClearMedia.png
+        icons/ClearMessages.png
+        icons/ClearPresentation.png
+        icons/ClearProps.png
+        icons/ClearVideoInput.png
+        icons/Countdown.png
+        icons/Looks.png
+        icons/Macro.png
+        icons/Message.png
+        icons/Prop.png
+        icons/Screens.png
+        icons/ScreensOn.png
+        icons/Stage.png
+        icons/TransportPause.png
+        icons/TransportPlay.png
 )
 
 # The transitions. Compiled by qsb for every graphics backend Qt can draw with, and loaded

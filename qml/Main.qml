@@ -787,25 +787,27 @@ Window {
 
     // The kinds of action there are to add, as the rows of a menu, each leading to what
     // there is to choose for it: a menu of its own to pick from, or a small panel to
-    // fill in.
+    // fill in. Each has the picture that kind of action has everywhere else, which is
+    // ProPresenter's own (see ActionGlyph), as ProPresenter's menu of actions has.
     function addActionItems(target) {
         const add = action => commitAction(target, action, "")
-        const clear = (label, layer) => ({ label: label, run: () => add({ kind: "clear", layer: layer }) })
+        const clear = (label, layer, picture) => ({ label: label, glyph: "clear", picture: picture, run: () => add({ kind: "clear", layer: layer }) })
         const props = Props.collections.filter(collection => collection.props.length > 0)
         // (Not the macro itself, for an action of a macro.)
         const macros = Macros.collections.map(collection => Object.assign({}, collection, {
             macros: collection.macros.filter(macro => macro.id !== target.macro) })).filter(collection => collection.macros.length > 0)
         return [
             { header: "Add Action" },
-            { label: "Timer…", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
-            { label: "Clear", items: [{ header: "Clear" }, clear("Everything", 0), clear("The Slide", 5), clear("The Media", 2), clear("The Props", 4)] },
-            { label: "Stage…", run: () => actionDialog.openStage(target, null) },
-            { label: "Audience Look", disabled: Looks.looks.length === 0, items: [{ header: "Audience Look" }].concat(Looks.looks.map(look => ({
+            { label: "Timer…", glyph: "timer", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
+            { label: "Clear", glyph: "clear", items: [{ header: "Clear" }, clear("Everything", 0, "Clear"), clear("The Slide", 5, "ClearPresentation"),
+                                                     clear("The Media", 2, "ClearMedia"), clear("The Props", 4, "ClearProps")] },
+            { label: "Stage…", glyph: "stage", run: () => actionDialog.openStage(target, null) },
+            { label: "Audience Look", glyph: "look", disabled: Looks.looks.length === 0, items: [{ header: "Audience Look" }].concat(Looks.looks.map(look => ({
                 label: look.name, run: () => add({ kind: "look", lookId: look.id, lookName: look.name }) }))) },
-            { label: "Prop", disabled: props.length === 0, items: [{ header: "Prop" }].concat(props.map(collection => ({
+            { label: "Prop", glyph: "prop", disabled: props.length === 0, items: [{ header: "Prop" }].concat(props.map(collection => ({
                 label: collection.name, items: [{ header: collection.name }].concat(collection.props.map(prop => ({
                     label: prop.name, items: propActionItems(target, prop, collection) }))) }))) },
-            { label: "Macro", disabled: macros.length === 0, items: [{ header: "Macro" }].concat(macros.map(collection => ({
+            { label: "Macro", glyph: "macro", disabled: macros.length === 0, items: [{ header: "Macro" }].concat(macros.map(collection => ({
                 label: collection.name, items: [{ header: collection.name }].concat(collection.macros.map(macro => ({
                     label: macro.name, run: () => add(macroAction(macro, collection)) }))) }))) }
         ]
@@ -1325,7 +1327,8 @@ Window {
             // What else the slide does when it is shown: see src/actions.h
             { label: "Add Action", items: () => addActionItems(target) },
             { label: "Remove Action", disabled: slide.actions.length === 0, items: [{ header: "Remove Action" }].concat(
-                slide.actions.map(action => ({ label: action.title, glyph: action.kind, run: () => removeAction(target, action) }))) },
+                slide.actions.map(action => ({ label: action.title, glyph: action.kind, picture: action.picture,
+                                               run: () => removeAction(target, action) }))) },
             // The look of the slide: see Themes
             { label: "Theme", disabled: Themes.themes.length === 0, items: () => themeMenuItems([slide.id]) },
             // The caption itself is something to click, where the slide has media that
@@ -2728,6 +2731,7 @@ Window {
                     x: 9
                     anchors.verticalCenter: parent.verticalCenter
                     kind: actionDrag.payload ? actionDrag.payload.kind : ""
+                    picture: actionDrag.payload ? (actionDrag.payload.picture ?? "") : ""
                 }
 
                 Text {

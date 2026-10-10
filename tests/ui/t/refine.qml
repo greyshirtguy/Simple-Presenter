@@ -178,7 +178,8 @@ QtObject {
                 check("with its picture, the M in brackets, and a small picture for each of its actions under its name", Lib.find(first, i => i.letter !== undefined && i.size !== undefined) !== null
                       && glyphs.length === kept.macro.actions.length && glyphs.map(g => g.kind).join() === kept.macro.actions.map(a => a.kind).join(), glyphs.map(g => g.kind).join())
                 const tab = Lib.findAll(sidePanel, i => i.chosen !== undefined && i.modelData !== undefined && i.modelData.id === "macros")[0]
-                check("the tab has the same picture", Lib.find(tab, i => i.letter !== undefined && i.size !== undefined && i.visible) !== null)
+                check("the tab has ProPresenter's own picture of a macro, which is the same M in brackets",
+                      Lib.find(tab, i => i.name === "Macro" && i.inkName !== undefined && i.status === Image.Ready && i.visible) !== null)
                 testInput.grab("2-macros")
                 const panel = named("macroList").parent
                 kept.macros = panel

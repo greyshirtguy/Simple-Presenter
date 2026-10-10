@@ -20,8 +20,12 @@
 // action, for a slide's cue and for a macro alike.
 //
 // The map has, for every action:
-//   id, kind ("timer", "clear", "stage", "prop", "macro" or "other"), title (a few
-//   words saying what it does), done (whether this app runs it)
+//   id, kind ("timer", "clear", "stage", "prop", "look", "macro" or "other"), title (a
+//   few words saying what it does), done (whether this app runs it), and picture:
+//   which of ProPresenter's own pictures stands for it, by name (see iconprovider.h),
+//   where that is more than its kind says. An action that clears the media has the
+//   picture of clearing the media, one that clears the announcements that of clearing
+//   those, whether or not this app does it; "" is the picture of its kind, or none.
 // and for each kind:
 //   timer:  action (a Timers::Action), timerId, timerName, amount (the seconds an
 //           Increment adds), and, if the action also sets the timer up, set (true),

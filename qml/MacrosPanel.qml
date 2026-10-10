@@ -103,14 +103,14 @@ Item {
             { label: "Run", run: () => run(row.id) },
             { label: "Add Action", items: () => win.addActionItems(target) },
             { label: "Remove Action", disabled: row.actions.length === 0, items: [{ header: "Remove Action" }].concat(
-                row.actions.map(action => ({ label: action.title, glyph: action.kind, run: () => remove(action) }))) }
+                row.actions.map(action => ({ label: action.title, glyph: action.kind, picture: action.picture, run: () => remove(action) }))) }
         ]
         // Each action that has something to change, by itself
         const changeables = row.actions.filter(action => changeable(action))
         if (changeables.length > 0) {
             items.push({ header: "Actions" })
             for (const action of changeables) {
-                items.push({ label: action.title, glyph: action.kind, items: [
+                items.push({ label: action.title, glyph: action.kind, picture: action.picture, items: [
                     { label: "Edit…", run: () => change(row, action) },
                     { label: "Remove", danger: true, run: () => remove(action) }
                 ] })
@@ -297,6 +297,7 @@ Item {
                         required property var modelData
 
                         kind: modelData.kind
+                        picture: modelData.picture ?? ""
                         // Fainter for a kind that is kept and not done here
                         ink: modelData.done ? "#c9cdd6" : "#70757d"
                     }

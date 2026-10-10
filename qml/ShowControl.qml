@@ -8,8 +8,10 @@ import QtQuick
 // that layout, run that macro (see DragSource, and dropActionOnSlide in Main.qml).
 //
 // The tabs are a row of buttons across the whole width, pictures and not words, as
-// ProPresenter's are, and the one whose tab is showing is blue. Under them, at the
-// right, is the button that adds to what the tab holds.
+// ProPresenter's are, and the pictures are ProPresenter's own: its timer, its pile of
+// layers for the props, its speaker at a lectern for the stage, its M in brackets for
+// the macros. The one whose tab is showing is blue. Under them, at the right, is the
+// button that adds to what the tab holds.
 Item {
     id: control
 
@@ -20,10 +22,10 @@ Item {
     // Whether something here is being renamed in place, and so has the keyboard
     readonly property bool renaming: props.renaming !== "" || macros.renaming !== ""
     readonly property var tabs: [
-        { id: "timers", name: "Timers" },
-        { id: "props", name: "Props" },
-        { id: "stage", name: "Stage" },
-        { id: "macros", name: "Macros" }
+        { id: "timers", name: "Timers", picture: "Countdown" },
+        { id: "props", name: "Props", picture: "Prop" },
+        { id: "stage", name: "Stage", picture: "Stage" },
+        { id: "macros", name: "Macros", picture: "Macro" }
     ]
 
     Row {
@@ -48,111 +50,12 @@ Item {
                 // The tab that is showing is blue.
                 color: chosen ? "#1e88e5" : mouse.pressed ? "#50535a" : mouse.containsMouse ? "#45484e" : "#3a3c42"
 
-                // Timers: a stopwatch
-                Item {
+                // ProPresenter's own picture for the tab (see ProIcon)
+                ProIcon {
                     anchors.centerIn: parent
-                    width: 16
-                    height: 18
-                    visible: button.modelData.id === "timers"
-
-                    Rectangle {
-                        x: 6
-                        width: 4
-                        height: 2.5
-                        color: button.ink
-                    }
-
-                    Rectangle {
-                        y: 3
-                        width: 16
-                        height: 15
-                        radius: 8
-                        color: "transparent"
-                        border.width: 1.5
-                        border.color: button.ink
-                    }
-
-                    Rectangle {
-                        x: 7.25
-                        y: 6
-                        width: 1.5
-                        height: 5
-                        color: button.ink
-                    }
-
-                    Rectangle {
-                        x: 7.25
-                        y: 10
-                        width: 4.5
-                        height: 1.5
-                        color: button.ink
-                    }
-                }
-
-                // Props: something laid over the corner of the picture
-                Item {
-                    anchors.centerIn: parent
-                    width: 18
-                    height: 13
-                    visible: button.modelData.id === "props"
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 2
-                        color: "transparent"
-                        border.width: 1.5
-                        border.color: button.ink
-                    }
-
-                    Rectangle {
-                        x: 9
-                        y: 6.5
-                        width: 6
-                        height: 3.5
-                        radius: 1
-                        color: button.ink
-                    }
-                }
-
-                // Stage: a screen on its stand
-                Item {
-                    anchors.centerIn: parent
-                    width: 18
-                    height: 16
-                    visible: button.modelData.id === "stage"
-
-                    Rectangle {
-                        width: 18
-                        height: 11.5
-                        radius: 2
-                        color: "transparent"
-                        border.width: 1.5
-                        border.color: button.ink
-                    }
-
-                    Rectangle {
-                        x: 8.25
-                        y: 11.5
-                        width: 1.5
-                        height: 3
-                        color: button.ink
-                    }
-
-                    Rectangle {
-                        x: 5
-                        y: 14.5
-                        width: 8
-                        height: 1.5
-                        color: button.ink
-                    }
-                }
-
-                // Macros: an M in brackets
-                MacroGlyph {
-                    anchors.centerIn: parent
-                    visible: button.modelData.id === "macros"
-                    size: 1.35
+                    name: button.modelData.picture
                     ink: button.ink
+                    size: 25
                 }
 
                 MouseArea {

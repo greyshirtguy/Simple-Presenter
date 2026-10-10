@@ -185,6 +185,10 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **ProPresenter's own pictures.** The look, the screens and the stage in the toolbar,
+  the buttons that clear a layer, the tabs of the show controls and the small picture
+  of what each action does are now the pictures ProPresenter has for them, so that
+  what is known from there is found here at a glance.
 - **Looks, as ProPresenter has them.** The toolbar says which [look](#looks) is live,
   and a click there makes another live. The Looks window is laid out as ProPresenter's
   is, with the screens across the top and the layers down the side. And the live look
@@ -1750,6 +1754,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/OutputScene.qml`, `qml/StageScene.qml`, `qml/StageView.qml` | What an audience screen and a stage screen show, whatever they are sent out through; and the plain view a stage screen has without a layout |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |
 | `qml/LooksPanel.qml` | The Looks window: the saved looks and the live one, and what each gives each screen |
+| `icons/`, `src/iconprovider.*`, `qml/ProIcon.qml` | ProPresenter's own pictures for what this app has too, where they are from and how the files were made (`icons/README.md`, `icons/make.py`), and how one is drawn in any colour at any size |
 | `qml/ThemesPanel.qml` | The themes, let down from the toolbar's button |
 | `qml/SearchPanel.qml` | The search window |
 | `qml/ChordSheet.qml`, `qml/ChordProEditor.qml` | The two chord editors: the song as a sheet with its chords in bubbles, and as ChordPro text |
@@ -1785,6 +1790,11 @@ It uses, under their own licences:
 - Transitions ported from [gl-transitions](https://gl-transitions.com), under the MIT
   licence: everything in `shaders/gl-transitions`, where the licence text is. Each file
   credits its author, and says where it departs from the original.
+- The pictures in `icons/`, which are the ones ProPresenter has for a look, the
+  screens, the stage, a timer, a prop, a macro and clearing a layer: from the icon pack
+  of the [Companion module for ProPresenter](https://github.com/bitfocus/companion-module-renewedvision-propresenter-api),
+  whose repository is under the MIT licence. `icons/README.md` has that licence, and
+  how the files here were made from the pack's.
 - Protocol Buffers, fontconfig, zlib and FFmpeg (through Qt Multimedia, and directly
   for video thumbnails), as provided by the system.
 
