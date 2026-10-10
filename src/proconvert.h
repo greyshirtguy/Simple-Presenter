@@ -96,7 +96,9 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 //     Offset, Radius, and worked out from those OffsetX and OffsetY
 //   words (the start of its own text, on one line: what an element with no name is
 //     called in a list)
-//   text (RichText, as authored), verticalAlignment, marginLeft/Top/Right/Bottom,
+//   text (RichText, as authored), textBox (whether the file gives it a text at all,
+//     with words or with none: what the chord editors go by to find a blank slide's
+//     text box), verticalAlignment, marginLeft/Top/Right/Bottom,
 //   textScale (whether the text's size is changed to suit its box, as the file has it:
 //     0 no, 1 the box's height suits the text instead, which is not done here, 2 made
 //     smaller if it does not fit, 3 made larger if there is room, 4 either; see

@@ -303,9 +303,9 @@ def prepare_chords(workspace, test_dir):
 
 
 def after_chords(workspace, test_dir):
-    """What the chord editor left in the song's file, and the import in the song it made: how the stretch of characters
-    each chord belongs to is written, which only the file shows (the app reads back where a chord starts and no more), and
-    that a change to one text box's chords changed nothing else in the file."""
+    """What the chord editors left in the song's file, and the import in the song it made: how the stretch of characters
+    each chord belongs to is written, which only the file shows (the app reads back where a chord starts and no more); and
+    that giving a blank slide chords changed that slide's one text box and nothing else."""
     def decoded(path):
         with open(path, "rb") as source:
             return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
@@ -341,16 +341,38 @@ def after_chords(workspace, test_dir):
     def names(box):
         return " ".join(name for _, _, name in box["chords"])
 
+    def font(box):
+        found = re.search(r'font \{\s*name: "([^"]*)"\s*size: ([0-9.]+)', box["is"])
+        return found.groups() if found else ("", "")
+
+    # A numbered character as the app writes it in RTF, as protoc then shows it inside a string. (Made from a
+    # backslash and the pieces, so that no escape is written here.)
+    slash = chr(92) * 2
+    def numbered(code):
+        return slash + "uc0" + slash + "u%d " % code
+
     now, was = decoded(song("Hark2.pro")), decoded(os.path.join(FIXTURES, "songs", "Hark2.pro"))
     boxes_now, boxes_was = boxes(now), boxes(was)
     same_count = len(boxes_now) == len(boxes_was)
     changed = [i for i in range(len(boxes_now))] if not same_count else [i for i in range(len(boxes_now)) if boxes_now[i]["is"] != boxes_was[i]["is"]]
+    blank = [i for i in changed if same_count and not boxes_was[i]["chords"]]
     intro = [i for i in changed if same_count and boxes_was[i]["chords"]]
-    lines = [said(same_count and len(changed) == 1 and len(intro) == 1,
-                  "in the song's file: one text is other than it was, the intro's", "%d of %d" % (len(changed), len(boxes_now))),
+    lines = [said(same_count and len(blank) == 1 and len(intro) == 1,
+                  "in the song's file: two texts are other than they were, the blank slide's and the intro's", "%d of %d" % (len(changed), len(boxes_now))),
              said(same_count and around(now, boxes_now) == around(was, boxes_was),
-                  "in the song's file: everything outside it is as ProPresenter left it, byte for byte once decoded")]
-    if len(intro) == 1:
+                  "in the song's file: everything outside those two is as ProPresenter left it, byte for byte once decoded")]
+    if len(blank) == 1 and len(intro) == 1:
+        box, before = boxes_now[blank[0]], boxes_was[blank[0]]
+        rtf = re.search(r'rtf_data: "((?:[^"\\]|\\.)*)"', box["is"])
+        stand_ins = numbered(0x200B) + numbered(0x2001) + numbered(0x200B)
+        lines += [
+            said(names(box) == "E B/D#" and spans(box) == "0-1 2-3",
+                 "in the song's file: the blank slide's two chords, each written over its own stand-in and no more", names(box) + " over " + spans(box)),
+            said(rtf is not None and rtf.group(1).rstrip("}").endswith(stand_ins) and rtf.group(1).count(slash + "uc0") == 3,
+                 "in the song's file: its text is the two stand-ins with the wide space between them, and nothing else"),
+            said(font(box) == font(before) and font(box)[0] != "" and font(box)[0] in (rtf.group(1) if rtf else ""),
+                 "in the song's file: in the font and size the text box had for what is typed into it", "%s %s, was %s %s" % (font(box) + font(before))),
+        ]
         box, before = boxes_now[intro[0]], boxes_was[intro[0]]
         count = len(before["chords"])
         lines += [
