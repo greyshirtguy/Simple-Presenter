@@ -79,6 +79,15 @@ QtObject {
         return { light: greys.filter(g => g > ground + 60).length, dark: greys.filter(g => g < ground + 20).length }
     }
 
+    // Whether a colour of the window ("#rrggbb") is the orange the editor marks things with, or a good part of it
+    // (an edge one pixel wide may be shared between two).
+    function orange(c) {
+        const r = parseInt(c.substring(1, 3), 16)
+        const g = parseInt(c.substring(3, 5), 16)
+        const b = parseInt(c.substring(5, 7), 16)
+        return r > 130 && r > g + 30 && g > b + 20
+    }
+
     // What the operator sees of a presentation in the list of presentations: whether its row is in view, whether
     // it is the one picked out, and whether its name is drawn there (see strokes).
     function listed(name) {
@@ -306,6 +315,14 @@ QtObject {
             () => {
                 check("which is one thing to undo, though it was two slides", names(kept.line) === "1:E 9:F#m7 16:Asus2 23:" + kept.picked && names(kept.other) === "0:A 18:F#m",
                       names(kept.line) + " / " + names(kept.other))
+                // The editor goes to the slide a change was undone on, and the sheet with it, though the undoing has
+                // just had every row of the sheet made anew. (That slide is far down the song; what follows is at its top.)
+                const view = named("chordSheetView")
+                const gone = lineItem(sheet().rows.findIndex(r => r.kind === "line" && r.row === editScreen.canvas.row))
+                const y = gone.mapToItem(view, 0, 0).y
+                check("and the sheet goes to the slide the editor has gone to for it", editScreen.canvas.row === sheet().rows[kept.other].row
+                      && y >= 0 && y + gone.height <= view.height, "slide " + editScreen.canvas.row + ", its first line " + Math.round(y) + " down a view of " + view.height)
+                view.contentY = 0
                 // The line's chords are copied onto the line under it.
                 let p = over(kept.line, 0)
                 testInput.mouse(1, p.x, p.y)
@@ -554,6 +571,70 @@ QtObject {
             () => {
                 check("one of the key's chords clicked while typing goes where the typing was, in place of what was typed",
                       !sheet().typing && names(kept.god) === "0:Bsus4 8:D 16:B", names(kept.god))
+                // ---- Well down the song. Keeping a chord lays the whole sheet out again, and going straight on to another
+                // place is not to send the sheet back to its top by that. (It did: the rows were asked where they were
+                // before they had been put there, and all said the top.) Two slides, one under the other, by their first lines.
+                const view = named("chordSheetView")
+                const spoken = [herald, peace, born, "God and sinners reconciled", sheet().rows[kept.glory].text]
+                const firsts = sheet().rows.map((r, i) => r.kind === "line" && r.first && r.text.length > 0 && !r.alone && !spoken.includes(r.text) ? i : -1)
+                                           .filter(i => i >= 0)
+                kept.low = firsts[firsts.length - 4]
+                kept.lower = firsts[firsts.length - 3]
+                kept.scrolledFrom = view.contentY
+                view.contentY = Math.max(0, Math.min(view.contentHeight - view.height, lineItem(kept.low).y - 80))
+                return 400
+            },
+            () => {
+                const a = over(kept.low, 0)
+                testInput.mouse(1, a.x, a.y)
+                testInput.key(Qt.Key_G, 0, "g")
+                return 300
+            },
+            () => {
+                const view = named("chordSheetView")
+                const inView = index => {
+                    const item = lineItem(index)
+                    const y = item.mapToItem(view, 0, 0).y
+                    return y >= 0 && y + item.height <= view.height
+                }
+                kept.at = view.contentY
+                check("(further down the song: the sheet is scrolled, two slides are in view, and a chord is being typed on the first)",
+                      kept.at > 300 && inView(kept.low) && inView(kept.lower) && sheet().rows[kept.low].row !== sheet().rows[kept.lower].row
+                      && sheet().typing && sheet().typingRow === kept.low && sheet().typingAt === 0 && editScreen.canvas.row !== sheet().rows[kept.lower].row,
+                      "the sheet at " + Math.round(kept.at) + ", typing at " + sheet().typingRow + ":" + sheet().typingAt + ", the editor at slide " + editScreen.canvas.row)
+                click(over(kept.lower, 0))
+                return 600
+            },
+            () => {
+                const view = named("chordSheetView")
+                const bubble = named("chordEntry")
+                const corner = bubble.mapToItem(view, 0, 0)
+                // The bubble's edge, as the window shows it: the middle of its top, and for the ground a little above that
+                const edge = bubble.mapToItem(null, bubble.width / 2, 0.5)
+                const drawn = [String(testInput.windowPixel(edge.x, edge.y)), String(testInput.windowPixel(edge.x, edge.y - 6))]
+                check("a click on a line of another slide keeps the chord and opens the bubble there, and the sheet stays where it was",
+                      sheet().chordAt(kept.low, 0) === "G" && sheet().typing && sheet().typingRow === kept.lower && sheet().typingAt === 0
+                      && editScreen.canvas.row === sheet().rows[kept.lower].row && Math.abs(view.contentY - kept.at) < 1.5,
+                      "the sheet at " + Math.round(view.contentY) + ", it was at " + Math.round(kept.at) + "; typing at " + sheet().typingRow + ":" + sheet().typingAt)
+                check("with the bubble in sight, drawn at its line", bubble.visible && corner.y >= 0 && corner.y + bubble.height <= view.height
+                      && orange(drawn[0]) && !orange(drawn[1]), "its top " + Math.round(corner.y) + " down a view of " + view.height + ", its edge " + drawn.join(" over "))
+                testInput.grab("7c-kept-by-a-click-further-down")
+                testInput.type("d")
+                testInput.key(Qt.Key_Tab)
+                return 600
+            },
+            () => {
+                const view = named("chordSheetView")
+                const spot = lineItem(sheet().spotRow)
+                const y = spot ? spot.mapToItem(view, 0, 0).y : -1
+                check("Tab keeps that one and moves on along the line, and the sheet stays where it was then too",
+                      sheet().chordAt(kept.lower, 0) === "D" && !sheet().typing && sheet().spotRow === kept.lower && sheet().spotAt > 0
+                      && Math.abs(view.contentY - kept.at) < 1.5 && spot !== null && y >= 0 && y + spot.height <= view.height,
+                      "the sheet at " + Math.round(view.contentY) + ", it was at " + Math.round(kept.at) + "; the spot at " + sheet().spotRow + ":" + sheet().spotAt)
+                view.contentY = kept.scrolledFrom
+                return 400
+            },
+            () => {
                 const m = over(kept.peace, 15)
                 testInput.mouse(1, m.x, m.y)
                 testInput.key(Qt.Key_A, 0, "a")

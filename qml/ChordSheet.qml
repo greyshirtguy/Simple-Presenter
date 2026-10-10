@@ -301,8 +301,20 @@ FocusScope {
         reveal()
     }
 
+    // A row's item, with where it is on the sheet settled. The rows are made anew
+    // whenever the song is read again, which every chord that is kept does, and they
+    // are only put in their places with the next frame: until then each of them says it
+    // is at the top of the sheet. So whatever scrolls the sheet to a row asks for the
+    // row here, which has the rows put in their places first. Before it did, keeping a
+    // chord and going straight on to another place (a click on a line of another
+    // slide, or Tab) took a sheet that was scrolled down back to its top.
+    function rowItem(index) {
+        column.forceLayout()
+        return list.itemAt(index)
+    }
+
     function reveal() {
-        const item = list.itemAt(spotRow)
+        const item = rowItem(spotRow)
         if (!item)
             return
         const top = item.y
@@ -557,7 +569,7 @@ FocusScope {
     onRowChanged: {
         // The slide picked in the list at the side comes into view.
         const index = rows.findIndex(line => line.kind === "line" && line.row === row)
-        const item = index >= 0 ? list.itemAt(index) : null
+        const item = index >= 0 ? rowItem(index) : null
         if (item && (item.y < flick.contentY || item.y + item.height > flick.contentY + flick.height))
             flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), item.y - 40))
     }
