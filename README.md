@@ -38,6 +38,7 @@ folder, never your only one.**
 
 **On this page:** [what it can do](#what-it-can-do) · [what's new](#whats-new) ·
 [what it cannot do yet](#todo) · [installing it](#installing) ·
+[getting help](#helping-yourself-with-an-ai) ·
 [how each part is used](#workspaces) · [how it is built and tested](#building-from-source) ·
 [the licence](#licence)
 
@@ -185,6 +186,10 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **A way to help yourself.** There is still nobody to ask, but the repository now tells
+  an AI coding agent how to find out what is wrong on your own computer, and what it
+  must not touch while it does: see
+  [Helping yourself, with an AI](#helping-yourself-with-an-ai).
 - **ProPresenter's own pictures.** The look, the screens and the stage in the toolbar,
   the buttons that clear a layer, the tabs of the show controls and the small picture
   of what each action does are now the pictures ProPresenter has for them, so that
@@ -275,6 +280,13 @@ the top of this page.
       stage layout can show (the clock, a slide's notes, pictures of the slides and of
       the output, stage messages, the time left of a video); a prop's own transition
       and clearing itself after a time.
+- [ ] **Helping yourself with an AI**: the advice, and what an agent is told, are there
+      ([Helping yourself, with an AI](#helping-yourself-with-an-ai)). Still to do, so
+      that an agent or anyone else can check its own work: a workspace that can be
+      published, made of nothing anyone owns, for the scripted tests to run on; a test
+      that a whole workspace survives being read and written back unchanged; one
+      command that runs every check there is; and the checks run by themselves on every
+      pull request.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
       stage, props, macros and looks, and those are run. Still to come: the rest of
       ProPresenter's kinds (audio, messages, communications, capture and more, which
@@ -288,8 +300,7 @@ Bigger things, nearly all of which ProPresenter does and this does not. No order
 no promise that any of them will turn out to be possible this way: that is the
 experiment.
 
-- [ ] **A simple help file**: the app's own features explained, and how to have an AI
-      model help when something goes wrong, which is the only help there is
+- [ ] **A simple help file**: the app's own features explained in one place, in the app
 - [ ] **Announcements**
 - [ ] **Messages**
 - [ ] **Audio bin**
@@ -356,6 +367,67 @@ something to show, either
 
 The app works on that copy and saves its changes into it; [Workspaces](#workspaces) has
 the details.
+
+## Helping yourself, with an AI
+
+Nobody supports this app, and that is not going to change. But the app was written by an
+AI model, its source is all here, and most of what goes wrong is particular to one
+computer: a driver, a font, a display, a workspace that was moved. An AI coding agent
+running on *your* computer can see all of that, which nobody answering a question from
+far away could. It can read the app's log, build the app from this source, run it on a
+copy of your workspace, add checks of its own and work out what is wrong. So the help
+on offer is this: bring your own.
+
+The repository is set up for it. [AGENTS.md](AGENTS.md) tells an agent what the app is,
+what must never be broken, and how to keep its hands off your files, and
+[docs/agent-playbook.md](docs/agent-playbook.md) is its guide to finding out what is
+wrong on someone's computer. Any coding agent that reads `AGENTS.md` will find them. The
+one this app was built with is [Claude Code](https://code.claude.com/docs/en/quickstart):
+
+1. Install it. In a terminal:
+
+   ```
+   curl -fsSL https://claude.ai/install.sh | bash
+   ```
+
+   It needs a paid Claude plan (Pro or above) or an API account; the free plan does not
+   include it. What that costs changes, so look it up.
+2. Get this source, and start the agent in it:
+
+   ```
+   git clone --recurse-submodules https://github.com/greyshirtguy/Simple-Presenter.git
+   cd Simple-Presenter
+   claude
+   ```
+
+3. Say what is wrong in your own words: what you did, what you expected, what happened.
+   For example: *"Simple Presenter stutters when it plays a video. Read AGENTS.md and
+   the playbook it points to, look at the app's latest log, and tell me what you find
+   before you change anything."*
+
+**This is not support, and it has risks.** Know them before you start:
+
+- **It is a program that runs commands on your computer**, with your say-so. It asks
+  before it runs something or changes a file: read what it asks, and say no to what you
+  do not understand. Do not switch the asking off.
+- **It can be wrong, and sound sure.** It may say a thing is fixed that is not. Ask it
+  what it checked.
+- **It sees your files.** A workspace has your songs in it and a good deal about your
+  church, and what the agent reads goes to the company that runs it, under that
+  company's terms and not this project's. The instructions here tell it to send nothing
+  of yours anywhere else. They are instructions, not a lock.
+- **It should only ever work on a copy of your workspace.** The instructions say so.
+  Keep a backup of your own anyway, as you should with this app in any case.
+- **It costs money, and can run out.** A plan has limits, and a long hunt can reach them.
+- **If it changes the app for you, you are then running a version of your own**, which
+  nobody else has. That is fine, and is what the source is for. Ask it to write down
+  what it changed.
+- **Nobody here checks what it does.** A fix that everyone needs can be offered back as
+  a pull request, under the rules in `AGENTS.md`; that anyone will read it is not
+  promised.
+
+It is cheap to try, and may well be all the help you need. It is also the only kind
+there is.
 
 ---
 
@@ -1769,6 +1841,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions |
 | `packaging/` | The launcher, icon and description that an installed copy has, and the GNOME Shell extension that keeps the output and stage windows out of Alt+Tab through Wayland |
 | `third_party/ProPresenter7-Proto` | The descriptions of ProPresenter's file formats, as a submodule |
+| `AGENTS.md`, `CLAUDE.md`, `docs/agent-playbook.md` | What an AI coding agent is told before it works here, and its guide to helping someone who uses the app |
 
 ## Licence
 
