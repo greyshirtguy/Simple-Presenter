@@ -57,9 +57,11 @@ void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 // a few it changed afterwards). A chord is one of the "custom attributes" the file
 // keeps beside the RTF, the same list that has the capitalisation and the fonts: a
 // range of characters and the chord's name, in the song's original key. The range
-// starts at the character the chord stands over. Where it ends varies a little from
-// file to file (at the next chord, or the end of the line, and now and then past it),
-// so only its start is read; what is written is chords::ranges(), the commonest form.
+// starts at the character the chord stands over. Where it ends is not the same in
+// every file (a program other than ProPresenter has been at some of them, and left
+// ranges that run past their line), so only its start is read; what is written is
+// chords::ranges(), which is how Multitracks writes them: to the next chord or the end
+// of the line, and on a line of chords alone the chord's own character only.
 // Places are counted along the text as plainText() gives it, a line break being one.
 //
 // Writing touches nothing but the chord ranges: the RTF and every other range are left

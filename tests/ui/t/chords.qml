@@ -5,7 +5,8 @@ import "lib.js" as Lib
 // Chords: a song's chords read from a file Multitracks wrote, shown on the stage in the
 // key picked and in each notation; the chord editor (the spot, the keys 1 to 7, typing
 // a chord, dragging one, copying a line's, undo); the ChordPro editor (only chords can
-// be typed); importing a ChordPro file; and a new library.
+// be typed); importing a ChordPro file; and a new library. What the file then holds is
+// looked at when the test is over, by after_chords in run.py.
 QtObject {
     id: t
 
@@ -436,6 +437,11 @@ QtObject {
                     ++undone
                 }
                 check("every chord change can be undone, back to the song as it was", JSON.stringify(editScreen.editor.song()) === kept.song, undone + " steps")
+                // Left in the file, to be looked at there once the test is over (after_chords in run.py): one more chord on
+                // the end of the first line of chords alone.
+                const intro = editScreen.editor.song().find(b => b.chords.length > 0 && Chords.isPlaceholders(b.text))
+                const left = editScreen.editor.setChordsAlone(intro.row, intro.element, 0, intro.chords.map(c => c.name).concat(["A"]))
+                check("a change is left in the file for that", left === "", left)
                 stopEditing()
                 return 500
             },

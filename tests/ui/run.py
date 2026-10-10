@@ -36,6 +36,7 @@ The workspaces the tests run on are in tests/ui/fixtures, which is not in the
 repository: see tests/README.md.
 """
 import argparse
+import glob
 import os
 import re
 import shutil
@@ -301,6 +302,75 @@ def prepare_chords(workspace, test_dir):
         out.write(PLAIN_SONG)
 
 
+def after_chords(workspace, test_dir):
+    """What the chord editor left in the song's file, and the import in the song it made: how the stretch of characters
+    each chord belongs to is written, which only the file shows (the app reads back where a chord starts and no more), and
+    that a change to one text box's chords changed nothing else in the file."""
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    def song(name):
+        # (Not the first library by name any more: the test made one called Hymns.)
+        found = sorted(glob.glob(os.path.join(glob.escape(workspace), "Libraries", "*", name)))
+        return found[0] if found else ""
+
+    chord = re.compile(r'custom_attributes \{\s*(?:range \{\s*(?:start: (\d+)\s*)?(?:end: (\d+)\s*)?\}\s*)?chord: "((?:[^"\\]|\\.)*)"\s*\}')
+
+    def boxes(text):
+        """Every text of a decoded presentation, in the file's order: where it is, and its chords as (start, end, name)."""
+        found = []
+        for opening in re.finditer(r"^( *)text \{$", text, re.M):
+            closing = re.compile(r"^" + opening.group(1) + r"\}$", re.M).search(text, opening.end())
+            block = text[opening.start():closing.end()]
+            found.append({"from": opening.start(), "to": closing.end(), "is": block,
+                          "chords": [(int(m.group(1) or 0), int(m.group(2) or 0), m.group(3)) for m in chord.finditer(block)]})
+        return found
+
+    def around(text, found):
+        """The file with its texts taken out: everything that a change to a text box must leave alone."""
+        kept, at = [], 0
+        for box in found:
+            kept.append(text[at:box["from"]])
+            at = box["to"]
+        return "(a text)".join(kept + [text[at:]])
+
+    def spans(box):
+        return " ".join("%d-%d" % (start, end) for start, end, _ in box["chords"])
+
+    def names(box):
+        return " ".join(name for _, _, name in box["chords"])
+
+    now, was = decoded(song("Hark2.pro")), decoded(os.path.join(FIXTURES, "songs", "Hark2.pro"))
+    boxes_now, boxes_was = boxes(now), boxes(was)
+    same_count = len(boxes_now) == len(boxes_was)
+    changed = [i for i in range(len(boxes_now))] if not same_count else [i for i in range(len(boxes_now)) if boxes_now[i]["is"] != boxes_was[i]["is"]]
+    intro = [i for i in changed if same_count and boxes_was[i]["chords"]]
+    lines = [said(same_count and len(changed) == 1 and len(intro) == 1,
+                  "in the song's file: one text is other than it was, the intro's", "%d of %d" % (len(changed), len(boxes_now))),
+             said(same_count and around(now, boxes_now) == around(was, boxes_was),
+                  "in the song's file: everything outside it is as ProPresenter left it, byte for byte once decoded")]
+    if len(intro) == 1:
+        box, before = boxes_now[intro[0]], boxes_was[intro[0]]
+        count = len(before["chords"])
+        lines += [
+            said(spans(before) == " ".join("%d-%d" % (2 * i, 2 * i + 1) for i in range(count)),
+                 "in the song's file: Multitracks wrote the intro's chords one character long, each over its own stand-in", spans(before)),
+            said(names(box) == names(before) + " A" and spans(box) == " ".join("%d-%d" % (2 * i, 2 * i + 1) for i in range(count + 1)),
+                 "in the song's file: and so are they written here, with one more on the end", names(box) + " over " + spans(box)),
+        ]
+    made = boxes(decoded(song("Plain Song.pro"))) if song("Plain Song.pro") else []
+    worded = [box for box in made if names(box) == "G D Em"]
+    alone = [box for box in made if names(box) == "G D/F# Em"]
+    lines += [
+        said(len(worded) == 1 and spans(worded[0]) == "0-14 14-18 28-39",
+             "in the imported song's file: a chord over words is written up to the next chord or the end of its line", " | ".join(spans(box) for box in worded)),
+        said(len(alone) == 1 and spans(alone[0]) == "0-1 2-3 4-5",
+             "in the imported song's file: and a chord with no words over its own stand-in only", " | ".join(spans(box) for box in alone)),
+    ]
+    return lines
+
+
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
             "monitors": monitors}
@@ -332,7 +402,7 @@ TESTS = {
     "search": test("Demo"),
     "looks": test("Act", after=after_looks),
     "themes": test("Act"),
-    "chords": test("ProPresenter MR", prepare=prepare_chords),
+    "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)

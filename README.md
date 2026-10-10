@@ -990,8 +990,13 @@ song's key. The same **+** has **New Library**.
 ### What is a guess, or not done
 
 - How the chords are kept was worked out from songs ProPresenter imported from
-  Multitracks, and what is written here is in the same form. A song with chords put on
-  here has not been opened in ProPresenter yet; nor has a song imported here.
+  Multitracks, and what is written here is in the same form, down to the stretch of
+  characters a chord is written over: up to the next chord or the end of its line
+  where there are words, and its own character and no more where there are none.
+  (Counted in 22 of those songs: all 290 chords with no words are written so, and all
+  but 60 of the 1,009 over words, the 60 being in two songs that another program had
+  saved since.) A song with chords put on here has not been opened in ProPresenter
+  yet; nor has a song imported here.
 - Numbers, numerals and Do Re Mi are written the way musicians write them.
   ProPresenter does not say exactly what it writes, so they may differ in the corners.
 - A song imported or chorded here is not marked as a Multitracks song, which is a mark
