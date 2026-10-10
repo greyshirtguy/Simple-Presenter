@@ -38,6 +38,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.83" date="2026-10-10">
+      <description>
+        <p>
+          Chords on a slide with no words: an intro or an instrumental made as an empty slide is on
+          the chord editor's sheet, and in its ChordPro text, to be given chords. A chord with no
+          words is now kept exactly as Multitracks keeps one. Nothing is added to a slide until a
+          chord is put on it, and taking the chords off again leaves the slide as it was found.
+        </p>
+      </description>
+    </release>
     <release version="0.82" date="2026-10-10">
       <description>
         <p>
