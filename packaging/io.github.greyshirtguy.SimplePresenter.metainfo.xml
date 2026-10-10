@@ -38,6 +38,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.84" date="2026-10-11">
+      <description>
+        <p>
+          New presentations: the + beside Libraries makes a presentation in the library that is
+          open, with a name of your choosing and one slide to start on. Until now a presentation
+          could only be brought in from elsewhere.
+        </p>
+      </description>
+    </release>
     <release version="0.83" date="2026-10-10">
       <description>
         <p>
