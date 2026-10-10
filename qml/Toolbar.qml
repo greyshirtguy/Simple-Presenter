@@ -219,6 +219,26 @@ Rectangle {
             onClicked: toolbar.win.mediaBinVisible = !toolbar.win.mediaBinVisible
         }
 
+        // The look that is live, by name, as ProPresenter's toolbar has it: a click gives
+        // the saved looks to make one of them live, and the way to the Looks window.
+        ToolbarIcon {
+            id: looksButton
+
+            objectName: "looksButton"
+            anchors.verticalCenter: parent.verticalCenter
+            kind: "looks"
+            label: toolbar.win.lookName
+            captionWidth: 96
+            on: toolbar.win.looksOpen
+            opacity: toolbar.win.editing ? 0.4 : 1
+            onClicked: {
+                if (toolbar.win.looksOpen)
+                    toolbar.win.closeLooks()
+                else if (!toolbar.win.editing)
+                    toolbar.win.showLooksMenu(this)
+            }
+        }
+
         // The two windows the show goes out through, each switched on and off by its
         // half: one control, with a line down the middle
         Rectangle {
@@ -242,8 +262,6 @@ Rectangle {
                     label: "Output"
                     on: toolbar.win.outputEnabled
                     onClicked: toolbar.win.outputEnabled = !toolbar.win.outputEnabled
-                    // The looks, to make one live (see Looks)
-                    onMenuAsked: toolbar.win.showLooksMenu(this)
                 }
 
                 Rectangle {

@@ -6,7 +6,10 @@ import QtQuick.Shapes
 // when `on`; "settings" is a set of sliders; "edit" is a pencil, orange when `on`;
 // "show" is the triangle that means play, orange when `on`;
 // "expand" is four corners turned outwards, the sign for filling the screen, orange
-// when `on`.
+// when `on`; "looks" is three sheets one over another, for the layers a look deals out.
+//
+// A caption is as wide as it needs to be, up to `captionWidth`, and the button with it:
+// most say one short word, and the Looks button says the name of the look that is live.
 Item {
     id: button
 
@@ -18,12 +21,12 @@ Item {
     property real progress: 0
 
     signal clicked
-    // The other mouse button, for a button that has a menu
-    signal menuAsked
 
     readonly property color ink: "#e6e6e6"
+    // The widest a caption gets before it is cut short with an ellipsis
+    property real captionWidth: 120
 
-    width: 52
+    width: Math.max(52, Math.min(captionWidth, caption.implicitWidth) + 12)
     height: 40
 
     Rectangle {
@@ -158,6 +161,28 @@ Item {
             }
         }
 
+        // Three sheets, one over another: layers
+        Shape {
+            anchors.fill: parent
+            visible: button.kind === "looks"
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: button.on ? "#ff8a1f" : button.ink
+                strokeWidth: 1.5
+                joinStyle: ShapePath.RoundJoin
+
+                PathMultiline {
+                    paths: [
+                        [Qt.point(9, 0.8), Qt.point(16.5, 4.3), Qt.point(9, 7.8), Qt.point(1.5, 4.3), Qt.point(9, 0.8)],
+                        [Qt.point(1.5, 7.3), Qt.point(9, 10.8), Qt.point(16.5, 7.3)],
+                        [Qt.point(1.5, 10.3), Qt.point(9, 13.8), Qt.point(16.5, 10.3)]
+                    ]
+                }
+            }
+        }
+
         // Four corners turned outwards
         Shape {
             anchors.fill: parent
@@ -215,9 +240,13 @@ Item {
     }
 
     Text {
+        id: caption
+
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 4
+        width: Math.min(implicitWidth, button.captionWidth)
+        elide: Text.ElideRight
         color: "#c9cbd0"
         font.pixelSize: 10
         text: button.label
@@ -238,7 +267,6 @@ Item {
 
         anchors.fill: parent
         hoverEnabled: true
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: (mouse) => mouse.button === Qt.RightButton ? button.menuAsked() : button.clicked()
+        onClicked: button.clicked()
     }
 }

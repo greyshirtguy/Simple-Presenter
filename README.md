@@ -185,6 +185,11 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Looks, as ProPresenter has them.** The toolbar says which [look](#looks) is live,
+  and a click there makes another live. The Looks window is laid out as ProPresenter's
+  is, with the screens across the top and the layers down the side. And the live look
+  is a look of its own, which can be changed for one service without the saved look
+  changing, and saved as that look when it should be.
 - **Chords.** A song's [chords](#chords) are shown over its words on a stage screen, in
   any key and in ProPresenter's four notations, as ProPresenter shows them. And what
   ProPresenter has not: two editors for putting chords on by hand, one for the mouse
@@ -1042,27 +1047,63 @@ does not answer to it (GNOME and KDE do).
 A **look** says which layers of the show each audience screen gets. The room can have
 the slides over the media while a stream has the slides alone, to lie over a camera's
 picture; a lobby screen can have the props and nothing else. A workspace has as many
-looks as are wanted, by name, and one of them is live at a time.
+looks saved as are wanted, by name. They are ProPresenter's own, and work as its do.
 
-Under **Settings → Looks** each look is a table: a line for each audience screen, with a
-switch for the slides, for the media under them and for the props over them, and a
-**theme** for that screen's slides to be dressed in (below). A look is made live there,
-from the menu a right click on the toolbar's **Output** button gives, or by an **Audience
-Look** action on a slide or in a macro, which is how a service moves from one to
-another by itself. When the look changes, each layer comes or goes over the time the
-look says.
+**The live look.** What the screens are showing is a look of its own, the *live look*,
+apart from the saved ones. Making a saved look live copies it into the live look, which
+takes its name. After that the two go their own ways: the live look can be changed by
+itself (a layer switched off for this service only) without the saved look knowing, and
+a saved look can be changed without the screens changing until it is made live again.
+The toolbar's **Looks** button has the live look's name under it.
+
+A saved look is made live in three ways: from the menu a click on the **Looks** button
+gives, where the look the live one came from is ticked; with **Make Live** in the Looks
+window; or by an **Audience Look** action on a slide or in a macro, which is how a
+service moves from one to another by itself. Making the same look live again puts the
+live look back as that look has it. When the look changes, each layer comes or goes
+over the time the look says. (An action that goes over to the look that is live
+already, and unchanged, costs nothing; one that changes the look is on the screens at
+once, and in the file a moment after, so that it never holds a slide up.)
+
+> [!NOTE]
+> That an action puts the live look back is worth knowing before changing the live
+> look by hand. Songs whose first slide runs a macro that goes over to a look will undo
+> a change made to the live look as soon as the next song starts; what was meant to
+> last should be saved (below). The log says when a change went this way.
+
+**The Looks window** (the Looks button, then **Edit Looks…**; its ✕, Esc or a click
+outside it puts it away) is laid out as ProPresenter's is. On the left are the looks: the live look first, and under it
+the saved ones, with a green dot beside the one the live look was made from. On the
+right is what the look that is picked gives each audience screen, as a table: the
+screens across the top, and the layers down the side in the order they lie on a screen,
+the top one first.
+
+| Row | What it is |
+| --- | --- |
+| Masks, Messages, Announcements, Video Input | ProPresenter's layers that this app has not yet. They are shown greyed, as the look has them in the file, cannot be changed here, and are kept as they are |
+| Props, Slide, Media | A tick box for each screen: whether that screen gets the layer |
+| Presentation | Not a layer but the **theme** that screen's slides are dressed in as they are shown: a circle with a line through it for none, or a theme slide, chosen from the same menu of themes a slide's own menu has |
+
+Picking a look in the list shows it, to be read and changed; it does not make it live.
+At the top right is what is done with the look that is picked. For a saved look that is
+**Make Live**. The live look is live already; a change to it is seen on the screens at
+once, the list then says it has been "changed" (it is no longer what the look it was
+made from is), and in the same place there is **Save**, which keeps the live look as
+the saved look it was made from. The **+** makes a new saved look as a copy of the one
+that is picked, so that picking the live look and pressing it keeps the live look, as
+it has been changed, as a saved look of its own instead. A double click on a saved look renames it, and a right click offers Make
+Live, Rename, Duplicate and Delete. The live look cannot be removed: there is always
+something the screens are showing.
 
 **A theme for a screen.** A look can give a screen a theme slide, and every slide shown
 on that screen is then dressed in it as it is shown: the same words, large and central
 in the room and a line across the foot of the stream. Nothing about the presentation is
 changed, and the next look can dress it another way.
 
-The looks are the workspace's, the ones ProPresenter has for it, and are read from and
-written to its file of how the workspace is set up (`Configuration/Workspace`), with the
-screens. ProPresenter has layers this app has not yet (announcements, messages, video
-inputs, masks): what its looks say of those is left in the file as it was found. Which
-look is live is kept on this computer; a workspace opened here for the first time starts
-with the one that was live when ProPresenter last had it.
+The looks, and the live look with them, are the workspace's, the ones ProPresenter has
+for it, and are read from and written to its file of how the workspace is set up
+(`Configuration/Workspace`), with the screens. So a workspace opened here shows what it
+was showing in ProPresenter, and one taken back there shows what it was showing here.
 
 ## Themes
 
@@ -1666,7 +1707,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
-| `src/lookfile.*`, `src/looks.*` | The workspace's looks, in ProPresenter's set-up file: which layers each audience screen gets, and in what theme |
+| `src/lookfile.*`, `src/looks.*` | The workspace's looks, in ProPresenter's set-up file: the saved ones and the live look, which layers each audience screen gets, and in what theme |
 | `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
 | `src/chords.*`, `src/chordsbridge.*` | Chords: what one is, changing key, the four notations, ChordPro text; and the same for QML to call |
 | `src/songimport.*` | A new presentation made of a ChordPro file |
@@ -1699,7 +1740,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists and its three ways of working, the slide being worked on, and the properties panel |
 | `qml/OutputScene.qml`, `qml/StageScene.qml`, `qml/StageView.qml` | What an audience screen and a stage screen show, whatever they are sent out through; and the plain view a stage screen has without a layout |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |
-| `qml/LooksSettings.qml` | The Looks section of the settings |
+| `qml/LooksPanel.qml` | The Looks window: the saved looks and the live one, and what each gives each screen |
 | `qml/ThemesPanel.qml` | The themes, let down from the toolbar's button |
 | `qml/SearchPanel.qml` | The search window |
 | `qml/ChordSheet.qml`, `qml/ChordProEditor.qml` | The two chord editors: the song as a sheet with its chords in bubbles, and as ChordPro text |

@@ -199,6 +199,19 @@ def after_acts(workspace, test_dir):
     ]
 
 
+def after_looks(workspace, test_dir):
+    with open(os.path.join(workspace, "Configuration", "Workspace"), "rb") as source:
+        text = protoc("decode", "rv.data.ProPresenterWorkspace", "proworkspace.proto", source.read()).decode()
+    live = re.search(r"^live_audience_look \{\n(.*?)^\}", text, re.S | re.M)
+    name = re.search(r'^  name: "([^"]*)"', live.group(1), re.M).group(1) if live else ""
+    presets = len(re.findall(r"^audience_looks \{", text, re.M))
+    return [
+        said(name == "Notes L3rd", "in the workspace's file: the look made live as the app was closed is the live look", name),
+        said(presets == 7 and "original_look_uuid" in (live.group(1) if live else ""),
+             "in the workspace's file: the saved looks as they were, and the live look saying which it came from", str(presets)),
+    ]
+
+
 def groups_of(workspace):
     with open(os.path.join(workspace, "Configuration", "Groups"), "rb") as source:
         return protoc("decode", "rv.data.ProGroupsDocument", "groups.proto", source.read()).decode()
@@ -317,7 +330,7 @@ TESTS = {
     "acts": test("Act", after=after_acts),
     "refine": test("Act"),
     "search": test("Demo"),
-    "looks": test("Act"),
+    "looks": test("Act", after=after_looks),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords),
     # (On a desktop of its own, with two displays to send screens to.)

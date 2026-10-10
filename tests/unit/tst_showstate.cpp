@@ -112,7 +112,7 @@ Workspace workspace()
 // The kinds of what was to happen outside, in order, the log left out: "slide nomedia".
 QString outside(const Effects &effects)
 {
-    static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia", "timer", "note", "problem"};
+    static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia", "timer", "look", "note", "problem"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -677,11 +677,23 @@ private slots:
         State show;
         const Workspace w = workspace();
         QVERIFY(show.lookId.isEmpty());
-        QVERIFY(noted(show.setLook("third", w), "\"Lower Third\" is live"));
+        const auto asked = [](const show::Effects &effects) {
+            QStringList ids;
+            for (const show::Effect &effect : effects) {
+                if (effect.kind == show::Effect::Look)
+                    ids << effect.text;
+            }
+            return ids;
+        };
+        show::Effects effects = show.setLook("third", w);
+        QVERIFY(noted(effects, "\"Lower Third\" is live"));
+        QCOMPARE(asked(effects), QStringList {"third"});
         QCOMPARE(show.lookId, "third");
-        // The same again is nothing; one that is not there is not gone over to
-        QVERIFY(show.setLook("third", w).isEmpty());
+        // Asked for again, it is made live again: that is what puts the live look back
+        // as the saved look has it. One that is not there is not gone over to.
+        QCOMPARE(asked(show.setLook("third", w)), QStringList {"third"});
         QVERIFY(show.setLook("no such", w).isEmpty());
+        QVERIFY(show.setLook("", w).isEmpty());
         QCOMPARE(show.lookId, "third");
         // An action names a look by its id, or failing that by its name
         Presentation song;
@@ -690,14 +702,18 @@ private slots:
         };
         song.slides = {slide("a", {}, {lookAction("full", "")}), slide("b", {}, {lookAction("made elsewhere", "Lower Third")}),
                        slide("c", {}, {lookAction("x", "No such")})};
-        show.goLive(song.cue(0), false, w);
+        QCOMPARE(asked(show.goLive(song.cue(0), false, w)), QStringList {"full"});
         QCOMPARE(show.lookId, "full");
-        show.goLive(song.cue(1), false, w);
+        QCOMPARE(asked(show.goLive(song.cue(1), false, w)), QStringList {"third"});
         QCOMPARE(show.lookId, "third");
-        QVERIFY(noted(show.goLive(song.cue(2), false, w), "there is no such look here"));
+        effects = show.goLive(song.cue(2), false, w);
+        QVERIFY(noted(effects, "there is no such look here"));
+        QVERIFY(asked(effects).isEmpty());
         QCOMPARE(show.lookId, "third");
-        // And none at all, by hand
-        show.setLook("", w);
+        // What a workspace being opened knows of the look that was live: said, with nothing made live
+        show.adoptLook("full");
+        QCOMPARE(show.lookId, "full");
+        show.adoptLook("");
         QVERIFY(show.lookId.isEmpty());
     }
 

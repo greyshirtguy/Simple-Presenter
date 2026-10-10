@@ -86,6 +86,9 @@ void Show::change(const std::function<show::Effects()> &what)
         case show::Effect::Timer:
             emit timerAction(effect.action);
             break;
+        case show::Effect::Look:
+            emit lookAsked(effect.text);
+            break;
         case show::Effect::Note:
             SessionLog::write(effect.topic.toLatin1().constData(), effect.text);
             break;
@@ -165,6 +168,14 @@ void Show::setLooks(const QVariantList &looks)
 void Show::setLookId(const QString &id)
 {
     change([&] { return m_state.setLook(id, m_workspace); });
+}
+
+void Show::adoptLook(const QString &id)
+{
+    change([&] {
+        m_state.adoptLook(show::findLook(id, QString(), m_workspace).isEmpty() ? QString() : id);
+        return show::Effects();
+    });
 }
 
 void Show::goLive(const QVariantMap &cue, bool withoutMedia)

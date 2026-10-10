@@ -312,15 +312,20 @@ void State::setStageLayout(const QString &screenId, const QString &layoutId)
 Effects State::setLook(const QString &id, const Workspace &workspace)
 {
     Effects effects;
-    if (id == lookId)
-        return effects;
     const QVariantMap look = findLook(id, QString(), workspace);
-    if (!id.isEmpty() && look.isEmpty())
+    if (look.isEmpty())
         return effects;
     lookId = id;
-    effects << note("look", id.isEmpty() ? QStringLiteral("no look: every screen gets everything")
-                                         : QStringLiteral("the look %1 is live").arg(quoted(look.value("name").toString())));
+    Effect made;
+    made.kind = Effect::Look;
+    made.text = id;
+    effects << made << note("look", QStringLiteral("the look %1 is live").arg(quoted(look.value("name").toString())));
     return effects;
+}
+
+void State::adoptLook(const QString &id)
+{
+    lookId = id;
 }
 
 Effects State::runMacro(const QString &id, const Workspace &workspace)
@@ -384,8 +389,13 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
     } else if (kind == QLatin1String("look")) {
         const QVariantMap look = findLook(action.value("lookId").toString(), action.value("lookName").toString(), workspace);
         effects << note("action", title + (look.isEmpty() ? QStringLiteral(": there is no such look here") : QString()));
-        if (!look.isEmpty())
+        if (!look.isEmpty()) {
             lookId = look.value("id").toString();
+            Effect made;
+            made.kind = Effect::Look;
+            made.text = lookId;
+            effects << made;
+        }
     } else if (kind == QLatin1String("prop")) {
         const QVariantMap prop = propOf(action, workspace);
         effects << note("action", title + (prop.isEmpty() ? QStringLiteral(": there is no such prop here") : QString()));

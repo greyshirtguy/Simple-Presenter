@@ -72,6 +72,10 @@ Look described(const rv::data::ProAudienceLook &look)
         given.slide = screen.presentation_foreground_enabled();
         given.media = screen.presentation_background_enabled();
         given.props = screen.props_layer_enabled();
+        given.messages = screen.messages_layer_enabled();
+        given.announcements = screen.announcements_enabled();
+        given.videoInput = screen.live_video_enabled();
+        given.mask = QString::fromStdString(screen.mask_uuid().string());
         if (screen.has_template_document_file_path()) {
             given.theme = themePlace(named(screen.template_document_file_path()));
             if (!given.theme.isEmpty())
@@ -131,19 +135,22 @@ Looks read(const QString &workspace)
             answer.looks << described(look);
     }
     if (document.has_live_audience_look()) {
-        // The live look is a copy of one of the others, which it names; or was that one
-        // changed since, in which case it still started as it.
-        const QString from = QString::fromStdString(document.live_audience_look().original_look_uuid().string());
-        const QString own = QString::fromStdString(document.live_audience_look().uuid().string());
-        for (const Look &look : std::as_const(answer.looks)) {
-            if (look.id == from || (answer.live.isEmpty() && look.id == own))
-                answer.live = look.id;
-        }
+        answer.live = described(document.live_audience_look());
+        answer.live.origin = QString::fromStdString(document.live_audience_look().original_look_uuid().string());
+        // (A live look written with no id of its own is still one: it is given an id
+        // when it is next written.)
+        if (answer.live.id.isEmpty())
+            answer.live.id = liveLook();
     }
     return answer;
 }
 
-QString add(const QString &workspace, const QString &name, const QStringList &screenIds, QString *id)
+QString liveLook()
+{
+    return QStringLiteral("<live>");
+}
+
+QString add(const QString &workspace, const QString &name, const QStringList &screenIds, const QString &copyOf, QString *id)
 {
     if (name.trimmed().isEmpty())
         return QStringLiteral("A look needs a name");
@@ -151,13 +158,34 @@ QString add(const QString &workspace, const QString &name, const QStringList &sc
     const QString error = load(workspace, &document);
     if (!error.isEmpty())
         return error;
+    // What it is a copy of is found before the list grows, which may move the list.
+    rv::data::ProAudienceLook copied;
+    bool copy = false;
+    if (copyOf == liveLook()) {
+        copy = document.has_live_audience_look();
+        if (copy)
+            copied = document.live_audience_look();
+    } else if (!copyOf.isEmpty()) {
+        const rv::data::ProAudienceLook *from = find(&document, copyOf);
+        if (!from)
+            return QStringLiteral("That look is not in the workspace any more");
+        copied = *from;
+        copy = true;
+    }
     rv::data::ProAudienceLook *look = document.add_audience_looks();
+    if (copy) {
+        // Everything the look copied has, lines for screens and switches this app
+        // does not know among them; but it is a saved look, with no note of another.
+        *look = copied;
+        look->clear_original_look_uuid();
+    } else {
+        look->set_transition_duration(1);
+        for (const QString &screenId : screenIds)
+            everything(look->add_screen_looks(), screenId);
+    }
     const std::string made = newUuid();
     look->mutable_uuid()->set_string(made);
     look->set_name(name.trimmed().toStdString());
-    look->set_transition_duration(1);
-    for (const QString &screenId : screenIds)
-        everything(look->add_screen_looks(), screenId);
     if (id)
         *id = QString::fromStdString(made);
     return save(workspace, document);
@@ -194,15 +222,12 @@ QString remove(const QString &workspace, const QString &id)
     return QStringLiteral("That look is not in the workspace any more");
 }
 
-QString setScreen(const QString &workspace, const QString &id, const QString &screenId, const ScreenLook &wanted)
+namespace {
+
+// Gives a look's line for a screen what is wanted of the layers this app has; the rest
+// of the line is left as it is.
+void change(rv::data::ProAudienceLook *look, const QString &screenId, const ScreenLook &wanted, const QString &workspace)
 {
-    rv::data::ProPresenterWorkspace document;
-    const QString error = load(workspace, &document);
-    if (!error.isEmpty())
-        return error;
-    rv::data::ProAudienceLook *look = find(&document, id);
-    if (!look)
-        return QStringLiteral("That look is not in the workspace any more");
     rv::data::ProAudienceLook::ProScreenLook *screen = nullptr;
     for (rv::data::ProAudienceLook::ProScreenLook &candidate : *look->mutable_screen_looks()) {
         if (QString::fromStdString(candidate.pro_screen_uuid().string()) == screenId)
@@ -231,6 +256,70 @@ QString setScreen(const QString &workspace, const QString &id, const QString &sc
             screen->mutable_template_slide_uuid()->set_string(wanted.themeSlide.toStdString());
         }
     }
+}
+
+}
+
+QString setScreen(const QString &workspace, const QString &id, const QString &screenId, const ScreenLook &wanted)
+{
+    rv::data::ProPresenterWorkspace document;
+    const QString error = load(workspace, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::ProAudienceLook *look = find(&document, id);
+    if (!look)
+        return QStringLiteral("That look is not in the workspace any more");
+    change(look, screenId, wanted, workspace);
+    return save(workspace, document);
+}
+
+QString setLiveScreen(const QString &workspace, const QString &screenId, const ScreenLook &wanted)
+{
+    rv::data::ProPresenterWorkspace document;
+    const QString error = load(workspace, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::ProAudienceLook *live = document.mutable_live_audience_look();
+    if (live->uuid().string().empty())
+        live->mutable_uuid()->set_string(newUuid());
+    change(live, screenId, wanted, workspace);
+    return save(workspace, document);
+}
+
+QString makeLive(const QString &workspace, const QString &id)
+{
+    rv::data::ProPresenterWorkspace document;
+    const QString error = load(workspace, &document);
+    if (!error.isEmpty())
+        return error;
+    const rv::data::ProAudienceLook *look = find(&document, id);
+    if (!look)
+        return QStringLiteral("That look is not in the workspace any more");
+    // A copy of all of it, what this app does not know of a look included, under the
+    // live look's own id, which it keeps from one look to the next.
+    const rv::data::ProAudienceLook copied = *look;
+    rv::data::ProAudienceLook *live = document.mutable_live_audience_look();
+    const std::string own = live->uuid().string().empty() ? newUuid() : live->uuid().string();
+    *live = copied;
+    live->mutable_uuid()->set_string(own);
+    live->mutable_original_look_uuid()->set_string(copied.uuid().string());
+    return save(workspace, document);
+}
+
+QString saveLive(const QString &workspace)
+{
+    rv::data::ProPresenterWorkspace document;
+    const QString error = load(workspace, &document);
+    if (!error.isEmpty())
+        return error;
+    if (!document.has_live_audience_look())
+        return QStringLiteral("The workspace has no live look to save");
+    rv::data::ProAudienceLook *saved = find(&document, QString::fromStdString(document.live_audience_look().original_look_uuid().string()));
+    if (!saved)
+        return QStringLiteral("The look the live look was made from is not in the workspace any more");
+    // The lines as they stand, each whole: a line is copied and not rebuilt, so that
+    // what ProPresenter keeps in one that this app knows nothing of goes with it.
+    *saved->mutable_screen_looks() = document.live_audience_look().screen_looks();
     return save(workspace, document);
 }
 

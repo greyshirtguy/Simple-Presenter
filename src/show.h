@@ -73,6 +73,8 @@ class Show : public QObject
     Q_PROPERTY(QString stageLayoutId READ stageLayoutId WRITE setStageLayoutId NOTIFY screenLayoutsChanged)
 
     // The look that is live, by id; "" for none, which is every screen getting everything
+    // The saved look that was last made live, by id. Setting it makes that look live
+    // (see lookAsked); adoptLook() only says which it was.
     Q_PROPERTY(QString lookId READ lookId WRITE setLookId NOTIFY lookChanged)
 
     // The workspace's things an action can name, as Props, Macros and StageLayouts list them
@@ -176,6 +178,10 @@ public:
     // Runs a macro by hand.
     Q_INVOKABLE void runMacro(const QString &id);
 
+    // Says which saved look the live look came from, without making anything live: what
+    // is known from the workspace's file when it is opened (see show::State::adoptLook).
+    Q_INVOKABLE void adoptLook(const QString &id);
+
     // Gives a stage screen a layout, by the ids of both ("" for the plain view).
     Q_INVOKABLE void setStageLayout(const QString &screenId, const QString &layoutId);
 
@@ -215,6 +221,9 @@ signals:
     void propsChanged();
     void screenLayoutsChanged();
     void lookChanged();
+    // A saved look is to be made the live one, by hand or by an action: whoever keeps
+    // the looks (Looks, by way of the operator window) copies it into the live look.
+    void lookAsked(const QString &id);
     void workspaceChanged();
     void changed();
 

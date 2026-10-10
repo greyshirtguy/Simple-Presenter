@@ -125,7 +125,7 @@ qt_add_qml_module(SimplePresenter
         qml/ChordProEditor.qml
         qml/ChordSheet.qml
         qml/ImportSong.qml
-        qml/LooksSettings.qml
+        qml/LooksPanel.qml
         qml/MacroGlyph.qml
         qml/MacrosPanel.qml
         qml/Main.qml

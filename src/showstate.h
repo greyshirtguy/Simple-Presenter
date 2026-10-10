@@ -70,6 +70,7 @@ struct Effect
         Media,          // start `media` on the media layer
         NoMedia,        // take the media layer off
         Timer,          // work a timer as `action` says
+        Look,           // make the saved look whose id is `text` the live one (see lookfile.h)
         Note,           // tell the log `text`, under `topic`
         Problem,        // tell the log, and whoever is running the show, that `text` went wrong
     };
@@ -109,8 +110,10 @@ public:
     // The props that are on, by id, in the order they were turned on: the last is in front.
     QStringList props;
 
-    // The look that is live, by id: which layers each audience screen gets (see
-    // lookfile.h). "" for none, which is every screen getting everything.
+    // The saved look that was last made live, by id; "" for none. It is not what the
+    // screens get: that is the live look, a look of its own which this one was copied
+    // into and which may have been changed since (see lookfile.h). This is for marking
+    // which saved look that was, and for an action to name one.
     QString lookId;
 
     // The layout each stage screen has, by the ids of both. A screen that is not here,
@@ -170,8 +173,14 @@ public:
     // Gives a stage screen a layout ("" for the plain view).
     void setStageLayout(const QString &screenId, const QString &layoutId);
 
-    // Makes a look the live one ("" for none).
+    // Makes a saved look the live one. Asked for again while it is the one that was
+    // last made live, it is made live again: that is how the live look is put back as
+    // the saved look has it, after it has been changed. A look the workspace has not is
+    // not made live.
     Effects setLook(const QString &id, const Workspace &workspace);
+    // Says which saved look the live look came from, where that is known from the file
+    // and nothing is to be made live ("" for none): what a workspace being opened does.
+    void adoptLook(const QString &id);
 
 private:
     // While the actions of the slide going live are being done

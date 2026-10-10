@@ -25,8 +25,16 @@ rv::data::ProPresenterWorkspace fileOf(const QString &workspace)
     return document;
 }
 
+// The file itself, byte for byte: to see that nothing was written
+QByteArray bytesOf(const QString &workspace)
+{
+    QFile file(workspace + "/Configuration/Workspace");
+    return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+}
+
 // A file as ProPresenter might have left it: two looks for a room and a stream, the
-// first of them live, with a theme for the stream named by a path on a Mac.
+// first of them live (the live look being a copy of it under an id of its own, as
+// ProPresenter keeps it), with a theme for the stream named by a path on a Mac.
 void writeProPresenters(const QString &workspace)
 {
     rv::data::ProPresenterWorkspace document;
@@ -79,7 +87,9 @@ private slots:
         const Looks found = read(folder.path());
         QVERIFY(found.error.isEmpty());
         QVERIFY(found.looks.isEmpty());
-        QVERIFY(found.live.isEmpty());
+        // And no live look: every screen gets everything
+        QVERIFY(found.live.id.isEmpty() && found.live.screens.isEmpty());
+        QCOMPARE(found.live.screens.value("ANY"), ScreenLook());
         QVERIFY(!QFile::exists(folder.path() + "/Configuration/Workspace"));
     }
 
@@ -91,7 +101,6 @@ private slots:
         QCOMPARE(found.looks.size(), 2);
         QCOMPARE(found.looks.at(0).name, "Lyrics L3rd");
         QCOMPARE(found.looks.at(0).transition, 1.0);
-        QCOMPARE(found.live, "LOOK-1");
         const ScreenLook room = found.looks.at(0).screens.value("ROOM");
         QVERIFY(room.slide && room.media && room.props && room.theme.isEmpty());
         const ScreenLook stream = found.looks.at(0).screens.value("STREAM");
@@ -104,6 +113,156 @@ private slots:
         // A screen a look says nothing of gets everything
         const ScreenLook other = found.looks.at(1).screens.value("NOT-THERE");
         QVERIFY(other.slide && other.media && other.props);
+        // The layers this app has not are read too, to be shown: here, no video input
+        QVERIFY(room.messages && room.announcements && !room.videoInput && room.mask.isEmpty());
+    }
+
+    void theLiveLookIsALookOfItsOwnThatKnowsWhereItCameFrom()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        const Looks found = read(folder.path());
+        // Not one of the saved looks: its own id, the saved look's name, and that look's id as its origin
+        QCOMPARE(found.live.id, "LIVE-COPY");
+        QCOMPARE(found.live.name, "Lyrics L3rd");
+        QCOMPARE(found.live.origin, "LOOK-1");
+        QVERIFY(std::none_of(found.looks.cbegin(), found.looks.cend(), [](const Look &look) { return look.id == "LIVE-COPY"; }));
+        QCOMPARE(found.live.screens, found.looks.at(0).screens);
+    }
+
+    void makingASavedLookLiveCopiesItIntoTheLiveLook()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        QCOMPARE(makeLive(folder.path(), "LOOK-2"), QString());
+        const Looks found = read(folder.path());
+        QCOMPARE(found.live.id, "LIVE-COPY");
+        QCOMPARE(found.live.name, "Stream Clear");
+        QCOMPARE(found.live.origin, "LOOK-2");
+        QCOMPARE(found.live.screens, found.looks.at(1).screens);
+        // The saved looks are as they were, and so is the rest of the file
+        QCOMPARE(found.looks.size(), 2);
+        QCOMPARE(found.looks.at(0).screens.value("STREAM").theme, "New Life Chapel");
+        QCOMPARE(fileOf(folder.path()).selected_library_name(), "Songs");
+        QVERIFY(!makeLive(folder.path(), "no such").isEmpty());
+        QCOMPARE(read(folder.path()).live.origin, "LOOK-2");
+    }
+
+    void theLiveLookIsChangedByItselfAndASavedLookByItself()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        ScreenLook wanted = read(folder.path()).live.screens.value("ROOM");
+        wanted.media = false;
+        wanted.theme = "Samples/Black Box";
+        wanted.themeSlide = "TWO-LINES";
+        QCOMPARE(setLiveScreen(folder.path(), "ROOM", wanted), QString());
+        Looks found = read(folder.path());
+        QCOMPARE(found.live.screens.value("ROOM"), wanted);
+        // The look it came from knows nothing of it, and it still says where it came from
+        QVERIFY(found.looks.at(0).screens.value("ROOM").media && found.looks.at(0).screens.value("ROOM").theme.isEmpty());
+        QCOMPARE(found.live.origin, "LOOK-1");
+        QCOMPARE(found.live.id, "LIVE-COPY");
+        // And the other way about: the saved look changed, the screens not
+        ScreenLook saved = found.looks.at(0).screens.value("STREAM");
+        saved.slide = false;
+        QCOMPARE(setScreen(folder.path(), "LOOK-1", "STREAM", saved), QString());
+        found = read(folder.path());
+        QVERIFY(!found.looks.at(0).screens.value("STREAM").slide && found.live.screens.value("STREAM").slide);
+        // Made live again, the saved look is what the screens get, the change to the live look gone
+        QCOMPARE(makeLive(folder.path(), "LOOK-1"), QString());
+        found = read(folder.path());
+        QCOMPARE(found.live.screens, found.looks.at(0).screens);
+        QVERIFY(found.live.screens.value("ROOM").media && !found.live.screens.value("STREAM").slide);
+    }
+
+    void theLiveLookIsSavedAsTheLookItWasMadeFrom()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        // Something of a line that this app knows nothing of, in the live look only
+        rv::data::ProPresenterWorkspace document = fileOf(folder.path());
+        document.mutable_live_audience_look()->mutable_screen_looks(0)->mutable_mask_uuid()->set_string("A-MASK");
+        {
+            QFile file(folder.path() + "/Configuration/Workspace");
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            const std::string bytes = document.SerializeAsString();
+            file.write(bytes.data(), qint64(bytes.size()));
+        }
+        ScreenLook wanted = read(folder.path()).live.screens.value("ROOM");
+        wanted.slide = false;
+        QCOMPARE(setLiveScreen(folder.path(), "ROOM", wanted), QString());
+        QVERIFY(read(folder.path()).looks.at(0).screens.value("ROOM").slide);
+
+        QCOMPARE(saveLive(folder.path()), QString());
+        const Looks found = read(folder.path());
+        // The saved look now gives each screen what the live look does, the whole of each line
+        QCOMPARE(found.looks.at(0).screens, found.live.screens);
+        QVERIFY(!found.looks.at(0).screens.value("ROOM").slide);
+        QCOMPARE(fileOf(folder.path()).audience_looks(0).screen_looks(0).mask_uuid().string(), "A-MASK");
+        // It is still itself: its own id, name and transition, and its place in the list
+        QCOMPARE(found.looks.at(0).id, "LOOK-1");
+        QCOMPARE(found.looks.at(0).name, "Lyrics L3rd");
+        QCOMPARE(found.looks.at(0).transition, 1.0);
+        // The live look is as it was, and still says where it came from; the other look and the rest of the file too
+        QCOMPARE(found.live.id, "LIVE-COPY");
+        QCOMPARE(found.live.origin, "LOOK-1");
+        QVERIFY(found.looks.at(1).screens.value("ROOM").slide);
+        QCOMPARE(fileOf(folder.path()).selected_library_name(), "Songs");
+
+        // A live look whose saved look has gone has nowhere to be saved to, and nothing is written
+        QCOMPARE(remove(folder.path(), "LOOK-1"), QString());
+        const QByteArray before = bytesOf(folder.path());
+        QVERIFY(!before.isEmpty());
+        QVERIFY(!saveLive(folder.path()).isEmpty());
+        QCOMPARE(bytesOf(folder.path()), before);
+    }
+
+    void aWorkspaceWithNoLiveLookIsGivenOneWhenItIsNeeded()
+    {
+        // No file at all: a layer switched off for a screen makes the file, with a live look in it
+        QTemporaryDir folder;
+        ScreenLook wanted;
+        wanted.props = false;
+        QCOMPARE(setLiveScreen(folder.path(), "A", wanted), QString());
+        Looks found = read(folder.path());
+        QVERIFY(!found.live.id.isEmpty() && found.live.id != liveLook() && found.live.origin.isEmpty() && found.looks.isEmpty());
+        QCOMPARE(found.live.screens.value("A"), wanted);
+        // A saved look made live where there was no live look
+        QTemporaryDir other;
+        QString id;
+        QCOMPARE(add(other.path(), "Everything", {"A"}, QString(), &id), QString());
+        QVERIFY(read(other.path()).live.id.isEmpty());
+        QCOMPARE(makeLive(other.path(), id), QString());
+        found = read(other.path());
+        QVERIFY(!found.live.id.isEmpty() && found.live.id != id);
+        QCOMPARE(found.live.origin, id);
+        QCOMPARE(found.live.name, "Everything");
+    }
+
+    void aNewLookCanBeACopyOfAnotherOrOfTheLiveLook()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        QString copy;
+        QCOMPARE(add(folder.path(), "Clear Too", {"IGNORED"}, "LOOK-2", &copy), QString());
+        Looks found = read(folder.path());
+        QCOMPARE(found.looks.size(), 3);
+        QCOMPARE(found.looks.at(2).id, copy);
+        QCOMPARE(found.looks.at(2).name, "Clear Too");
+        QCOMPARE(found.looks.at(2).screens, found.looks.at(1).screens);
+        // The live look, as it has been changed, kept as a saved look of its own
+        ScreenLook wanted = found.live.screens.value("ROOM");
+        wanted.props = false;
+        QCOMPARE(setLiveScreen(folder.path(), "ROOM", wanted), QString());
+        QString kept;
+        QCOMPARE(add(folder.path(), "As It Is Now", {}, liveLook(), &kept), QString());
+        found = read(folder.path());
+        QCOMPARE(found.looks.at(3).screens, found.live.screens);
+        QVERIFY(!found.looks.at(3).screens.value("ROOM").props);
+        // A saved look names no other look as where it came from
+        QVERIFY(!fileOf(folder.path()).audience_looks(3).has_original_look_uuid());
+        QVERIFY(!add(folder.path(), "Of Nothing", {}, "no such", nullptr).isEmpty());
     }
 
     void aThemeIsKnownByItsPlaceUnderThemes()
@@ -119,7 +278,7 @@ private slots:
     {
         QTemporaryDir folder;
         QString id;
-        QCOMPARE(add(folder.path(), "Everything", {"A", "B"}, &id), QString());
+        QCOMPARE(add(folder.path(), "Everything", {"A", "B"}, QString(), &id), QString());
         const Looks found = read(folder.path());
         QCOMPARE(found.looks.size(), 1);
         QCOMPARE(found.looks.at(0).id, id);
@@ -129,7 +288,7 @@ private slots:
         const rv::data::ProPresenterWorkspace document = fileOf(folder.path());
         const rv::data::ProAudienceLook::ProScreenLook &line = document.audience_looks(0).screen_looks(0);
         QVERIFY(line.announcements_enabled() && line.messages_layer_enabled() && line.live_video_enabled());
-        QVERIFY(!add(folder.path(), "  ", {"A"}, nullptr).isEmpty());
+        QVERIFY(!add(folder.path(), "  ", {"A"}, QString(), nullptr).isEmpty());
     }
 
     void whatALookGivesAScreenIsChangedAndTheRestLeft()
@@ -141,7 +300,8 @@ private slots:
         wanted.props = false;
         QCOMPARE(setScreen(folder.path(), "LOOK-2", "ROOM", wanted), QString());
         const Looks found = read(folder.path());
-        QCOMPARE(found.looks.at(1).screens.value("ROOM"), wanted);
+        const ScreenLook now = found.looks.at(1).screens.value("ROOM");
+        QVERIFY(now.slide && !now.media && !now.props && now.theme.isEmpty());
         // The other look, the other screen, the live look and the rest of the file are as they were
         QVERIFY(found.looks.at(0).screens.value("ROOM").media);
         QVERIFY(!found.looks.at(1).screens.value("STREAM").slide);
@@ -174,7 +334,8 @@ private slots:
         wanted.theme = "Samples/Black Box";
         wanted.themeSlide = "TWO-LINES";
         QCOMPARE(setScreen(folder.path(), "LOOK-2", "ROOM", wanted), QString());
-        QCOMPARE(read(folder.path()).looks.at(1).screens.value("ROOM"), wanted);
+        const ScreenLook now = read(folder.path()).looks.at(1).screens.value("ROOM");
+        QVERIFY(now.theme == "Samples/Black Box" && now.themeSlide == "TWO-LINES" && now.slide && now.media && now.props);
         const QString written = QString::fromStdString(fileOf(folder.path()).audience_looks(1).screen_looks(0).template_document_file_path().absolute_string());
         QVERIFY2(written.startsWith("file:///") && written.endsWith("/Themes/Samples/Black%20Box/Theme"), qPrintable(written));
         QCOMPARE(setScreen(folder.path(), "LOOK-2", "ROOM", ScreenLook()), QString());
@@ -206,8 +367,10 @@ private slots:
         const Looks found = read(folder.path());
         QCOMPARE(found.looks.size(), 1);
         QCOMPARE(found.looks.at(0).id, "LOOK-2");
-        // The one that was live is gone: none is, to go by
-        QVERIFY(found.live.isEmpty());
+        // The look the live look came from is gone; the live look is still what it was
+        QCOMPARE(found.live.origin, "LOOK-1");
+        QCOMPARE(found.live.name, "Lyrics L3rd");
+        QVERIFY(found.live.screens.value("STREAM").slide);
         QVERIFY(!remove(folder.path(), "LOOK-1").isEmpty());
     }
 };

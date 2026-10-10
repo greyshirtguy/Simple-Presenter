@@ -179,12 +179,37 @@ Window {
     // The themes as a menu: folders, then themes by the look of their first slide, then
     // each theme's slides, a click on one dressing the slides with these ids in it.
     function themeMenuItems(slideIds) {
+        return themePickItems((place, slideId) => applyTheme(slideIds, place, slideId))
+    }
+
+    // The workspace's themes as a menu to pick a theme slide from: folders by name,
+    // themes by the look of their first slide, and inside a theme its slides. `pick` is
+    // given the place of the theme and the id of the slide picked. It is the menu a
+    // slide's Theme has, and the one a look's line for a screen has (see LooksPanel).
+    function themePickItems(pick) {
         const of = entries => entries.map(entry => entry.kind === "folder"
             ? { label: entry.name, items: [{ header: entry.name }].concat(of(entry.items)) }
             : { label: entry.name, preview: entry.slides.length > 0 ? entry.slides[0].slide : null,
                 items: [{ header: entry.name }].concat(entry.slides.map(slide => ({
-                    label: slide.name, preview: slide.slide, run: () => applyTheme(slideIds, entry.place, slide.id) }))) })
+                    label: slide.name, preview: slide.slide, run: () => pick(entry.place, slide.id) }))) })
         return [{ header: "Theme" }].concat(of(Themes.tree))
+    }
+
+    // Whether the Looks window is up (see LooksPanel)
+    property bool looksOpen: false
+
+    function openLooks() {
+        if (editing)
+            return
+        // (The settings, if they are up, make way for it.)
+        settingsOpen = false
+        looksOpen = true
+        looksPanel.open()
+    }
+
+    function closeLooks() {
+        looksOpen = false
+        takeFocus()
     }
 
     function openSearch() {
@@ -1055,7 +1080,11 @@ Window {
     // Gives the keyboard back to whatever drives the show: the editor while it is up,
     // and otherwise the item that takes the arrow and function keys.
     function takeFocus() {
-        if (editing)
+        // The Looks window keeps the keys while it is up (a menu opened from it hands
+        // them back here when it closes): Esc is then still the way out of it.
+        if (looksOpen)
+            looksPanel.takeKeys()
+        else if (editing)
             editScreen.takeFocus()
         else
             keys.forceActiveFocus()
@@ -1594,23 +1623,29 @@ Window {
     //
     // How long a layer takes to come or go when the look changes, in milliseconds: what
     // the look that is live says.
-    readonly property int lookFade: {
-        const look = Looks.looks.find(candidate => candidate.id === Show.lookId)
-        return look ? Math.round(look.transition * 1000) : 0
-    }
+    readonly property int lookFade: Math.round((Looks.live.transition ?? 0) * 1000)
 
-    // The looks as a menu, the live one ticked: under the toolbar's Output button.
+    // What the toolbar's Looks button says under its picture: the name of the look
+    // that is live, as ProPresenter's has it. A workspace with no live look yet (none
+    // has ever been made live) just says what the button is.
+    readonly property string lookName: Looks.live.name !== undefined && Looks.live.name !== "" ? Looks.live.name : "Looks"
+
+    // The saved looks as a menu, to make one live, with the one the live look came from
+    // ticked; and under a line, the way to the Looks window. Under the toolbar's Looks
+    // button, as in ProPresenter. (It says nothing of the live look having been changed
+    // from that look. It did once, in a note, and the note was there at the first start
+    // on a workspace that ProPresenter had left with a changed live look, where it read
+    // as a warning about something nobody had done. The Looks window is where that is
+    // shown, with Save beside it to do something about it.)
     function looksMenuItems() {
-        return [{ header: "Look" }].concat(Looks.looks.map(look => ({ label: look.name, current: Show.lookId === look.id, run: () => Show.lookId = look.id })))
-            .concat(Looks.looks.length === 0 ? [{ note: "This workspace has no looks: every audience screen gets everything." }] : [])
-            .concat([{ header: "" }, { label: "Edit Looks…", run: () => {
-                settingsOpen = true
-                settingsScreen.section = "looks"
-            } }])
+        return [{ header: "Look" }].concat(Looks.looks.map(look => ({ label: look.name, current: Looks.live.origin === look.id,
+                                                                    run: () => Show.lookId = look.id })))
+            .concat(Looks.looks.length === 0 ? [{ note: "This workspace has no saved looks: every audience screen gets everything." }] : [])
+            .concat([{ header: "" }, { label: "Edit Looks…", run: () => openLooks() }])
     }
 
     function showLooksMenu(item) {
-        menu.show(looksMenuItems(), item)
+        menu.show(looksMenuItems(), item, 0, item.height + 2)
     }
 
     // A slide as an audience screen shows it: as it is, or, where the look that is live
@@ -1619,7 +1654,7 @@ Window {
     function slideFor(screenId, slide) {
         if (!slide || !liveDocument)
             return slide
-        const look = Looks.of(Show.lookId, screenId)
+        const look = Looks.liveOf(screenId)
         if (look.theme === "")
             return slide
         const dressed = Themes.dressed(liveDocument.path, slide.id, look.theme, look.themeSlide)
@@ -1952,11 +1987,10 @@ Window {
                          : Object.keys(had).length === 0 && before === "" ? (Screens.layouts[screen.id] ?? "") : ""
             Show.setStageLayout(screen.id, StageLayouts.layouts.some(candidate => candidate.id === layout) ? layout : "")
         })
-        // The look that was live here, if the workspace still has it; for a workspace
-        // not opened here before, the one that was live when ProPresenter last had it.
-        const look = savedSelection("look")
-        Show.lookId = Looks.looks.some(candidate => candidate.id === look) ? look
-                    : look === "" && Looks.looks.some(candidate => candidate.id === Looks.startsWith) ? Looks.startsWith : ""
+        // The live look is the workspace's own, in its file, and is what the screens
+        // show from the start. Which saved look it came from is only said here:
+        // nothing is made live by opening a workspace.
+        Show.adoptLook(Looks.live.origin ?? "")
     }
 
     // Closes the open workspace and opens another: the output is cleared, everything
@@ -2082,10 +2116,22 @@ Window {
     property var notedLayouts: ({})
 
     Connections {
+        target: Looks
+
+        function onFailed(error) {
+            win.report(error)
+        }
+    }
+
+    Connections {
         target: Show
 
-        function onLookChanged() {
-            win.saveSelection("look", Show.lookId)
+        // A saved look is to be made live, by hand or by an action: it is copied into
+        // the live look, which is what the screens show (see Looks).
+        function onLookAsked(id) {
+            const error = Looks.makeLive(id)
+            if (error !== "")
+                win.report(error)
         }
 
         function onScreenLayoutsChanged() {
@@ -2215,7 +2261,8 @@ Window {
             // The first plays the media, for all of them (see MediaContent).
             readonly property bool leads: index === 0
             // What the look that is live gives this screen: which layers, and in what theme
-            readonly property var look: Looks.looks.length >= 0 ? Looks.of(Show.lookId, audienceHost.modelData) : null
+            // (Reading `live` is what has this follow the live look as it changes.)
+            readonly property var look: Looks.live !== undefined ? Looks.liveOf(audienceHost.modelData) : null
             readonly property string themeKey: look.theme === "" ? "" : look.theme + "\n" + look.themeSlide
             // The look has given this screen another theme, or none: the slide that is
             // live is shown again as it now looks here.
@@ -2824,6 +2871,18 @@ Window {
                 return
             event.accepted = true
         }
+    }
+
+    // The Looks window, over the operator window
+    LooksPanel {
+        id: looksPanel
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 20
+        visible: win.looksOpen
+        win: win
+        onClosed: win.closeLooks()
     }
 
     // What a ChordPro file holds, and how it is to come in
