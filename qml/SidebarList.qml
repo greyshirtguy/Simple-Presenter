@@ -64,10 +64,24 @@ ListView {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     // A new model starts scrolled to the top; bring the selected entry back into view.
+    // That is put off until whatever changed the model has finished, since it often goes
+    // on to select something else: a presentation that has just been made is added to
+    // the list first and opened after.
+    //
+    // The entries are gone through one by one. A list that was handed to the view comes
+    // back from it as a list of QML's own, which Array.isArray() does not take for an
+    // array (seen with Qt 6.10): asking that first, as this did, found nothing, ever, and
+    // every list stayed at its top.
     onModelChanged: Qt.callLater(() => {
-        const index = Array.isArray(model) ? model.findIndex(entry => entry.path === selectedPath) : -1
-        if (index >= 0)
-            positionViewAtIndex(index, ListView.Contain)
+        if (selectedPath === "")
+            return
+        for (let index = 0; index < count; ++index) {
+            const entry = model[index]
+            if (entry && entry.path === selectedPath) {
+                positionViewAtIndex(index, ListView.Contain)
+                return
+            }
+        }
     })
 
     ScrollBar.vertical: ScrollBar {}
