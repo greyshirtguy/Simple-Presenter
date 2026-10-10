@@ -107,12 +107,17 @@ QT_LOGGING_RULES="qt.multimedia.ffmpeg*=true" ./build/SimplePresenter 2>&1 | gre
 
 **What is in one of ProPresenter's files.** They are Protocol Buffers, and the
 descriptions of them are in the repository (get them with
-`git submodule update --init`). This prints a presentation as text:
+`git submodule update --init`). Use the folder `autogen-proto`: it is taken from
+ProPresenter's own program, it is what the app is built from, and it has a name for
+every field. The folder `proto` beside it is older and leaves many fields as bare
+numbers. This prints a presentation as text:
 
 ```
-P=third_party/ProPresenter7-Proto/proto
+P=third_party/ProPresenter7-Proto/autogen-proto
 protoc -I $P --decode rv.data.Presentation $P/presentation.proto < "Some Song.pro" | less
 ```
+
+`protoc` warns that an import is unused; that is nothing.
 
 | File in a workspace | `--decode` | from |
 | --- | --- | --- |

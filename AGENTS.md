@@ -137,6 +137,7 @@ the next version" for the person: build it for them from source instead.
   settings in `~/.config/SimplePresenter/SimplePresenter.conf`; copies of files as they
   were before an edit, and NDI's library if it was fetched, under
   `~/.local/share/SimplePresenter/SimplePresenter/`.
-- **The file formats** are in `third_party/ProPresenter7-Proto/proto` (a submodule).
-  `protoc --decode` with those turns any of ProPresenter's files into text you can read:
-  the playbook has the commands.
+- **The file formats** are in `third_party/ProPresenter7-Proto/autogen-proto` (a
+  submodule): the set taken from ProPresenter itself, which the app is built from, and
+  not the older folder `proto` beside it. `protoc --decode` with those turns any of
+  ProPresenter's files into text you can read: the playbook has the commands.
