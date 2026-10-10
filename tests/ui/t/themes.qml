@@ -97,6 +97,7 @@ QtObject {
                       && life !== undefined && life.preview && life.items.some(i => i.label === "Lower 3rd" && i.preview && typeof i.run === "function"),
                       items.map(i => i.label ?? i.header).join(", "))
                 kept.picture = themeSlide("New Life Chapel", "Theme Slide")
+                kept.nameBefore = worded(document.slides[kept.at])[0].name
                 life.items.find(i => i.label === "Theme Slide").run()
                 return 900
             },
@@ -116,6 +117,12 @@ QtObject {
                 const bigger = boxes.reduce((a, b) => a.width * a.height >= b.width * b.height ? a : b)
                 check("the words went into the larger of the theme's boxes, there being no name to go by", worded(one)[0].y === bigger.y && worded(one)[0].height === bigger.height,
                       worded(one)[0].name + " at " + worded(one)[0].y)
+                // (Which is what lets a stage layout that shows only the text boxes of a given name find the words of a
+                // slide whose own boxes were called something else, or nothing.)
+                const saved = catalog.open(document.path).slides.find(s => s.id === one.id)
+                check("and the slide's text box has taken the name of the theme's box it went into, in the file too", kept.nameBefore !== bigger.name
+                      && worded(one)[0].name === bigger.name && saved !== undefined && worded(saved)[0].name === bigger.name,
+                      "“" + kept.nameBefore + "” became “" + worded(one)[0].name + "”")
                 kept.id = one.id
                 applyTheme([one.id], "New Life Chapel", themeSlide("New Life Chapel", "Centre").id)
                 return 900

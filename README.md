@@ -705,8 +705,10 @@ too, and a right click there renames, copies or removes one.
 ProPresenter's own layouts, in `Configuration/Stage`, are read as they are and can be
 given to the stage. What they have that is shown here: boxes for the words of the live
 and the next slide, including those that take only the text of the slide's elements of
-a given name, and with a song's chords over them where a box has those switched on;
-timers; and boxes that show only while a timer is running, or has run out. What they
+a given name (and nothing at all of a slide that has no element of that name, which is
+how ProPresenter has it and is made use of), and with a song's chords over them where a
+box has those switched on; timers; and boxes that show only while a timer is running,
+or has run out. What they
 have that is not shown yet (the clock, a slide's notes, the stage message, the time
 left of a video, pictures of the slides or of an output) is left empty on the stage,
 and in the editor is marked with what it is; the links themselves are kept, so the
@@ -1137,9 +1139,12 @@ this app's reading of it, and may differ from ProPresenter's in the corners.
   "Lyrics"): **by name** first, whatever the capitals; then **by size**, the largest
   into the largest, since a theme moves boxes about but the big one is the main one in
   both; and boxes much of a size **in the order** they come.
-- A matched text box takes everything from the theme's: place, size, fill, outline,
-  shadow, and the one format the theme's text is in (font, size, colour, alignment,
-  capitals, how it fits its box). It keeps its words.
+- A matched text box takes everything from the theme's: its name, place, size, fill,
+  outline, shadow, and the one format the theme's text is in (font, size, colour,
+  alignment, capitals, how it fits its box). It keeps its words. (The name is worth
+  having: a [stage layout](#stage-layouts) can show only the text boxes of a given
+  name, and a song whose boxes were called something else, or nothing, is brought into
+  line by being dressed in a theme, however its boxes were matched.)
 - What else the theme slide has (shapes, pictures, text boxes that get no words) comes
   with it, the text boxes empty.
 - **Words are never thrown away**: a text box of the slide that has no box in the theme

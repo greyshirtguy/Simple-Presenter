@@ -26,10 +26,15 @@ class Template_Slide;
 //     boxes (see thememath.h: by name, then by size, then in order). A theme's text
 //     boxes are the things on it with words in them, which stand for the words to come
 //     ("Verse", "Lyrics").
-//   - A matched text box takes everything from the theme's: where it is and how large,
-//     its fill, its outline, its shadow, and the one format the theme's text is in (font,
-//     size, colour, alignment, capitals, how it fits its box). It keeps its words, and
-//     what else is its own (what its text is linked to, how it comes on).
+//   - A matched text box takes everything from the theme's: its name, where it is and
+//     how large, its fill, its outline, its shadow, and the one format the theme's text
+//     is in (font, size, colour, alignment, capitals, how it fits its box). It keeps its
+//     words, and what else is its own (what its text is linked to, how it comes on).
+//     The name matters more than it looks: a stage layout can be set to show only the
+//     text boxes of a given name ("Lyrics"), and shows nothing of a slide that has none
+//     of that name. Dressing a song in a theme is how its text boxes, whatever they
+//     were called and however they were matched, come to have the names the stage is
+//     looking for.
 //   - What else the theme slide has (shapes, pictures, text boxes that get no words) comes
 //     with it, the text boxes empty.
 //   - Words of the slide that have no box in the theme stay as they were, on top: words
