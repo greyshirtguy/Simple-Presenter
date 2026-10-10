@@ -186,6 +186,12 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Chords on a slide with no words.** An intro or an instrumental is often a slide
+  with nothing on it, and such a slide is now on the [chord editor](#the-chord-editor)'s
+  sheet, and in its ChordPro text, to be given chords like any other. They are kept
+  just as ProPresenter is given an intro's chords by Multitracks, on characters that do
+  not show. Nothing is added to a slide until a chord is put on it, and taking the
+  chords off again leaves the slide exactly as it was found.
 - **A way to help yourself.** There is still nobody to ask, but the repository now tells
   an AI coding agent how to find out what is wrong on your own computer, and what it
   must not touch while it does: see
