@@ -162,7 +162,10 @@ Rectangle {
         }
     }
 
-    // The output, small: its media with its slide over it, and the props over both
+    // The output, small: its media with its slide over it, and the props over both. It
+    // stands for the first audience screen, and so has what the live look gives that
+    // screen and no more (see previewLook in Main.qml): a layer the look keeps from
+    // the screen is not in the preview either, and the slide is in the screen's theme.
     Rectangle {
         id: preview
 
@@ -181,7 +184,7 @@ Rectangle {
 
             Image {
                 anchors.fill: parent
-                visible: sidePanel.win.liveMedia !== null && !sidePanel.win.liveMedia.video
+                visible: sidePanel.win.previewLook.media && sidePanel.win.liveMedia !== null && !sidePanel.win.liveMedia.video
                 source: visible ? sidePanel.win.thumbnailUrl(sidePanel.win.liveMedia.path) : ""
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
@@ -190,27 +193,33 @@ Rectangle {
             VideoOutput {
                 id: previewVideo
 
+                objectName: "previewVideo"
                 anchors.fill: parent
-                visible: sidePanel.win.liveMedia !== null && sidePanel.win.liveMedia.video
+                visible: sidePanel.win.previewLook.media && sidePanel.win.liveMedia !== null && sidePanel.win.liveMedia.video
                 fillMode: VideoOutput.PreserveAspectFit
             }
 
+            // (No frames are borrowed for a video the look keeps from the screen.)
             FrameRelay {
                 id: relay
 
-                source: sidePanel.liveVideoSink
+                source: sidePanel.win.previewLook.media ? sidePanel.liveVideoSink : null
                 target: previewVideo.videoSink
                 interval: 100
             }
 
             Slide {
+                objectName: "previewSlide"
                 anchors.fill: parent
-                slide: sidePanel.win.liveSlide
+                visible: sidePanel.win.previewLook.slide
+                slide: sidePanel.win.previewSlide
                 effects: false
             }
 
             PropsLayer {
+                objectName: "previewProps"
                 anchors.fill: parent
+                visible: sidePanel.win.previewLook.props
                 props: sidePanel.win.shownProps
                 duration: Math.round(Props.transitionDuration * 1000)
                 effects: false

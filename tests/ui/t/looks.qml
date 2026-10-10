@@ -6,8 +6,9 @@ import "lib.js" as Lib
 // its own and is what each audience screen goes by; a screen's slides dressed in the
 // theme the live look gives it, with the presentation left as it was; a saved look made
 // live from the toolbar, by an action and from the Looks window; the live look changed
-// by itself, and saved as the look it came from; and the Looks window, laid out as
-// ProPresenter's is.
+// by itself, and saved as the look it came from; the Looks window, laid out as
+// ProPresenter's is; and the operator's preview, which shows what the live look gives
+// the first screen.
 QtObject {
     id: t
 
@@ -194,9 +195,11 @@ QtObject {
                 check("the saved look it came from is as it was, and the list says the live look has been changed",
                       JSON.stringify(look("Lyrics L3rd").screens) === kept.before && Looks.live.changed === true && named("lookRow:live").changed === true
                       && Looks.live.origin === kept.lyrics)
+                check("the preview in the operator window shows what the screen it stands for is given: no props now",
+                      named("previewProps").visible === false && named("previewSlide").visible === true)
                 click(centre(box("messages", kept.room)))
                 check("a greyed layer does not answer to a click", Looks.liveOf(kept.room).messages === true)
-                // The slides taken off the room's screen
+                // The slides taken off the room's screen: off the screen itself, and off the preview
                 kept.litWithSlide = testInput.lit(false, 0, 0.12, 1, 0.88)
                 click(centre(box("slide", kept.room)))
                 return 900
@@ -205,7 +208,8 @@ QtObject {
                 const lit = testInput.lit(false, 0, 0.12, 1, 0.88)
                 check("the slide layer switched off in the live look: the room's screen draws no slide", Looks.liveOf(kept.room).slide === false
                       && output.slideOn === false && kept.litWithSlide > 0.01 && lit < 0.001, kept.litWithSlide.toFixed(4) + " then " + lit.toFixed(4))
-                check("while the stream still has its own", scenes[kept.stream].slideOn === true)
+                check("and the preview shows none either, while the stream still has its own", named("previewSlide").visible === false
+                      && scenes[kept.stream].slideOn === true)
                 const logged = testInput.readText(Log.path).split("\n").filter(line => line.includes("  looks  "))
                 check("what was changed, of which look and for which screen, is in the log",
                       logged.some(line => line.includes("the live look: the screen \"" + Screens.audience[0].name + "\" no longer gets the slides")),
@@ -217,7 +221,10 @@ QtObject {
                 return 700
             },
             () => {
-                check("switched on again, the slide is back on the screen", output.slideOn === true && testInput.lit(false, 0, 0.12, 1, 0.88) > 0.01)
+                check("switched on again, the slide is back on the screen and in the preview", output.slideOn === true && named("previewSlide").visible === true
+                      && testInput.lit(false, 0, 0.12, 1, 0.88) > 0.01)
+                check("the preview's slide is in the theme the look gives that screen", worded(named("previewSlide").slide)[0].y === worded(kept.upper)[0].y,
+                      worded(named("previewSlide").slide)[0].y)
                 // Save: the live look, as it has been changed (no props for the room), kept as the look it came from
                 click(centre(named("looksSave")))
                 return 700

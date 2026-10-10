@@ -1071,6 +1071,10 @@ once, and in the file a moment after, so that it never holds a slide up.)
 > a change made to the live look as soon as the next song starts; what was meant to
 > last should be saved (below). The log says when a change went this way.
 
+The preview at the top right of the operator window stands for the first audience
+screen, and shows what the live look gives that screen: a layer the look keeps from it
+is not in the preview either, and its slide is in that screen's theme.
+
 **The Looks window** (the Looks button, then **Edit Looks…**; its ✕, Esc or a click
 outside it puts it away) is laid out as ProPresenter's is. On the left are the looks: the live look first, and under it
 the saved ones, with a green dot beside the one the live look was made from. On the

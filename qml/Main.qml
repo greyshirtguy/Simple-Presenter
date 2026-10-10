@@ -1556,6 +1556,15 @@ Window {
     // the media, and is what the preview and the transport go by.
     property var scenes: ({})
     readonly property var output: scenes[audienceIds[0]] ?? null
+    // What the preview in this window shows of the look: what the live look gives the
+    // screen the preview stands for, which is that first screen. So the preview has
+    // the layers that screen has, and its slide in the theme the look gives that
+    // screen. (Until it went by this, a layer switched off in a look was gone from
+    // the screen and still in the preview, which read as the look not having worked.)
+    // With no audience screen drawn, it shows everything as it is.
+    readonly property var previewLook: audienceIds.length > 0 && Looks.live !== undefined ? Looks.liveOf(audienceIds[0])
+                                                                                          : ({ slide: true, media: true, props: true, theme: "" })
+    readonly property var previewSlide: previewLook.theme === "" || audienceIds.length === 0 ? liveSlide : slideFor(audienceIds[0], liveSlide)
     // The media the scenes were last told to play, with the number that playing was
     // given (see MediaFeeds), or null: what a scene made later is told to show.
     property var lastPlayed: null
