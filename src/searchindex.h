@@ -53,4 +53,14 @@ void prepare(Entry *entry);
 // Nothing typed finds nothing.
 QList<Hit> find(const QList<Entry> &entries, const QString &typed, int limit);
 
+// Narrowing a list that is on the screen to what was typed in the box under it, which
+// is another thing than finding: the list keeps its order, and nothing typed leaves all
+// of it. A row is kept if every word that was typed is somewhere in its name, in any
+// order and as part of a word or the whole of one, both taken as folded() has them. A
+// heading (a playlist has them, over the rows of each part of a service) is kept if a
+// row under it is, up to the next heading, so that what is left still says which part
+// it is in; a heading is not looked for by its own name. What comes back is the places
+// in the list of what is kept, in order.
+QList<int> narrowed(const QStringList &names, const QList<bool> &headings, const QString &typed);
+
 }

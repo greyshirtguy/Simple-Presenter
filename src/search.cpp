@@ -123,6 +123,21 @@ QVariantList Search::find(const QString &typed, int limit) const
     return found;
 }
 
+QVariantList Search::narrowed(const QVariantList &rows, const QString &typed) const
+{
+    QStringList names;
+    QList<bool> headings;
+    for (const QVariant &row : rows) {
+        const QVariantMap map = row.toMap();
+        names << map.value("name").toString();
+        headings << (map.value("kind").toString() == QLatin1String("header"));
+    }
+    QVariantList kept;
+    for (const int place : searchindex::narrowed(names, headings, typed))
+        kept << rows.at(place);
+    return kept;
+}
+
 QStringList Search::wordsOf(const QString &path) const
 {
     for (const searchindex::Entry &entry : m_entries) {

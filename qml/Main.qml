@@ -99,6 +99,14 @@ Window {
     property var document: null
     // Which row of `documents` it was opened from
     property string documentKey: ""
+    // What is typed in the box under the list of presentations, and the list as that
+    // narrows it (Search.narrowed, which says how). Only what the list shows is
+    // narrowed: `documents` stays the whole of the library or playlist, which is what
+    // the arrow keys step through and a service runs down, and a box at the foot of a
+    // list is not to change the order of a service. The box is emptied when another
+    // library or playlist is opened, so that what is opened is seen whole.
+    property string documentFilter: ""
+    readonly property var shownDocuments: documentFilter.trim() === "" ? documents : Search.narrowed(documents, documentFilter)
     // What is live. It is kept by Show (src/show.h), which is also the only thing that
     // changes it, by the rules of src/showstate.h: the functions below that put a slide
     // or media on the output, turn a prop over or clear a layer only ask it to. What it
@@ -381,6 +389,8 @@ Window {
     }
 
     function openLibrary(path) {
+        if (playlistId !== "" || libraryPath !== path)
+            documentFilter = ""
         selectedNode = ""
         playlistId = ""
         libraryPath = path
@@ -389,6 +399,8 @@ Window {
     }
 
     function openPlaylist(id) {
+        if (playlistId !== id)
+            documentFilter = ""
         selectedNode = id
         playlistId = id
         refreshLists()

@@ -53,6 +53,46 @@ private slots:
         QCOMPARE(folded(QString::fromUtf8("It’s 4 o'clock")), "its 4 oclock");
     }
 
+    void aListIsNarrowedToTheNamesThatHaveEveryWordTyped()
+    {
+        const QStringList names = {"Amazing Grace", "Grace To Grace", "How Great Thou Art", QString::fromUtf8("Señor, We're Going"), "Great Are You Lord"};
+        const QList<bool> plain = {false, false, false, false, false};
+        // Nothing typed leaves the list as it is; spaces alone are nothing.
+        QCOMPARE(narrowed(names, plain, ""), (QList<int> {0, 1, 2, 3, 4}));
+        QCOMPARE(narrowed(names, plain, "   "), (QList<int> {0, 1, 2, 3, 4}));
+        // A word, or part of one, in any capitals; the list keeps its order.
+        QCOMPARE(narrowed(names, plain, "grace"), (QList<int> {0, 1}));
+        QCOMPARE(narrowed(names, plain, "GRA"), (QList<int> {0, 1}));
+        QCOMPARE(narrowed(names, plain, "great"), (QList<int> {2, 4}));
+        // Every word typed has to be there, in whatever order.
+        QCOMPARE(narrowed(names, plain, "art how"), (QList<int> {2}));
+        QCOMPARE(narrowed(names, plain, "great lord"), (QList<int> {4}));
+        QCOMPARE(narrowed(names, plain, "grace thou"), (QList<int> {}));
+        // Accents and punctuation as the search has them.
+        QCOMPARE(narrowed(names, plain, "senor were"), (QList<int> {3}));
+        QCOMPARE(narrowed(names, plain, QString::fromUtf8("señor,")), (QList<int> {3}));
+        QCOMPARE(narrowed(names, plain, "zzz"), (QList<int> {}));
+    }
+
+    void aHeadingIsKeptForTheRowsUnderItThatAre()
+    {
+        // A playlist: two parts of a service, each with its heading, and a row before either.
+        const QStringList names = {"Welcome", "9am Service", "Amazing Grace", "Announcements", "11am Service", "Great Are You Lord", "Amazing Love"};
+        const QList<bool> headings = {false, true, false, false, true, false, false};
+        QCOMPARE(narrowed(names, headings, ""), (QList<int> {0, 1, 2, 3, 4, 5, 6}));
+        // Both parts have one: both headings stay, over what is left of each.
+        QCOMPARE(narrowed(names, headings, "amazing"), (QList<int> {1, 2, 4, 6}));
+        // Only the second part has one: the first heading goes with its rows.
+        QCOMPARE(narrowed(names, headings, "great"), (QList<int> {4, 5}));
+        // A row before any heading has none to bring.
+        QCOMPARE(narrowed(names, headings, "welcome"), (QList<int> {0}));
+        // A heading is not looked for by its own name.
+        QCOMPARE(narrowed(names, headings, "service"), (QList<int> {}));
+        QCOMPARE(narrowed(names, headings, "9am"), (QList<int> {}));
+        // A list of names with no word of which are headings is a list of rows.
+        QCOMPARE(narrowed(names, {}, "service"), (QList<int> {1, 4}));
+    }
+
     void nothingTypedFindsNothing()
     {
         const QList<Entry> entries = library();

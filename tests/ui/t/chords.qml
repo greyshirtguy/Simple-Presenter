@@ -64,21 +64,6 @@ QtObject {
         return lines.map(line => line.text + " <" + line.chords.map(c => c.at + ":" + c.name).join(" ") + ">").join(" | ")
     }
 
-    // Whether words are drawn in an item, by the first forty points along its middle as the operator window
-    // shows them: how many are much lighter than the darkest of them, which is the ground, and how many are as
-    // dark as it. Words that are drawn give some of each. (Each point is a picture taken of the whole window,
-    // hence so few of them.)
-    function strokes(item) {
-        const from = item.mapToItem(null, 0, item.height / 2)
-        const greys = []
-        for (let i = 0; i < 40 && i < item.width; ++i) {
-            const c = String(testInput.windowPixel(from.x + i + 0.5, from.y))
-            greys.push((parseInt(c.substring(1, 3), 16) * 299 + parseInt(c.substring(3, 5), 16) * 587 + parseInt(c.substring(5, 7), 16) * 114) / 1000)
-        }
-        const ground = Math.min(...greys)
-        return { light: greys.filter(g => g > ground + 60).length, dark: greys.filter(g => g < ground + 20).length }
-    }
-
     // Whether a colour of the window ("#rrggbb") is the orange the editor marks things with, or a good part of it
     // (an edge one pixel wide may be shared between two).
     function orange(c) {
@@ -86,20 +71,6 @@ QtObject {
         const g = parseInt(c.substring(3, 5), 16)
         const b = parseInt(c.substring(5, 7), 16)
         return r > 130 && r > g + 30 && g > b + 20
-    }
-
-    // What the operator sees of a presentation in the list of presentations: whether its row is in view, whether
-    // it is the one picked out, and whether its name is drawn there (see strokes).
-    function listed(name) {
-        const list = named("presentationList")
-        const row = list.itemAtIndex(documents.findIndex(d => d.name === name))
-        if (!row)
-            return { inView: false, picked: false, light: 0, dark: 0, at: "no row is made for it" }
-        const y = row.mapToItem(list, 0, 0).y
-        const words = Lib.find(row, item => item.font !== undefined && String(item.text).startsWith(name))
-        const drawn = words ? strokes(words) : { light: 0, dark: 0 }
-        return { inView: y >= 0 && y + row.height <= list.height + 0.5, picked: row.selected === true, light: drawn.light, dark: drawn.dark,
-                 at: y + " in " + list.height }
     }
 
     function run() {

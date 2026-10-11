@@ -26,6 +26,35 @@ QString folded(const QString &text)
     return out;
 }
 
+QList<int> narrowed(const QStringList &names, const QList<bool> &headings, const QString &typed)
+{
+    const QStringList words = folded(typed).split(u' ', Qt::SkipEmptyParts);
+    QList<int> kept;
+    // The heading that rows now belong under, until one of them is kept and it with it
+    int heading = -1;
+    for (int row = 0; row < names.size(); ++row) {
+        if (row < headings.size() && headings.at(row)) {
+            if (words.isEmpty())
+                kept.append(row);
+            else
+                heading = row;
+            continue;
+        }
+        const QString name = folded(names.at(row));
+        bool every = true;
+        for (const QString &word : words)
+            every = every && name.contains(word);
+        if (!every)
+            continue;
+        if (heading >= 0) {
+            kept.append(heading);
+            heading = -1;
+        }
+        kept.append(row);
+    }
+    return kept;
+}
+
 void prepare(Entry *entry)
 {
     entry->nameFolded = folded(entry->name);

@@ -186,6 +186,8 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **A box that narrows the list of presentations.** Type part of a name under the list,
+  in a library or a playlist, and only the presentations that have it are left.
 - **Simple View can keep the right pane.** A setting leaves the previews, the clears and
   the show controls where they are while the rest goes.
 - **New presentations.** The **+** beside Libraries has **New Presentation…**: give it
@@ -498,6 +500,17 @@ second of the same name gets a number after it. The file starts as ProPresenter'
 presentations do, with a slide written as ProPresenter writes an empty one; but that
 ProPresenter opens a presentation that was made here is a guess, and has not been
 tried.
+
+Under the list of presentations is a box that narrows it. What is typed there leaves
+the presentations whose names have every word of it, in any order, as a word or part of
+one, with capitals, accents and punctuation aside, as [Search](#search) has them. It
+works on whichever is being browsed, a library or a playlist; in a playlist a heading
+stays for the rows under it that are left. The box says how many are left of how many.
+**Enter** opens the first of them, **Esc** or the cross empties the box, and opening
+another library or playlist empties it too. Only the list is narrowed: the arrow keys
+still step through every presentation, in the order the library or the playlist has
+them. (ProPresenter has such a box under its list; how it matches names, and what its
+keys do, is a guess here.)
 
 `--workspace <dir>` opens a particular workspace folder, wherever it is; the folders
 beside it are then the ones the picker offers. `--help` lists the other options.

@@ -42,6 +42,11 @@ public:
     // The words of each slide of a presentation that has been read.
     Q_INVOKABLE QStringList wordsOf(const QString &path) const;
 
+    // The rows of a list ({ name, kind } each, and whatever else they have) that what
+    // was typed in the box under the list leaves in it: see searchindex::narrowed. It
+    // is here and not in a script so that the lists match names as the search does.
+    Q_INVOKABLE QVariantList narrowed(const QVariantList &rows, const QString &typed) const;
+
 signals:
     void changed();
 

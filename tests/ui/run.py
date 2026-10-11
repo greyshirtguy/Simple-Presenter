@@ -445,6 +445,7 @@ TESTS = {
     "acts": test("Act", after=after_acts),
     "refine": test("Act"),
     "search": test("Demo"),
+    "library": test("Demo"),
     "looks": test("Act", after=after_looks),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),

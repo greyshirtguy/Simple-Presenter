@@ -274,12 +274,15 @@ Rectangle {
 
     // In a playlist, rows can be dragged up and down to reorder them.
     SidebarList {
+        id: presentationList
+
         objectName: "presentationList"
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: presentationsHeader.bottom
-        anchors.bottom: parent.bottom
-        model: sidebar.win.documents
+        anchors.bottom: filterBar.top
+        // As the box under the list narrows it (see documentFilter in Main.qml)
+        model: sidebar.win.shownDocuments
         selectedPath: sidebar.win.documentKey
         livePath: sidebar.win.cueLive && sidebar.win.livePlaylistId === sidebar.win.playlistId ? sidebar.win.liveKey : ""
         dragProxy: sidebar.presentationDrag
@@ -296,6 +299,109 @@ Rectangle {
         onDropped: (target, source, where) => {
             if (source.entry.playlistItem && source.entry.path !== target.path)
                 sidebar.win.report(sidebar.win.catalog.movePlaylistItem(source.entry.path, target.path, where === "after"))
+        }
+    }
+
+    EmptyNote {
+        objectName: "presentationFilterNothing"
+        anchors.horizontalCenter: presentationList.horizontalCenter
+        y: presentationList.y + 16
+        width: presentationList.width - 30
+        visible: sidebar.win.documentFilter.trim() !== "" && sidebar.win.shownDocuments.length === 0
+        font.pixelSize: 13
+        text: "Nothing here has that in its name."
+    }
+
+    // The box that narrows the list to the names that have what is typed in it, at the
+    // foot of the list: the library's presentations, or the playlist's rows. Esc empties
+    // it; Enter opens the first of what is left. Either gives the keys back to the show.
+    //
+    // ProPresenter has a box for this under its list too. A GUESS at the rest, which has
+    // not been looked at there: what it matches a name by (here: every word typed, in
+    // any order, capitals, accents and punctuation aside, as the search has them), and
+    // what Enter and Esc do in it.
+    Rectangle {
+        id: filterBar
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 34
+        color: "#2b2d31"
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: "#3a3c42"
+        }
+
+        AppTextField {
+            id: filterField
+
+            objectName: "presentationFilter"
+            anchors.fill: parent
+            anchors.margins: 4
+            anchors.topMargin: 5
+            font.pixelSize: 13
+            rightPadding: filterCount.width + 34
+            placeholderText: "Filter"
+            placeholderTextColor: "#7d8088"
+            text: sidebar.win.documentFilter
+            onTextEdited: sidebar.win.documentFilter = text
+            onAccepted: {
+                const first = sidebar.win.shownDocuments.find(sidebar.win.openable)
+                if (first)
+                    sidebar.win.openEntry(first)
+                sidebar.win.takeFocus()
+            }
+            Keys.onEscapePressed: {
+                sidebar.win.documentFilter = ""
+                sidebar.win.takeFocus()
+            }
+
+            // How many of the rows are left, and a cross that empties the box
+            Text {
+                id: filterCount
+
+                objectName: "presentationFilterCount"
+                anchors.right: filterClear.left
+                anchors.rightMargin: 4
+                anchors.verticalCenter: parent.verticalCenter
+                visible: sidebar.win.documentFilter.trim() !== ""
+                color: "#8d9097"
+                font.pixelSize: 11
+                text: {
+                    const rows = (list) => list.filter(entry => entry.kind !== "header").length
+                    return rows(sidebar.win.shownDocuments) + " of " + rows(sidebar.win.documents)
+                }
+            }
+
+            Text {
+                id: filterClear
+
+                objectName: "presentationFilterClear"
+                anchors.right: parent.right
+                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                visible: sidebar.win.documentFilter !== ""
+                color: clearMouse.containsMouse ? "#e6e6e6" : "#9a9da3"
+                font.pixelSize: 15
+                text: "×"
+
+                MouseArea {
+                    id: clearMouse
+
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    hoverEnabled: true
+                    cursorShape: Qt.ArrowCursor
+                    onClicked: {
+                        sidebar.win.documentFilter = ""
+                        sidebar.win.takeFocus()
+                    }
+                }
+            }
         }
     }
 }
