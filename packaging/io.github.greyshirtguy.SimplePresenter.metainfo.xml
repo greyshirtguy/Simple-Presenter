@@ -38,6 +38,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.86" date="2026-10-11">
+      <description>
+        <p>
+          Clear groups, as ProPresenter has them: named sets of layers that are cleared together, at
+          one click. Each of the workspace's groups has a button under the clears of the layers, and
+          a right click on any clear button leads to the window they are set up in: the layers each
+          clears, the picture on its button and a tint. F1 now clears the first group, which to begin
+          with is Clear All, and an action on a slide or in a macro can clear a group.
+        </p>
+      </description>
+    </release>
     <release version="0.85" date="2026-10-11">
       <description>
         <p>
