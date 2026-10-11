@@ -38,6 +38,18 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.85" date="2026-10-11">
+      <description>
+        <p>
+          From a slide's menu: Group puts the slide, and those after it in its group, into another
+          group, and Label gives the slide a label, with a colour if wanted, from the labels the
+          workspace keeps ready or made on the spot. A presentation can be renamed, which brings
+          the playlists that have it along, and moved to the Trash. A box under the list of
+          presentations narrows it to the names that have what is typed. And Simple View can keep
+          the previews and the show controls at the right.
+        </p>
+      </description>
+    </release>
     <release version="0.84" date="2026-10-11">
       <description>
         <p>
