@@ -138,6 +138,11 @@ public:
     // The presentation the show is at was read again, or put in another order: this is
     // the slide it is at now. Nothing on the output changes.
     void follow(const Cue &cue);
+    // A presentation's file was given another name. A row of a library goes by its
+    // file, so a show that is at that row is at the row `to` now, and goes on from the
+    // slide it was at: nothing on the output changes. (A row of a playlist has an id of
+    // its own, which a rename leaves as it was, and a show at one is not touched.)
+    void renamed(const QString &from, const QString &to);
     // The show is at no presentation any more (the workspace was changed).
     void leavePresentation();
 

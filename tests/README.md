@@ -24,7 +24,7 @@ So far there are seven:
 | `tst_searchindex` | Finding presentations by their names and words (`src/searchindex.h`): capitals, punctuation and accents, the order of what is found, the line that is shown; and a list on the screen narrowed to the names that have what was typed, a playlist's headings with it |
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
 | `tst_screenfile` | The list of a workspace's screens in ProPresenter's set-up file (`src/screenfile.h`): what a workspace with no file has, what adding, renaming and removing a screen write, and that the rest of a file ProPresenter wrote goes back as it came |
-| `tst_showstate` | The rules of the show (`src/showstate.h`): what a slide going live puts on the output and in what order, when the media it brings is started and when what is playing is left to, what a slide's actions do, what clearing leaves, how props stack and give way, what a macro does, where a step takes the show, and how the show follows a presentation that is read again |
+| `tst_showstate` | The rules of the show (`src/showstate.h`): what a slide going live puts on the output and in what order, when the media it brings is started and when what is playing is left to, what a slide's actions do, what clearing leaves, how props stack and give way, what a macro does, where a step takes the show, how the show follows a presentation that is read again, and one that is renamed under it |
 
 **Adding one.** A part can be unit tested if it compiles without the windows: it takes
 what it needs as values and says what is to happen as values, where the code round it
@@ -109,6 +109,17 @@ What the folder holds:
 | `workspaces/Shapes` | One presentation and two pictures, for the editor |
 | `songs/` | Two songs with chords, as Multitracks and ProPresenter wrote them, which the `chords` test copies into its workspace |
 | `made/` | Small videos and pictures made for the tests: one keyframe in twenty seconds, dark until nine seconds in, VP9, HEVC, one with sound |
+
+**A trap in them: a playlist's row can lead out of the test.** A row of a playlist says
+where its presentation is twice over, by the path from the workspace's folder and by
+the file's whole address on the computer the row was made on, and a row is found by the
+first of those that is there. The fixtures' rows were made on the maintainer's
+computer, in a real workspace. So for as long as a test's copy of a presentation is
+where the row says, the row finds the copy; but **a test that deletes or renames the
+copy sends the row to the real file**, and whatever the test then does to that row it
+does to somebody's song. A test that takes presentations away or renames them has to
+give its workspace rows that lead nowhere real first: `prepare_library` in `run.py`
+rewrites every address as ProPresenter writes one on a Mac.
 
 **Writing one.** Start from a short one (`t/rapid.qml`). A script is a `QtObject` with a
 list of steps; each step does something and says how many milliseconds to wait before

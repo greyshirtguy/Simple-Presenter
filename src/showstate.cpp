@@ -148,6 +148,12 @@ void State::follow(const Cue &cue)
     next = cue.next;
 }
 
+void State::renamed(const QString &from, const QString &to)
+{
+    if (playlistId.isEmpty() && key == from)
+        key = to;
+}
+
 void State::leavePresentation()
 {
     atSlide = false;

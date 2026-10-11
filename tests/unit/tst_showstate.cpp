@@ -751,6 +751,37 @@ private slots:
         QCOMPARE(nowhere.index, -1);
     }
 
+    void aRenamedPresentationIsStillTheOneTheShowIsAt()
+    {
+        // In a library a row goes by its file: the show is at the row of the new name,
+        // at the slide it was at, and stepping goes on from there.
+        State show;
+        Presentation song = plainSong();
+        show.goLive(song.cue(1), false, workspace());
+        show.renamed("song.pro", "hymn.pro");
+        QCOMPARE(show.key, "hymn.pro");
+        QCOMPARE(show.index, 1);
+        QVERIFY(show.atSlide && !show.cleared);
+        QCOMPARE(show.stepTarget("hymn.pro", "", 1), 2);
+        QCOMPARE(show.stepTarget("song.pro", "", 1), 0);
+        // Another presentation's rename is nothing to it.
+        show.renamed("other.pro", "another.pro");
+        QCOMPARE(show.key, "hymn.pro");
+        // A playlist's row has an id of its own, whatever its file is called, and an id
+        // that happened to read as the old name would not be a library's row.
+        State listed;
+        Presentation row = plainSong();
+        row.key = "song.pro";
+        row.playlistId = "playlist";
+        listed.goLive(row.cue(0), false, workspace());
+        listed.renamed("song.pro", "hymn.pro");
+        QCOMPARE(listed.key, "song.pro");
+        // A show that is nowhere stays nowhere.
+        State nowhere;
+        nowhere.renamed("song.pro", "hymn.pro");
+        QVERIFY(!nowhere.atSlide && nowhere.key.isEmpty());
+    }
+
     void leavingAPresentationLeavesTheMediaAndThePropsAlone()
     {
         State show;

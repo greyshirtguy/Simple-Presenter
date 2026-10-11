@@ -13,6 +13,8 @@
 #include <QSaveFile>
 #include <QUrl>
 
+#include <functional>
+
 namespace {
 
 QString playlistPath(const QString &root)
@@ -443,6 +445,60 @@ QString PlaylistFile::addPresentation(const QString &root, const QString &playli
         presentation->set_arrangement_name(selected.toStdString());
     }
     return write(root, kind, document);
+}
+
+namespace {
+
+// Every row of every playlist under a node, handed to `each`.
+void eachItem(rv::data::Playlist *node, const std::function<void(rv::data::PlaylistItem *)> &each)
+{
+    if (node->has_playlists()) {
+        for (rv::data::Playlist &child : *node->mutable_playlists()->mutable_playlists())
+            eachItem(&child, each);
+    } else if (node->has_items()) {
+        for (rv::data::PlaylistItem &item : *node->mutable_items()->mutable_items())
+            each(&item);
+    }
+}
+
+} // namespace
+
+QStringList PlaylistFile::rowsOf(const QString &root, const QString &file)
+{
+    rv::data::PlaylistDocument document;
+    QString error;
+    if (!read(root, Presentations, &document, &error))
+        return {};
+    // Found as a row is found when the playlists are shown: by where it says the file
+    // is, or failing that by the file's name among the libraries.
+    workspace::FileFinder finder(root, QStringLiteral("Libraries"));
+    QStringList ids;
+    eachItem(document.mutable_root_node(), [&](rv::data::PlaylistItem *item) {
+        if (item->has_presentation() && finder.find(item->presentation().document_path()) == file)
+            ids.append(QString::fromStdString(item->uuid().string()));
+    });
+    return ids;
+}
+
+QString PlaylistFile::renameRows(const QString &root, const QStringList &ids, const QString &oldName, const QString &fileName)
+{
+    if (ids.isEmpty())
+        return {};
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, Presentations, &document);
+    if (!error.isEmpty())
+        return error;
+    const QString name = QFileInfo(fileName).completeBaseName();
+    bool changed = false;
+    eachItem(document.mutable_root_node(), [&](rv::data::PlaylistItem *item) {
+        if (!item->has_presentation() || !ids.contains(QString::fromStdString(item->uuid().string())))
+            return;
+        workspace::renameFileIn(item->mutable_presentation()->mutable_document_path(), fileName);
+        if (QString::fromStdString(item->name()) == oldName)
+            item->set_name(name.toStdString());
+        changed = true;
+    });
+    return changed ? write(root, Presentations, document) : QString();
 }
 
 QString PlaylistFile::removeItem(const QString &root, Kind kind, const QString &itemId)

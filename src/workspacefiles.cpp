@@ -131,6 +131,20 @@ void recordFile(rv::data::URL *reference, const QString &file, const QString &wo
     }
 }
 
+void renameFileIn(rv::data::URL *reference, const QString &fileName)
+{
+    // The address is written with what an address cannot hold as %XX; the path is not.
+    if (!reference->absolute_string().empty()) {
+        const QString address = QString::fromStdString(reference->absolute_string());
+        reference->set_absolute_string((address.left(address.lastIndexOf(u'/') + 1)
+                                        + QString::fromLatin1(QUrl::toPercentEncoding(fileName))).toStdString());
+    }
+    if (reference->has_local() && !reference->local().path().empty()) {
+        const QString path = QString::fromStdString(reference->local().path());
+        reference->mutable_local()->set_path((path.left(path.lastIndexOf(u'/') + 1) + fileName).toStdString());
+    }
+}
+
 QString fileNameOf(const rv::data::URL &reference)
 {
     const QString name = QUrl(QString::fromStdString(reference.absolute_string())).fileName();

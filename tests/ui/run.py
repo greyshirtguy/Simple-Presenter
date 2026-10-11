@@ -46,6 +46,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 import uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -290,6 +291,116 @@ Thirteen
 """
 
 
+def prepare_library(workspace, test_dir):
+    """The rows of the playlists as ProPresenter writes them on a Mac: the address of the file there, the system named,
+    and the path from the workspace's folder. The rows the fixture has were added on this computer and give the file's
+    address here, in the workspace the fixture was copied from: a row whose file the test has deleted or renamed would
+    then be found there, in somebody's real workspace, which a test is to have nothing to do with."""
+    path = os.path.join(workspace, "Playlists", "Library")
+    with open(path, "rb") as source:
+        text = protoc("decode", "rv.data.PlaylistDocument", "propresenter.proto", source.read()).decode()
+    text, rows = re.subn(r'^( *)absolute_string: "file://[^"]*/(Libraries/[^"/]+/[^"/]+\.pro)"\n(?! *platform:)',
+                         r'\1absolute_string: "file:///Users/someone/Documents/ProPresenter/\2"\n\1platform: PLATFORM_MACOS\n', text, flags=re.M)
+    if rows == 0:
+        raise RuntimeError("the fixture's playlists have no rows that are presentations")
+    with open(path, "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", text.encode()))
+    shutil.copy(path, os.path.join(test_dir, "playlists-before"))
+
+
+def after_library(workspace, test_dir):
+    """A presentation renamed, from a library and from a playlist, and one deleted: what the files then hold. A renamed
+    file is the file it was but for the name inside it; the playlists are what they were but for the name and the
+    file of the rows that are those presentations; and the deleted one is in the Trash, whole. (It is taken out of the
+    Trash again here: the Trash it went to is the system's for the disk the test runs on, not a folder of the test's.)"""
+    def decoded(path, message="rv.data.Presentation", proto="presentation.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def differing(was, now):
+        was, now = was.splitlines(), now.splitlines()
+        return None if len(was) != len(now) else [(a.strip(), b.strip()) for a, b in zip(was, now) if a != b]
+
+    original = os.path.join(FIXTURES, "workspaces", "Demo")
+    library = os.path.join(workspace, "Libraries", "Demo")
+    lines = []
+
+    renamed = os.path.join(library, "Build My Life Again.pro")
+    changed = differing(decoded(os.path.join(original, "Libraries", "Demo", "Build My Life.pro")), decoded(renamed)) if os.path.exists(renamed) else None
+    lines.append(said(changed == [('name: "Build My Life"', 'name: "Build My Life Again"')],
+                      "in the renamed presentation's file: the name inside is the new one, and nothing else is other than it was",
+                      "no such file, or another number of lines" if changed is None else "%d lines differ: %s" % (len(changed), changed[:3])))
+
+    second = sorted(name for name in os.listdir(library) if name.endswith(" - Two.pro"))
+    first_name = second[0][:-len(" - Two.pro")] if second else ""
+    changed = (differing(decoded(os.path.join(original, "Libraries", "Demo", first_name + ".pro")), decoded(os.path.join(library, second[0])))
+               if len(second) == 1 and os.path.exists(os.path.join(original, "Libraries", "Demo", first_name + ".pro")) else None)
+    lines.append(said(changed == [('name: "%s"' % first_name, 'name: "%s - Two"' % first_name)],
+                      "in the file of the one renamed from a playlist: the same, with the slash that was typed a dash",
+                      "no such file, or another number of lines" if changed is None else "%d lines differ: %s" % (len(changed), changed[:3])))
+
+    # The playlists, against what the test was given (prepare_library): every row that is one of the two presentations,
+    # which may be more than two rows, and nothing else.
+    lists = [decoded(path, "rv.data.PlaylistDocument", "propresenter.proto")
+             for path in (os.path.join(test_dir, "playlists-before"), os.path.join(workspace, "Playlists", "Library"))]
+    changed = differing(*lists)
+    kinds = sorted(set(a.split(":")[0] for a, b in changed)) if changed else []
+    new_names = ("Build My Life Again", first_name + " - Two")
+    names = [b for a, b in changed if a.startswith("name:")] if changed else []
+    addresses = [b for a, b in changed if a.startswith("absolute_string:")] if changed else []
+    paths = [b for a, b in changed if a.startswith("path:")] if changed else []
+    mac = "file:///Users/someone/Documents/ProPresenter/Libraries/Demo/"
+    lines += [
+        said(changed is not None and len(changed) > 0 and all(a.split(":")[0] == b.split(":")[0] and a.split(":")[0] in ("name", "absolute_string", "path")
+                                                              for a, b in changed),
+             "in the playlists file: nothing is other than it was but the names of rows and the files they refer to",
+             "another number of lines" if changed is None else "%d lines differ, of the kinds %s" % (len(changed), ", ".join(kinds))),
+        said(len(names) >= 2 and sorted(set(names)) == sorted('name: "%s"' % name for name in new_names),
+             "in the playlists file: every row that is one of the renamed presentations is called what that is called now",
+             "; ".join(names)),
+        said(len(addresses) == len(names) and sorted(set(addresses)) == sorted('absolute_string: "%s%s.pro"' % (mac, urllib.parse.quote(name)) for name in new_names),
+             "in the playlists file: each gives the file's new name in its address, written as an address is, in the folder on the Mac that it gave before",
+             "; ".join(sorted(set(addresses)))[:260]),
+        said(len(paths) == len(names) and sorted(set(paths)) == sorted('path: "Libraries/Demo/%s.pro"' % name for name in new_names),
+             "in the playlists file: and in its path from the workspace's folder", "; ".join(sorted(set(paths)))[:200]),
+        said(lists[0].count("platform: PLATFORM_MACOS") == lists[1].count("platform: PLATFORM_MACOS") and lists[0].count("platform: PLATFORM_MACOS") >= len(names)
+             and lists[0].count("root: ROOT_SHOW") == lists[1].count("root: ROOT_SHOW"),
+             "in the playlists file: what ProPresenter writes beside an address (the system it was on, and where the path starts from) is all still there",
+             "%d and %d" % (lists[0].count("platform: PLATFORM_MACOS"), lists[1].count("platform: PLATFORM_MACOS"))),
+    ]
+
+    # The deleted one: named in the app's log by where it went.
+    went = ""
+    for log in glob.glob(os.path.join(glob.escape(test_dir), "docs", "SimplePresenter", "Logs", "*.log")):
+        with open(log, encoding="utf-8", errors="replace") as text:
+            for line in text:
+                found = re.search(r"  trash +(.*) moved to the Trash, as (.*)$", line.rstrip("\n"))
+                if found:
+                    went = found.group(2)
+                    gone_from = found.group(1)
+    victim = os.path.join(original, "Libraries", "Demo", os.path.basename(gone_from)) if went else ""
+    whole = False
+    if went and os.path.isfile(went) and os.path.isfile(victim):
+        with open(went, "rb") as a, open(victim, "rb") as b:
+            whole = a.read() == b.read()
+    lines += [
+        said(bool(went) and not os.path.exists(gone_from) and gone_from.startswith(library + os.sep), "the deleted presentation's file is out of its library", went),
+        said(whole and os.path.basename(os.path.dirname(went)) == "files" and "Trash" in os.path.basename(os.path.dirname(os.path.dirname(went))),
+             "and in the Trash, byte for byte the file it was", went),
+    ]
+    # Taken out of the Trash again: that one file, known to be the test's own copy by its bytes, and the note the
+    # Trash keeps beside it, known by naming where the file came from.
+    if whole and os.path.basename(os.path.dirname(went)) == "files":
+        note = os.path.join(os.path.dirname(os.path.dirname(went)), "info", os.path.basename(went) + ".trashinfo")
+        os.remove(went)
+        if os.path.isfile(note):
+            with open(note, encoding="utf-8", errors="replace") as text:
+                names_it = urllib.parse.quote(gone_from) in text.read()
+            if names_it:
+                os.remove(note)
+    return lines
+
+
 def prepare_chords(workspace, test_dir):
     """Songs that have chords, which Multitracks wrote and ProPresenter kept (copies of the user's own, kept with the
     other fixtures and not in the repository), in the workspace's first library; and a ChordPro file to import."""
@@ -445,7 +556,7 @@ TESTS = {
     "acts": test("Act", after=after_acts),
     "refine": test("Act"),
     "search": test("Demo"),
-    "library": test("Demo"),
+    "library": test("Demo", prepare=prepare_library, after=after_library),
     "looks": test("Act", after=after_looks),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),

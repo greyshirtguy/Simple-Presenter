@@ -188,6 +188,9 @@ The big things lately, the newest first.
 
 - **A box that narrows the list of presentations.** Type part of a name under the list,
   in a library or a playlist, and only the presentations that have it are left.
+- **Presentations renamed and deleted.** A presentation's menu has **Rename**, which
+  brings the playlists that have it along, and in a library **Delete…**, which moves
+  its file to the Trash.
 - **Simple View can keep the right pane.** A setting leaves the previews, the clears and
   the show controls where they are while the rest goes.
 - **New presentations.** The **+** beside Libraries has **New Presentation…**: give it
@@ -500,6 +503,21 @@ second of the same name gets a number after it. The file starts as ProPresenter'
 presentations do, with a slide written as ProPresenter writes an empty one; but that
 ProPresenter opens a presentation that was made here is a guess, and has not been
 tried.
+
+A right click on a presentation has **Rename**, which renames it in place in the list,
+as a library or a playlist is renamed: the file is renamed, the name inside it is
+changed to match, and every row of a playlist that is that presentation is brought
+along, so that it still finds it (nothing else of a row is touched, the system it was
+written on and its arrangement least of all). A name the library has already is
+refused. In a library the menu also has **Delete…**, which asks first and then moves
+the file to the system's Trash, where the file manager has it to put back; nothing is
+ever deleted outright, and a file that cannot be moved there is left where it is. A
+playlist that had it says it is missing. Renaming and deleting a presentation that is
+on the output are allowed for: renamed, the show goes on from the slide it was at;
+deleted, its slide is taken off the output first. In a playlist the menu has Rename and
+not Delete: there, only the row is ever removed. (Whether ProPresenter offers these in
+the same places, and what it does with the rows of a deleted presentation, has not
+been looked at: that is a guess.)
 
 Under the list of presentations is a box that narrows it. What is typed there leaves
 the presentations whose names have every word of it, in any order, as a word or part of

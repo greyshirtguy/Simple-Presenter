@@ -22,11 +22,19 @@ Rectangle {
     required property Item playlistDrag
     // Whether a playlist is being renamed in place, which has the keyboard
     readonly property bool renaming: playlistList.editingPath !== "" || libraryList.editingPath !== ""
+                                     || presentationList.editingPath !== ""
 
     // Starts naming a library in place: one that has just been made (see newLibrary in
     // Main.qml).
     function renameLibrary(path) {
         libraryList.editingPath = path
+    }
+
+    // Starts renaming a presentation in place, by its row in the list: its file in a
+    // library, the row's own id in a playlist. (Its row is the one the menu was asked
+    // for, so it is in view.)
+    function renamePresentation(path) {
+        presentationList.editingPath = path
     }
 
     // Starts renaming a playlist or folder in place, bringing its row into view first:
@@ -296,6 +304,8 @@ Rectangle {
                 sidebar.win.openEntry(entry)
         }
         onMenuRequested: (entry, item) => sidebar.win.showPresentationMenu(entry, item)
+        onRenamed: (entry, name) => sidebar.win.renamePresentation(entry, name)
+        onEditingEnded: sidebar.win.takeFocus()
         onDropped: (target, source, where) => {
             if (source.entry.playlistItem && source.entry.path !== target.path)
                 sidebar.win.report(sidebar.win.catalog.movePlaylistItem(source.entry.path, target.path, where === "after"))

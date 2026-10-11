@@ -78,6 +78,16 @@ struct PlaylistFile
     // Records which arrangement a playlist row uses, by id and name ("" and "" for none).
     static QString setItemArrangement(const QString &root, const QString &itemId,
                                       const QString &arrangementId, const QString &arrangementName);
+    // The rows, of any playlist, that are this presentation file: their ids. Asked
+    // before the file is renamed, while it is still there to be found.
+    static QStringList rowsOf(const QString &root, const QString &file);
+    // Brings those rows along when their presentation has been renamed: each now
+    // refers to a file called `fileName` in the folder it referred to before, and a
+    // row that was called what the presentation was called (`oldName`, as a row is when
+    // it is made) is called what the presentation is called now. Nothing else of a
+    // row is changed, its arrangement least of all. With no rows there is nothing to
+    // do, and nothing is written.
+    static QString renameRows(const QString &root, const QStringList &ids, const QString &oldName, const QString &fileName);
     // Appends a presentation file to a playlist, using the arrangement the presentation
     // has selected.
     static QString addPresentation(const QString &root, const QString &playlistId, const QString &file);

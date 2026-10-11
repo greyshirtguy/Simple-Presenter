@@ -266,6 +266,12 @@ Window {
     // Set if the workspace changed on disk while the editor was up: the lists are
     // brought up to date when it comes down, not after every change it saves.
     property bool listsStale: false
+    // Set for as long as the catalog takes to rename or delete a presentation. The
+    // catalog says that the files have changed before it comes back from doing it, and
+    // following that then would find the presentation being viewed gone and open the
+    // first of the list in its place. The function that asked knows what became of the
+    // file, and follows the catalog itself when it has put that right.
+    property bool holdingLists: false
     // Set when the editor has added or deleted slides of the presentation being viewed,
     // so that the show is brought up to date when the editor comes down
     property bool slidesRearranged: false
@@ -1195,6 +1201,67 @@ Window {
             openLibrary(renamed.path)
     }
 
+    // Gives a presentation another name: its file's and the one inside it, with the
+    // rows of playlists that are it brought along (Catalog::renamePresentation). What
+    // here goes by the file is then pointed at the file as it now is: the list, the
+    // presentation being viewed if it is that one, and the show if it is the one that
+    // is live, which goes on as it was.
+    function renamePresentation(entry, name) {
+        const was = entry.file
+        const viewed = document !== null && document.path === was
+        // (The lists are not followed while the catalog does it: see holdingLists.)
+        holdingLists = true
+        const renamed = catalog.renamePresentation(was, name)
+        holdingLists = false
+        report(renamed.error)
+        if (renamed.path === was)
+            return
+        Log.note("edit", "the presentation " + quoted(was.replace(/^.*\//, "")) + " renamed " + quoted(renamed.path.replace(/^.*\//, "")))
+        // In a library a row goes by its file; in a playlist it has an id of its own.
+        if (playlistId === "" && documentKey === was)
+            documentKey = renamed.path
+        Show.renamed(was, renamed.path)
+        followCatalog()
+        if (liveDocument !== null && liveDocument.path === was) {
+            const live = livePlaylistId !== "" ? catalog.openArranged(renamed.path, liveDocument.arrangement) : catalog.open(renamed.path)
+            liveDocument = live
+            Show.follow(cueAt(live, liveKey, livePlaylistId, liveIndex))
+        }
+        if (viewed && currentEntry())
+            document = load(currentEntry())
+    }
+
+    // Takes a presentation out of its library: its file goes to the Trash, and no
+    // further (Catalog::deletePresentation). If it is the one on the output its slide
+    // is taken off first, as when a slide that is live is deleted: what is shown should
+    // not be something that is no longer there to go back to. If it is the one being
+    // viewed, the one that takes its place in the list is opened.
+    function deletePresentation(entry) {
+        const file = entry.file
+        const viewed = document !== null && document.path === file
+        const place = documents.findIndex(d => d.path === entry.path)
+        if (liveDocument !== null && liveDocument.path === file && !cleared)
+            clearSlide()
+        // (The lists are not followed while the catalog does it: see holdingLists.)
+        holdingLists = true
+        const deleted = catalog.deletePresentation(file)
+        holdingLists = false
+        if (!report(deleted.error))
+            return
+        Log.note("edit", "the presentation " + quoted(file.replace(/^.*\//, "")) + " moved to the Trash")
+        refreshLists()
+        if (viewed) {
+            const next = documents.slice(Math.max(0, place)).find(openable) ?? documents.slice(0, Math.max(0, place)).reverse().find(openable)
+            if (next) {
+                openEntry(next)
+            } else {
+                documentKey = ""
+                document = null
+            }
+        }
+        followCatalog()
+    }
+
     // Makes a presentation called `name` in the library that is open, with one slide
     // with nothing on it, and opens it.
     function newPresentation(name) {
@@ -1280,7 +1347,20 @@ Window {
         if (openable(entry)) {
             items.push({ header: "Presentation" })
             items.push({ label: "Edit", run: () => startEditing(entry) })
+            // In place, in the list, as a library and a playlist are renamed
+            items.push({ label: "Rename", run: () => sidebar.renamePresentation(entry.path) })
             items.push({ label: "Rebuild Thumbnails", run: () => catalog.rebuildThumbnails(mediaOf(entry.file)) })
+            // Only where a library is being browsed. In a playlist "Remove" is the word,
+            // and only the row goes: a presentation is not to be lost from there.
+            // Asked twice, though the file goes no further than the Trash.
+            if (!entry.playlistItem) {
+                items.push({ label: "Delete…", danger: true, run: () => menu.show([
+                    { note: "“" + entry.name + "” will be moved to the Trash, where the file manager has it to put back. "
+                            + "A playlist that has it will say it is missing." },
+                    { label: "Move to Trash", danger: true, run: () => deletePresentation(entry) },
+                    { label: "Cancel", run: () => {} }
+                ], item) })
+            }
         }
         if (items.length > 0)
             menu.show(items, item)
@@ -2241,7 +2321,7 @@ Window {
         function onChanged() {
             if (win.editing)
                 win.listsStale = true
-            else
+            else if (!win.holdingLists)
                 win.followCatalog()
         }
     }

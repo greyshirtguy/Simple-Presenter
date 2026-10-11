@@ -125,6 +125,16 @@ struct ProDocument
     // ProPresenter starts a new presentation with one slide too. It has not been
     // looked at.) Returns an error message, empty on success.
     static QString create(const QString &library, const QString &name, QString *made);
+    // Gives a presentation another name: its file's, and the name inside the file,
+    // which ProPresenter keeps the same as the file's. The name is taken as
+    // proconvert::presentationName() has it. Nothing else in the file is changed, and
+    // nothing is changed at all if the library has a presentation of that name
+    // already (it is not given a number, as a new one would be: a rename that came
+    // out as another name than was typed would be a surprise). `*renamed` is where
+    // the file then is. What points at the file by its name is not seen to here: the
+    // rows of playlists are the catalog's to bring along. Returns an error message,
+    // empty on success.
+    static QString rename(const QString &path, const QString &name, QString *renamed);
     // A cue as it is in the file, to be pasted; empty, with *error set, if it is not there.
     static QByteArray copyCue(const QString &path, const QString &cueId, QString *error);
     // Adds a copy of a cue that copyCue gave, from this presentation or another, placed

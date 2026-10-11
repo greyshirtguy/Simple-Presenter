@@ -228,6 +228,41 @@ QVariantMap Catalog::createPresentation(const QString &library, const QString &n
     return {{"path", made}, {"error", error}};
 }
 
+QVariantMap Catalog::renamePresentation(const QString &file, const QString &name)
+{
+    // The rows that are this presentation are looked for while its file is still
+    // there under its old name, which is how a row is tied to a file.
+    const QStringList rows = PlaylistFile::rowsOf(m_root, file);
+    QString renamed;
+    QString error = ProDocument::rename(file, name, &renamed);
+    if (error.isEmpty() && renamed != file) {
+        error = PlaylistFile::renameRows(m_root, rows, QFileInfo(file).completeBaseName(), QFileInfo(renamed).fileName());
+        if (!error.isEmpty())
+            error = QStringLiteral("The presentation was renamed, but the playlists that have it could not be brought up to date: %1").arg(error);
+    }
+    if (renamed != file)
+        rescan();
+    return {{"path", renamed}, {"error", error}};
+}
+
+QVariantMap Catalog::deletePresentation(const QString &file)
+{
+    if (!QFileInfo(file).isFile())
+        return {{"trash", QString()}, {"error", QStringLiteral("%1 is no longer there").arg(QFileInfo(file).fileName())}};
+    QFile presentation(file);
+    QString trash;
+    if (!presentation.moveToTrash()) {
+        return {{"trash", QString()},
+                {"error", QStringLiteral("%1 could not be moved to the Trash, and has been left where it is: %2")
+                              .arg(QFileInfo(file).fileName(), presentation.errorString())}};
+    }
+    // The file knows where it has gone.
+    trash = presentation.fileName();
+    SessionLog::write("trash", QStringLiteral("%1 moved to the Trash, as %2").arg(file, trash));
+    rescan();
+    return {{"trash", trash}, {"error", QString()}};
+}
+
 QVariantMap Catalog::importSong(const QUrl &file, const QString &library, int linesPerSlide)
 {
     QString made;

@@ -131,6 +131,18 @@ public:
     // Makes a new presentation in the library folder `library`, called `name`: one
     // slide with nothing on it (see ProDocument::create). Returns { path, error }.
     Q_INVOKABLE QVariantMap createPresentation(const QString &library, const QString &name);
+    // Gives a presentation another name (see ProDocument::rename), and brings along
+    // the rows of playlists that are that presentation, so that they still find it.
+    // Returns { path, error }: where the file then is.
+    Q_INVOKABLE QVariantMap renamePresentation(const QString &file, const QString &name);
+    // Takes a presentation out of its library, by moving its file to the system's
+    // Trash, where the file manager has it to put back: nothing is ever deleted
+    // outright here, and if the file cannot be moved there it is left where it is.
+    // Rows of playlists that were that presentation are left as they are, and say
+    // that it is missing, which is how a row is shown here whose presentation is not
+    // to be found. (A GUESS: that ProPresenter leaves such rows too. It has not been
+    // looked at there.) Returns { trash, error }: where the file then is.
+    Q_INVOKABLE QVariantMap deletePresentation(const QString &file);
     // Makes a presentation of a ChordPro file in the library folder `library`, with
     // `linesPerSlide` lines of its words on each slide (see songimport.h). Returns
     // { path, error }.

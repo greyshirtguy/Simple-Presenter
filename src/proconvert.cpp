@@ -1473,7 +1473,7 @@ rv::data::Presentation newPresentation(const QString &name)
     return presentation;
 }
 
-QString presentationFileFor(const QString &library, const QString &name, const QString &fallback, QString *unique)
+QString presentationName(const QString &name)
 {
     // A file's name cannot have a slash in it, and one starting with a dot is hidden.
     // (A space that a dot leaves at the start goes with it, and any dot after that.)
@@ -1481,6 +1481,12 @@ QString presentationFileFor(const QString &library, const QString &name, const Q
     wanted.replace(u'/', u'-');
     while (wanted.startsWith(u'.') || wanted.startsWith(u' '))
         wanted.remove(0, 1);
+    return wanted;
+}
+
+QString presentationFileFor(const QString &library, const QString &name, const QString &fallback, QString *unique)
+{
+    QString wanted = presentationName(name);
     if (wanted.isEmpty())
         wanted = fallback;
     const QDir folder(library);

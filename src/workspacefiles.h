@@ -91,6 +91,12 @@ void recordFile(rv::data::URL *reference, const QString &file, const QString &wo
 // The name of the file a reference is to, whether or not the file can be found.
 QString fileNameOf(const rv::data::URL &reference);
 
+// Points a reference at a file of another name in the same folder: the last part of
+// each way it says where the file is (the whole address, and the path from the
+// workspace's folder) is changed, and everything else in it is left as it was written,
+// which on a Mac is the system it was written on and the way to the folder there.
+void renameFileIn(rv::data::URL *reference, const QString &fileName);
+
 // A media element for an image or video file, laid out the way ProPresenter writes one;
 // a video is set to loop. It is what a slide's media action and a media playlist's row
 // both hold.

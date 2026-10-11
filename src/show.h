@@ -158,6 +158,9 @@ public:
     // Where the slide at `index` is in a presentation that has been read again, going
     // by the ids of its slides before and after; -1 if it is not there any more.
     Q_INVOKABLE int placeAfterReload(const QStringList &before, int index, const QStringList &after) const;
+    // A presentation's file was given another name: a show that is at its row in a
+    // library is at the row of the new name (see show::State::renamed).
+    Q_INVOKABLE void renamed(const QString &from, const QString &to);
     // The show is at no presentation any more (the workspace was changed).
     Q_INVOKABLE void leavePresentation();
 

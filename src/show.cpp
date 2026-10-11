@@ -198,6 +198,11 @@ int Show::placeAfterReload(const QStringList &before, int index, const QStringLi
     return show::placeAfterReload(before, index, after);
 }
 
+void Show::renamed(const QString &from, const QString &to)
+{
+    change([&] { m_state.renamed(from, to); return show::Effects(); });
+}
+
 void Show::leavePresentation()
 {
     change([&] { m_state.leavePresentation(); return show::Effects(); });

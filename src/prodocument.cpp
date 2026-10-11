@@ -696,6 +696,34 @@ QString ProDocument::create(const QString &library, const QString &name, QString
     return error;
 }
 
+QString ProDocument::rename(const QString &path, const QString &name, QString *renamed)
+{
+    const QFileInfo was(path);
+    const QString wanted = proconvert::presentationName(name);
+    if (wanted.isEmpty())
+        return QStringLiteral("That is not a name a presentation can have");
+    *renamed = path;
+    if (wanted == was.completeBaseName())
+        return {};
+    const QString target = was.dir().filePath(wanted + QStringLiteral(".pro"));
+    if (QFileInfo::exists(target))
+        return QStringLiteral("There is already a presentation called “%1” in %2").arg(wanted, was.dir().dirName());
+
+    // Read first: a file that cannot be read is not one to be moving about.
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    // The file is given its new name, and then written again in its new place with
+    // the name inside changed. Should that second step fail, the file is whole under
+    // its new name and says its old one inside, which is still a presentation.
+    if (!QFile::rename(path, target))
+        return QStringLiteral("%1 could not be renamed").arg(was.fileName());
+    *renamed = target;
+    presentation.set_name(wanted.toStdString());
+    return writePresentation(target, presentation);
+}
+
 QByteArray ProDocument::copyCue(const QString &path, const QString &cueId, QString *error)
 {
     rv::data::Presentation presentation;
