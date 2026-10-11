@@ -60,6 +60,11 @@ QtObject {
         }
     }
 
+    // Whether a colour of the window ("#rrggbb") is a red
+    function red(c) {
+        return parseInt(c.substring(1, 3), 16) > 150 && parseInt(c.substring(3, 5), 16) < 90 && parseInt(c.substring(5, 7), 16) < 90
+    }
+
     function run() {
         steps = [
             () => {
@@ -305,7 +310,66 @@ QtObject {
                 return 500
             },
             () => {
-                check("the log has a line for each switch, saying what made it", logged(/  view  /).length === 8 && logged(/Simple View on, by its button in the toolbar/).length === 1
+                // ---- The setting that keeps the pane at the right, with the previews and the show controls
+                settingsOpen = true
+                Lib.find(contentItem, item => item.section !== undefined && item.sections !== undefined).section = "simple"
+                return 400
+            },
+            () => {
+                const box = named("simpleKeepsSidePanel")
+                check("the settings have a part for Simple View, with a box for keeping the pane at the right, which is not ticked to begin with",
+                      box !== null && box.visible && !box.checked && !simpleKeepsSidePanel)
+                click(centre(box))
+                return 300
+            },
+            () => {
+                check("ticked, it is the window's setting", simpleKeepsSidePanel && named("simpleKeepsSidePanel").checked)
+                testInput.grab("6-setting")
+                settingsOpen = false
+                takeFocus()
+                goLive(0)
+                return 500
+            },
+            () => {
+                // A point of the red button that clears everything, clear of the picture on it: what the window draws there
+                const clear = named("clearAll")
+                const at = clear.mapToItem(null, 6, clear.height / 2)
+                kept.clearAll = String(testInput.windowPixel(at.x, at.y))
+                check("(a slide is live, and the button that clears everything is red)", liveIndex === 0 && red(kept.clearAll), kept.clearAll)
+                setSimpleView(true, "the test")
+                return 900
+            },
+            () => {
+                const clear = named("clearAll")
+                const at = clear.mapToItem(null, 6, clear.height / 2)
+                const there = String(testInput.windowPixel(at.x, at.y))
+                check("in Simple View the toolbar, the lists and the media bin are gone, and the pane at the right is not",
+                      simple && chrome === 0 && !chromeShown && !toolbar.visible && !sidebar.visible && !mediaBin.visible && sidePanel.visible)
+                check("it has the height of the window now, and the slides the rest of the window", sidePanel.y === 0 && sidePanel.height === win.height
+                      && sidePanel.x === win.width - sidePanel.width && grid.x === 0 && grid.y === 0 && grid.width === sidePanel.x && grid.height === win.height,
+                      geometry() + ", the pane at " + sidePanel.x + "," + sidePanel.y + " " + sidePanel.width + "x" + sidePanel.height)
+                check("so there are more slides to a row than with every pane there", grid.columns > kept.columns, kept.columns + " -> " + grid.columns)
+                check("the pane is drawn as it was: its button for clearing everything is as red as before", red(there) && there === kept.clearAll && at.y < 600,
+                      there + " now, " + kept.clearAll + " before, at " + Math.round(at.x) + "," + Math.round(at.y))
+                check("and the button that leads back is over the slides, not over the pane", simpleToggle.visible
+                      && simpleToggle.x + simpleToggle.width <= sidePanel.x, (simpleToggle.x + simpleToggle.width) + " against " + sidePanel.x)
+                testInput.grab("7-pane-kept")
+                click(centre(clear))
+                return 500
+            },
+            () => {
+                check("its controls work there: the button clears everything", cleared === true || liveSlide === null)
+                setSimpleView(false, "the test")
+                return 700
+            },
+            () => {
+                check("and out of the view again everything is where it was", chrome === 1 && toolbar.visible && sidebar.visible && sidePanel.visible
+                      && sidePanel.y === toolbar.height && geometry() === kept.normal, geometry() + ", the pane at " + sidePanel.y)
+                simpleKeepsSidePanel = false
+                return 200
+            },
+            () => {
+                check("the log has a line for each switch, saying what made it", logged(/  view  /).length === 10 && logged(/Simple View on, by its button in the toolbar/).length === 1
                       && logged(/Simple View off, by the button over the slides/).length === 1 && logged(/Simple View on, by the ~ key, held/).length === 2
                       && logged(/Simple View off, by the ~ key, held/).length === 1, logged(/  view  /).length + ": " + logged(/  view  /).map(l => l.slice(26, 90)).join(" | "))
                 check("nothing went wrong on the way", logged(/PROBLEM|WARNING|ERROR/).filter(l => !l.includes("qt.qpa.theme")).length === 0, logged(/PROBLEM|WARNING|ERROR/).slice(0, 3).join(" | "))

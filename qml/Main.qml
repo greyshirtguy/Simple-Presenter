@@ -21,7 +21,9 @@ import SimplePresenterApp
 // by a button in the toolbar, by the small button that floats over the slides while it
 // is on (SimpleViewToggle), and by holding the ~ key down: held, not pressed, because
 // a view that takes everything familiar away must not be one that a stray key can
-// land in. `simpleView` and the properties after it are all there is to it.
+// land in. `simpleView` and the properties after it are all there is to it. A setting
+// (`simpleKeepsSidePanel`) leaves the pane at the right where it is, for whoever wants
+// the room without losing sight of what is live.
 //
 // How it is organised. This file is the state and the logic; the files named above are
 // the views. Everything the app knows about the show is a property here: what is being
@@ -226,6 +228,13 @@ Window {
     // toolbar, and the view is there again when they are done with.
     property bool simpleView: false
     readonly property bool simple: simpleView && !editing && !settingsOpen
+    // A setting, this app's own: Simple View leaves the pane at the right, with the
+    // previews, the clears and the show controls, and takes only the toolbar, the lists
+    // and the media bin away. The pane then stays where it is while the others slide
+    // off, and has the height of the window once the toolbar has gone.
+    property bool simpleKeepsSidePanel: false
+    // Whether the pane at the right is there, in its place or on its way
+    readonly property bool sidePanelShown: chromeShown || simpleKeepsSidePanel
     // How far the panes round the slides are in their places: 1 when they are, 0 when
     // they are out of sight, and for a moment between the two as they slide off the
     // edges of the window or back on. That is all that is animated, and it is cheap:
@@ -1922,6 +1931,7 @@ Window {
         outputEnabled = String(saved("outputEnabled", true)) === "true"
         stageEnabled = String(saved("stageEnabled", true)) === "true"
         useX11 = String(saved("useX11", false)) === "true"
+        simpleKeepsSidePanel = String(saved("simpleKeepsSidePanel", false)) === "true"
         // By name, so the choice survives transitions being added or reordered.
         selectTransition(String(saved("transition", "")))
         try {
@@ -2086,6 +2096,7 @@ Window {
             groupsChanged()
     }
     onActionIconOpacityChanged: save("actionIconOpacity", actionIconOpacity)
+    onSimpleKeepsSidePanelChanged: save("simpleKeepsSidePanel", simpleKeepsSidePanel)
     onSimpleChanged: {
         if (simple)
             simpleToggle.announce()
@@ -2654,11 +2665,13 @@ Window {
             id: sidePanel
 
             anchors.right: parent.right
-            anchors.top: toolbar.bottom
+            // Kept in Simple View, it has the toolbar's room too once the toolbar has
+            // gone: laid out again once, then, as the slides are, and not on the way.
+            anchors.top: win.simpleKeepsSidePanel && !win.chromeShown ? parent.top : toolbar.bottom
             anchors.bottom: parent.bottom
             width: Math.max(250, Math.min(win.sidePanelWidth, win.width - 160 - 260))
-            visible: win.chromeShown
-            transform: Translate { x: win.chromeAway * sidePanel.width }
+            visible: win.sidePanelShown
+            transform: Translate { x: win.simpleKeepsSidePanel ? 0 : win.chromeAway * sidePanel.width }
             win: win
             liveVideoSink: win.output ? win.output.liveVideoSink : null
             livePlayer: win.clocksHeld || !win.output ? null : win.output.livePlayer
@@ -2671,7 +2684,7 @@ Window {
             id: grid
 
             anchors.left: win.chromeShown ? sidebar.right : parent.left
-            anchors.right: win.chromeShown ? sidePanel.left : parent.right
+            anchors.right: win.sidePanelShown ? sidePanel.left : parent.right
             anchors.top: win.chromeShown ? toolbar.bottom : parent.top
             anchors.bottom: win.chromeShown ? mediaBin.top : parent.bottom
             win: win
@@ -2683,7 +2696,8 @@ Window {
             id: simpleToggle
 
             objectName: "simpleViewToggle"
-            x: toolbar.simpleViewCentre + 15 - width
+            // Over the slides, also when the pane at the right is kept and is a wide one
+            x: Math.min(toolbar.simpleViewCentre + 15, win.simpleKeepsSidePanel ? sidePanel.x - 8 : win.width) - width
             y: 4
             z: 60
             visible: win.simple
@@ -2799,7 +2813,8 @@ Window {
             anchors.horizontalCenter: sidePanel.left
             anchors.top: sidePanel.top
             anchors.bottom: sidePanel.bottom
-            visible: win.chrome === 1
+            // (This one is there in Simple View too, where the pane is kept.)
+            visible: win.chrome === 1 || (win.chrome === 0 && win.simpleKeepsSidePanel)
             onMoved: (delta) => win.sidePanelWidth = sidePanel.width - delta
             onReleased: win.takeFocus()
         }
@@ -2959,6 +2974,8 @@ Window {
         onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))
         useX11: win.useX11
         onUseX11Edited: (useX11) => win.useX11 = useX11
+        simpleKeepsSidePanel: win.simpleKeepsSidePanel
+        onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
         senders: win.senders
         onScreensFailed: (text) => win.report(text)
         onClosed: {

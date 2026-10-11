@@ -186,6 +186,8 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Simple View can keep the right pane.** A setting leaves the previews, the clears and
+  the show controls where they are while the rest goes.
 - **New presentations.** The **+** beside Libraries has **New Presentation…**: give it
   a name, and it is made in the library that is open, with one slide to start on.
   Until now a presentation could only be brought in from elsewhere.
@@ -536,6 +538,13 @@ Only the panes are animated. Moving them costs next to nothing, where laying the
 out again for every frame of the way would cost more than all the rest, and the app is
 meant to stay quick on a slow machine. The editor and the settings screen need the
 toolbar, and bring it back for as long as they are up.
+
+**Keeping the right pane.** The settings have a part for Simple View with one box in
+it: *Keep the previews and controls at the right*. With it ticked, Simple View takes
+the toolbar, the lists and the media bin away and leaves the pane at the right where it
+is, with the previews of the output and the stage, the clears and the show controls,
+for whoever wants the room without losing sight of what is live. The pane then has the
+height of the window, and can still be made wider or narrower by its edge.
 
 ## Media
 

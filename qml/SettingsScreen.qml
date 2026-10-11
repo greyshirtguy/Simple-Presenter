@@ -21,6 +21,9 @@ Rectangle {
     // How solid the icons on the slides are: see Main.qml
     property real actionIconOpacity: 0.8
 
+    // Whether Simple View leaves the pane at the right where it is: see Main.qml
+    property bool simpleKeepsSidePanel: false
+
     // What sends each screen that goes over NDI, by the screen's id: see ScreensSettings
     property var senders: ({})
 
@@ -28,14 +31,16 @@ Rectangle {
     signal screensFailed(string text)
     signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
+    signal simpleKeepsSidePanelEdited(bool keeps)
     signal closed
 
     // What the app is running on now: "wayland", "xcb" (X11), "windows", "cocoa", ...
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
-        ? [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Screens", path: "screens" },
-           { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
-        : [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Screens", path: "screens" },
+        ? [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Simple View", path: "simple" },
+           { name: "Screens", path: "screens" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
+        : [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" },
+           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
            { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
@@ -420,6 +425,40 @@ Rectangle {
                         }
                     }
                 }
+            }
+        }
+
+        // Simple View: what it leaves in the window
+        Column {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            spacing: 14
+            visible: screen.section === "simple"
+
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: "#b0b3b8"
+                font.pixelSize: 13
+                text: "Simple View takes away what is round the slides, so that more of them can be seen at once: the toolbar, the lists at the left, the media bin, and the previews and controls at the right. It is switched from the toolbar, or by holding the ~ key."
+            }
+
+            AppCheck {
+                objectName: "simpleKeepsSidePanel"
+                checked: screen.simpleKeepsSidePanel
+                text: "Keep the previews and controls at the right"
+                onToggled: (checked) => screen.simpleKeepsSidePanelEdited(checked)
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: "#8d9097"
+                font.pixelSize: 12
+                text: "With this on, Simple View leaves the pane at the right where it is: the previews of the output and the stage, the clears, and the timers, props, stage layouts and macros. The slides have the rest of the window."
             }
         }
 
