@@ -384,6 +384,11 @@ QString Catalog::removeSlideAction(const QString &path, const QString &slideId, 
     return ProDocument::removeCueAction(path, slideId, actionId);
 }
 
+QString Catalog::setSlideLabel(const QString &path, const QString &slideId, const QString &text, const QString &color)
+{
+    return ProDocument::setCueLabel(path, slideId, text.trimmed(), color);
+}
+
 QVariantMap Catalog::setSlideGroup(const QString &path, const QString &slideId, const QVariantMap &group)
 {
     bool changed = false;

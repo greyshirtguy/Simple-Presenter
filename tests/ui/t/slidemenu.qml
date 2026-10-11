@@ -2,9 +2,11 @@ import QtQuick
 import SimplePresenterApp
 import "lib.js" as Lib
 
-// A slide's menu, for which group a slide is in: ProPresenter's way, which is the slide and those after it in its
-// group (the whole group from its first slide, a split from a later one). What the file then holds is looked at when
-// the test is over, by after_slidemenu in run.py.
+// A slide's menu, for which group a slide is in and what it is labelled. The group: ProPresenter's way, which is the
+// slide and those after it in its group (the whole group from its first slide, a split from a later one). The label:
+// one of those the workspace keeps ready, or one made in the panel (words, and a colour or none), or none; and the
+// labels kept ready looked after in the settings. What the files then hold is looked at when the test is over, by
+// after_slidemenu in run.py.
 QtObject {
     id: t
 
@@ -99,7 +101,7 @@ QtObject {
                 return 400
             },
             () => {
-                check("a slide's menu has Group", labels().includes("Theme, Group, "), labels())
+                check("a slide's menu has Group", labels().includes("Theme, Label, Group, "), labels())
                 click(menuRow("Group"))
                 return 500
             },
@@ -172,6 +174,197 @@ QtObject {
             () => {
                 check("choosing the group a slide is in already changes nothing: the file is not written", testInput.fileHash(document.path) === kept.hash
                       && logged(/put in the group/).length === 2)
+                // ---- Labels, on another presentation
+                openEntry(documents.find(entry => openable(entry) && entry.path !== kept.entry.path
+                                                  && catalog.open(entry.path).slides.some(slide => slide.label === "" && slide.labelColor === "")))
+                return 700
+            },
+            () => {
+                kept.k = document.slides.findIndex(slide => slide.label === "" && slide.labelColor === "")
+                kept.labelPath = document.path
+                kept.labelHash = testInput.fileHash(document.path)
+                testInput.snapshot(document.path, "label-before")
+                check("(the workspace keeps three labels ready, one of them with a colour, and a slide here has none)", kept.k >= 0
+                      && Labels.presets.map(label => label.text + label.color).join("|") === "Blank Slide|Instrumental|Offering#008000", JSON.stringify(Labels.presets))
+                click(centre(cellOf(kept.k)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                check("a slide's menu has Label", labels().includes("Theme, Label, Group, "), labels())
+                click(menuRow("Label"))
+                return 500
+            },
+            () => {
+                check("which has Edit, then None, then the labels kept ready, with lines between; None is ticked for a slide with no label",
+                      labels() === "Edit…, --, *None, --, Blank Slide, Instrumental, Offering", labels())
+                const swatch = Lib.find(menuItem("Offering"), item => item.objectName === "menuSwatch")
+                const at = swatch.mapToItem(null, swatch.width / 2, swatch.height / 2)
+                check("a label that has a colour has it drawn beside it, and one that has none has nothing there", swatch.visible
+                      && same(String(testInput.windowPixel(at.x, at.y)), "#008000") && !Lib.find(menuItem("Instrumental"), item => item.objectName === "menuSwatch").visible,
+                      String(testInput.windowPixel(at.x, at.y)))
+                testInput.grab("3-label-menu")
+                click(menuRow("Offering"))
+                return 700
+            },
+            () => {
+                const slide = document.slides[kept.k]
+                const tag = Lib.find(cellOf(kept.k), item => item.objectName === "slideLabelTag")
+                const at = tag.mapToItem(null, 3, tag.height / 2)
+                const words = Lib.find(tag, item => item.font !== undefined && item.text === "Offering")
+                check("one chosen is the slide's label, words and colour", slide.label === "Offering" && slide.labelColor === "#008000", slide.label + " " + slide.labelColor)
+                check("and is drawn under the slide as a tag of its colour, with its words on it", tag.visible && same(String(testInput.windowPixel(at.x, at.y)), "#008000")
+                      && words !== null && strokes(words).light >= 2, String(testInput.windowPixel(at.x, at.y)))
+                check("the log has a line for it", logged(/  edit +slide \d+ of ".*" labelled "Offering", in #008000/).length === 1)
+                testInput.grab("4-labelled")
+                click(centre(cellOf(kept.k)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                click(menuRow("Label"))
+                return 500
+            },
+            () => {
+                check("(the slide's label is the one ticked now)", labels() === "Edit…, --, None, --, Blank Slide, Instrumental, *Offering", labels())
+                click(menuRow("Blank Slide"))
+                return 700
+            },
+            () => {
+                const slide = document.slides[kept.k]
+                const caption = Lib.find(cellOf(kept.k), item => item.font !== undefined && String(item.text).includes("Blank Slide"))
+                check("a label with no colour is plain words in the slide's caption, and there is no tag", slide.label === "Blank Slide" && slide.labelColor === ""
+                      && caption !== null && !Lib.find(cellOf(kept.k), item => item.objectName === "slideLabelTag").visible, slide.label + " " + slide.labelColor)
+                click(centre(cellOf(kept.k)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                click(menuRow("Label"))
+                return 500
+            },
+            () => {
+                click(menuRow("Edit…"))
+                return 500
+            },
+            () => {
+                const panel = named("slideLabelPanel")
+                const field = named("slideLabelText")
+                check("Edit puts up a panel with the label's words in a box, to be typed over, and no colour picked", panel !== null && panel.visible && field.activeFocus
+                      && field.text === "Blank Slide" && field.selectedText === field.text && slideLabelPanel.tint === "" && slideLabelPanel.heading === "Slide Label"
+                      && slideLabelPanel.about.includes("Slide " + (kept.k + 1) + " of"), field.text + " / " + slideLabelPanel.about)
+                check("it has a swatch for no colour, eighteen colours ready, and a button for the system's picker", named("slideLabelNoColor").visible
+                      && Lib.findAll(panel, item => item.objectName === "slideLabelSwatch").length === 18 && named("slideLabelOther").visible
+                      && named("slideLabelOther").text === "Other…")
+                testInput.type("Spoken Word")
+                kept.swatch = Lib.findAll(panel, item => item.objectName === "slideLabelSwatch")[5]
+                click(centre(kept.swatch))
+                return 300
+            },
+            () => {
+                const preview = named("slideLabelPreview")
+                const at = preview.mapToItem(null, 3, preview.height / 2)
+                check("a colour clicked is the one picked, and the panel shows the label as it will be: a tag of that colour", slideLabelPanel.tint === "#1e88e5"
+                      && preview.visible && same(String(testInput.windowPixel(at.x, at.y)), "#1e88e5"), slideLabelPanel.tint + " " + String(testInput.windowPixel(at.x, at.y)))
+                testInput.grab("5-label-panel")
+                click(centre(named("slideLabelSave")))
+                return 700
+            },
+            () => {
+                const slide = document.slides[kept.k]
+                const tag = Lib.find(cellOf(kept.k), item => item.objectName === "slideLabelTag")
+                const at = tag.mapToItem(null, 3, tag.height / 2)
+                check("Save gives the slide the words and the colour, drawn as a tag", slide.label === "Spoken Word" && slide.labelColor === "#1e88e5"
+                      && !named("slideLabelPanel").visible && tag.visible && same(String(testInput.windowPixel(at.x, at.y)), "#1e88e5"), slide.label + " " + slide.labelColor)
+                editSlideLabel(kept.k)
+                return 400
+            },
+            () => {
+                check("(the panel opens on what the slide has)", named("slideLabelText").text === "Spoken Word" && slideLabelPanel.tint === "#1e88e5")
+                click(centre(named("slideLabelNoColor")))
+                testInput.key(Qt.Key_Return)
+                return 700
+            },
+            () => {
+                check("the swatch for no colour takes the colour off, and Enter saves", document.slides[kept.k].label === "Spoken Word" && document.slides[kept.k].labelColor === "")
+                editSlideLabel(kept.k)
+                return 400
+            },
+            () => {
+                testInput.type("Not kept")
+                testInput.key(Qt.Key_Escape)
+                return 400
+            },
+            () => {
+                check("Esc changes nothing", !named("slideLabelPanel").visible && document.slides[kept.k].label === "Spoken Word")
+                click(centre(cellOf(kept.k)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                click(menuRow("Label"))
+                return 500
+            },
+            () => {
+                click(menuRow("None"))
+                return 700
+            },
+            () => {
+                const caption = Lib.find(cellOf(kept.k), item => item.font !== undefined && String(item.text).startsWith(String(kept.k + 1)))
+                check("None takes the label off: the caption has the slide's number and no more of a label, and the file is byte for byte what it was before any of it",
+                      document.slides[kept.k].label === "" && document.slides[kept.k].labelColor === "" && caption !== null && !String(caption.text).includes("Spoken")
+                      && testInput.fileHash(kept.labelPath) === kept.labelHash, caption ? caption.text : "no caption")
+                // Left on the slide for the file to be looked at afterwards: the one with a colour
+                setSlideLabel(kept.k, "Offering", "#008000")
+                // ---- The labels kept ready, in the settings
+                settingsOpen = true
+                Lib.find(contentItem, item => item.section !== undefined && item.sections !== undefined).section = "labels"
+                return 500
+            },
+            () => {
+                const rows = Lib.findAll(named("labelsSettings"), item => item.objectName === "labelPreset")
+                check("the settings have a part for the labels kept ready, each drawn as a slide shows it", rows.length === 3
+                      && rows.every(row => row.visible) && strokes(Lib.find(rows[0], item => item.font !== undefined && item.text === "Blank Slide")).light >= 3)
+                testInput.grab("6-labels-settings")
+                click(centre(named("labelPresetNew")))
+                return 400
+            },
+            () => {
+                check("New Label puts up the same panel, empty", named("slideLabelPanel").visible && named("slideLabelText").text === "" && slideLabelPanel.heading === "New Label")
+                testInput.type("Welcome")
+                click(centre(Lib.findAll(named("slideLabelPanel"), item => item.objectName === "slideLabelSwatch")[0]))
+                click(centre(named("slideLabelSave")))
+                return 500
+            },
+            () => {
+                check("saved, it is the last of the list", Labels.presets.length === 4 && Labels.presets[3].text === "Welcome" && Labels.presets[3].color === "#e53935"
+                      && Lib.findAll(named("labelsSettings"), item => item.objectName === "labelPreset").length === 4, JSON.stringify(Labels.presets))
+                click(centre(Lib.findAll(named("labelsSettings"), item => item.objectName === "labelPresetEdit")[0]))
+                return 400
+            },
+            () => {
+                check("Edit opens one of them in the panel", named("slideLabelText").text === "Blank Slide" && slideLabelPanel.tint === "" && slideLabelPanel.heading === "Label")
+                testInput.type("Blank")
+                testInput.key(Qt.Key_Return)
+                return 500
+            },
+            () => {
+                check("and changes it", Labels.presets[0].text === "Blank" && Labels.presets.length === 4)
+                click(centre(Lib.findAll(named("labelsSettings"), item => item.objectName === "labelPresetRemove")[1]))
+                return 500
+            },
+            () => {
+                check("Remove takes one out of the list, and the others stay as they were", Labels.presets.map(label => label.text + label.color).join("|")
+                      === "Blank|Offering#008000|Welcome#e53935", JSON.stringify(Labels.presets))
+                check("the slide that was given one of them keeps what it was given", document.slides[kept.k].label === "Offering" && document.slides[kept.k].labelColor === "#008000")
+                settingsOpen = false
+                takeFocus()
+                click(centre(cellOf(kept.k)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                click(menuRow("Label"))
+                return 500
+            },
+            () => {
+                check("and a slide's menu offers the list as it is now", labels() === "Edit…, --, None, --, Blank, *Offering, Welcome", labels())
+                menu.close()
             }
         ]
         next()

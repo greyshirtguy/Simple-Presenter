@@ -32,16 +32,20 @@ Rectangle {
     signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
     signal simpleKeepsSidePanelEdited(bool keeps)
+    // A label kept ready is to be made (index -1) or changed, in the panel a label is
+    // made in; or taken out of the list
+    signal labelEdited(int index)
+    signal labelRemoved(int index)
     signal closed
 
     // What the app is running on now: "wayland", "xcb" (X11), "windows", "cocoa", ...
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
-        ? [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" }, { name: "Simple View", path: "simple" },
-           { name: "Screens", path: "screens" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
-        : [{ name: "Groups", path: "groups" }, { name: "Slides", path: "slides" },
-           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
+        ? [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
+           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" }, { name: "Windows", path: "windows" },
            { name: "About", path: "about" }]
+        : [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
+           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -425,6 +429,109 @@ Rectangle {
                         }
                     }
                 }
+            }
+        }
+
+        // Labels: the ones the workspace keeps ready for its slides
+        Column {
+            objectName: "labelsSettings"
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            spacing: 8
+            visible: screen.section === "labels"
+
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: "#b0b3b8"
+                font.pixelSize: 13
+                bottomPadding: 6
+                text: "A slide can be given a label: a few words, and a colour if wanted, shown under its thumbnail. These are the labels kept ready, which a slide's Label menu offers. They are the workspace's own list, the one ProPresenter keeps. Changing one here does not change the slides that were given it."
+            }
+
+            Repeater {
+                model: Labels.presets
+
+                delegate: Row {
+                    id: presetRow
+
+                    required property var modelData
+                    required property int index
+
+                    objectName: "labelPreset"
+                    spacing: 10
+
+                    // The label as a slide shows it: a tag of its colour, or plain words
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 260
+                        height: 26
+                        radius: 4
+                        color: "#15161a"
+                        border.width: 1
+                        border.color: "#3a3c42"
+
+                        Rectangle {
+                            x: 6
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.min(parent.width - 12, tagText.implicitWidth + 14)
+                            height: 18
+                            radius: 3
+                            color: presetRow.modelData.color !== "" ? presetRow.modelData.color : "transparent"
+
+                            Text {
+                                id: tagText
+
+                                anchors.fill: parent
+                                anchors.leftMargin: 7
+                                anchors.rightMargin: 7
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                color: {
+                                    const c = presetRow.modelData.color
+                                    const part = i => parseInt(c.substring(1 + 2 * i, 3 + 2 * i), 16) / 255
+                                    return c !== "" && 0.299 * part(0) + 0.587 * part(1) + 0.114 * part(2) > 0.6 ? "black" : "#e6e6e6"
+                                }
+                                font.pixelSize: 12
+                                text: presetRow.modelData.text
+                            }
+                        }
+                    }
+
+                    AppButton {
+                        objectName: "labelPresetEdit"
+                        height: 26
+                        font.pixelSize: 12
+                        text: "Edit…"
+                        onClicked: screen.labelEdited(presetRow.index)
+                    }
+
+                    AppButton {
+                        objectName: "labelPresetRemove"
+                        height: 26
+                        font.pixelSize: 12
+                        text: "Remove"
+                        onClicked: screen.labelRemoved(presetRow.index)
+                    }
+                }
+            }
+
+            Text {
+                visible: Labels.presets.length === 0
+                color: "#8d9097"
+                font.pixelSize: 13
+                text: "No labels are kept ready in this workspace yet."
+            }
+
+            AppButton {
+                objectName: "labelPresetNew"
+                height: 28
+                font.pixelSize: 13
+                text: "+ New Label"
+                onClicked: screen.labelEdited(-1)
             }
         }
 

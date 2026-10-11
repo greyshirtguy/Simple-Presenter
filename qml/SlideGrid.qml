@@ -200,6 +200,13 @@ Item {
             readonly property bool lightFrame: 0.299 * frame.r + 0.587 * frame.g + 0.114 * frame.b > 0.6
             // The hotkey that goes to this slide, or ""
             readonly property string hotkey: slides.win.groupKeyAt[index] ?? ""
+            // Whether its label has a colour of its own, and is drawn as a tag of it
+            readonly property bool tagged: (modelData.labelColor ?? "") !== ""
+            readonly property bool lightTag: {
+                const c = modelData.labelColor ?? ""
+                const part = i => parseInt(c.substring(1 + 2 * i, 3 + 2 * i), 16) / 255
+                return c !== "" && 0.299 * part(0) + 0.587 * part(1) + 0.114 * part(2) > 0.6
+            }
 
             width: grid.cellWidth
             height: grid.cellHeight
@@ -391,10 +398,11 @@ Item {
                     }
                 }
 
-                // The group's name appears on the first slide of each run of it.
+                // The group's name appears on the first slide of each run of it. The slide's
+                // label is after it, as plain words if it has no colour of its own.
                 Text {
                     anchors.left: parent.left
-                    anchors.right: parent.right
+                    anchors.right: labelTag.visible ? labelTag.left : parent.right
                     anchors.top: thumbnail.bottom
                     anchors.bottom: parent.bottom
                     anchors.leftMargin: 8
@@ -405,8 +413,50 @@ Item {
                     font.pixelSize: 12
                     text: (cell.index + 1)
                         + (cell.modelData.groupStart && cell.modelData.group !== "" ? "  " + cell.modelData.group : "")
-                        + (cell.modelData.label !== "" && cell.modelData.label !== cell.modelData.group
+                        + (!cell.tagged && cell.modelData.label !== "" && cell.modelData.label !== cell.modelData.group
                            ? "  " + cell.modelData.label : "")
+                }
+
+                // A label that has a colour is a tag of that colour, at the end of the
+                // caption. Only a slide that has such a label has one made, and few do: a
+                // tag for every slide would be a thing more to make for each of them.
+                // (A GUESS at how ProPresenter shows a label's colour: it has not been
+                // looked at there.)
+                Loader {
+                    id: labelTag
+
+                    objectName: "slideLabelTag"
+                    anchors.right: parent.right
+                    anchors.rightMargin: 5
+                    anchors.verticalCenter: thumbnail.bottom
+                    anchors.verticalCenterOffset: grid.labelHeight / 2
+                    active: cell.tagged
+                    visible: active
+                    width: active && item ? Math.min(parent.width * 0.6, Math.max(18, item.wordsWidth + 12)) : 0
+                    height: 18
+
+                    sourceComponent: Rectangle {
+                        readonly property real wordsWidth: tagWords.implicitWidth
+
+                        radius: 3
+                        color: cell.modelData.labelColor
+                        border.width: 1
+                        border.color: "#40000000"
+
+                        Text {
+                            id: tagWords
+
+                            anchors.fill: parent
+                            anchors.leftMargin: 6
+                            anchors.rightMargin: 6
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideRight
+                            color: cell.lightTag ? "black" : "white"
+                            font.pixelSize: 11
+                            text: cell.modelData.label
+                        }
+                    }
                 }
 
                 Rectangle {

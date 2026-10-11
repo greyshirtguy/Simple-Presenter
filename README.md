@@ -186,9 +186,10 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
-- **A slide's group from its menu.** A right click on a slide has **Group**, which puts
-  the slide and those after it in its group into another [group](#groups), as
-  ProPresenter does.
+- **Groups and labels from a slide's menu.** A right click on a slide has **Group**,
+  which puts the slide and those after it in its group into another group, as
+  ProPresenter does, and **Label**, which gives the slide a [label](#groups-and-labels):
+  one the workspace keeps ready, one made on the spot with a colour, or none.
 - **A box that narrows the list of presentations.** Type part of a name under the list,
   in a library or a playlist, and only the presentations that have it are left.
 - **Presentations renamed and deleted.** A presentation's menu has **Rename**, which
@@ -788,9 +789,9 @@ be left as it is. An action made here names every stage screen, as ProPresenter'
 One that names no screen of this workspace at all (it was made where the screens were
 others) is taken to be for the first stage screen.
 
-## Groups
+## Groups and labels
 
-A right click on a slide has a row for the group the slide belongs to.
+A right click on a slide has two rows for what the slide is called and belongs to.
 
 **Group** lists the workspace's groups, which are ProPresenter's list of them
 (`Configuration/Groups`), each with its colour, and the slide's own ticked. In a
@@ -808,6 +809,25 @@ one wherever an arrangement has it, so that every arrangement goes on showing th
 slides in the same order. A new group that no arrangement had would vanish from all of
 them. And a slide that is in a group of the chosen name already is left as it is, with
 nothing written. Whether ProPresenter does either has not been looked at.
+
+**Label** gives the slide a label, which is a few words and, if wanted, a colour, shown
+in the slide's caption: plain words after the group's name, or, if the label has a
+colour, a tag of that colour at the end of the caption. Its menu is ProPresenter's:
+
+- **Edit…** puts up a panel with a box for the words and the colours to pick from: one
+  for no colour, eighteen ready, and **Other…** for the system's own colour picker.
+- **None** takes the label off, and out of the file.
+- The **labels the workspace keeps ready**, which are ProPresenter's list of them
+  (`Configuration/Labels`): a click gives the slide that label, words and colour.
+
+The labels kept ready are looked after in the settings, under **Labels**: made, changed
+and removed. Changing one there does not change the slides that were given it, each of
+which has its own copy of the words and the colour. A workspace that has no list gets
+the file with the first label made.
+
+A label is kept where ProPresenter keeps it, on the slide's action in its cue, and
+written as ProPresenter writes one. A guess: how ProPresenter draws a label's colour on
+a thumbnail (the tag is this app's own), and which colours its swatch has.
 
 ## Macros
 
@@ -1899,6 +1919,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
 | `src/groupedit.*` | Putting a slide, and those after it in its group, into another group, as ProPresenter does |
+| `src/labelfile.*`, `src/labels.*` | Slide labels: a slide's own, and the labels a workspace keeps ready, in ProPresenter's list of them |
 | `src/cursors.*` | The pointer for turning an element in the editor, and whether Ctrl is held |
 | `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
 | `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |
@@ -1948,6 +1969,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |
 | `qml/ImportSong.qml` | The panel a ChordPro file is imported from |
 | `qml/NewPresentation.qml` | The panel a new presentation is named in |
+| `qml/SlideLabel.qml` | The panel a label is made in: its words and its colour |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps the windows of the screens out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |

@@ -9,6 +9,7 @@ import QtQuick.Effects
 //   { header: "…" }             a caption over the rows that follow; with a `run`
 //                               it can be clicked, and has a mark to say so
 //   { note: "…" }               a line or two of explanation
+//   { divider: true }           a line across the menu, between two groups of rows
 //   { label: "…", run: () => … } something to do, which may also be marked
 //                               `current` (ticked), `danger` (red) or `disabled`
 //                               (greyed, and does nothing), and may have a `glyph`,
@@ -271,7 +272,8 @@ Popup {
                                 required property int index
                                 readonly property bool note: modelData.note !== undefined
                                 readonly property bool heading: modelData.header !== undefined
-                                readonly property bool caption: heading || note
+                                readonly property bool divider: modelData.divider === true
+                                readonly property bool caption: heading || note || divider
                                 readonly property bool unavailable: modelData.disabled === true
                                 // Whether it leads to a menu of its own, and whether that is open
                                 readonly property bool leads: modelData.items !== undefined
@@ -286,7 +288,7 @@ Popup {
                                 readonly property bool pressable: heading && modelData.run !== undefined
 
                                 width: view.width
-                                height: gap + (note ? noteText.implicitHeight + 10 : caption ? 26 : 30)
+                                height: gap + (divider ? 9 : note ? noteText.implicitHeight + 10 : caption ? 26 : 30)
 
                                 Rectangle {
                                     anchors.fill: parent
@@ -295,6 +297,18 @@ Popup {
                                     color: row.pressable && rowMouse.containsMouse ? "#5d616b"
                                          : row.heading ? "#484b53"
                                          : !row.caption && !row.unavailable && (rowMouse.containsMouse || row.led) ? "#565962" : "transparent"
+                                }
+
+                                // A divider's line
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.leftMargin: 8
+                                    anchors.rightMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: 1
+                                    visible: row.divider
+                                    color: "#5d616b"
                                 }
 
                                 // A row's colour, at its end
@@ -390,7 +404,7 @@ Popup {
                                     anchors.topMargin: row.gap
                                     anchors.leftMargin: row.indent
                                     anchors.rightMargin: (row.leads ? 24 : 10) + (typeof row.modelData.swatch === "string" && row.modelData.swatch !== "" ? 20 : 0)
-                                    visible: !row.note
+                                    visible: !row.note && !row.divider
                                     verticalAlignment: Text.AlignVCenter
                                     elide: Text.ElideRight
                                     color: row.heading ? "#d5d7dc"
@@ -400,7 +414,7 @@ Popup {
                                     font.pixelSize: row.heading ? 11 : 14
                                     font.bold: row.heading
                                     font.capitalization: row.heading ? Font.AllUppercase : Font.MixedCase
-                                    text: row.note ? "" : row.heading ? row.modelData.header : row.modelData.label
+                                    text: row.note || row.divider ? "" : row.heading ? row.modelData.header : row.modelData.label
                                 }
 
                                 // The mark of a row that leads to a menu of its own

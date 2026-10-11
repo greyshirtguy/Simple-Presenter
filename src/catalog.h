@@ -131,6 +131,9 @@ public:
     // Makes a new presentation in the library folder `library`, called `name`: one
     // slide with nothing on it (see ProDocument::create). Returns { path, error }.
     Q_INVOKABLE QVariantMap createPresentation(const QString &library, const QString &name);
+    // Gives a slide a label, or with no words and no colour takes its label off (see
+    // ProDocument::setCueLabel).
+    Q_INVOKABLE QString setSlideLabel(const QString &path, const QString &slideId, const QString &text, const QString &color);
     // Puts a slide, and the slides after it in its group, into another group (see
     // ProDocument::setGroupFrom): `group` is the one chosen, { name, color, id }, the
     // id being the group's in the workspace's list of groups, or empty. Returns

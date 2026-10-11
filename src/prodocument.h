@@ -135,6 +135,10 @@ struct ProDocument
     // rows of playlists are the catalog's to bring along. Returns an error message,
     // empty on success.
     static QString rename(const QString &path, const QString &name, QString *renamed);
+    // Gives a slide a label, words and a colour ("#rrggbb", or empty for none), or
+    // with neither takes its label off (see labelfile.h for where a label is kept and
+    // how ProPresenter writes one).
+    static QString setCueLabel(const QString &path, const QString &cueId, const QString &text, const QString &color);
     // Puts a slide, and the slides after it in its group, into another group, as
     // ProPresenter does from a slide's menu: `name`, `color` ("#rrggbb", or empty) and
     // `listId` (the group's id in the workspace's list of groups, or empty) are the

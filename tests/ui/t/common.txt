@@ -57,7 +57,8 @@
     }
 
     function labels() {
-        return menu.shown.map(i => i.header !== undefined ? "[" + i.header + "]" : (i.current ? "*" : "") + (i.label ?? "(note)") + (i.disabled ? "(off)" : "")).join(", ")
+        return menu.shown.map(i => i.header !== undefined ? "[" + i.header + "]" : i.divider === true ? "--"
+                              : (i.current ? "*" : "") + (i.label ?? "(note)") + (i.disabled ? "(off)" : "")).join(", ")
     }
 
     function menuRow(label) {

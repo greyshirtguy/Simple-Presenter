@@ -266,6 +266,8 @@ Window {
     // Set if the workspace changed on disk while the editor was up: the lists are
     // brought up to date when it comes down, not after every change it saves.
     property bool listsStale: false
+    // The panel a label is made in, once it has been wanted (see labelPanel)
+    readonly property var slideLabelPanel: slideLabelLoader.item
     // Set for as long as the catalog takes to rename or delete a presentation. The
     // catalog says that the files have changed before it comes back from doing it, and
     // following that then would find the presentation being viewed gone and open the
@@ -1448,6 +1450,8 @@ Window {
                                                run: () => removeAction(target, action) }))) },
             // The look of the slide: see Themes
             { label: "Theme", disabled: Themes.themes.length === 0, items: () => themeMenuItems([slide.id]) },
+            // What it is called: see labelMenuItems
+            { label: "Label", items: () => labelMenuItems(index) },
             // Which group it is in, from here on in its group: see setSlideGroup
             { label: "Group", disabled: groupChoices().length === 0, items: () => [{ header: "Group" }].concat(
                 groupChoices().map(group => ({ label: group.name, swatch: group.color, current: slide.group.trim() === group.name,
@@ -1474,6 +1478,63 @@ Window {
                 { label: "Cancel", run: () => {} }
             ], item, x, y) }
         ], item, x, y)
+    }
+
+    // The menu a slide's label is given from, as ProPresenter has it: Edit…, which puts
+    // up the panel a label is made in; None; and the labels the workspace keeps ready,
+    // each with its colour, the slide's own ticked if it is one of them.
+    function labelMenuItems(index) {
+        const slide = document.slides[index]
+        const items = [
+            { label: "Edit…", run: () => editSlideLabel(index) },
+            { divider: true },
+            { label: "None", current: slide.label === "" && slide.labelColor === "", run: () => setSlideLabel(index, "", "") }
+        ]
+        if (Labels.presets.length > 0)
+            items.push({ divider: true })
+        for (const preset of Labels.presets) {
+            items.push({ label: preset.text, swatch: preset.color, current: slide.label === preset.text && slide.labelColor === preset.color,
+                         run: () => setSlideLabel(index, preset.text, preset.color) })
+        }
+        return items
+    }
+
+    // The panel a label is made in, made now if it has not been wanted before
+    function labelPanel() {
+        slideLabelLoader.active = true
+        return slideLabelLoader.item
+    }
+
+    function editSlideLabel(index) {
+        const slide = document.slides[index]
+        labelPanel().show("Slide Label", "Slide " + (index + 1) + " of “" + document.name + "”", slide.label, slide.labelColor,
+                             (text, color) => setSlideLabel(index, text, color))
+    }
+
+    // Gives a slide of the presentation being viewed a label, words and a colour ("" for
+    // none), or with neither takes its label off. The show goes on from where it is.
+    function setSlideLabel(index, text, color) {
+        const slide = document.slides[index]
+        if (slide.label === text && slide.labelColor === color)
+            return
+        if (!report(catalog.setSlideLabel(document.path, slide.id, text, color)))
+            return
+        Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name)
+                 + (text === "" && color === "" ? " has no label now" : " labelled " + quoted(text) + (color !== "" ? ", in " + color : "")))
+        reloadDocument()
+    }
+
+    // The labels the workspace keeps ready, from the settings: a new one, one changed,
+    // one taken out of the list. Slides that were given one keep what they were given.
+    function editLabelPreset(index) {
+        if (index < 0) {
+            labelPanel().show("New Label", "Kept ready in this workspace, for a slide's Label menu", "", "",
+                                 (text, color) => report(Labels.add(text, color)))
+        } else {
+            const preset = Labels.presets[index]
+            labelPanel().show("Label", "Kept ready in this workspace, for a slide's Label menu", preset.text, preset.color,
+                                 (text, color) => report(Labels.change(index, text, color)))
+        }
     }
 
     // The groups a slide can be put in: the workspace's list of them, which is what
@@ -2009,7 +2070,7 @@ Window {
         Screens.remember = remember
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
-                             Macros.open(path), Screens.open(path), Looks.open(path)]) {
+                             Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path)]) {
             if (error !== "")
                 report(error)
         }
@@ -3047,6 +3108,28 @@ Window {
         onClosed: win.closeLooks()
     }
 
+    // A label's words and colour: a slide's, or one of those kept ready (over the
+    // settings screen too, which is where those are looked after). It is made when a
+    // label is first to be edited, which in most sessions is never, and not with the
+    // window: there are some thirty things in it.
+    Loader {
+        id: slideLabelLoader
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 30
+        active: false
+
+        // (The panel has nothing called `win` of its own, on purpose: in here that
+        // would be found before the window's name, and hide it.)
+        sourceComponent: SlideLabel {
+            onClosed: {
+                if (!win.settingsOpen)
+                    win.takeFocus()
+            }
+        }
+    }
+
     // What a new presentation is to be called
     NewPresentation {
         id: newPresentationPanel
@@ -3094,6 +3177,8 @@ Window {
         onUseX11Edited: (useX11) => win.useX11 = useX11
         simpleKeepsSidePanel: win.simpleKeepsSidePanel
         onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
+        onLabelEdited: (index) => win.editLabelPreset(index)
+        onLabelRemoved: (index) => win.report(Labels.remove(index))
         senders: win.senders
         onScreensFailed: (text) => win.report(text)
         onClosed: {

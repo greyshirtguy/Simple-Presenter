@@ -30,7 +30,7 @@ set(PRO_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ProPresenter7-Proto/au
 set(PRO_PROTO_NAMES
     action alignmentGuide alphaType applicationInfo audio background collectionElementType color cue
     customOptions digitalAudio effects fileProperties font graphicsData groups hotKey input
-    intRange keymapping layers macros messages musicKeyScale planningCenter playlist presentation
+    intRange keymapping labels layers macros messages musicKeyScale planningCenter playlist presentation
     presentationSlide proAudienceLook proMask propDocument propresenter propSlide proscreen proworkspace
     recording rvtimestamp screens
     slide stage template templateIdentification timers url uuid version
@@ -158,6 +158,7 @@ qt_add_qml_module(SimplePresenter
         qml/Sidebar.qml
         qml/SidebarList.qml
         qml/SlideGrid.qml
+        qml/SlideLabel.qml
         qml/Stage.qml
         qml/StageScene.qml
         qml/StagePanel.qml
@@ -210,6 +211,10 @@ qt_add_qml_module(SimplePresenter
         src/search.cpp
         src/searchindex.h
         src/searchindex.cpp
+        src/labelfile.h
+        src/labelfile.cpp
+        src/labels.h
+        src/labels.cpp
         src/lookfile.h
         src/lookfile.cpp
         src/looks.h

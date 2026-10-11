@@ -73,3 +73,12 @@ qt_add_executable(tst_groupedit
 target_include_directories(tst_groupedit PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_groupedit PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME groupedit COMMAND tst_groupedit)
+
+qt_add_executable(tst_labelfile
+    tst_labelfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/labelfile.h
+    ${PROJECT_SOURCE_DIR}/src/labelfile.cpp
+)
+target_include_directories(tst_labelfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_labelfile PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME labelfile COMMAND tst_labelfile)

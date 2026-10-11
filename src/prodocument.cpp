@@ -2,6 +2,7 @@
 
 #include "chords.h"
 #include "groupedit.h"
+#include "labelfile.h"
 
 #include "themefile.h"
 
@@ -52,6 +53,7 @@ QVariantMap emptySlide(const QString &label)
         {"width", 1920.0}, {"height", 1080.0},
         {"drawsBackground", false}, {"backgroundColor", QColor(Qt::transparent)},
         {"label", label},
+        {"labelColor", QString()},
         {"group", QString()},
         {"groupColor", QString()},
         {"groupStart", false},
@@ -159,8 +161,11 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
             if (!action.isenabled())
                 continue;
             if (action.has_slide() && action.slide().has_presentation()) {
-                slides.append(proconvert::toSlideMap(action.slide().presentation().base_slide(),
-                                      QString::fromStdString(action.label().text())));
+                QVariantMap slide = proconvert::toSlideMap(action.slide().presentation().base_slide(),
+                                                           QString::fromStdString(action.label().text()));
+                // The colour of its label, which the label has beside its words
+                slide.insert("labelColor", labelfile::read(action.label()).color);
+                slides.append(slide);
             } else if (isVisualMedia(action) && name.isEmpty()) {
                 name = workspace::fileNameOf(action.media().element().url());
                 video = action.media().element().has_video();
@@ -477,6 +482,13 @@ QVariantMap ProDocument::dressedSlide(const QString &path, const QString &cueId,
         }
     }
     return {};
+}
+
+QString ProDocument::setCueLabel(const QString &path, const QString &cueId, const QString &text, const QString &color)
+{
+    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
+        return labelfile::set(cue, {text, color}) ? QString() : QStringLiteral("That is not a slide that can have a label");
+    });
 }
 
 QString ProDocument::changeCue(const QString &path, const QString &cueId, const std::function<QString(rv::data::Cue *)> &change)

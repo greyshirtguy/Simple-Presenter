@@ -291,6 +291,19 @@ Thirteen
 """
 
 
+# Labels kept ready as ProPresenter writes them: two of words alone, one with a colour.
+LABELS = """\
+labels { text: "Blank Slide" }
+labels { text: "Instrumental" }
+labels { text: "Offering" color { green: 0.5 alpha: 1 } }
+"""
+
+
+def prepare_slidemenu(workspace, test_dir):
+    with open(os.path.join(workspace, "Configuration", "Labels"), "wb") as out:
+        out.write(protoc("encode", "rv.data.ProLabelsDocument", "labels.proto", LABELS.encode()))
+
+
 def after_slidemenu(workspace, test_dir):
     """Slides put in other groups from their menu: what the song's file holds. The test kept the file as it was before
     (song-before) and after the first change (song-split); which song and which groups is read from those."""
@@ -319,8 +332,8 @@ def after_slidemenu(workspace, test_dir):
 
     frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
     before, split = (decoded(os.path.join(frames, name)) for name in ("song-before", "song-split"))
-    # One file was changed: the song whose groups were, known by being, in the fixture, what the test kept of it
-    # before.
+    # Two files were changed: the song whose groups were, and the one a slide of which was labelled, each known by
+    # being, in the fixture, what the test kept of it before.
     def fixture(path):
         with open(os.path.join(FIXTURES, "workspaces", "Act", "Libraries", "MainHall", os.path.basename(path)), "rb") as source:
             return source.read()
@@ -336,6 +349,7 @@ def after_slidemenu(workspace, test_dir):
     everything = sorted(glob.glob(os.path.join(glob.escape(workspace), "Libraries", "MainHall", "*.pro")))
     differing_files = [path for path in everything if now_bytes(path) != fixture(path)]
     changed = [path for path in differing_files if fixture(path) == kept("song-before")]
+    labelled = [path for path in differing_files if fixture(path) == kept("label-before")]
     after = decoded(changed[0]) if len(changed) == 1 else ""
     listed = {name: uuid for uuid, name in re.findall(r'^groups \{\s*uuid \{\s*string: "([^"]+)"\s*\}\s*name: "([^"]*)"',
                                                     decoded(os.path.join(workspace, "Configuration", "Groups"), "rv.data.ProGroupsDocument", "groups.proto"), re.M)}
@@ -344,8 +358,8 @@ def after_slidemenu(workspace, test_dir):
     new = [group for group in cut if group["id"] not in [g["id"] for g in was]]
     old = [g for g in was if new and g["cues"][-len(new[0]["cues"]):] == new[0]["cues"] and len(g["cues"]) > len(new[0]["cues"])] if new else []
     lines = [
-        said(len(changed) == 1 and len(differing_files) == 1 and bool(after),
-             "one presentation's file was changed, the one whose groups were, and no other", "%d files" % len(differing_files)),
+        said(len(changed) == 1 and len(labelled) == 1 and len(differing_files) == 2 and bool(after),
+             "two presentations' files were changed, the one whose groups were and the one with the labelled slide, and no other", "%d files" % len(differing_files)),
         said(len(cut) == len(was) + 1 and len(new) == 1 and len(old) == 1 and cut.index(new[0]) == was.index(old[0]) + 1
              and [g for g in cut if g["id"] == old[0]["id"]][0]["cues"] == old[0]["cues"][:-len(new[0]["cues"])],
              "in the song's file: the group was split, its later slides in a new group straight after it and its earlier ones where they were",
@@ -373,6 +387,26 @@ def after_slidemenu(workspace, test_dir):
         said(arrangements(split) == arrangements(after) and rest(split) == rest(after),
              "in the song's file: and nothing else is other than it was, the arrangements among it"),
     ]
+
+    # The labelled slide: one label more than the file had, written as ProPresenter writes one with a colour.
+    if len(labelled) == 1:
+        was_text, now_text = decoded(os.path.join(frames, "label-before")), decoded(labelled[0])
+        added = [line.strip() for line in now_text.splitlines()]
+        gone = was_text.splitlines()
+        extra = len(now_text.splitlines()) - len(gone)
+        block = re.search(r'^ *label \{\n *text: "Offering"\n *color \{\n *green: 0\.50196081\d*\n *alpha: 1\n *\}\n *\}\n', now_text, re.M)
+        without = now_text.replace(block.group(0), "", 1) if block else ""
+        lines += [
+            said(block is not None and now_text.count('text: "Offering"') == 1,
+                 "in the labelled slide's file: the label is on the slide's action, its words and its colour (a green, with nothing written for the red and the blue it has none of)"),
+            said(bool(block) and without == was_text, "in the labelled slide's file: and nothing else is other than it was", "%d lines more" % extra),
+        ]
+    labels = decoded(os.path.join(workspace, "Configuration", "Labels"), "rv.data.ProLabelsDocument", "labels.proto")
+    lines.append(said(re.fullmatch(r'labels \{ text: "Blank" \} labels \{ text: "Offering" color \{ green: 0\.5 alpha: 1 \} \} '
+                                   r'labels \{ text: "Welcome" color \{ red: 0\.8980\d* green: 0\.2235\d* blue: 0\.2078\d* alpha: 1 \} \}',
+                                   re.sub(r"\s+", " ", labels).strip()) is not None,
+                      "in the workspace's list of labels: the one changed, the one that was left (as it was written), and the new one with its colour; the one removed is gone",
+                      re.sub(r"\s+", " ", labels).strip()[:260]))
     return lines
 
 
@@ -642,7 +676,7 @@ TESTS = {
     "refine": test("Act"),
     "search": test("Demo"),
     "library": test("Demo", prepare=prepare_library, after=after_library),
-    "slidemenu": test("Act", timeout=240, after=after_slidemenu),
+    "slidemenu": test("Act", timeout=240, prepare=prepare_slidemenu, after=after_slidemenu),
     "looks": test("Act", after=after_looks),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),
