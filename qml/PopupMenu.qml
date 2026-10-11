@@ -14,7 +14,9 @@ import QtQuick.Effects
 //                               (greyed, and does nothing), and may have a `glyph`,
 //                               the kind of a small picture drawn before its label,
 //                               and a `picture` that says which exactly (see
-//                               ActionGlyph)
+//                               ActionGlyph); or a `swatch`, a colour ("#rrggbb")
+//                               shown as a small square at the end of the row, for
+//                               a row that stands for something that has a colour
 //   { label: "…", items: […] }  a row that leads to a menu of its own, which opens
 //                               beside it when the pointer rests on the row, or on a
 //                               click. `items` is the rows of that menu, or a function
@@ -295,6 +297,22 @@ Popup {
                                          : !row.caption && !row.unavailable && (rowMouse.containsMouse || row.led) ? "#565962" : "transparent"
                                 }
 
+                                // A row's colour, at its end
+                                Rectangle {
+                                    objectName: "menuSwatch"
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: row.leads ? 26 : 10
+                                    anchors.verticalCenter: label.verticalCenter
+                                    width: 14
+                                    height: 14
+                                    radius: 3
+                                    visible: !row.caption && typeof row.modelData.swatch === "string" && row.modelData.swatch !== ""
+                                    color: visible ? row.modelData.swatch : "transparent"
+                                    border.width: 1
+                                    border.color: "#30ffffff"
+                                    opacity: row.unavailable ? 0.4 : 1
+                                }
+
                                 // A row's small picture, before its label
                                 Loader {
                                     x: 10
@@ -371,7 +389,7 @@ Popup {
                                     anchors.fill: parent
                                     anchors.topMargin: row.gap
                                     anchors.leftMargin: row.indent
-                                    anchors.rightMargin: row.leads ? 24 : 10
+                                    anchors.rightMargin: (row.leads ? 24 : 10) + (typeof row.modelData.swatch === "string" && row.modelData.swatch !== "" ? 20 : 0)
                                     visible: !row.note
                                     verticalAlignment: Text.AlignVCenter
                                     elide: Text.ElideRight

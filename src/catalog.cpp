@@ -384,6 +384,14 @@ QString Catalog::removeSlideAction(const QString &path, const QString &slideId, 
     return ProDocument::removeCueAction(path, slideId, actionId);
 }
 
+QVariantMap Catalog::setSlideGroup(const QString &path, const QString &slideId, const QVariantMap &group)
+{
+    bool changed = false;
+    const QString error = ProDocument::setGroupFrom(path, slideId, group.value("name").toString(), group.value("color").toString(),
+                                                    group.value("id").toString(), &changed);
+    return {{"changed", changed}, {"error", error}};
+}
+
 QVariantMap Catalog::insertSlide(const QString &path, const QString &slideId)
 {
     QString id;

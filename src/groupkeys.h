@@ -43,6 +43,11 @@ class GroupKeys : public QObject
     Q_PROPERTY(QVariantList mappedKeys READ mappedKeys NOTIFY changed)
     // The list of groups, which may not exist yet
     Q_PROPERTY(QString path READ path NOTIFY changed)
+    // Every group of the list, in its order, hotkey or none: { id, name, color }, the
+    // colour as "#rrggbb". It is what ProPresenter offers a slide to be put in, and the
+    // id is what it then writes beside the group in the presentation, to say which of
+    // the list's groups it is.
+    Q_PROPERTY(QVariantList groups READ groups NOTIFY changed)
 
 public:
     using QObject::QObject;
@@ -50,6 +55,7 @@ public:
     bool exists() const { return m_exists; }
     QVariantList keys() const { return m_keys; }
     QVariantList mappedKeys() const { return m_mappedKeys; }
+    QVariantList groups() const { return m_groups; }
     QString path() const;
 
     // Reads the hotkeys of a workspace folder. Returns an error message, empty on
@@ -72,4 +78,5 @@ private:
     bool m_exists = false;
     QVariantList m_keys;
     QVariantList m_mappedKeys;
+    QVariantList m_groups;
 };

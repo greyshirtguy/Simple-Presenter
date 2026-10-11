@@ -186,6 +186,9 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **A slide's group from its menu.** A right click on a slide has **Group**, which puts
+  the slide and those after it in its group into another [group](#groups), as
+  ProPresenter does.
 - **A box that narrows the list of presentations.** Type part of a name under the list,
   in a library or a playlist, and only the presentations that have it are left.
 - **Presentations renamed and deleted.** A presentation's menu has **Rename**, which
@@ -784,6 +787,27 @@ stage screen of the workspace: the layout that screen is to be given, or that it
 be left as it is. An action made here names every stage screen, as ProPresenter's do.
 One that names no screen of this workspace at all (it was made where the screens were
 others) is taken to be for the first stage screen.
+
+## Groups
+
+A right click on a slide has a row for the group the slide belongs to.
+
+**Group** lists the workspace's groups, which are ProPresenter's list of them
+(`Configuration/Groups`), each with its colour, and the slide's own ticked. In a
+workspace that has no such list it offers the groups set up on the settings screen.
+Choosing one works as it does in ProPresenter: it sets the group of that slide **and of
+the slides after it that are in its group now**. So on the first slide of a group the
+whole group becomes the one chosen (it is still the same group of the presentation,
+and keeps its place in every arrangement); on a later slide the group is split there,
+the slides before staying as they were and the slide and those after it becoming a new
+group straight after. The new group is written as ProPresenter writes one given from
+its list: its name, its colour, and the id of the list's group.
+
+Two things there are guesses. When a group is split, the new group is put after the old
+one wherever an arrangement has it, so that every arrangement goes on showing the same
+slides in the same order. A new group that no arrangement had would vanish from all of
+them. And a slide that is in a group of the chosen name already is left as it is, with
+nothing written. Whether ProPresenter does either has not been looked at.
 
 ## Macros
 
@@ -1874,6 +1898,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/playlistfile.*` | Reads and writes the two playlists files |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
+| `src/groupedit.*` | Putting a slide, and those after it in its group, into another group, as ProPresenter does |
 | `src/cursors.*` | The pointer for turning an element in the editor, and whether Ctrl is held |
 | `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
 | `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |

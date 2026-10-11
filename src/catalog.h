@@ -131,6 +131,11 @@ public:
     // Makes a new presentation in the library folder `library`, called `name`: one
     // slide with nothing on it (see ProDocument::create). Returns { path, error }.
     Q_INVOKABLE QVariantMap createPresentation(const QString &library, const QString &name);
+    // Puts a slide, and the slides after it in its group, into another group (see
+    // ProDocument::setGroupFrom): `group` is the one chosen, { name, color, id }, the
+    // id being the group's in the workspace's list of groups, or empty. Returns
+    // { changed, error }.
+    Q_INVOKABLE QVariantMap setSlideGroup(const QString &path, const QString &slideId, const QVariantMap &group);
     // Gives a presentation another name (see ProDocument::rename), and brings along
     // the rows of playlists that are that presentation, so that they still find it.
     // Returns { path, error }: where the file then is.

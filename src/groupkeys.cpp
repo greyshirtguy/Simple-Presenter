@@ -67,11 +67,21 @@ QString GroupKeys::reload()
     m_exists = QFile::exists(path());
     m_keys.clear();
     m_mappedKeys.clear();
+    m_groups.clear();
     QString error;
 
     rv::data::ProGroupsDocument groups;
     if (m_exists && (error = workspace::readMessage(path(), &groups, what)).isEmpty()) {
         for (const rv::data::Group &group : groups.groups()) {
+            const auto part = [](float v) { return qBound(0, qRound(v * 255), 255); };
+            const rv::data::Color &color = group.color();
+            if (!QString::fromStdString(group.name()).trimmed().isEmpty())
+                m_groups.append(QVariantMap {
+                    {"id", QString::fromStdString(group.uuid().string())},
+                    {"name", QString::fromStdString(group.name()).trimmed()},
+                    {"color", QStringLiteral("#%1%2%3").arg(part(color.red()), 2, 16, QLatin1Char('0'))
+                                  .arg(part(color.green()), 2, 16, QLatin1Char('0')).arg(part(color.blue()), 2, 16, QLatin1Char('0'))},
+                });
             const QString key = keyOf(group.hotkey());
             if (!key.isEmpty() && !lower(group.name()).isEmpty())
                 m_keys.append(QVariantMap {{"name", lower(group.name())}, {"label", QString::fromStdString(group.name()).trimmed()},

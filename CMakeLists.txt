@@ -194,6 +194,8 @@ qt_add_qml_module(SimplePresenter
         src/cursors.cpp
         src/actions.h
         src/actions.cpp
+        src/groupedit.h
+        src/groupedit.cpp
         src/groupkeys.h
         src/groupkeys.cpp
         src/macros.h

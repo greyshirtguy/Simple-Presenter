@@ -64,3 +64,12 @@ qt_add_executable(tst_chords
 target_include_directories(tst_chords PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_chords PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME chords COMMAND tst_chords)
+
+qt_add_executable(tst_groupedit
+    tst_groupedit.cpp
+    ${PROJECT_SOURCE_DIR}/src/groupedit.h
+    ${PROJECT_SOURCE_DIR}/src/groupedit.cpp
+)
+target_include_directories(tst_groupedit PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_groupedit PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME groupedit COMMAND tst_groupedit)

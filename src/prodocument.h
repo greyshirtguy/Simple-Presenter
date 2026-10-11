@@ -135,6 +135,14 @@ struct ProDocument
     // rows of playlists are the catalog's to bring along. Returns an error message,
     // empty on success.
     static QString rename(const QString &path, const QString &name, QString *renamed);
+    // Puts a slide, and the slides after it in its group, into another group, as
+    // ProPresenter does from a slide's menu: `name`, `color` ("#rrggbb", or empty) and
+    // `listId` (the group's id in the workspace's list of groups, or empty) are the
+    // group that was chosen. The rules are groupedit's, which says what is known of
+    // ProPresenter's and what is a guess. `*changed` says whether anything was written
+    // (a slide in a group of that name already is left as it is).
+    static QString setGroupFrom(const QString &path, const QString &cueId, const QString &name, const QString &color,
+                                const QString &listId, bool *changed);
     // A cue as it is in the file, to be pasted; empty, with *error set, if it is not there.
     static QByteArray copyCue(const QString &path, const QString &cueId, QString *error);
     // Adds a copy of a cue that copyCue gave, from this presentation or another, placed

@@ -291,6 +291,91 @@ Thirteen
 """
 
 
+def after_slidemenu(workspace, test_dir):
+    """Slides put in other groups from their menu: what the song's file holds. The test kept the file as it was before
+    (song-before) and after the first change (song-split); which song and which groups is read from those."""
+    def decoded(path, message="rv.data.Presentation", proto="presentation.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def groups(text):
+        """Each group of a decoded presentation, in order: its own id, its name, the id of the list's group, its slides."""
+        found = []
+        for block in re.findall(r"^cue_groups \{\n(.*?)^\}", text, re.S | re.M):
+            group = re.search(r"^  group \{\n(.*?)^  \}", block, re.S | re.M).group(1)
+            name = re.search(r'^    name: "((?:[^"\\]|\\.)*)"', group, re.M)
+            listed = re.search(r'application_group_identifier \{\s*string: "([^"]+)"', group)
+            found.append({"id": re.search(r'^    uuid \{\s*string: "([^"]+)"', group, re.M).group(1), "name": name.group(1) if name else "",
+                          "list": listed.group(1) if listed else "", "hotkey": "hotKey {" in group, "color": "color {" in group,
+                          "cues": re.findall(r'cue_identifiers \{\s*string: "([^"]+)"', block)})
+        return found
+
+    def arrangements(text):
+        return [re.findall(r'group_identifiers \{\s*string: "([^"]+)"', block) for block in re.findall(r"^arrangements \{\n(.*?)^\}", text, re.S | re.M)]
+
+    def rest(text):
+        """A decoded presentation without its groups and its arrangements."""
+        return re.sub(r"^(cue_groups|arrangements) \{\n.*?^\}\n", "", text, flags=re.S | re.M)
+
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+    before, split = (decoded(os.path.join(frames, name)) for name in ("song-before", "song-split"))
+    # One file was changed: the song whose groups were, known by being, in the fixture, what the test kept of it
+    # before.
+    def fixture(path):
+        with open(os.path.join(FIXTURES, "workspaces", "Act", "Libraries", "MainHall", os.path.basename(path)), "rb") as source:
+            return source.read()
+
+    def kept(name):
+        with open(os.path.join(frames, name), "rb") as source:
+            return source.read()
+
+    def now_bytes(path):
+        with open(path, "rb") as source:
+            return source.read()
+
+    everything = sorted(glob.glob(os.path.join(glob.escape(workspace), "Libraries", "MainHall", "*.pro")))
+    differing_files = [path for path in everything if now_bytes(path) != fixture(path)]
+    changed = [path for path in differing_files if fixture(path) == kept("song-before")]
+    after = decoded(changed[0]) if len(changed) == 1 else ""
+    listed = {name: uuid for uuid, name in re.findall(r'^groups \{\s*uuid \{\s*string: "([^"]+)"\s*\}\s*name: "([^"]*)"',
+                                                    decoded(os.path.join(workspace, "Configuration", "Groups"), "rv.data.ProGroupsDocument", "groups.proto"), re.M)}
+
+    was, cut, now = groups(before), groups(split), groups(after)
+    new = [group for group in cut if group["id"] not in [g["id"] for g in was]]
+    old = [g for g in was if new and g["cues"][-len(new[0]["cues"]):] == new[0]["cues"] and len(g["cues"]) > len(new[0]["cues"])] if new else []
+    lines = [
+        said(len(changed) == 1 and len(differing_files) == 1 and bool(after),
+             "one presentation's file was changed, the one whose groups were, and no other", "%d files" % len(differing_files)),
+        said(len(cut) == len(was) + 1 and len(new) == 1 and len(old) == 1 and cut.index(new[0]) == was.index(old[0]) + 1
+             and [g for g in cut if g["id"] == old[0]["id"]][0]["cues"] == old[0]["cues"][:-len(new[0]["cues"])],
+             "in the song's file: the group was split, its later slides in a new group straight after it and its earlier ones where they were",
+             "%d groups, then %d" % (len(was), len(cut))),
+    ]
+    if len(new) == 1 and len(old) == 1:
+        made = new[0]
+        lines += [
+            said(made["name"] in listed and made["list"] == listed[made["name"]] and made["hotkey"] and made["color"] and re.fullmatch(r"[0-9A-F-]{36}", made["id"]) is not None,
+                 "in the song's file: the new group is written as ProPresenter writes one given from its list: an id of its own, the name, a colour, an empty hotkey, "
+                 "and the id of the list's group", "%s, from the list's %s" % (made["name"], made["list"])),
+            said(all(now_one == [x for group in was_one for x in ([group, made["id"]] if group == old[0]["id"] else [group])]
+                     for was_one, now_one in zip(arrangements(before), arrangements(split))) and len(arrangements(before)) > 0
+                 and any(old[0]["id"] in one for one in arrangements(before)),
+                 "in the song's file: every arrangement has the new group after the old one wherever that comes up, and is otherwise as it was",
+                 "%d arrangements" % len(arrangements(before))),
+            said(rest(before) == rest(split), "in the song's file: nothing but its groups and its arrangements is other than it was"),
+        ]
+    whole = [(a, b) for a, b in zip(cut, now) if a != b]
+    lines += [
+        said(len(now) == len(cut) and len(whole) == 1 and whole[0][0]["id"] == whole[0][1]["id"] and whole[0][0]["cues"] == whole[0][1]["cues"]
+             and whole[0][1]["name"] in listed and whole[0][1]["list"] == listed[whole[0][1]["name"]] and whole[0][1]["name"] != whole[0][0]["name"],
+             "in the song's file: the group changed from its first slide is the group it was, by its id and its slides, with the new name and the list's id for it",
+             "%d groups differ" % len(whole)),
+        said(arrangements(split) == arrangements(after) and rest(split) == rest(after),
+             "in the song's file: and nothing else is other than it was, the arrangements among it"),
+    ]
+    return lines
+
+
 def prepare_library(workspace, test_dir):
     """The rows of the playlists as ProPresenter writes them on a Mac: the address of the file there, the system named,
     and the path from the workspace's folder. The rows the fixture has were added on this computer and give the file's
@@ -557,6 +642,7 @@ TESTS = {
     "refine": test("Act"),
     "search": test("Demo"),
     "library": test("Demo", prepare=prepare_library, after=after_library),
+    "slidemenu": test("Act", timeout=240, after=after_slidemenu),
     "looks": test("Act", after=after_looks),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),

@@ -78,7 +78,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a slide's menu offers to add an action, and to remove one, under Edit", labels().startsWith("Edit, Add Action, Remove Action(off), Theme, [Media]"), labels())
+                check("a slide's menu offers to add an action, and to remove one, under Edit", labels().startsWith("Edit, Add Action, Remove Action(off), Theme, Group, [Media]"), labels())
                 // The pointer resting on the row opens its menu beside it
                 const row = menuRow("Add Action")
                 testInput.mouse(4, row.x, row.y)

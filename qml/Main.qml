@@ -1448,6 +1448,10 @@ Window {
                                                run: () => removeAction(target, action) }))) },
             // The look of the slide: see Themes
             { label: "Theme", disabled: Themes.themes.length === 0, items: () => themeMenuItems([slide.id]) },
+            // Which group it is in, from here on in its group: see setSlideGroup
+            { label: "Group", disabled: groupChoices().length === 0, items: () => [{ header: "Group" }].concat(
+                groupChoices().map(group => ({ label: group.name, swatch: group.color, current: slide.group.trim() === group.name,
+                                               run: () => setSlideGroup(index, group) }))) },
             // The caption itself is something to click, where the slide has media that
             // can be played: it plays the media and leaves the slide layer alone.
             { header: "Media", run: slide.media ? () => playSlideMedia(index) : undefined },
@@ -1470,6 +1474,28 @@ Window {
                 { label: "Cancel", run: () => {} }
             ], item, x, y) }
         ], item, x, y)
+    }
+
+    // The groups a slide can be put in: the workspace's list of them, which is what
+    // ProPresenter offers, each { name, color, id }; or, in a workspace that has no
+    // list, the groups set up on the settings screen here, which have no ids.
+    function groupChoices() {
+        if (GroupKeys.groups.length > 0)
+            return GroupKeys.groups
+        return groups.filter(group => group.name.trim() !== "").map(group => ({ name: group.name.trim(), color: group.color, id: "" }))
+    }
+
+    // Puts a slide of the presentation being viewed into a group, and with it the slides
+    // after it that are in its group now, which is what ProPresenter does: the whole
+    // group, from its first slide; from a later one the group is split there (the rules
+    // are in src/groupedit.h). The show goes on from the slide it is at.
+    function setSlideGroup(index, group) {
+        const slide = document.slides[index]
+        const done = catalog.setSlideGroup(document.path, slide.id, group)
+        if (!report(done.error) || !done.changed)
+            return
+        Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name) + ", and those after it in its group, put in the group " + quoted(group.name))
+        reloadDocument()
     }
 
     // Deletes a slide of the presentation being viewed from its file. If it is the

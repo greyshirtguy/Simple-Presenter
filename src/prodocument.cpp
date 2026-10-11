@@ -1,6 +1,7 @@
 #include "prodocument.h"
 
 #include "chords.h"
+#include "groupedit.h"
 
 #include "themefile.h"
 
@@ -722,6 +723,24 @@ QString ProDocument::rename(const QString &path, const QString &name, QString *r
     *renamed = target;
     presentation.set_name(wanted.toStdString());
     return writePresentation(target, presentation);
+}
+
+QString ProDocument::setGroupFrom(const QString &path, const QString &cueId, const QString &name, const QString &color,
+                                  const QString &listId, bool *changed)
+{
+    *changed = false;
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    const groupedit::Outcome outcome = groupedit::setGroupFrom(&presentation, cueId.toStdString(), {name, color, listId},
+                                                               [] { return newUuid(); });
+    if (outcome == groupedit::Outcome::NoSuchSlide)
+        return QStringLiteral("%1 no longer has that slide in a group").arg(QFileInfo(path).fileName());
+    if (outcome == groupedit::Outcome::Unchanged)
+        return {};
+    *changed = true;
+    return writePresentation(path, presentation);
 }
 
 QByteArray ProDocument::copyCue(const QString &path, const QString &cueId, QString *error)
