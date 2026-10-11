@@ -38,6 +38,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.88" date="2026-10-12">
+      <description>
+        <p>
+          A slide by its number: type a slide's number while showing and it comes up over the
+          slides; Enter takes that slide live, and a number left alone for a second goes away
+          again. And Ctrl+, opens the settings.
+        </p>
+      </description>
+    </release>
     <release version="0.87" date="2026-10-12">
       <description>
         <p>
