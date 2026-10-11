@@ -38,6 +38,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.87" date="2026-10-12">
+      <description>
+        <p>
+          A guard for a graphics driver that hangs when its video decoder is tried: on a computer
+          whose NVIDIA card is run by the nouveau driver, without the firmware that driver's video
+          decoder needs, video is now decoded by the processor, and a notice says so once. The
+          settings have a part for video, where decoding can be kept to the processor on any
+          computer, or the graphics chip's decoder tried whatever the app makes of the computer.
+        </p>
+      </description>
+    </release>
     <release version="0.86" date="2026-10-11">
       <description>
         <p>
