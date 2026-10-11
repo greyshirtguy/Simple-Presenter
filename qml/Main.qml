@@ -2899,6 +2899,16 @@ Window {
         onActivated: win.editMode()
     }
 
+    // The settings, by the key that most apps have for theirs. It does what the
+    // toolbar's button does, and like it is there in the editor too. (Not under the
+    // notice of the guard on video decoding, which has its own way to them.)
+    Shortcut {
+        sequence: "Ctrl+,"
+        context: Qt.ApplicationShortcut
+        enabled: !win.settingsOpen && !win.decodingNoticeOpen
+        onActivated: win.settingsOpen = true
+    }
+
     Item {
         id: keys
 

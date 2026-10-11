@@ -191,6 +191,7 @@ The big things lately, the newest first.
   the slides, large; Enter takes that slide live, as a click on it would. Typing takes
   nothing live by itself, and a number left alone for a second goes away again. See
   [Keys](#keys).
+- **Ctrl+, opens the settings.**
 - **Video decoded by the processor alone, where a graphics driver cannot be trusted
   with it.** On a computer whose graphics driver is known to hang when its video
   decoder is tried (an NVIDIA card on the nouveau driver, without that decoder's
@@ -1545,6 +1546,7 @@ NDI® is a registered trademark of Vizrt NDI AB.
 | Ctrl+F | [Search](#search) |
 | Ctrl+V | Show or hide the media bin |
 | Ctrl+1 / Ctrl+2 | Switch the audience screens / the stage screens on or off |
+| Ctrl+, | The settings, from the editor as well |
 | Esc | Close a menu |
 
 A group's hotkey is set on the settings screen, under Groups, where each group has its

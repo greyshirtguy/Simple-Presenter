@@ -3,8 +3,8 @@ import QtQuick.Window
 import SimplePresenterApp
 import "lib.js" as Lib
 
-// The hotkeys of groups in the workspace's key mappings; show mode and edit mode; the icons on the slides and how solid they are;
-// and the editor's buttons. Run with settings as an earlier version left them (hotkeys in them), on a workspace whose key
+// The hotkeys of groups in the workspace's key mappings; show mode and edit mode; the key for the settings; the icons on the
+// slides and how solid they are; and the editor's buttons. Run with settings as an earlier version left them (hotkeys in them), on a workspace whose key
 // mappings hold other things.
 QtObject {
     id: t
@@ -94,6 +94,21 @@ QtObject {
             },
             () => {
                 testInput.grab("2-icons")
+                // ---- the settings, by their key
+                check("Ctrl+, is taken as a shortcut", testInput.shortcut(Qt.Key_Comma, Qt.ControlModifier))
+                return 400
+            },
+            () => {
+                const sheet = named("settingsSheet")
+                const corner = sheet.mapToItem(null, 12, 12)
+                check("and puts the settings up, as the toolbar's button does: their sheet is drawn", settingsOpen && sheet.parent.visible
+                      && String(testInput.windowPixel(corner.x, corner.y)) === "#1e1f22", settingsOpen + " " + String(testInput.windowPixel(corner.x, corner.y)))
+                check("with the settings up it is no shortcut, there being nothing for it to do", !testInput.shortcut(Qt.Key_Comma, Qt.ControlModifier) && settingsOpen)
+                testInput.key(Qt.Key_Escape)
+                check("Esc puts them away again", !settingsOpen)
+                return 300
+            },
+            () => {
                 // ---- show mode and edit mode
                 const show = named("showButton")
                 const edit = named("editButton")
@@ -103,6 +118,18 @@ QtObject {
             },
             () => {
                 check("and goes into the editor", editing && named("editButton").on && !named("showButton").on)
+                check("Ctrl+, is taken in the editor too", testInput.shortcut(Qt.Key_Comma, Qt.ControlModifier))
+                return 400
+            },
+            () => {
+                const settingsScreen = Lib.find(win.contentItem, i => i.keyEdited !== undefined)
+                const corner = named("settingsSheet").mapToItem(null, 12, 12)
+                check("and puts the settings up over it, drawn", settingsOpen && editing && String(testInput.windowPixel(corner.x, corner.y)) === "#1e1f22")
+                settingsScreen.closed()
+                check("Done puts them away, and the editor is still up", !settingsOpen && editing)
+                return 300
+            },
+            () => {
                 check("the editor has no Done button of its own", Lib.find(editScreen, i => i.text === "Done") === null)
                 check("nor a + Text button over the elements", Lib.find(editScreen, i => i.text === "+ Text") === null)
                 testInput.grab("3-editor")
