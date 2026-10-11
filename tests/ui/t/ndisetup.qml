@@ -18,8 +18,10 @@ QtObject {
         return Lib.findAll(named("screensSettings"), item => String(item.objectName) === "screenRow")
     }
 
-    function shown(name) {
-        const item = named(name)
+    // Whether a thing is shown: one found by its name, or one handed over (a thing in a row of the screens has
+    // to be handed over, since every row has one of each name and the name alone finds the first row's).
+    function shown(what) {
+        const item = typeof what === "string" ? named(what) : what
         if (!item)
             return false
         for (let at = item; at; at = at.parent) {
@@ -53,8 +55,7 @@ QtObject {
                       && named("ndiByHand").text.includes("lib/" + Ndi.sdkFolder + "/libndi.so") && Ndi.sdkFolder === "x86_64-linux-gnu"
                       && named("ndiFolder").text === Ndi.folder, named("ndiByHand").text)
                 check("the screen is not on the network meanwhile, and its line says why", senders[kept.id] !== undefined && senders[kept.id].sending === false
-                      && Lib.find(settingsRows()[1], item => String(item.objectName) === "screenStatus").text.includes("not on this computer")
-                      && shown("screenGetNdi") === false)
+                      && Lib.find(settingsRows()[1], item => String(item.objectName) === "screenStatus").text.includes("not on this computer"))
                 testInput.grab("1-asked")
                 click(centre(named("ndiFetch")))
                 return installerHere ? 15000 : 1500
@@ -109,8 +110,12 @@ QtObject {
             () => {
                 check("the panel is put away", !shown("ndiSetup"))
                 if (!installerHere) {
-                    check("and a screen still without the library has a button to bring it back", shown("screenGetNdi"))
-                    click(centre(named("screenGetNdi")))
+                    // The button of the screen that was set to NDI, the second: the first screen has one of the
+                    // same name, which is not shown, and is the one the name alone would find.
+                    const again = Lib.find(settingsRows()[1], item => String(item.objectName) === "screenGetNdi")
+                    check("and a screen still without the library has a button to bring it back", shown(again)
+                          && !shown(Lib.find(settingsRows()[0], item => String(item.objectName) === "screenGetNdi")))
+                    click(centre(again))
                 }
                 return 400
             },
