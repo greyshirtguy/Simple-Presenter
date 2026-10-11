@@ -128,6 +128,21 @@ public:
         const qreal ratio = image.width() / qreal(window->width());
         return image.pixelColor(qBound(0, int(x * ratio), image.width() - 1), qBound(0, int(y * ratio), image.height() - 1)).name();
     }
+    // How much of a part of the operator window is lighter than a grey (0 to 255), from 0 to 1; the part is
+    // given in the window's own points. (One picture of the window, however big the part.)
+    Q_INVOKABLE double windowLighter(qreal x, qreal y, qreal width, qreal height, int grey)
+    {
+        const QImage image = window->grabWindow().convertToFormat(QImage::Format_RGB32);
+        const qreal ratio = image.width() / qreal(window->width());
+        const QRect part = QRect(int(x * ratio), int(y * ratio), int(width * ratio), int(height * ratio)).intersected(image.rect());
+        qint64 lighter = 0;
+        for (int row = part.top(); row <= part.bottom(); ++row) {
+            const QRgb *line = reinterpret_cast<const QRgb *>(image.constScanLine(row));
+            for (int column = part.left(); column <= part.right(); ++column)
+                lighter += qGray(line[column]) > grey ? 1 : 0;
+        }
+        return part.isEmpty() ? 0 : double(lighter) / (double(part.width()) * part.height());
+    }
     Q_INVOKABLE QString pixel(bool ofStage, qreal x, qreal y)
     {
         QQuickWindow *window = named(ofStage ? "stage" : "output");

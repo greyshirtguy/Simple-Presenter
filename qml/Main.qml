@@ -224,6 +224,25 @@ Window {
         takeFocus()
     }
 
+    // The notice that the guard is holding hardware video decoding back (see
+    // DecodingNotice.qml), made when it is wanted, which on most computers is never.
+    readonly property var decodingNotice: decodingNoticeLoader.item
+    readonly property bool decodingNoticeOpen: decodingNoticeLoader.item !== null && decodingNoticeLoader.item.open
+
+    function showDecodingNotice() {
+        decodingNoticeLoader.active = true
+        decodingNoticeLoader.item.show()
+        Log.note("notice", "told that hardware video decoding is held back on this computer")
+    }
+
+    // The settings, at the part for video: where the notice leads.
+    function openVideoSettings() {
+        looksOpen = false
+        clearGroupsOpen = false
+        settingsOpen = true
+        settingsScreen.section = "video"
+    }
+
     // Whether the window the clear groups are set up in is up (see ClearGroupsPanel).
     // It is made when it is first wanted, which in most sessions is never.
     property bool clearGroupsOpen: false
@@ -309,6 +328,15 @@ Window {
     property bool slidesRearranged: false
     // Read by main.cpp at the next launch; see the Windows section of the settings screen.
     property bool useX11: false
+    // Who decodes video: "auto" (the graphics chip where it can be trusted to), or
+    // "processor" (the processor alone), or "hardware" (the graphics chip where it can,
+    // whatever the guard says of this computer). It is acted on as the app starts,
+    // before anything is played (src/decodingchoice.h), so a change here is for the
+    // next start; what this run is doing is VideoDecoding's to say.
+    property string videoDecoding: "auto"
+    // Whether the notice has been shown that says the guard is holding hardware
+    // decoding back on this computer (see DecodingNotice.qml): it is shown once.
+    property bool decodingNoticeSeen: false
     // A message to show above the slides, or "", and whether it reports a failure
     property string notice: ""
     property bool noticeIsError: true
@@ -541,7 +569,9 @@ Window {
                  + "; stage window " + (stageEnabled ? "on" : "off") + ", with "
                  + (stageLayout ? "the layout " + quoted(stageLayout.name) : "the plain view") + "; media bin "
                  + (mediaBinVisible ? "shown" : "hidden") + "; this window " + width + "x" + height
-                 + (useX11 ? "; set to run through X11" : "") + (remember ? "" : "; settings neither read nor saved"))
+                 + (useX11 ? "; set to run through X11" : "")
+                 + (videoDecoding !== "auto" ? "; video decoding set to " + (videoDecoding === "processor" ? "the processor only" : "the graphics chip") : "")
+                 + (remember ? "" : "; settings neither read nor saved"))
     }
 
     function openDocument(key) {
@@ -1149,7 +1179,9 @@ Window {
     function takeFocus() {
         // The Looks window keeps the keys while it is up (a menu opened from it hands
         // them back here when it closes): Esc is then still the way out of it.
-        if (looksOpen)
+        if (decodingNoticeOpen)
+            decodingNoticeLoader.item.takeKeys()
+        else if (looksOpen)
             looksPanel.takeKeys()
         else if (clearGroupsOpen)
             clearGroupsLoader.item.takeKeys()
@@ -2176,6 +2208,9 @@ Window {
         outputEnabled = String(saved("outputEnabled", true)) === "true"
         stageEnabled = String(saved("stageEnabled", true)) === "true"
         useX11 = String(saved("useX11", false)) === "true"
+        const decoding = String(saved("videoDecoding", "auto"))
+        videoDecoding = ["processor", "hardware"].includes(decoding) ? decoding : "auto"
+        decodingNoticeSeen = String(saved("decodingNoticeSeen", false)) === "true"
         simpleKeepsSidePanel = String(saved("simpleKeepsSidePanel", false)) === "true"
         // By name, so the choice survives transitions being added or reordered.
         selectTransition(String(saved("transition", "")))
@@ -2212,6 +2247,12 @@ Window {
         restored = true
         save("workspace", catalog.workspacePath)
         logSettings()
+        // Told once, where the guard is holding hardware video decoding back on this
+        // computer: something has been decided for whoever runs it, and they should
+        // know, and know where to change it. (Not in a run that keeps no settings, which
+        // could not remember having said it: the self-test, the benchmark.)
+        if (remember && VideoDecoding.guardInForce && !decodingNoticeSeen)
+            showDecodingNotice()
     }
 
     // What is selected is remembered for each workspace by name. Paths inside the
@@ -2381,6 +2422,13 @@ Window {
         if (restored)
             Log.note("settings", "set to run through " + (useX11 ? "X11" : "Wayland") + " from the next start")
     }
+    onVideoDecodingChanged: {
+        save("videoDecoding", videoDecoding)
+        if (restored)
+            Log.note("settings", "video decoding set to " + ({ processor: "the processor only", hardware: "the graphics chip where it can, whatever the guard says" }[videoDecoding]
+                                                             ?? "automatic") + ", from the next start")
+    }
+    onDecodingNoticeSeenChanged: save("decodingNoticeSeen", decodingNoticeSeen)
     // Not `transition.name`: that follows the index too, and may not have caught up yet.
     onTransitionIndexChanged: {
         save("transition", transitions[transitionIndex].name)
@@ -3180,6 +3228,32 @@ Window {
         onClosed: win.closeLooks()
     }
 
+    // The notice of the guard on hardware video decoding: over everything else in the
+    // window, the settings among it, since it is the first thing to be read.
+    Loader {
+        id: decodingNoticeLoader
+
+        // (The operator window, for the panel: asked for out here, where `win` is still
+        // the window's name.)
+        readonly property var operatorWindow: win
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 40
+        active: false
+
+        sourceComponent: DecodingNotice {
+            onClosed: (settingsWanted) => {
+                decodingNoticeLoader.operatorWindow.decodingNoticeSeen = true
+                if (settingsWanted)
+                    decodingNoticeLoader.operatorWindow.openVideoSettings()
+                // (The keys go back to the show, which is also where the settings' Esc
+                // is heard.)
+                decodingNoticeLoader.operatorWindow.takeFocus()
+            }
+        }
+    }
+
     // The window the clear groups are set up in. It is made when it is first asked
     // for, and not with the window: it has a list, a table of layers and thirty-two
     // pictures to choose from, and most sessions never open it.
@@ -3269,6 +3343,8 @@ Window {
         onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))
         useX11: win.useX11
         onUseX11Edited: (useX11) => win.useX11 = useX11
+        videoDecoding: win.videoDecoding
+        onVideoDecodingEdited: (mode) => win.videoDecoding = mode
         simpleKeepsSidePanel: win.simpleKeepsSidePanel
         onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
         onLabelEdited: (index) => win.editLabelPreset(index)

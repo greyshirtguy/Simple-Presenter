@@ -540,6 +540,64 @@ def after_cleargroups(workspace, test_dir):
     return lines
 
 
+def write_settings(test_dir, lines):
+    """The app's own settings, as it would have left them: what a setting that is acted on as the app starts is read from."""
+    folder = os.path.join(test_dir, "config", "SimplePresenter")
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "SimplePresenter.conf"), "w") as conf:
+        conf.write("[General]\n" + "".join(line + "\n" for line in lines))
+
+
+def kept_settings(test_dir, name):
+    with open(os.path.join(test_dir, "config", "SimplePresenter", "SimplePresenter.conf")) as conf:
+        return re.findall(r"^%s=(.*)$" % re.escape(name), conf.read(), re.M)
+
+
+def prepare_softdecode(workspace, test_dir):
+    """How video is decoded is settled as the app starts, from what was saved before, so the test has to find the
+    setting saved already: here, that the processor alone is to decode."""
+    write_settings(test_dir, ["videoDecoding=processor"])
+
+
+def after_softdecode(workspace, test_dir):
+    saved = kept_settings(test_dir, "videoDecoding")
+    return [said(saved == ["auto"], "in the app's settings: what was chosen last is what is kept, for the next start", ", ".join(saved) or "nothing kept")]
+
+
+def nouveau_system(test_dir):
+    """A system made up in the test's folder, for the guard on hardware video decoding to look at in place of the real
+    one: laid out as /dev, /sys and /lib/firmware are, with one graphics chip, run by nouveau, and none of the
+    firmware its video decoder needs. (The app is told of it, and of the chip's number, in its environment: see the
+    recipes. Only what the guard looks at is made up; video is still decoded by what this computer has.)"""
+    system = os.path.join(test_dir, "system")
+    driver = os.path.join(system, "sys", "bus", "pci", "drivers", "nouveau")
+    device = os.path.join(system, "sys", "class", "drm", "renderD128", "device")
+    for folder in (driver, device, os.path.join(system, "dev", "dri"), os.path.join(system, "lib", "firmware", "nouveau")):
+        os.makedirs(folder)
+    os.symlink(driver, os.path.join(device, "driver"))
+    with open(os.path.join(system, "dev", "dri", "renderD128"), "w"):
+        pass
+
+
+def prepare_decodeguard(workspace, test_dir):
+    nouveau_system(test_dir)
+
+
+def after_decodeguard(workspace, test_dir):
+    return [
+        said(kept_settings(test_dir, "decodingNoticeSeen") == ["true"], "in the app's settings: that the notice has been shown is kept, so that it is shown once",
+             ", ".join(kept_settings(test_dir, "decodingNoticeSeen")) or "nothing kept"),
+        said(kept_settings(test_dir, "videoDecoding") == ["hardware"], "in the app's settings: and the choice to have the graphics chip tried all the same",
+             ", ".join(kept_settings(test_dir, "videoDecoding")) or "nothing kept"),
+    ]
+
+
+def prepare_decodeguard2(workspace, test_dir):
+    """The same computer at its next start: the notice has been shown, and the graphics chip was chosen all the same."""
+    nouveau_system(test_dir)
+    write_settings(test_dir, ["decodingNoticeSeen=true", "videoDecoding=hardware"])
+
+
 def prepare_library(workspace, test_dir):
     """The rows of the playlists as ProPresenter writes them on a Mac: the address of the file there, the system named,
     and the path from the workspace's folder. The rows the fixture has were added on this computer and give the file's
@@ -808,6 +866,13 @@ TESTS = {
     "library": test("Demo", prepare=prepare_library, after=after_library),
     "slidemenu": test("Act", timeout=240, prepare=prepare_slidemenu, after=after_slidemenu),
     "cleargroups": test("Act", timeout=240, prepare=prepare_cleargroups, after=after_cleargroups),
+    # (With its settings read and saved, as a run of the app's own has them: the tests are of a setting.)
+    "softdecode": test("Demo", env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_softdecode, after=after_softdecode),
+    # (On a system made up for the guard to look at: an NVIDIA chip on nouveau, without its decoder's firmware.)
+    "decodeguard": test("Demo", env={"SP_TEST_REMEMBER": "1", "SP_TEST_SYSTEM_ROOT": "<test>/system", "SP_TEST_NOUVEAU_CHIPSET": "e4"},
+                        prepare=prepare_decodeguard, after=after_decodeguard),
+    "decodeguard2": test("Demo", env={"SP_TEST_REMEMBER": "1", "SP_TEST_SYSTEM_ROOT": "<test>/system", "SP_TEST_NOUVEAU_CHIPSET": "e4"},
+                         prepare=prepare_decodeguard2),
     "looks": test("Act", after=after_looks),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),
@@ -980,7 +1045,8 @@ def run_on(name, binary, run_dir, desktop, cache):
         env.update(desktop.env())
     else:
         env.update({"QT_QPA_PLATFORM": "offscreen", "QT_QUICK_BACKEND": "software"})
-    env.update(recipe["env"])
+    # (A value may name the test's own folder, as "<test>": a made-up system it is to be shown, say.)
+    env.update({name: value.replace("<test>", test_dir) for name, value in recipe["env"].items()})
     command = [binary, "--workspace", workspace, "--script", script, "--frames", frames]
     try:
         done = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=recipe["timeout"])

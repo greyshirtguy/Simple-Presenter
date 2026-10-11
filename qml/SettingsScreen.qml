@@ -15,6 +15,8 @@ Rectangle {
 
     // Whether to run through X11 on a Wayland desktop from the next launch.
     property bool useX11: false
+    // Who decodes video, "auto", "processor" or "hardware": see the Video section
+    property string videoDecoding: "auto"
 
     // The hotkeys the workspace has for groups that are not in the list here, in words
     property string otherHotkeys: ""
@@ -31,6 +33,7 @@ Rectangle {
     signal screensFailed(string text)
     signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
+    signal videoDecodingEdited(string mode)
     signal simpleKeepsSidePanelEdited(bool keeps)
     // A label kept ready is to be made (index -1) or changed, in the panel a label is
     // made in; or taken out of the list
@@ -38,14 +41,79 @@ Rectangle {
     signal labelRemoved(int index)
     signal closed
 
+    // One of the three ways video can be decoded (the Video section): a round mark, what
+    // it is called, and what it does
+    component DecodingChoice: Item {
+        id: choice
+
+        property string mode
+        property string title
+        property string detail
+        readonly property bool chosen: screen.videoDecoding === mode
+
+        objectName: "decodingChoice:" + mode
+        width: parent ? parent.width : 0
+        height: Math.max(22, words.height)
+
+        Rectangle {
+            y: 2
+            width: 18
+            height: 18
+            radius: 9
+            color: "#15161a"
+            border.width: 1.5
+            border.color: choice.chosen ? "#ff8a1f" : choiceMouse.containsMouse ? "#8b8f98" : "#5c5f66"
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: 10
+                height: 10
+                radius: 5
+                visible: choice.chosen
+                color: "#ff8a1f"
+            }
+        }
+
+        Column {
+            id: words
+
+            x: 30
+            width: parent.width - 30
+            spacing: 2
+
+            Text {
+                color: "#e6e6e6"
+                font.pixelSize: 15
+                text: choice.title
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: choice.detail
+            }
+        }
+
+        MouseArea {
+            id: choiceMouse
+
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: screen.videoDecodingEdited(choice.mode)
+        }
+    }
+
     // What the app is running on now: "wayland", "xcb" (X11), "windows", "cocoa", ...
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
         ? [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
-           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" }, { name: "Windows", path: "windows" },
-           { name: "About", path: "about" }]
+           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" }, { name: "Video", path: "video" },
+           { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
         : [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
-           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" }, { name: "About", path: "about" }]
+           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" }, { name: "Video", path: "video" },
+           { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -73,6 +141,7 @@ Rectangle {
     }
 
     Rectangle {
+        objectName: "settingsSheet"
         anchors.centerIn: parent
         width: Math.min(760, parent.width - 60)
         height: Math.min(600, parent.height - 60)
@@ -586,6 +655,102 @@ Rectangle {
 
         // (The looks, which say what each of those screens gets, have a window of their
         // own, as in ProPresenter: the toolbar's Looks button leads to it. See LooksPanel.)
+
+        // Video: who decodes it. (How it is drawn is not a setting: the graphics chip
+        // draws it, whoever worked its pictures out.) One setting of three values, which
+        // decodingchoice.h says the meaning of; it is acted on as the app starts.
+        //
+        // This part is all words, and on a computer the guard holds there is a paragraph
+        // more of them: more than the sheet has room for in a short window. So it scrolls
+        // where it has to, which the other parts have no need to.
+        Flickable {
+            id: videoPart
+
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            visible: screen.section === "video"
+            clip: true
+            contentHeight: videoWords.height
+            boundsBehavior: Flickable.StopAtBounds
+
+            // The bar is kept in sight while there is more than is shown: where the words
+            // stop at the end of a paragraph, nothing else would say that there is more.
+            //
+            // It is always on, and hidden where it is not wanted, and not switched on and
+            // off. A bar that is switched off fades away, and a fade is frames drawn. This
+            // part is laid out as the app starts, unseen, and for a moment while that is
+            // done there is more than fits; switching the bar by that had the operator
+            // window drawing for an eighth of a second longer at every start, with
+            // nothing to show for it. The benchmark found it.
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AlwaysOn
+                visible: videoPart.contentHeight > videoPart.height
+            }
+
+            KineticWheel {}
+
+            Column {
+                id: videoWords
+
+                objectName: "videoSettings"
+                // (Room is left for the scroll bar, as the list of groups leaves it.)
+                width: videoPart.width - 14
+                spacing: 10
+
+                Text {
+                    color: "#8d9097"
+                    font.pixelSize: 11
+                    font.bold: true
+                    text: "VIDEO IS DECODED"
+                }
+
+                DecodingChoice {
+                    mode: "auto"
+                    title: "Automatically"
+                    detail: "By the graphics chip, where its driver offers that: it is what keeps a 4K video cheap. By the processor "
+                          + "where there is no such driver, and on a computer whose graphics driver is known to hang when its "
+                          + "decoder is tried."
+                }
+
+                DecodingChoice {
+                    mode: "processor"
+                    title: "By the processor only"
+                    detail: "No hardware video decoder is tried. For a computer on which a video shows nothing, or which hangs when a "
+                          + "video starts or is changed for another: switch to this, start the app again, and see whether that goes away."
+                }
+
+                DecodingChoice {
+                    mode: "hardware"
+                    title: "By the graphics chip, whatever the app makes of this computer"
+                    detail: "Hardware decoders are tried even where Automatically would leave them alone. For a computer the app is "
+                          + "wrong about, or one whose graphics driver has since been put right."
+                }
+
+                Text {
+                    objectName: "videoDecodingNote"
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    topPadding: 6
+                    color: "#9a9da3"
+                    font.pixelSize: 13
+                    text: "Whichever it is, the pictures are drawn by the graphics chip, with the same transitions: this is only "
+                        + "about where they are worked out. A change takes effect the next time the app starts.\n\n"
+                        + "Decoding now: " + VideoDecoding.inWords + "."
+                        // What the app makes of this computer, where the guard holds it. (Not
+                        // said twice, where how it is decoding now has said it already.)
+                        + (VideoDecoding.guarded
+                           ? "\n\n" + (VideoDecoding.inWords.includes(VideoDecoding.guardReason) ? "" : "On this computer " + VideoDecoding.guardReason + ". ")
+                             + "Trying that decoder has been seen to hang such a computer, which is why Automatically leaves it alone "
+                             + "here. With the firmware put in (the README says where that is explained), it is tried again without "
+                             + "anything being changed here."
+                           : "")
+                }
+            }
+        }
 
         // Windows
         Column {

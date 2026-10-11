@@ -53,6 +53,10 @@ QtObject {
                 check("the three windows", said("window", "operator window: a window of") && said("window", "output window: a window of 300x189") && said("window", "stage window: a window of 300x189"),
                       of("window").join(" | "))
                 check("the presentation opened", last("open") === "\"Move Of God\" [Default], 43 slides, from the library \"Demo\"", last("open"))
+                check("where a hardware video decoder would be looked for, and how video is to be decoded: by the graphics chip where it can be, nothing having asked otherwise",
+                      of("video").length === 2 && /^a hardware decoder would be looked for on \/dev\/dri\/renderD\d+, which the driver ".+" runs/.test(of("video")[0])
+                      && of("video")[1] === "video is decoded by the graphics chip where its driver offers that, and otherwise by the processor"
+                      && !VideoDecoding.softwareOnly && !VideoDecoding.guarded, of("video").join(" | "))
                 check("what Qt itself said in starting", said("qt", "qt.multimedia.ffmpeg: Using Qt multimedia with FFmpeg"), of("qt").join(" | "))
                 // (Where this is run there is no session bus, which Qt's theme warns of; that is the test's doing.)
                 const wrong = all.split("\n").filter(line => /^\d\d:\d\d:\d\d\.\d\d\d  [A-Z]{4,}/.test(line) && !line.includes("qt.qpa.theme"))
@@ -209,7 +213,7 @@ QtObject {
             },
             () => {
                 const settingsScreen = Lib.find(win.contentItem, item => item.sections !== undefined && item.section !== undefined && item.useX11 !== undefined)
-                check("the settings have an About section", settingsScreen !== null && settingsScreen.sections.map(x => x.name).join() === "Groups,Labels,Slides,Simple View,Screens,Windows,About",
+                check("the settings have an About section", settingsScreen !== null && settingsScreen.sections.map(x => x.name).join() === "Groups,Labels,Slides,Simple View,Screens,Video,Windows,About",
                       settingsScreen ? settingsScreen.sections.map(x => x.name).join() : "none")
                 const row = Lib.find(settingsScreen, item => item.text === "About" && item.font !== undefined)
                 click(centre(row))

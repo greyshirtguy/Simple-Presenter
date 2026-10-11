@@ -78,7 +78,10 @@
 //     blended: the output is drawn directly (see TransitionLayer.qml).
 //   - Video is decoded by the graphics hardware when a driver for it is there (Qt
 //     Multimedia, through FFmpeg). The preview does not decode it a second time: it
-//     borrows frames from the output (src/framerelay.h).
+//     borrows frames from the output (src/framerelay.h). Where a driver's decoder is
+//     not to be trusted, decoding is kept to the processor: by a setting
+//     (src/decodingchoice.h), and without being asked on a computer where trying the
+//     decoder is known to do harm (src/decodingguard.h).
 //   - Media files are never read on the thread that runs the windows. Thumbnails are
 //     made on worker threads, once, and kept on disk (src/thumbnailprovider.h); a
 //     still put on the output is read on another thread and brought in when it is
@@ -101,6 +104,8 @@
 
 #include "benchmark.h"
 #include "catalog.h"
+#include "decodingchoice.h"
+#include "decodingguard.h"
 #include "iconprovider.h"
 #include "selftest.h"
 #include "sessionlog.h"
@@ -153,12 +158,63 @@ static void chooseWindowSystem(int argc, char *argv[])
         qputenv("QT_QPA_PLATFORM", "xcb");
 }
 
+// Whether video is to be decoded by the processor alone, with the graphics chip's own
+// decoders left untried: because it was asked for, or because this is a computer on
+// which trying them is known to do harm (decodingchoice.h says who has the say, and
+// decodingguard.h which computers those are). Qt Multimedia's FFmpeg backend reads its
+// variable once, when it first decodes anything, so this is settled here, before
+// anything is played; a change to the setting is for the next start.
+static void chooseVideoDecoding(int argc, char *argv[])
+{
+    decodingchoice::Asked asked;
+    bool remembers = true;
+    for (int i = 1; i < argc; ++i) {
+        const QByteArray argument(argv[i]);
+        asked.softwareFlag = asked.softwareFlag || argument == "--software-decoding";
+        asked.hardwareFlag = asked.hardwareFlag || argument == "--hardware-decoding";
+        remembers = remembers && !argument.startsWith("--selftest") && !argument.startsWith("--benchmark");
+    }
+    // The self-test and the benchmark must not depend on the user's saved session: as
+    // the window reads no settings in those runs, so this does not. (The guard is not of
+    // the session but of the computer, and holds for them too.)
+    if (remembers)
+        asked.mode = decodingchoice::modeOf(QSettings("SimplePresenter", "SimplePresenter").value("videoDecoding").toString());
+    asked.environmentSet = qEnvironmentVariableIsSet(decodingchoice::kVariable);
+    asked.environment = qgetenv(decodingchoice::kVariable);
+
+    // What this computer is, for the guard
+    QString root;
+    std::function<int(const QString &)> chipsetOf = decodingguard::nouveauChipset;
+#ifdef SIMPLEPRESENTER_TEST_HOOK
+    // (A scripted test stands a made-up system in for the real one: a folder laid out
+    // as /sys, /dev and /lib/firmware are, and the number nouveau would give its chip.)
+    if (qEnvironmentVariableIsSet("SP_TEST_SYSTEM_ROOT")) {
+        root = qEnvironmentVariable("SP_TEST_SYSTEM_ROOT");
+        const int chipset = qEnvironmentVariable("SP_TEST_NOUVEAU_CHIPSET").toInt(nullptr, 16);
+        chipsetOf = [chipset](const QString &) { return chipset; };
+    }
+#endif
+    const decodingguard::Found found = decodingguard::look(root, QSysInfo::kernelVersion(), chipsetOf);
+    const decodingguard::Verdict verdict = decodingguard::judge(found);
+    asked.guarded = verdict.guarded;
+    asked.guardReason = verdict.reason;
+
+    const decodingchoice::Choice choice = decodingchoice::choose(asked);
+    if (!choice.set.isNull())
+        qputenv(decodingchoice::kVariable, choice.set);
+    decodingchoice::setSession(choice);
+    SessionLog::write("video", decodingguard::described(found));
+    SessionLog::write("video", decodingchoice::logLine(choice));
+}
+
 int main(int argc, char *argv[])
 {
     chooseWindowSystem(argc, argv);
     // The log is opened before anything else is tried, so that whatever goes wrong in
     // starting up, down to there being no way to put a window on the screen, is in it.
     SessionLog::start(argc, argv, QStringLiteral(APP_VERSION));
+    // (After the log has said what the environment was, which this may add to.)
+    chooseVideoDecoding(argc, argv);
     QGuiApplication app(argc, argv);
     QGuiApplication::setOrganizationName("SimplePresenter");
     QGuiApplication::setApplicationName("SimplePresenter");
@@ -180,7 +236,12 @@ int main(int argc, char *argv[])
                                           "Default: a non-primary screen if there is one, otherwise a window.", "screen");
     const QCommandLineOption selfTestOption("selftest", "Drive the output through a fixed sequence, save frames as PNGs into <dir>, then quit.", "dir");
     const QCommandLineOption benchmarkOption("benchmark", "Time a fixed run on a workspace of the benchmark's own making, write the times to <file>, then quit.", "file");
-    parser.addOptions({listOption, workspaceOption, screenOption, selfTestOption, benchmarkOption});
+    // (Both acted on already, before the application was made: see chooseVideoDecoding.)
+    const QCommandLineOption softwareDecodingOption("software-decoding", "Decode video with the processor only, for this run: no hardware video decoder "
+                                                    "is tried. The same can be kept in the settings, under Video.");
+    const QCommandLineOption hardwareDecodingOption("hardware-decoding", "Have the graphics chip's video decoder tried, for this run, on a computer where "
+                                                    "the app would leave it untried. The same can be kept in the settings, under Video.");
+    parser.addOptions({listOption, workspaceOption, screenOption, selfTestOption, benchmarkOption, softwareDecodingOption, hardwareDecodingOption});
 #ifdef SIMPLEPRESENTER_TEST_HOOK
     testhook::addOptions(parser);
 #endif

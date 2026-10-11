@@ -91,3 +91,21 @@ qt_add_executable(tst_clearfile
 target_include_directories(tst_clearfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_clearfile PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME clearfile COMMAND tst_clearfile)
+
+qt_add_executable(tst_decodingchoice
+    tst_decodingchoice.cpp
+    ${PROJECT_SOURCE_DIR}/src/decodingchoice.h
+    ${PROJECT_SOURCE_DIR}/src/decodingchoice.cpp
+)
+target_include_directories(tst_decodingchoice PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_decodingchoice PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME decodingchoice COMMAND tst_decodingchoice)
+
+qt_add_executable(tst_decodingguard
+    tst_decodingguard.cpp
+    ${PROJECT_SOURCE_DIR}/src/decodingguard.h
+    ${PROJECT_SOURCE_DIR}/src/decodingguard.cpp
+)
+target_include_directories(tst_decodingguard PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_decodingguard PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME decodingguard COMMAND tst_decodingguard)

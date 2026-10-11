@@ -113,6 +113,7 @@ qt_add_qml_module(SimplePresenter
         qml/ClearGroupGlyph.qml
         qml/ClearGroupsPanel.qml
         qml/ColorButton.qml
+        qml/DecodingNotice.qml
         qml/Divider.qml
         qml/DragSource.qml
         qml/Editor.qml
@@ -180,6 +181,10 @@ qt_add_qml_module(SimplePresenter
     SOURCES
         src/catalog.h
         src/catalog.cpp
+        src/decodingchoice.h
+        src/decodingchoice.cpp
+        src/decodingguard.h
+        src/decodingguard.cpp
         src/firstframe.h
         src/firstframe.cpp
         src/framerelay.h
@@ -222,6 +227,8 @@ qt_add_qml_module(SimplePresenter
         src/labelfile.cpp
         src/labels.h
         src/labels.cpp
+        src/videodecoding.h
+        src/videodecoding.cpp
         src/lookfile.h
         src/lookfile.cpp
         src/looks.h

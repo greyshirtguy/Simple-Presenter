@@ -187,6 +187,14 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Video decoded by the processor alone, where a graphics driver cannot be trusted
+  with it.** On a computer whose graphics driver is known to hang when its video
+  decoder is tried (an NVIDIA card on the nouveau driver, without that decoder's
+  firmware), the app now leaves the decoder alone by itself, says so once, and lets it
+  be tried all the same from the settings. And on any computer the settings, under
+  Video, can keep decoding to the processor: for one on which a video shows nothing, or
+  which hangs when a video starts or is changed for another. See
+  [Hardware video decoding](#hardware-video-decoding).
 - **Clear groups.** Under the clears of the layers is a row of buttons for the
   workspace's [clear groups](#clear-groups): named sets of layers cleared together at
   one click, starting with ProPresenter's own, Clear All. A right click on any clear
@@ -1883,7 +1891,7 @@ tested with this app; the AMD and NVIDIA notes are what should apply.
 | Intel (Broadwell, 2014, or newer) | `intel-media-va-driver` | Tested. Decodes through VA-API. Older Intel chips use `i965-va-driver`. |
 | AMD | Nothing: the driver is part of Mesa (`mesa-libgallium`), installed with the desktop | Decodes through VA-API. On older Ubuntu releases it is the separate `mesa-va-drivers` package. |
 | NVIDIA, proprietary driver | The driver's own decode library, `libnvidia-decode-<version>`, which the `nvidia-driver-<version>` package pulls in | Decodes through VDPAU or NVDEC, not VA-API. |
-| NVIDIA, open-source nouveau driver | Nothing: also part of Mesa | Limited: only some older cards, and it needs firmware. Expect CPU decoding. |
+| NVIDIA, open-source nouveau driver | Nothing: also part of Mesa | Limited: only some older cards (up to the GTX 780), and it needs firmware that has to be taken out of NVIDIA's own driver. Expect CPU decoding. Where the firmware is missing, the trying itself can hang the graphics chip, so the app does not try: see [the processor alone](#decoding-by-the-processor-alone), below. |
 
 To see what a machine can decode, install `vainfo` and run it: it lists the codecs the
 VA-API driver offers, or fails if there is no driver. That does not apply to NVIDIA's
@@ -1906,6 +1914,79 @@ memory, which is one decoded by the processor.
 
 The lines FFmpeg prints at startup about VDPAU or Vulkan failing are it trying methods
 the machine does not have, and are harmless.
+
+### Decoding by the processor alone
+
+Which decoder a video gets is Qt's choice, made anew for every video that is opened: a
+hardware decoder if the graphics driver offers one, and FFmpeg's own, on the processor,
+if not. A driver can offer one that does not work, and then it is the trying that does
+the harm. The case this was added for: an NVIDIA card of 2012 (a GTX 670) on the
+nouveau driver, whose video decoder wants firmware the system does not have. The first
+video played, the next showed nothing, and the graphics chip then stopped answering;
+the kernel's log spoke of the missing firmware, of a `CTXSW_TIMEOUT`, and of killing
+the channel that FFmpeg's H.264 decoder had opened. With no hardware decoder tried,
+none of that happened.
+
+**The app looks for that case by itself.** As it starts, before anything is played, it
+looks at the graphics chip a hardware decoder would be looked for on (the first of the
+system's render nodes, which is the one FFmpeg takes). If that chip is run by nouveau,
+is one nouveau has a video decoder for (the cards of 2007 to 2014, up to the GTX 780),
+and the firmware that decoder needs is not in the system's firmware folders, no
+hardware decoder is tried: every video is decoded by the processor. The first time
+that happens a notice says so, once, with a button that leads to the settings. The
+[log](#log) says near its start what was found and what was decided.
+
+**Settings, Video** has the choice, of three:
+
+- **Automatically**, which is the above: the graphics chip where its driver offers a
+  decoder, and the processor on a computer where that decoder is known to hang.
+- **By the processor only**: no hardware decoder is tried, on any computer. For one on
+  which a video shows nothing, or which hangs when a video starts or is changed for
+  another, whatever its graphics: switch to this, start the app again, and see whether
+  that goes away.
+- **By the graphics chip, whatever the app makes of this computer**: hardware decoders
+  are tried even where Automatically would leave them alone. For a computer the app is
+  wrong about.
+
+A change takes effect when the app is next started, and the settings say how the run
+that is up is decoding, and what the app makes of the computer. On the command line,
+`--software-decoding` and `--hardware-decoding` do the same as the second and the third
+for one run.
+
+Nothing else changes, whichever it is. The pictures of a video are still drawn by the
+graphics chip, through OpenGL, as textures, with the same transitions; only the working
+out of them moves to the processor, which costs its time: a little over one core for a
+4K video and under half of one for 1080p, measured on the 2017 laptop this is made on.
+
+How it is done: the variable Qt's FFmpeg backend reads for the hardware decoders it may
+try, `QT_FFMPEG_DECODING_HW_DEVICE_TYPES`, is given a list that names none, before
+anything is played. Whoever starts the app can set that variable themselves, to nothing
+or to the decoders they want tried (`vaapi`, say); the command line and the setting
+come before it, and where it is set the app's own looking is left out of it. So a
+version of the app that has no such setting can be tried the same way:
+
+```
+QT_FFMPEG_DECODING_HW_DEVICE_TYPES=, SimplePresenter
+```
+
+The log's line for each video says how its pictures arrived. With hardware decoding not
+tried it says outright that the processor decoded it. Otherwise "in memory" leaves that
+open, and the format beside it settles it for the usual kind of video: `NV12` in memory
+is a video the graphics chip decoded and handed back, `YUV420P` one the processor
+decoded.
+
+**To have such a card decode after all**, its firmware has to be put in, which only
+NVIDIA's own driver comes with: the nouveau project's page on
+[video acceleration](https://nouveau.freedesktop.org/VideoAcceleration.html) says how
+it is taken out of that driver and where it goes (`/lib/firmware/nouveau`). With it in
+place the app tries the decoder again without anything being changed. That has not been
+tried here, and nouveau's own page speaks of pictures that come out wrong on some
+videos: if it goes badly, By the processor only is the way back.
+
+What is a guess: that the firmware being there makes the decoder safe to try; the
+names of the firmware for the oldest of those cards; and how the driver is asked which
+chip it runs (if that goes unanswered, the guard still holds). It was worked out from
+one computer's logs and from reading, on a laptop that has no such card.
 
 ## Benchmark
 
@@ -1956,7 +2037,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: nearly thirty scripts and over eleven
+and look at what its windows then hold and show: over thirty scripts and over fourteen
 hundred checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
@@ -1987,6 +2068,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/groupedit.*` | Putting a slide, and those after it in its group, into another group, as ProPresenter does |
 | `src/labelfile.*`, `src/labels.*` | Slide labels: a slide's own, and the labels a workspace keeps ready, in ProPresenter's list of them |
 | `src/clearfile.*`, `src/cleargroups.*` | The workspace's clear groups, in ProPresenter's file of them: the layers each clears, its picture and tint, and adding to, changing and removing them |
+| `src/decodingchoice.*`, `src/videodecoding.*` | Who decodes video, the graphics chip or the processor alone: the rule by which that is settled as the app starts, and what QML reads it by |
+| `src/decodingguard.*` | The guard on hardware video decoding: which computers have a graphics driver whose decoder is not to be tried (nouveau without its decoder's firmware) |
 | `src/cursors.*` | The pointer for turning an element in the editor, and whether Ctrl is held |
 | `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
 | `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |
@@ -2038,6 +2121,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/NewPresentation.qml` | The panel a new presentation is named in |
 | `qml/SlideLabel.qml` | The panel a label is made in: its words and its colour |
 | `qml/ClearGroupsPanel.qml` | The window the clear groups are set up in: the groups, and the layers, picture and tint of the one picked |
+| `qml/DecodingNotice.qml` | The notice, shown once, that hardware video decoding is being held back on this computer |
 | `qml/ClearGroupGlyph.qml`, `qml/clearglyphs.js` | The picture on a clear group's button: ProPresenter's own where the pack has it, and this app's drawings of the rest |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps the windows of the screens out of Alt+Tab where the app can see to that itself (through X11) |

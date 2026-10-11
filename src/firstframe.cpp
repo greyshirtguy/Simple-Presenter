@@ -1,5 +1,7 @@
 #include "firstframe.h"
 
+#include "decodingchoice.h"
+
 #include <QVideoFrame>
 #include <QVideoFrameFormat>
 
@@ -34,6 +36,9 @@ void FirstFrame::setArrived(bool arrived, const QVideoFrame &frame)
               .arg(QVideoFrameFormat::pixelFormatToString(frame.pixelFormat()),
                    frame.handleType() == QVideoFrame::RhiTextureHandle
                        ? QStringLiteral("as textures (decoded by the graphics chip)")
-                       : QStringLiteral("in memory (decoded by the processor, or copied back from the graphics chip)"));
+                       // (With the hardware decoders untried there is no doubt which.)
+                       : decodingchoice::session().softwareOnly
+                           ? QStringLiteral("in memory (decoded by the processor: hardware decoding is not tried)")
+                           : QStringLiteral("in memory (decoded by the processor, or copied back from the graphics chip)"));
     emit arrivedChanged();
 }
