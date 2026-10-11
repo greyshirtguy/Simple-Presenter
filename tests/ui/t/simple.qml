@@ -331,8 +331,9 @@ QtObject {
                 return 500
             },
             () => {
-                // A point of the red button that clears everything, clear of the picture on it: what the window draws there
-                const clear = named("clearAll")
+                // A point of the red button that clears everything (the workspace's clear group), clear of the picture
+                // and the name on it: what the window draws there
+                const clear = named("clearGroup")
                 const at = clear.mapToItem(null, 6, clear.height / 2)
                 kept.clearAll = String(testInput.windowPixel(at.x, at.y))
                 check("(a slide is live, and the button that clears everything is red)", liveIndex === 0 && red(kept.clearAll), kept.clearAll)
@@ -340,7 +341,7 @@ QtObject {
                 return 900
             },
             () => {
-                const clear = named("clearAll")
+                const clear = named("clearGroup")
                 const at = clear.mapToItem(null, 6, clear.height / 2)
                 const there = String(testInput.windowPixel(at.x, at.y))
                 check("in Simple View the toolbar, the lists and the media bin are gone, and the pane at the right is not",

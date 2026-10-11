@@ -147,7 +147,8 @@ always wished ProPresenter had them. The list will grow.
   (The other way about, a slide without its media, is ProPresenter's: a click with Alt
   held.)
 - **Dragging the clear buttons.** A clear button dragged onto a slide or a macro gives
-  it the action that clears that layer. See [Actions](#actions).
+  it the action that clears that layer, or that [clear group](#clear-groups). See
+  [Actions](#actions).
 - **How solid the icons on the slides are** is a setting, from nearly gone to solid.
 - **Two chord editors.** ProPresenter shows the chords a song came with and has no way
   to put one on by hand. Here the editor has a sheet of the whole song for doing it
@@ -186,6 +187,12 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Clear groups.** Under the clears of the layers is a row of buttons for the
+  workspace's [clear groups](#clear-groups): named sets of layers cleared together at
+  one click, starting with ProPresenter's own, Clear All. A right click on any clear
+  button leads to the window they are set up in: which layers each clears, the picture
+  on its button, and a tint. An action on a slide or in a macro can clear a group, and
+  F1 clears the first of them.
 - **Groups and labels from a slide's menu.** A right click on a slide has **Group**,
   which puts the slide and those after it in its group into another group, as
   ProPresenter does, and **Label**, which gives the slide a [label](#groups-and-labels):
@@ -308,6 +315,11 @@ the top of this page.
       that a whole workspace survives being read and written back unchanged; one
       command that runs every check there is; and the checks run by themselves on every
       pull request.
+- [ ] **Clear groups**: they are there, for the three layers this app has (the slide,
+      the media, the props). Still to come: the other layers a group can name (audio,
+      messages, announcements, video inputs), each of which also wants a clear button
+      of its own when the layer comes; giving a group a picture of one's own; and
+      putting the groups in another order by dragging.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
       stage, props, macros and looks, and those are run. Still to come: the rest of
       ProPresenter's kinds (audio, messages, communications, capture and more, which
@@ -328,9 +340,6 @@ experiment.
 - [ ] **Audio levels**, shown over the previews
 - [ ] **Masks**
 - [ ] **Video input**
-- [ ] **Clear groups**: named sets of layers to clear together, starting with All. (Each
-      of the layers above needs a clear button of its own when it comes, and a place in
-      Clear All.)
 - [ ] **Clear to logo**
 - [ ] **Communication devices**: MIDI, RossTalk, custom HTTP requests
 - [ ] **The API**: ProPresenter's, over the network, so that the remotes and
@@ -663,10 +672,11 @@ one shorter than ten seconds), and a little later than that if the picture there
 nearly black: a great many videos fade in from black, and their first frame says
 nothing about which video it is.
 
-Under the previews are the four **clears**: everything (F1), the slide (F2), the media
-(F3) and the props (F4), each red while there is something there for it to clear. Under
-those is the
-**transport**, for the video on the output: how far in it is and how much is left, a
+Under the previews are the **clears**, in two rows. The first is the layers: the slide
+(F2), the media (F3) and the props (F4), each red while there is something there for it
+to clear. The second is the workspace's [clear groups](#clear-groups), a button each,
+the first of which is what F1 clears: to begin with that is Clear All. Under those is
+the **transport**, for the video on the output: how far in it is and how much is left, a
 slider that can be dragged to move it, and buttons to go back to the start, to play or
 pause, and to skip fifteen seconds back or on.
 
@@ -719,9 +729,9 @@ time of nothing; neither is treated as an error.
 A prop is a slide laid over everything else on the output: a logo in a corner, a
 countdown, a name. Props are the second tab of the show controls. A click on one turns
 it on, and it stays on, over whatever slides and media come and go under it, until it
-is turned off by another click or cleared (F4, or the fourth of the clear buttons;
-clearing everything clears the props too). Any number can be on at once, one over
-another in the order they were turned on: the latest is in front.
+is turned off by another click or cleared (F4, or the third of the clear buttons; a
+[clear group](#clear-groups) that has the props clears them too). Any number can be on
+at once, one over another in the order they were turned on: the latest is in front.
 
 Props are kept in named collections, one level of them, as ProPresenter keeps them,
 and the tab shows one collection at a time: the one chosen from the drop-down over the
@@ -740,6 +750,59 @@ shown as edited once the editor is left. Props come and go with a dissolve, over
 length of time ProPresenter has for it in the workspace (half a second where it says
 nothing). A workspace's props are ProPresenter's own, in `Configuration/Props`.
 
+## Clear groups
+
+A **clear group** is a named set of layers that are cleared together, at one click.
+They are ProPresenter's, kept in the workspace where ProPresenter keeps them
+(`Configuration/ClearGroups`), and a workspace starts with the one ProPresenter starts
+it with: **Clear All**, which clears every layer. A workspace that has no such file is
+shown that group too, and the file is not written until something is changed.
+
+Each group has a button, in a row of its own under the clears of the layers, in the
+order the groups are in. The buttons share the width between them, so the one group a
+workspace starts with has a button as wide as the three above it, with its picture and
+its name; several have room for their pictures alone. A button is red while any of the
+group's layers has something on it, and a click clears them. **F1 clears the first
+group**, which is Clear All unless the list has been put in another order. A group's
+button can be dragged onto a slide or a macro, as the clears of the layers can, to give
+it the action that clears that group: see [Actions](#actions).
+
+A right click on any of the clear buttons has **Configure Clear Groups…**, which puts
+up the window they are set up in: the groups down the left, and on the right what the
+one picked has.
+
+- **The layers it clears.** ProPresenter's eight, in its order: audio, audio effects,
+  messages, props, announcements, the slide, the media and video inputs. This app has
+  three of them (the props, the slide and the media), and those are ticked and
+  unticked. The others are greyed: they are shown as the group has them in the file,
+  are kept exactly so, and cannot be changed here, there being nothing here yet for
+  them to clear.
+- **The picture** on its button, one of the thirty-two ProPresenter has to choose from.
+  For the two that ProPresenter's icon pack has (the one called All, and the message)
+  it is ProPresenter's own picture; the digits are digits; and the rest are this app's
+  own drawings of what each is called (a bell, a star, a cupcake), not ProPresenter's.
+  A group that was given a picture of the user's own in ProPresenter shows that
+  picture and keeps it; one cannot be given here.
+- **A tint**, switched on or off, and its colour, chosen from the app's colour picker.
+  The picture is drawn in it, fainter while the group has nothing to clear.
+- **Whether its button is shown.** A group kept out of sight has no button and is
+  otherwise as it was: an action that clears it still does, and so does F1 if it is
+  the first.
+
+The **+** makes a group, which clears nothing until it is given layers. A right click
+on a group in the list renames it, moves it up or down the list, or deletes it; a
+double click renames it too. Every change is written to the file as it is made, and a
+change of mind (a layer unticked and ticked again, a tint switched on and off) leaves
+the file exactly as it was.
+
+What is a guess, ProPresenter's own window for this not having been looked at: how
+that window is laid out; the order the layers are listed in, which is the order
+ProPresenter's own group has them in; that F1 is for the first group of the list; what
+a new group is given (here a name, no layers, and for its picture the first digit that
+no group has); and that any group, the one a workspace starts with among them, can be
+renamed, moved and removed. What it rests on is one file of ProPresenter's own, with
+its one group in it, and one presentation with an action that clears that group.
+
 ## Actions
 
 A slide can do more when it is shown than show itself and its media. In ProPresenter's
@@ -753,6 +816,8 @@ is marked as the live one, and the arrow keys go on from it.)
   optionally set it up anew first (as a countdown of so long, a countdown to a time of
   day, or an elapsed time).
 - **Clear**: everything, the slide, the media or the props.
+- **Clear Group**: clear one of the workspace's [clear groups](#clear-groups), which is
+  to say those of its layers that there are here.
 - **Stage**: give each stage screen one of the workspace's [stage layouts](#stage-layouts),
   or leave it as it is.
 - **Prop**: put a [prop](#props) on (Trigger) or take it off (Clear).
@@ -761,11 +826,11 @@ is marked as the live one, and the arrow keys go on from it.)
 
 Each action a slide has is a small icon in the top left corner of its thumbnail, after
 the icons for its hotkey and its media. A right click on a slide offers **Add Action**,
-which leads to the kinds above: Clear, Prop, Macro and Audience Look to lists to pick
-from (a prop by its collection, then Trigger or Clear; a macro by its collection), Timer
-and Stage to a small panel to fill in. Under it is **Remove Action**, which lists the
-actions the slide has. A right click on an action's icon says what the action is and
-offers to change it, for a timer or a stage action, or to remove it.
+which leads to the kinds above: Clear, Clear Group, Prop, Macro and Audience Look to
+lists to pick from (a prop by its collection, then Trigger or Clear; a macro by its
+collection), Timer and Stage to a small panel to fill in. Under it is **Remove Action**,
+which lists the actions the slide has. A right click on an action's icon says what the
+action is and offers to change it, for a timer or a stage action, or to remove it.
 
 A row of a menu that leads to a menu of its own has an arrowhead at its right, and its
 menu opens beside it when the pointer rests on the row (or on a click). The menu it
@@ -775,12 +840,12 @@ Whatever is listed in the show controls can also be **dragged onto a slide**: a 
 or the stage screen, which bring up their panel; a prop, which asks whether it is to
 be triggered or cleared; a macro, which needs nothing more. So can the **clear
 buttons** under the previews, each of which gives the slide the action that clears its
-layer; and those can be dropped on a macro as well.
+layer, or its group; and those can be dropped on a macro as well.
 
-ProPresenter has many more kinds of action than these six (messages, audio, clear
-groups, communications and so on). A slide or a macro that has one keeps
-it: it is shown as a fainter icon, said for what it is, written back untouched and not
-done. An action for a timer, a prop, a macro, a layout or a look that is not in the
+ProPresenter has many more kinds of action than these seven (messages, audio,
+communications and so on). A slide or a macro that has one keeps it: it is shown as a
+fainter icon, said for what it is, written back untouched and not done. An action for
+a timer, a prop, a macro, a layout, a look or a clear group that is not in the
 workspace does nothing, and the [log](#log) says so.
 
 A stage action names the stage screens it is for, and its panel has a line for each
@@ -847,7 +912,7 @@ slide); **Remove Action**, which lists its actions; a row for each action that h
 anything to change (a timer action, a stage action), leading to Edit and Remove;
 Rename; Colour; Duplicate; Move to another collection; and Remove. The `+` over the
 list adds a macro or a collection. One of the clear buttons dragged onto a macro
-gives it that clear action. A macro can run another macro; two that run each other
+gives it that clear action, a layer's or a group's. A macro can run another macro; two that run each other
 are stopped after eight turns.
 
 The macros are ProPresenter's own, in `Configuration/Macros`, read and written as
@@ -1458,7 +1523,8 @@ NDI® is a registered trademark of Vizrt NDI AB.
 |---|---|
 | Right, Space / Left | Next / previous slide |
 | Down / Up | Next / previous presentation |
-| F1 / F2 / F3 / F4 | Clear all / slide layer / media layer / props |
+| F1 | Clear the first [clear group](#clear-groups), which to begin with is Clear All |
+| F2 / F3 / F4 | Clear the slide layer / media layer / props |
 | ~, held for most of a second | [Simple View](#simple-view) on or off |
 | A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
 | Ctrl+E | Edit mode: the editor, for the presentation being viewed |
@@ -1920,6 +1986,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
 | `src/groupedit.*` | Putting a slide, and those after it in its group, into another group, as ProPresenter does |
 | `src/labelfile.*`, `src/labels.*` | Slide labels: a slide's own, and the labels a workspace keeps ready, in ProPresenter's list of them |
+| `src/clearfile.*`, `src/cleargroups.*` | The workspace's clear groups, in ProPresenter's file of them: the layers each clears, its picture and tint, and adding to, changing and removing them |
 | `src/cursors.*` | The pointer for turning an element in the editor, and whether Ctrl is held |
 | `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
 | `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |
@@ -1970,6 +2037,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/ImportSong.qml` | The panel a ChordPro file is imported from |
 | `qml/NewPresentation.qml` | The panel a new presentation is named in |
 | `qml/SlideLabel.qml` | The panel a label is made in: its words and its colour |
+| `qml/ClearGroupsPanel.qml` | The window the clear groups are set up in: the groups, and the layers, picture and tint of the one picked |
+| `qml/ClearGroupGlyph.qml`, `qml/clearglyphs.js` | The picture on a clear group's button: ProPresenter's own where the pack has it, and this app's drawings of the rest |
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps the windows of the screens out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |

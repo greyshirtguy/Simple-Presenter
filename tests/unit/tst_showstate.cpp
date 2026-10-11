@@ -35,6 +35,11 @@ QVariantMap clearAction(int layer, bool done = true)
     return {{"id", "c" + QString::number(layer)}, {"kind", "clear"}, {"title", "Clear"}, {"done", done}, {"layer", layer}};
 }
 
+QVariantMap clearGroupAction(const QString &id, const QString &name = {})
+{
+    return {{"kind", "clearGroup"}, {"title", "Clear the group"}, {"done", true}, {"groupId", id}, {"groupName", name}};
+}
+
 QVariantMap propAction(const QString &id, const QString &name, bool clear = false)
 {
     return {{"kind", "prop"}, {"title", "Prop"}, {"done", true}, {"propId", id}, {"propName", name}, {"clear", clear}};
@@ -86,7 +91,9 @@ Presentation plainSong(int count = 4)
 }
 
 // A workspace with two collections of props (the second showing one at a time), a few
-// macros and two stage layouts.
+// macros, two stage layouts, and three clear groups: one as ProPresenter starts a
+// workspace with, of all its layers; one of the props and layers this app has not; and
+// one of nothing.
 Workspace workspace()
 {
     Workspace w;
@@ -106,6 +113,12 @@ Workspace workspace()
     w.stageLayouts = {QVariantMap {{"id", "l1"}, {"name", "Words"}}, QVariantMap {{"id", "l2"}, {"name", "Clock"}}};
     w.stageScreens = {QVariantMap {{"id", "screen1"}, {"name", "Stage"}}, QVariantMap {{"id", "screen2"}, {"name", "Lobby"}}};
     w.looks = {QVariantMap {{"id", "full"}, {"name", "Everything"}}, QVariantMap {{"id", "third"}, {"name", "Lower Third"}}};
+    w.clearGroups = {
+        QVariantMap {{"id", "all"}, {"name", "Clear All"},
+                     {"layers", QStringList {"audio", "audioEffects", "messages", "props", "announcements", "slide", "media", "videoInput"}}},
+        QVariantMap {{"id", "extras"}, {"name", "Extras"}, {"layers", QStringList {"audio", "messages", "props"}}},
+        QVariantMap {{"id", "none"}, {"name", "Nothing"}, {"layers", QStringList {}}},
+    };
     return w;
 }
 
@@ -404,6 +417,81 @@ private slots:
         // It is still at the slide, for stepping.
         QCOMPARE(show.index, 0);
         QVERIFY(show.atSlide);
+    }
+
+    // ---- clear groups
+
+    void aClearGroupClearsThoseOfItsLayersThatAreHere()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", video("waves.mp4"))};
+        show.goLive(song.cue(0), false, workspace());
+        show.toggleProp("p1", workspace());
+        // The props, and two layers that are ProPresenter's: the slide and its media stay.
+        const Effects effects = show.clearGroup("extras", workspace());
+        QCOMPARE(outside(effects), "");
+        QVERIFY(show.props.isEmpty() && !show.cleared && show.hasMedia);
+        QVERIFY(noted(effects, "the clear group \"Extras\""));
+    }
+
+    void theGroupOfEveryLayerClearsAllThereIsHere()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", video("waves.mp4"))};
+        show.goLive(song.cue(0), false, workspace());
+        show.toggleProp("p1", workspace());
+        QCOMPARE(outside(show.clearGroup("all", workspace())), "noslide nomedia");
+        QVERIFY(show.cleared && !show.clearedByCue && !show.hasMedia && show.props.isEmpty());
+        // It is still at the slide, for stepping, as when everything is cleared.
+        QCOMPARE(show.index, 0);
+        QVERIFY(show.atSlide);
+    }
+
+    void aGroupOfNoLayersAndOneTheWorkspaceHasNotClearNothing()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", video("waves.mp4"))};
+        show.goLive(song.cue(0), false, workspace());
+        show.toggleProp("p1", workspace());
+        QCOMPARE(outside(show.clearGroup("none", workspace())), "");
+        QVERIFY(show.clearGroup("gone", workspace()).isEmpty());
+        // (By hand a group is asked for by its id alone: there is no name to go by.)
+        QVERIFY(show.clearGroup("", workspace()).isEmpty());
+        QVERIFY(!show.cleared && show.hasMedia && show.props.size() == 1);
+    }
+
+    void anActionClearsItsGroupFoundByIdOrFailingThatByName()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", video("waves.mp4")), slide("b", {}, {clearGroupAction("extras", "Whatever")}),
+                       slide("c", {}, {clearGroupAction("an id from elsewhere", "Extras")}),
+                       slide("d", {}, {clearGroupAction("an id from elsewhere", "No Such Group")})};
+        show.goLive(song.cue(0), false, workspace());
+        show.toggleProp("p1", workspace());
+        show.goLive(song.cue(1), false, workspace());
+        QVERIFY(show.props.isEmpty() && !show.cleared && show.hasMedia);
+        show.toggleProp("p2", workspace());
+        show.goLive(song.cue(2), false, workspace());
+        QVERIFY(show.props.isEmpty());
+        show.toggleProp("p2", workspace());
+        const Effects effects = show.goLive(song.cue(3), false, workspace());
+        QVERIFY(show.props.size() == 1 && noted(effects, "there is no such clear group here"));
+    }
+
+    void aSlideWhoseActionClearsAGroupWithTheSlideInItHasClearedItself()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", video("waves.mp4"), {clearGroupAction("all")}), slide("b")};
+        QCOMPARE(outside(show.goLive(song.cue(0), false, workspace())), "slidewithmedia noslide nomedia");
+        // As with an action that clears the slide: it is still the slide the show is at,
+        // and the next step goes on from it.
+        QVERIFY(show.cleared && show.clearedByCue && show.cueLive() && !show.hasMedia);
+        QCOMPARE(show.stepTarget(song.key, song.playlistId, 1), 1);
     }
 
     // ---- media from the media bin

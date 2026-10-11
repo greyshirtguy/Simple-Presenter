@@ -82,3 +82,12 @@ qt_add_executable(tst_labelfile
 target_include_directories(tst_labelfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_labelfile PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME labelfile COMMAND tst_labelfile)
+
+qt_add_executable(tst_clearfile
+    tst_clearfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/clearfile.h
+    ${PROJECT_SOURCE_DIR}/src/clearfile.cpp
+)
+target_include_directories(tst_clearfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_clearfile PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME clearfile COMMAND tst_clearfile)

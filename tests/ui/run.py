@@ -42,12 +42,14 @@ import re
 import shutil
 import signal
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.parse
 import uuid
+import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -410,6 +412,134 @@ def after_slidemenu(workspace, test_dir):
     return lines
 
 
+# Clear groups as ProPresenter writes them: its own, as the one file of its own that was looked at has it (the id
+# apart, which is made up); one of two layers, with a picture and a tint; one that is kept out of sight; and one with a
+# picture of the user's own, which is put in when the file is made (%s).
+CLEAR_GROUPS = """\
+application_info { platform: PLATFORM_MACOS application: APPLICATION_PROPRESENTER application_version { major_version: 20 } }
+groups {
+  uuid { string: "C1EA0000-0000-4000-8000-000000000001" }
+  name: "Clear All"
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_AUDIO }
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_AUDIO_EFFECTS }
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_MESSAGES }
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_PROP }
+  layer_targets { content_destination: CONTENT_DESTINATION_ANNOUNCEMENTS }
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_SLIDE }
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_BACKGROUND }
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_LIVE_VIDEO }
+  image_type: ImageTypeAll
+  icon_tint_color { red: 1 green: 1 blue: 1 alpha: 1 }
+  timeline_targets: CONTENT_DESTINATION_GLOBAL
+  timeline_targets: CONTENT_DESTINATION_ANNOUNCEMENTS
+  clear_presentation_next_slide: true
+}
+groups {
+  uuid { string: "C1EA0000-0000-4000-8000-000000000002" }
+  name: "Words"
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_MESSAGES }
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_SLIDE }
+  image_type: ImageTypeBell
+  is_icon_tinted: true
+  icon_tint_color { red: 0.11764706 green: 0.53333336 blue: 0.8980392 alpha: 1 }
+}
+groups {
+  uuid { string: "C1EA0000-0000-4000-8000-000000000003" }
+  name: "Out Of Sight"
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_PROP }
+  is_hidden_in_preview: true
+  image_type: ImageTypeStar
+}
+groups {
+  uuid { string: "C1EA0000-0000-4000-8000-000000000004" }
+  name: "Own"
+  layer_targets { target_layer: CLEAR_TARGET_LAYER_BACKGROUND }
+  image_data: "%s"
+}
+"""
+
+
+def tiny_png(rgb, size=8):
+    """A small square picture of one colour, as the bytes of a PNG file."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+
+    row = b"\x00" + bytes(rgb) * size
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(row * size)) + chunk(b"IEND", b""))
+
+
+def prepare_cleargroups(workspace, test_dir):
+    picture = "".join("\\%03o" % byte for byte in tiny_png((255, 0, 255)))
+    path = os.path.join(workspace, "Configuration", "ClearGroups")
+    with open(path, "wb") as out:
+        out.write(protoc("encode", "rv.data.ClearGroupsDocument", "clearGroups.proto", (CLEAR_GROUPS % picture).encode()))
+    shutil.copy(path, os.path.join(test_dir, "cleargroups-before"))
+
+
+def after_cleargroups(workspace, test_dir):
+    """Clear groups changed in the window they are set up in, and a group's button dragged onto a slide: what the
+    workspace's file of them and the song's file hold. The file of the groups is set against what the test was given
+    (prepare_cleargroups), group by group; the song against what the test kept of it before the drag (song-before)."""
+    def decoded(path, message="rv.data.ClearGroupsDocument", proto="clearGroups.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def groups(text):
+        """The groups of a decoded file, each as its lines of the text, by its name."""
+        return {re.search(r'^  name: "([^"]*)"', block, re.M).group(1): block for block in re.findall(r"^groups \{\n.*?^\}\n", text, re.S | re.M)}
+
+    def without_tint(block):
+        return re.sub(r"^  icon_tint_color \{\n.*?^  \}\n", "", block, flags=re.S | re.M)
+
+    was = decoded(os.path.join(test_dir, "cleargroups-before"))
+    now = decoded(os.path.join(workspace, "Configuration", "ClearGroups"))
+    before, after = groups(was), groups(now)
+    order = re.findall(r'^  name: "([^"]*)"', now, re.M)
+    made = after.get("Offering", "")
+    words = after.get("Words", "")
+    tint = re.search(r"^  icon_tint_color \{\n    red: (\S+)\n    green: (\S+)\n    blue: (\S+)\n    alpha: 1\n  \}\n", words, re.M)
+    new_group = re.fullmatch(r'groups \{\n  uuid \{\n    string: "([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})"\n  \}\n  name: "Offering"\n'
+                             r'  layer_targets \{\n    target_layer: CLEAR_TARGET_LAYER_PROP\n  \}\n  image_type: ImageTypeOne\n'
+                             r'  icon_tint_color \{\n    red: 1\n    green: 1\n    blue: 1\n    alpha: 1\n  \}\n\}\n', made)
+    lines = [
+        said(order == ["Clear All", "Words", "Out Of Sight", "Offering", "Own"],
+             "in the clear groups file: the groups in the order they were left in, the new one moved up one, and the one deleted not among them", ", ".join(order)),
+        said(was[:was.index("groups {")] == now[:now.index("groups {")] and "PLATFORM_MACOS" in now[:now.index("groups {")],
+             "in the clear groups file: what the file says of where it came from is as it was"),
+        said(before["Clear All"] == after.get("Clear All") and "clear_presentation_next_slide: true" in before["Clear All"] and before["Clear All"].count("timeline_targets") == 2,
+             "in the clear groups file: ProPresenter's own group is as it was, to the letter, with what this app has nothing for still in it"),
+        said(before["Own"] == after.get("Own") and "image_data:" in before["Own"],
+             "in the clear groups file: so is the group with a picture of the user's own, the picture with it"),
+        said(before["Out Of Sight"] == after.get("Out Of Sight") and "is_hidden_in_preview: true" in before["Out Of Sight"],
+             "in the clear groups file: and the group kept out of sight, which was shown and hidden again"),
+        said(without_tint(words) == without_tint(before["Words"]).replace("ImageTypeBell", "ImageTypeStar") and "is_icon_tinted: true" in words,
+             "in the clear groups file: the group that was changed has the star for its picture, its tint switched on as it was, the layers it had "
+             "(one was added and taken out again), and nothing else other than it was"),
+        said(tint is not None and [round(float(part) * 255) for part in tint.groups()] == [0x43, 0xa0, 0x47],
+             "in the clear groups file: and its tint is the colour that was chosen", tint.group(0).replace("\n", " ") if tint else "no tint"),
+        said(new_group is not None, "in the clear groups file: the new group has an id of its own, its name, the one layer it was given, the first of the digits "
+             "for its picture, and the white tint, not switched on, that ProPresenter's own has", made.replace("\n", " ")[:300]),
+    ]
+
+    # The song: one action more than it had, as ProPresenter writes one that clears a group, naming the group by its id.
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+    song = os.path.join(workspace, "Libraries", "MainHall", "When Wind Meets Fire.pro")
+    song_was = decoded(os.path.join(frames, "song-before"), "rv.data.Presentation", "presentation.proto")
+    song_now = decoded(song, "rv.data.Presentation", "presentation.proto")
+    action = re.search(r'^( *)actions \{\n\1  uuid \{\n\1    string: "[0-9A-F-]{36}"\n\1  \}\n\1  isEnabled: true\n\1  type: ACTION_TYPE_CLEAR_GROUP\n'
+                       r'\1  clear_group \{\n\1    identification \{\n\1      parameter_uuid \{\n\1        string: "%s"\n\1      \}\n'
+                       r'\1      parameter_name: "Offering"\n\1    \}\n\1  \}\n\1\}\n' % (new_group.group(1) if new_group else "no such group"), song_now, re.M)
+    lines += [
+        said(action is not None and song_now.count("ACTION_TYPE_CLEAR_GROUP") == song_was.count("ACTION_TYPE_CLEAR_GROUP") + 1,
+             "in the song's file: the slide has the action that clears the group, written as ProPresenter writes one: enabled, of that kind, "
+             "and naming the group by its id in the workspace's list and its name"),
+        said(action is not None and song_now.replace(action.group(0), "", 1) == song_was, "in the song's file: and nothing else is other than it was",
+             "%d lines, then %d" % (len(song_was.splitlines()), len(song_now.splitlines()))),
+    ]
+    return lines
+
+
 def prepare_library(workspace, test_dir):
     """The rows of the playlists as ProPresenter writes them on a Mac: the address of the file there, the system named,
     and the path from the workspace's folder. The rows the fixture has were added on this computer and give the file's
@@ -677,6 +807,7 @@ TESTS = {
     "search": test("Demo"),
     "library": test("Demo", prepare=prepare_library, after=after_library),
     "slidemenu": test("Act", timeout=240, prepare=prepare_slidemenu, after=after_slidemenu),
+    "cleargroups": test("Act", timeout=240, prepare=prepare_cleargroups, after=after_cleargroups),
     "looks": test("Act", after=after_looks),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),

@@ -211,8 +211,10 @@ Window {
     function openLooks() {
         if (editing)
             return
-        // (The settings, if they are up, make way for it.)
+        // (The settings, if they are up, make way for it, and so does the window of the
+        // clear groups.)
         settingsOpen = false
+        clearGroupsOpen = false
         looksOpen = true
         looksPanel.open()
     }
@@ -220,6 +222,34 @@ Window {
     function closeLooks() {
         looksOpen = false
         takeFocus()
+    }
+
+    // Whether the window the clear groups are set up in is up (see ClearGroupsPanel).
+    // It is made when it is first wanted, which in most sessions is never.
+    property bool clearGroupsOpen: false
+    readonly property var clearGroupsPanel: clearGroupsLoader.item
+
+    // Opens it, on the group whose id is given, or with "" on the first.
+    function openClearGroups(groupId) {
+        if (editing)
+            return
+        settingsOpen = false
+        looksOpen = false
+        clearGroupsLoader.active = true
+        clearGroupsOpen = true
+        clearGroupsLoader.item.open(groupId)
+    }
+
+    function closeClearGroups() {
+        clearGroupsOpen = false
+        takeFocus()
+    }
+
+    // The menu a right click on any of the clear buttons has: the way to the window
+    // the clear groups are set up in, which opens on the group whose button it was
+    // ("" for the button of a layer).
+    function showClearMenu(item, groupId) {
+        menu.show([{ label: "Configure Clear Groups…", run: () => openClearGroups(groupId) }], item)
     }
 
     function openSearch() {
@@ -830,6 +860,8 @@ Window {
             { label: "Timer…", glyph: "timer", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
             { label: "Clear", glyph: "clear", items: [{ header: "Clear" }, clear("Everything", 0, "Clear"), clear("The Slide", 5, "ClearPresentation"),
                                                      clear("The Media", 2, "ClearMedia"), clear("The Props", 4, "ClearProps")] },
+            { label: "Clear Group", glyph: "clear", disabled: ClearGroups.groups.length === 0, items: [{ header: "Clear Group" }].concat(
+                ClearGroups.groups.map(group => ({ label: group.name, run: () => add(clearGroupAction(group.id, group.name)) }))) },
             { label: "Stage…", glyph: "stage", run: () => actionDialog.openStage(target, null) },
             { label: "Audience Look", glyph: "look", disabled: Looks.looks.length === 0, items: [{ header: "Audience Look" }].concat(Looks.looks.map(look => ({
                 label: look.name, run: () => add({ kind: "look", lookId: look.id, lookName: look.name }) }))) },
@@ -914,12 +946,14 @@ Window {
     // What was being dragged has been dropped on a slide, or on a macro (`target` is
     // as commitAction takes it). A timer and a stage screen bring up the panel that
     // says what is to be done to them; a prop asks whether it is to be put on or taken
-    // off; a macro, and one of the clear buttons, need nothing more.
+    // off; a macro, and one of the clear buttons (a layer's or a group's), need nothing
+    // more.
     function dropAction(target, item) {
         const dropped = actionDrag.payload
         if (!dropped || (target.slide !== undefined && !document) || (dropped.kind === "macro" && dropped.id === target.macro))
             return
-        Log.note("drop", "a " + (dropped.kind === "stage" ? "stage screen" : dropped.kind === "clear" ? "clear button" : dropped.kind) + " dropped on "
+        Log.note("drop", "a " + (dropped.kind === "stage" ? "stage screen" : dropped.kind === "clear" ? "clear button"
+                                 : dropped.kind === "clearGroup" ? "clear group's button" : dropped.kind) + " dropped on "
                  + (target.macro !== undefined ? "a macro" : "slide " + (target.slide + 1) + " of " + quoted(document.name)))
         if (dropped.kind === "timer")
             actionDialog.openTimer(target, null, dropped.id)
@@ -931,6 +965,8 @@ Window {
             commitAction(target, macroAction(dropped, { id: dropped.collectionId, name: dropped.collectionName }), "")
         else if (dropped.kind === "clear")
             commitAction(target, { kind: "clear", layer: dropped.layer }, "")
+        else if (dropped.kind === "clearGroup")
+            commitAction(target, clearGroupAction(dropped.id, dropped.groupName), "")
     }
 
     function dropActionOnSlide(index, item) {
@@ -1115,6 +1151,8 @@ Window {
         // them back here when it closes): Esc is then still the way out of it.
         if (looksOpen)
             looksPanel.takeKeys()
+        else if (clearGroupsOpen)
+            clearGroupsLoader.item.takeKeys()
         else if (editing)
             editScreen.takeFocus()
         else
@@ -2064,13 +2102,41 @@ Window {
         Show.clearAll()
     }
 
+    // Clears what a clear group of the workspace clears: those of its layers that there
+    // are here (see show::State::clearGroup).
+    function clearGroup(group) {
+        Show.clearGroup(group.id)
+    }
+
+    // What F1 clears: the first of the workspace's clear groups, which in a workspace as
+    // ProPresenter starts one is Clear All, as that group is set up; or everything, in
+    // a workspace that has been left with no group at all.
+    //
+    // A GUESS: that ProPresenter's F1 is for the first group of its list. It is for its
+    // Clear All, which is first in the one file looked at; how it knows that group, if
+    // the list is put in another order there, has not been looked at.
+    function clearFirstGroup() {
+        if (ClearGroups.groups.length > 0)
+            clearGroup(ClearGroups.groups[0])
+        else
+            clearAll()
+    }
+
+    // The action that clears a clear group, as an action's map (see src/actions.h). A
+    // workspace that has no file of clear groups yet is given one first, so that the
+    // group the action names by its id is there for ProPresenter to find too.
+    function clearGroupAction(id, name) {
+        report(ClearGroups.keep())
+        return { kind: "clearGroup", groupId: id, groupName: name }
+    }
+
     // Reads what else a workspace folder holds for the show: its timers, its props and
     // its stage layouts.
     function openShowControls(path) {
         Screens.remember = remember
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
-                             Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path)]) {
+                             Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path), ClearGroups.open(path)]) {
             if (error !== "")
                 report(error)
         }
@@ -2707,6 +2773,12 @@ Window {
         value: Screens.stage.map(screen => ({ id: screen.id, name: screen.name }))
     }
 
+    Binding {
+        target: Show
+        property: "clearGroups"
+        value: ClearGroups.groups.map(group => ({ id: group.id, name: group.name, layers: group.layers }))
+    }
+
     // Show mode and edit mode, whichever of the app's windows has the keyboard and
     // whatever in it
     Shortcut {
@@ -2793,7 +2865,7 @@ Window {
                 win.stepDocument(-1)
                 break
             case Qt.Key_F1:
-                win.clearAll()
+                win.clearFirstGroup()
                 break
             case Qt.Key_F2:
                 win.clearSlide()
@@ -3083,7 +3155,7 @@ Window {
         // Whatever is on the output can still be cleared while editing.
         onKeyPassed: (event) => {
             if (event.key === Qt.Key_F1)
-                win.clearAll()
+                win.clearFirstGroup()
             else if (event.key === Qt.Key_F2)
                 win.clearSlide()
             else if (event.key === Qt.Key_F3)
@@ -3106,6 +3178,28 @@ Window {
         visible: win.looksOpen
         win: win
         onClosed: win.closeLooks()
+    }
+
+    // The window the clear groups are set up in. It is made when it is first asked
+    // for, and not with the window: it has a list, a table of layers and thirty-two
+    // pictures to choose from, and most sessions never open it.
+    Loader {
+        id: clearGroupsLoader
+
+        // (The operator window, for the panel: asked for out here, where `win` is still
+        // the window's name. In the panel it is the panel's own property.)
+        readonly property var operatorWindow: win
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 20
+        active: false
+        visible: win.clearGroupsOpen
+
+        sourceComponent: ClearGroupsPanel {
+            win: clearGroupsLoader.operatorWindow
+            onClosed: clearGroupsLoader.operatorWindow.closeClearGroups()
+        }
     }
 
     // A label's words and colour: a slide's, or one of those kept ready (over the

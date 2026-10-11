@@ -83,6 +83,9 @@ class Show : public QObject
     Q_PROPERTY(QVariantList stageLayouts READ stageLayouts WRITE setStageLayouts NOTIFY workspaceChanged)
     Q_PROPERTY(QVariantList stageScreens READ stageScreens WRITE setStageScreens NOTIFY workspaceChanged)
     Q_PROPERTY(QVariantList looks READ looks WRITE setLooks NOTIFY workspaceChanged)
+    // Its clear groups, as ClearGroups lists them: what a group's button, F1 and an
+    // action that names a group clear
+    Q_PROPERTY(QVariantList clearGroups READ clearGroups WRITE setClearGroups NOTIFY workspaceChanged)
 
     // The slide that is live and the one that would come next, as maps (see
     // proconvert), or empty maps for none
@@ -133,6 +136,8 @@ public:
     void setStageScreens(const QVariantList &screens);
     QVariantList looks() const { return m_workspace.looks; }
     void setLooks(const QVariantList &looks);
+    QVariantList clearGroups() const { return m_workspace.clearGroups; }
+    void setClearGroups(const QVariantList &groups);
     QString lookId() const { return m_state.lookId; }
     void setLookId(const QString &id);
 
@@ -173,6 +178,9 @@ public:
     Q_INVOKABLE void clearMedia();
     Q_INVOKABLE void clearProps();
     Q_INVOKABLE void clearAll();
+    // Clears what a clear group of the workspace clears, by the group's id (see
+    // show::State::clearGroup).
+    Q_INVOKABLE void clearGroup(const QString &id);
 
     // Turns a prop on, in front of the others, or off if it is on; or puts it one way.
     Q_INVOKABLE void toggleProp(const QString &id);

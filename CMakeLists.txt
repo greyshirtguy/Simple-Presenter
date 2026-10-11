@@ -28,7 +28,7 @@ qt_standard_project_setup(REQUIRES 6.9)
 # they import.
 set(PRO_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ProPresenter7-Proto/autogen-proto)
 set(PRO_PROTO_NAMES
-    action alignmentGuide alphaType applicationInfo audio background collectionElementType color cue
+    action alignmentGuide alphaType applicationInfo audio background clearGroups collectionElementType color cue
     customOptions digitalAudio effects fileProperties font graphicsData groups hotKey input
     intRange keymapping labels layers macros messages musicKeyScale planningCenter playlist presentation
     presentationSlide proAudienceLook proMask propDocument propresenter propSlide proscreen proworkspace
@@ -110,6 +110,8 @@ qt_add_qml_module(SimplePresenter
         qml/Benchmark.qml
         qml/AppTextField.qml
         qml/AuxWindow.qml
+        qml/ClearGroupGlyph.qml
+        qml/ClearGroupsPanel.qml
         qml/ColorButton.qml
         qml/Divider.qml
         qml/DragSource.qml
@@ -123,6 +125,7 @@ qt_add_qml_module(SimplePresenter
         qml/KineticWheel.qml
         qml/LiveRing.qml
         qml/chordlayout.js
+        qml/clearglyphs.js
         qml/ChordedText.qml
         qml/ChordProEditor.qml
         qml/ChordSheet.qml
@@ -211,6 +214,10 @@ qt_add_qml_module(SimplePresenter
         src/search.cpp
         src/searchindex.h
         src/searchindex.cpp
+        src/clearfile.h
+        src/clearfile.cpp
+        src/cleargroups.h
+        src/cleargroups.cpp
         src/labelfile.h
         src/labelfile.cpp
         src/labels.h

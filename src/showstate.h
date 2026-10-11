@@ -41,6 +41,9 @@ struct Workspace
     QVariantList stageScreens;
     // Its looks, { id, name } each
     QVariantList looks;
+    // Its clear groups, { id, name, layers } each, the layers by the names
+    // clearfile.h has for them ("slide", "media", "props" and ProPresenter's others)
+    QVariantList clearGroups;
 };
 
 // A slide as it is triggered: where it is, and what it brings.
@@ -162,6 +165,10 @@ public:
     Effects clearMedia();
     Effects clearProps();
     Effects clearAll();
+    // Clears what a clear group clears, which is those of its layers there are here:
+    // the slide, the media, the props. The others it names are ProPresenter's, and
+    // nothing is done for them. A group the workspace has not clears nothing.
+    Effects clearGroup(const QString &id, const Workspace &workspace);
 
     // Turns a prop on, in front of the props that are on already, or off if it is on.
     // A collection set to show one prop at a time gives up whichever of its others is on.
@@ -196,6 +203,7 @@ private:
     void clearSlide(Effects &effects);
     void clearMedia(Effects &effects);
     void clearProps(Effects &effects);
+    void clearGroup(const QVariantMap &group, Effects &effects);
     void toggleProp(const QString &id, const Workspace &workspace, Effects &effects);
 };
 
@@ -210,6 +218,8 @@ QVariantMap propOf(const QVariantMap &action, const Workspace &workspace);
 QVariantMap findMacro(const QString &id, const QString &name, const Workspace &workspace);
 // A look by its id, or failing that by its name.
 QVariantMap findLook(const QString &id, const QString &name, const Workspace &workspace);
+// A clear group by its id, or failing that by its name ("" for by id alone).
+QVariantMap findClearGroup(const QString &id, const QString &name, const Workspace &workspace);
 // The workspace's stage screens, { id, name } each: those it lists, or for a workspace
 // that lists none the one every workspace has, by the name it has here.
 QVariantList stageScreens(const Workspace &workspace);

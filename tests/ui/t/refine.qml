@@ -110,6 +110,9 @@ QtObject {
                 check("and dropped is there: after the one it was dropped on the lower half of", now.join() === [kept.order[1], kept.order[2], kept.order[0]].concat(kept.order.slice(3)).join(), now.map(id => kept.order.indexOf(id)).join())
                 check("it was not turned on by the drag", liveProps.length === 0)
                 kept.moved = kept.order[1]
+                // (The pointer is taken away from where the menu comes up: left where the drag ended, it would be
+                // resting on one of the menu's rows.)
+                testInput.mouse(1, 4, 4)
                 kept.panel.showPropMenu(kept.panel.rows[0], propRows()[0], 20, 20)
                 return 300
             },
@@ -223,7 +226,7 @@ QtObject {
                 check("with its colour taken away it is royal blue", Macros.find(kept.macro.id).color === "" && String(macroRows()[0].tint) === "#4169e1", macroRows()[0].tint)
                 const before = Macros.find(kept.macro.id).actions.length
                 kept.before = before
-                dragTo(centre(named("clearAll")), centre(macroRows()[0]))
+                dragTo(centre(named("clearSlide")), centre(macroRows()[0]))
                 return 250
             },
             () => {
@@ -232,7 +235,7 @@ QtObject {
             },
             () => {
                 const now = Macros.find(kept.macro.id).actions
-                check("a clear button dragged onto a macro gives the macro that action", now.length === kept.before + 1 && now[now.length - 1].kind === "clear" && now[now.length - 1].layer === 0, now.map(a => a.title).join(" | "))
+                check("a clear button dragged onto a macro gives the macro that action", now.length === kept.before + 1 && now[now.length - 1].kind === "clear" && now[now.length - 1].layer === 5, now.map(a => a.title).join(" | "))
                 kept.macros.showMacroMenu(Object.assign({}, kept.macro, { actions: now }), macroRows()[0], 20, 20)
                 return 300
             },
@@ -243,7 +246,7 @@ QtObject {
             () => {
                 const now = Macros.find(kept.macro.id).actions
                 check("Remove Action lists them all", labels() === "[Remove Action], " + now.map(a => a.title).join(", "), labels())
-                click(menuRow("Clear everything"))
+                click(menuRow("Clear the slide"))
                 return 500
             },
             () => {

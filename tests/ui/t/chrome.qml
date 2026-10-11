@@ -94,14 +94,21 @@ QtObject {
                 const inPane = texts(sidePanel)
                 check("the previews have no titles", !inPane.some(x => x.toLowerCase() === "output" || x.toLowerCase() === "stage") && !inPane.some(x => x.toLowerCase() === "timers"),
                       inPane.join(" | "))
-                const clears = ["clearAll", "clearSlide", "clearMedia", "clearProps"].map(name => named(name))
-                check("there are four clear buttons, across the whole width", clears.every(c => c !== null) && near(clears[0].width, clears[1].width) && near(clears[1].width, clears[2].width)
-                      && near(clears[2].width, clears[3].width)
-                      && near(clears[0].mapToItem(sidePanel, 0, 0).x, 12) && near(clears[3].mapToItem(sidePanel, clears[3].width, 0).x, sidePanel.width - 12),
+                const clears = ["clearSlide", "clearMedia", "clearProps"].map(name => named(name))
+                check("there are three clear buttons for the layers, across the whole width", clears.every(c => c !== null) && near(clears[0].width, clears[1].width)
+                      && near(clears[1].width, clears[2].width)
+                      && near(clears[0].mapToItem(sidePanel, 0, 0).x, 12) && near(clears[2].mapToItem(sidePanel, clears[2].width, 0).x, sidePanel.width - 12),
                       clears.map(c => c ? c.width.toFixed(1) : "none").join(", ") + " in " + sidePanel.width)
-                const pictureOf = (item) => { const found = Lib.find(item, i => i.inkName !== undefined && i.name !== undefined && i.visible === true); return found ? found.name : "none" }
+                const pictureOf = (item) => { const found = Lib.find(item, i => i.inkName !== undefined && i.name !== undefined && i.name !== "" && i.visible === true); return found ? found.name : "none" }
                 check("with pictures on them and no words: ProPresenter's own, of clearing each layer", clears.every(c => texts(c).length === 0)
-                      && clears.map(pictureOf).join() === "Clear,ClearPresentation,ClearMedia,ClearProps", clears.map(pictureOf).join())
+                      && clears.map(pictureOf).join() === "ClearPresentation,ClearMedia,ClearProps", clears.map(pictureOf).join())
+                const groups = Lib.findAll(sidePanel, i => i.objectName === "clearGroup")
+                check("and under them the button of the workspace's clear group, as wide as the three together, with ProPresenter's picture of clearing and its name",
+                      groups.length === 1 && near(groups[0].mapToItem(sidePanel, 0, 0).x, 12) && near(groups[0].mapToItem(sidePanel, groups[0].width, 0).x, sidePanel.width - 12)
+                      && groups[0].mapToItem(sidePanel, 0, 0).y > clears[0].mapToItem(sidePanel, 0, clears[0].height).y && pictureOf(groups[0]) === "Clear"
+                      && texts(groups[0]).join() === "Clear All", groups.length + " of them: " + (groups.length ? pictureOf(groups[0]) + " " + texts(groups[0]).join() : ""))
+                check("that group is the one every workspace starts with: this workspace has no file of clear groups, and is not given one for being shown it",
+                      ClearGroups.groups.length === 1 && ClearGroups.groups[0].layers.length === 8 && !testInput.exists(catalog.workspacePath + "/Configuration/ClearGroups"))
                 const tabs = Lib.findAll(sidePanel, i => i.chosen !== undefined && i.modelData !== undefined && i.modelData.picture !== undefined)
                 check("and so are the tabs of the show controls: a timer, a pile of layers, a speaker at a lectern, an M in brackets",
                       tabs.map(pictureOf).join() === "Countdown,Prop,Stage,Macro", tabs.map(pictureOf).join())
@@ -109,8 +116,9 @@ QtObject {
                 check("every one of those pictures that is asked for anywhere in the window is there to be had", pictures.length >= 10
                       && pictures.every(p => p.status === Image.Ready && p.implicitWidth > 0),
                       pictures.length + " asked for; not had: " + pictures.filter(p => p.status !== Image.Ready).map(p => p.name).join())
-                check("grey while there is nothing to clear", clears.every(c => !c.live && Qt.colorEqual(c.color, "#2b2d31")))
-                kept.clears = clears
+                check("grey while there is nothing to clear, the group's button too", clears.concat(groups).every(c => !c.live && Qt.colorEqual(c.color, "#2b2d31")))
+                // The group's button, which clears everything, and then those of the slide, the media and the props
+                kept.clears = groups.concat(clears)
                 goLive(6)
                 return 3000
             },
@@ -123,12 +131,12 @@ QtObject {
                 return 500
             },
             () => {
-                check("the second clears the slide", cleared && liveMedia !== null && !kept.clears[1].live && kept.clears[0].live && kept.clears[2].live)
+                check("the slide's button clears the slide", cleared && liveMedia !== null && !kept.clears[1].live && kept.clears[0].live && kept.clears[2].live)
                 click(centre(kept.clears[2]))
                 return 500
             },
             () => {
-                check("the third clears the media", liveMedia === null && !kept.clears[2].live && !kept.clears[0].live)
+                check("the media's clears the media, and the group's has nothing left to clear", liveMedia === null && !kept.clears[2].live && !kept.clears[0].live)
                 goLive(6)
                 return 2500
             },
@@ -137,7 +145,7 @@ QtObject {
                 return 500
             },
             () => {
-                check("the left one clears everything", cleared && liveMedia === null)
+                check("the button of the clear group, which is of every layer, clears everything", cleared && liveMedia === null)
                 // the lines each side of the transport
                 const transport = Lib.find(sidePanel, item => item.shown !== undefined && item.working !== undefined)
                 const lines = Lib.findAll(sidePanel, item => item.height === 1 && near(item.width, sidePanel.width) && item.color !== undefined)

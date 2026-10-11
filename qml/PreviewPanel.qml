@@ -3,7 +3,8 @@ import QtMultimedia
 import SimplePresenterApp
 
 // The right of the operator window, from the toolbar to the bottom: what the audience
-// is being shown and under it what the stage is, the buttons that clear the output, the
+// is being shown and under it what the stage is, the buttons that clear the output (a
+// row for the layers, and under it a row for the workspace's clear groups), the
 // transport for a video that is playing, and the show controls (timers, props and the
 // stage display). A line each side of the transport sets the three lots of controls
 // apart.
@@ -29,6 +30,9 @@ Rectangle {
     // Whether something in the show controls is being renamed in place, and so has the
     // keyboard
     readonly property bool renaming: showControl.renaming
+    // The clear groups that have a button: all but those the workspace keeps out of
+    // sight (see ClearGroups)
+    readonly property var shownGroups: ClearGroups.groups.filter(group => !group.hidden)
 
     color: "black"
 
@@ -54,6 +58,13 @@ Rectangle {
         return (height - others - room) / 2 * 16 / 9
     }
 
+    // Whether a clear group has anything to clear: whether any of its layers that
+    // there are here has something on it.
+    function groupLive(group) {
+        return (group.layers.indexOf("slide") >= 0 && !win.cleared) || (group.layers.indexOf("media") >= 0 && win.liveMedia !== null)
+               || (group.layers.indexOf("props") >= 0 && win.liveProps.length > 0)
+    }
+
     // A line across the panel, between one lot of controls and the next
     component Rule: Rectangle {
         anchors.left: parent.left
@@ -63,27 +74,25 @@ Rectangle {
         color: "#3a3c42"
     }
 
-    // A button that clears a layer of the output, or all of them: red while there is
-    // something there for it to clear, and grey once there is not. What it clears is
-    // on it as ProPresenter's own picture of clearing that layer (see ProIcon).
+    // A button that clears a layer of the output: red while there is something there
+    // for it to clear, and grey once there is not. What it clears is on it as
+    // ProPresenter's own picture of clearing that layer (see ProIcon).
     component ClearButton: Rectangle {
         id: clearButton
 
-        // "all", "slide", "media" or "props"
+        // "slide", "media" or "props"
         property string kind
         property bool live: false
         // The layer it clears, as an action's file numbers them, and what an action
         // that clears it is called
-        readonly property int clears: ({ "all": 0, "slide": 5, "media": 2, "props": 4 })[kind] ?? 0
-        readonly property string title: ({ "all": "Clear Everything", "slide": "Clear the Slide", "media": "Clear the Media",
-                                           "props": "Clear the Props" })[kind] ?? ""
-        readonly property string picture: ({ "all": "Clear", "slide": "ClearPresentation", "media": "ClearMedia",
-                                             "props": "ClearProps" })[kind] ?? "Clear"
+        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4 })[kind] ?? 5
+        readonly property string title: ({ "slide": "Clear the Slide", "media": "Clear the Media", "props": "Clear the Props" })[kind] ?? ""
+        readonly property string picture: ({ "slide": "ClearPresentation", "media": "ClearMedia", "props": "ClearProps" })[kind] ?? "Clear"
         readonly property color ink: live ? "#ececec" : "#6c6f75"
 
         signal clicked
 
-        width: (clearButtons.width - 3 * clearButtons.spacing) / 4
+        width: (layerClears.width - 2 * layerClears.spacing) / 3
         height: 30
         radius: 6
         color: !live ? "#2b2d31" : clearMouse.pressed ? "#e25555" : clearMouse.containsMouse ? "#d84343" : "#c62828"
@@ -106,9 +115,95 @@ Rectangle {
             win: sidePanel.win
             payload: ({ kind: "clear", id: "", layer: clearButton.clears, name: clearButton.title, picture: clearButton.picture })
             hoverEnabled: true
-            onClicked: {
-                if (!dragged && clearButton.live)
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: (mouse) => {
+                // (A right click has the menu the clears have.)
+                if (mouse.button === Qt.RightButton)
+                    sidePanel.win.showClearMenu(clearButton, "")
+                else if (!dragged && clearButton.live)
                     clearButton.clicked()
+            }
+        }
+    }
+
+    // The button of a clear group, which clears the layers the group names, all at one
+    // click: red while any of them has something on it, grey once none has. On it are
+    // the group's picture, in its tint if it has one, and its name where there is room
+    // for it (a row of several has room for the pictures alone).
+    //
+    // The buttons of the groups share the width of the row between them, so that one
+    // group, which is what a workspace starts with, has a button as wide as the three
+    // of the layers above it.
+    component ClearGroupButton: Rectangle {
+        id: groupButton
+
+        // The group: { id, name, layers, icon, image, tinted, tint } (see ClearGroups)
+        required property var modelData
+        readonly property bool live: sidePanel.groupLive(modelData)
+        readonly property bool tinted: modelData.tinted && modelData.tint !== ""
+        readonly property color ink: live ? "#ececec" : "#6c6f75"
+
+        objectName: "clearGroup"
+        width: (groupClears.width - (groupClears.count - 1) * groupClears.spacing) / Math.max(1, groupClears.count)
+        height: 30
+        radius: 6
+        color: !live ? "#2b2d31" : groupMouse.pressed ? "#e25555" : groupMouse.containsMouse ? "#d84343" : "#c62828"
+
+        Row {
+            anchors.centerIn: parent
+            spacing: 5
+
+            // (A tint is the colour of the picture whether or not there is anything to
+            // clear, and is drawn fainter when there is not: a picture is made for each
+            // colour it is asked for in, so the colour itself is not what fades.)
+            ClearGroupGlyph {
+                objectName: "clearGroupPicture"
+                anchors.verticalCenter: parent.verticalCenter
+                icon: groupButton.modelData.icon
+                image: groupButton.modelData.image
+                ink: groupButton.tinted ? groupButton.modelData.tint : groupButton.ink
+                opacity: groupButton.tinted && !groupButton.live ? 0.45 : 1
+                size: 26
+            }
+
+            // (Its width is worked out from the name, and not taken from the text as it
+            // is laid out, which a text that is cut short to fit cannot tell.)
+            Text {
+                objectName: "clearGroupName"
+                anchors.verticalCenter: parent.verticalCenter
+                visible: groupButton.width >= 110
+                width: Math.min(Math.ceil(nameWidth.advanceWidth) + 1, Math.max(0, groupButton.width - 26 - 5 - 16))
+                elide: Text.ElideRight
+                color: groupButton.ink
+                font.pixelSize: 13
+                text: groupButton.modelData.name
+
+                TextMetrics {
+                    id: nameWidth
+
+                    font.pixelSize: 13
+                    text: groupButton.modelData.name
+                }
+            }
+        }
+
+        // A click clears, when there is something to clear. And the button can be
+        // dragged, as those of the layers can, onto a slide or a macro, which gives that
+        // the action that clears this group.
+        DragSource {
+            id: groupMouse
+
+            anchors.fill: parent
+            win: sidePanel.win
+            payload: ({ kind: "clearGroup", id: groupButton.modelData.id, name: "Clear the group “" + groupButton.modelData.name + "”",
+                        groupName: groupButton.modelData.name, picture: "Clear" })
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: (mouse) => {
+                if (mouse.button === Qt.RightButton)
+                    sidePanel.win.showClearMenu(groupButton, groupButton.modelData.id)
+                else if (!dragged && groupButton.live)
+                    sidePanel.win.clearGroup(groupButton.modelData)
             }
         }
     }
@@ -209,9 +304,10 @@ Rectangle {
         }
     }
 
-    // The clears, across the width like the tabs of the show controls: everything (F1),
-    // the slide (F2), the media (F3), the props (F4)
-    Row {
+    // The clears, across the width like the tabs of the show controls, in two rows.
+    // A right click on any of them has the way to the window the clear groups are set
+    // up in.
+    Column {
         id: clearButtons
 
         anchors.left: parent.left
@@ -220,32 +316,58 @@ Rectangle {
         anchors.margins: sidePanel.gap
         spacing: 4
 
-        ClearButton {
-            objectName: "clearAll"
-            kind: "all"
-            live: !sidePanel.win.cleared || sidePanel.win.liveMedia !== null || sidePanel.win.liveProps.length > 0
-            onClicked: sidePanel.win.clearAll()
+        // The layers: the slide (F2), the media (F3), the props (F4).
+        //
+        // TO COME: a button here for each layer this app gains (audio, messages,
+        // announcements, video inputs), which is also when that layer is to be switched
+        // on among the layers a clear group can be given (see `ours` in
+        // src/clearfile.cpp) and cleared by State::clearGroup (src/showstate.cpp).
+        Row {
+            id: layerClears
+
+            width: parent.width
+            spacing: 4
+
+            ClearButton {
+                objectName: "clearSlide"
+                kind: "slide"
+                live: !sidePanel.win.cleared
+                onClicked: sidePanel.win.clearSlide()
+            }
+
+            ClearButton {
+                objectName: "clearMedia"
+                kind: "media"
+                live: sidePanel.win.liveMedia !== null
+                onClicked: sidePanel.win.clearMedia()
+            }
+
+            ClearButton {
+                objectName: "clearProps"
+                kind: "props"
+                live: sidePanel.win.liveProps.length > 0
+                onClicked: sidePanel.win.clearProps()
+            }
         }
 
-        ClearButton {
-            objectName: "clearSlide"
-            kind: "slide"
-            live: !sidePanel.win.cleared
-            onClicked: sidePanel.win.clearSlide()
-        }
+        // The clear groups, a button each, in the workspace's order. The first is what
+        // F1 clears. (A workspace all of whose groups are out of sight, or that has
+        // none, has no second row.)
+        Row {
+            id: groupClears
 
-        ClearButton {
-            objectName: "clearMedia"
-            kind: "media"
-            live: sidePanel.win.liveMedia !== null
-            onClicked: sidePanel.win.clearMedia()
-        }
+            readonly property int count: sidePanel.shownGroups.length
 
-        ClearButton {
-            objectName: "clearProps"
-            kind: "props"
-            live: sidePanel.win.liveProps.length > 0
-            onClicked: sidePanel.win.clearProps()
+            objectName: "clearGroups"
+            width: parent.width
+            spacing: 4
+            visible: count > 0
+
+            Repeater {
+                model: sidePanel.shownGroups
+
+                ClearGroupButton {}
+            }
         }
     }
 

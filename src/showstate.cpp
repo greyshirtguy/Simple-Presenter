@@ -254,6 +254,33 @@ Effects State::clearAll()
     return effects;
 }
 
+// The layers go in the order everything is cleared in, whatever order the group has
+// them in: they are cleared together, and the log reads the same either way.
+//
+// TO COME: a group names ProPresenter's other layers too (audio, messages,
+// announcements, video inputs: see clearfile.h). As the show gains one of them, it is
+// cleared here, for a group that has it.
+void State::clearGroup(const QVariantMap &group, Effects &effects)
+{
+    const QStringList layers = group.value("layers").toStringList();
+    effects << note("clear", QStringLiteral("the clear group %1 asked for").arg(quoted(group.value("name").toString())));
+    if (layers.contains(QLatin1String("slide")))
+        clearSlide(effects);
+    if (layers.contains(QLatin1String("media")))
+        clearMedia(effects);
+    if (layers.contains(QLatin1String("props")))
+        clearProps(effects);
+}
+
+Effects State::clearGroup(const QString &id, const Workspace &workspace)
+{
+    Effects effects;
+    const QVariantMap group = findClearGroup(id, QString(), workspace);
+    if (!group.isEmpty())
+        clearGroup(group, effects);
+    return effects;
+}
+
 void State::toggleProp(const QString &id, const Workspace &workspace, Effects &effects)
 {
     const QVariantMap prop = findProp(id, workspace);
@@ -382,6 +409,11 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
         } else {
             clearSlide(effects);
         }
+    } else if (kind == QLatin1String("clearGroup")) {
+        const QVariantMap group = findClearGroup(action.value("groupId").toString(), action.value("groupName").toString(), workspace);
+        effects << note("action", title + (group.isEmpty() ? QStringLiteral(": there is no such clear group here") : QString()));
+        if (!group.isEmpty())
+            clearGroup(group, effects);
     } else if (kind == QLatin1String("stage")) {
         const QMap<QString, QVariantMap> layouts = stageLayoutsOf(action, workspace);
         bool any = false;
@@ -480,6 +512,19 @@ QVariantMap findMacro(const QString &id, const QString &name, const Workspace &w
                 return macro;
             byName = macro;
         }
+    }
+    return byName;
+}
+
+QVariantMap findClearGroup(const QString &id, const QString &name, const Workspace &workspace)
+{
+    QVariantMap byName;
+    for (const QVariant &entry : workspace.clearGroups) {
+        const QVariantMap group = entry.toMap();
+        if (!id.isEmpty() && group.value("id").toString() == id)
+            return group;
+        if (byName.isEmpty() && !name.isEmpty() && group.value("name").toString() == name)
+            byName = group;
     }
     return byName;
 }

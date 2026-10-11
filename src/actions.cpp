@@ -244,6 +244,15 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("collectionId", text(macro.parent_collection().parameter_uuid().string()));
         map.insert("collectionName", text(macro.parent_collection().parameter_name()));
         map.insert("title", QStringLiteral("Run the macro %1").arg(quoted(text(macro.parameter_name()))));
+    } else if (action.has_clear_group()) {
+        // (Which layers that is, is the group's to say when the action is run: see
+        // show::State. Its picture here is the plain one of clearing.)
+        const Identification &group = action.clear_group().identification();
+        map.insert("kind", QStringLiteral("clearGroup"));
+        map.insert("groupId", text(group.parameter_uuid().string()));
+        map.insert("groupName", text(group.parameter_name()));
+        map.insert("picture", QStringLiteral("Clear"));
+        map.insert("title", QStringLiteral("Clear the group %1").arg(quoted(text(group.parameter_name()))));
     } else {
         const QString about = subject(action);
         map.insert("kind", QStringLiteral("other"));
@@ -268,6 +277,11 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
     } else if (kind == QLatin1String("clear")) {
         action->set_type(Action::ACTION_TYPE_CLEAR);
         action->mutable_clear()->set_target_layer(Action::ClearType::ClearTargetLayer(qBound(0, wanted.value("layer").toInt(), 8)));
+    } else if (kind == QLatin1String("clearGroup")) {
+        // As ProPresenter writes one (seen in a presentation of its own): the group by
+        // the id it has in the workspace's list of clear groups, and its name.
+        action->set_type(Action::ACTION_TYPE_CLEAR_GROUP);
+        identify(action->mutable_clear_group()->mutable_identification(), wanted.value("groupId").toString(), wanted.value("groupName").toString());
     } else if (kind == QLatin1String("stage")) {
         action->set_type(Action::ACTION_TYPE_STAGE_LAYOUT);
         // ProPresenter gives these this name, and no other kind one.

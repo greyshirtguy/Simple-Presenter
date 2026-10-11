@@ -178,7 +178,7 @@ QtObject {
             () => {
                 check("a click turns a prop on", liveProps.length === 1 && liveProps[0] === kept.a && shownProps.length === 1 && row("Prop").on)
                 check("it is drawn on the output", drawn().join() === kept.a && pixel(500, 450) === "#ff0000", pixel(500, 450))
-                check("the button that clears props is red, and so is the one that clears everything", named("clearProps").live && named("clearAll").live
+                check("the button that clears props is red, and so is the one that clears everything", named("clearProps").live && named("clearGroup").live
                       && !named("clearSlide").live)
                 testInput.grab("3-one-on")
                 testInput.grabOutput("3-output-one")

@@ -156,6 +156,12 @@ void Show::setStageScreens(const QVariantList &screens)
     emit screenLayoutsChanged();
 }
 
+void Show::setClearGroups(const QVariantList &groups)
+{
+    m_workspace.clearGroups = groups;
+    emit workspaceChanged();
+}
+
 void Show::setLooks(const QVariantList &looks)
 {
     m_workspace.looks = looks;
@@ -236,6 +242,11 @@ void Show::clearProps()
 void Show::clearAll()
 {
     change([&] { return m_state.clearAll(); });
+}
+
+void Show::clearGroup(const QString &id)
+{
+    change([&] { return m_state.clearGroup(id, m_workspace); });
 }
 
 void Show::toggleProp(const QString &id)

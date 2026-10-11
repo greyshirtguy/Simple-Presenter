@@ -104,7 +104,8 @@ QtObject {
             },
             () => {
                 check("media from the bin", of("media").some(line => /^(background|foreground) picture ".+"$/.test(line)), of("media").slice(-2).join(" | "))
-                check("clearing everything, and what there was to clear", of("clear").slice(-2)[0] === "everything asked for" && last("clear").startsWith("the media, "), of("clear").slice(-2).join("|"))
+                check("clearing with F1, which is the workspace's first clear group, and what there was to clear", of("clear").slice(-2)[0] === "the clear group \"Clear All\" asked for"
+                      && last("clear").startsWith("the media, "), of("clear").slice(-2).join("|"))
                 // ---- timers, props, the stage, the editor
                 const id = Timers.timers[0].id
                 Timers.start(id)
