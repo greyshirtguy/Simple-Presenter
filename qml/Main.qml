@@ -688,6 +688,54 @@ Window {
             startEditing(currentEntry())
     }
 
+    // ---- A slide asked for by its number, typed (src/slidenumber.h says how the whole
+    // of it goes, and what of it is a guess; TypedNumber.qml is what is shown)
+
+    // What is typed so far of a slide's number: "" when none is being typed
+    property string typedNumber: ""
+
+    // A digit typed while showing: the number begins, or goes on. Where there is no
+    // slide to ask for, nothing is begun.
+    function typeDigit(digit) {
+        if (!document || document.slides.length === 0)
+            return
+        typedNumber = NumberTyping.typed(typedNumber, digit)
+        numberQuiet.restart()
+        // (What shows it is made now, if this is the first number of the session.)
+        typedNumberLoader.active = true
+    }
+
+    // Backspace: the last digit comes off, and with the only one the number goes.
+    function eraseTypedDigit() {
+        typedNumber = NumberTyping.erased(typedNumber)
+        if (typedNumber === "")
+            numberQuiet.stop()
+        else
+            numberQuiet.restart()
+    }
+
+    // Enter: the slide that has the number goes live, as a click on it would have it.
+    // A number that no slide of the presentation has does nothing.
+    function takeTypedNumber() {
+        const asked = typedNumber
+        const index = NumberTyping.slideFor(asked, document ? document.slides.length : 0)
+        dropTypedNumber()
+        if (index < 0) {
+            Log.note("key", "slide " + asked + " asked for by its number: "
+                     + (document ? quoted(document.name) + " has " + document.slides.length : "no presentation is being viewed"))
+            return
+        }
+        Log.note("key", "slide " + asked + " of " + quoted(document.name) + " asked for by its number")
+        goLive(index)
+    }
+
+    // The number is given up: by Esc, by a second without a key, by any key that is
+    // not part of typing one, or because the keyboard has gone elsewhere.
+    function dropTypedNumber() {
+        typedNumber = ""
+        numberQuiet.stop()
+    }
+
     // A hotkey was pressed: the first slide of its group goes live. Answers whether
     // the key was a hotkey, which is then all it is, whether or not the presentation
     // being viewed has such a group.
@@ -2402,6 +2450,14 @@ Window {
         }
     }
 
+    // A second without a key, and a slide's number that was being typed is given up.
+    Timer {
+        id: numberQuiet
+
+        interval: 1000
+        onTriggered: win.dropTypedNumber()
+    }
+
     // What shows a hold of the key shows nothing for the first moment of it, so that a
     // key only brushed does not set something flickering.
     SequentialAnimation {
@@ -2852,8 +2908,11 @@ Window {
         // A hold of the key is over when the keyboard goes elsewhere: its being let go
         // would not be heard of here.
         onActiveFocusChanged: {
-            if (!activeFocus)
+            if (!activeFocus) {
                 win.endHold()
+                // (Nor can a number being typed be gone on with.)
+                win.dropTypedNumber()
+            }
         }
         Keys.onReleased: (event) => {
             if (!win.isSimpleViewKey(event))
@@ -2892,9 +2951,42 @@ Window {
                 event.accepted = true
                 return
             }
+            // A slide's number being typed (see src/slidenumber.h): the keys that finish
+            // it, give it up and mend it.
+            if (win.typedNumber !== "") {
+                switch (event.key) {
+                case Qt.Key_Return:
+                case Qt.Key_Enter:
+                    win.takeTypedNumber()
+                    event.accepted = true
+                    return
+                case Qt.Key_Escape:
+                    win.dropTypedNumber()
+                    event.accepted = true
+                    return
+                case Qt.Key_Backspace:
+                    win.eraseTypedDigit()
+                    event.accepted = true
+                    return
+                }
+            }
+            // A digit goes on with a number that is being typed, and begins one unless it
+            // is a group's hotkey, which it then stays: it was that first.
+            const plain = !(event.modifiers & (Qt.AltModifier | Qt.MetaModifier))
+            if (plain && /^[0-9]$/.test(event.text) && (win.typedNumber !== "" || !win.hotkeys.some(h => h.key === event.text))) {
+                // (A key held down is one digit, and not a row of them.)
+                if (!event.isAutoRepeat)
+                    win.typeDigit(event.text)
+                event.accepted = true
+                return
+            }
+            // Any other key gives a number up, and then does what it does. (But for the
+            // keys that only go with others, which do nothing by themselves.)
+            if (win.typedNumber !== ""
+                    && ![Qt.Key_Shift, Qt.Key_Control, Qt.Key_Alt, Qt.Key_AltGr, Qt.Key_Meta, Qt.Key_CapsLock, Qt.Key_NumLock].includes(event.key))
+                win.dropTypedNumber()
             // A letter or a digit may be a group's hotkey.
-            if (/^[a-z0-9]$/i.test(event.text) && !(event.modifiers & (Qt.AltModifier | Qt.MetaModifier))
-                    && !event.isAutoRepeat && win.triggerGroupKey(event.text.toUpperCase())) {
+            if (/^[a-z0-9]$/i.test(event.text) && plain && !event.isAutoRepeat && win.triggerGroupKey(event.text.toUpperCase())) {
                 event.accepted = true
                 return
             }
@@ -2987,6 +3079,21 @@ Window {
             anchors.top: win.chromeShown ? toolbar.bottom : parent.top
             anchors.bottom: win.chromeShown ? mediaBin.top : parent.bottom
             win: win
+        }
+
+        // A slide's number as it is typed, over the middle of the slides (see
+        // TypedNumber.qml). Made when a number is first typed, and not with the
+        // window: a session may never type one.
+        Loader {
+            id: typedNumberLoader
+
+            anchors.centerIn: grid
+            z: 5
+            active: false
+
+            sourceComponent: TypedNumber {
+                typed: win.typedNumber
+            }
         }
 
         // The way back out of Simple View, where the toolbar's button for it is: the

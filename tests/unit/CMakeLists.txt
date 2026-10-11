@@ -109,3 +109,12 @@ qt_add_executable(tst_decodingguard
 target_include_directories(tst_decodingguard PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_decodingguard PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME decodingguard COMMAND tst_decodingguard)
+
+qt_add_executable(tst_slidenumber
+    tst_slidenumber.cpp
+    ${PROJECT_SOURCE_DIR}/src/slidenumber.h
+    ${PROJECT_SOURCE_DIR}/src/slidenumber.cpp
+)
+target_include_directories(tst_slidenumber PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_slidenumber PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME slidenumber COMMAND tst_slidenumber)

@@ -860,6 +860,7 @@ TESTS = {
     "slides": test("Shapes", SHELL, 120),
     "keys": test("Shapes", SHELL, 120, {"SP_TEST_REMEMBER": "1"}, lambda w, d: prepare_keys(w, d, True), after_keys),
     "keys2": test("Shapes", SHELL, 60, {"SP_TEST_REMEMBER": "1"}, lambda w, d: prepare_keys(w, d, False), after_keys2),
+    "number": test("Shapes", SHELL, 120),
     "acts": test("Act", after=after_acts),
     "refine": test("Act"),
     "search": test("Demo"),

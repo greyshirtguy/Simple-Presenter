@@ -187,6 +187,10 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **A slide by its number.** Type a slide's number while showing and it comes up over
+  the slides, large; Enter takes that slide live, as a click on it would. Typing takes
+  nothing live by itself, and a number left alone for a second goes away again. See
+  [Keys](#keys).
 - **Video decoded by the processor alone, where a graphics driver cannot be trusted
   with it.** On a computer whose graphics driver is known to hang when its video
   decoder is tried (an NVIDIA card on the nouveau driver, without that decoder's
@@ -1535,6 +1539,7 @@ NDI® is a registered trademark of Vizrt NDI AB.
 | F2 / F3 / F4 | Clear the slide layer / media layer / props |
 | ~, held for most of a second | [Simple View](#simple-view) on or off |
 | A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
+| A number, then Enter | Goes to the slide with that number |
 | Ctrl+E | Edit mode: the editor, for the presentation being viewed |
 | Ctrl+S | Show mode: out of the editor, whichever one is up |
 | Ctrl+F | [Search](#search) |
@@ -1568,6 +1573,20 @@ The slide a key goes to has the key in a small orange icon at its top left corne
 beside the icon for its media if it has any. How solid these icons are is set on the
 settings screen, under Slides, from nearly gone (5%) to solid; they start at 80%, so
 that the slide shows through them a little. That setting is the app's own.
+
+**A slide by its number.** The slides wear their numbers in the grid, from 1. Typing
+a digit while showing takes nothing live: it puts the number up over the slides, in a
+panel that lets them show through. More digits go on with it, Enter takes the slide
+with that number live, as a click on it would, and the panel fades away. A number left
+for a second without a key goes away by itself, with nothing done.
+
+That much is as it was asked for. The rest is this app's own, and a guess at what is
+wanted: Esc gives a number up at once, and Backspace takes its last digit off; any other
+key (an arrow, say) gives it up and then does what it always does; a number no slide
+has, or one of more than four digits, does nothing; and a digit that is a group's hotkey
+stays that hotkey and does not begin a number, though it is a digit like any other once
+a number has been begun. ProPresenter's own hotkeys are all letters, so this only comes
+up where someone has given a group a digit.
 
 In the editor:
 
@@ -2037,7 +2056,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: over thirty scripts and over fourteen
+and look at what its windows then hold and show: over thirty scripts and over fifteen
 hundred checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
@@ -2065,6 +2084,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/playlistfile.*` | Reads and writes the two playlists files |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
+| `src/slidenumber.*`, `src/numbertyping.*` | A slide asked for by its number, typed: what the digits make and which slide that is, and what QML reaches those rules by |
 | `src/groupedit.*` | Putting a slide, and those after it in its group, into another group, as ProPresenter does |
 | `src/labelfile.*`, `src/labels.*` | Slide labels: a slide's own, and the labels a workspace keeps ready, in ProPresenter's list of them |
 | `src/clearfile.*`, `src/cleargroups.*` | The workspace's clear groups, in ProPresenter's file of them: the layers each clears, its picture and tint, and adding to, changing and removing them |
@@ -2105,6 +2125,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/Main.qml` | The operator window: what is open, and what a click or a key does |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
 | `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |
+| `qml/TypedNumber.qml` | The panel over the slides that shows a slide's number while it is typed |
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml`, `MacrosPanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props, stage screens and macros |
 | `qml/ActionDialog.qml`, `qml/PopupMenu.qml` | The panel a timer action or a stage action is set up in, and the menus, which open one out of another |
 | `qml/SettingsScreen.qml` | The settings: groups, slides, screens, looks, windows, and what the app is |

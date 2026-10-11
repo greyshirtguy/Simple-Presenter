@@ -177,6 +177,7 @@ qt_add_qml_module(SimplePresenter
         qml/TransitionControls.qml
         qml/TransitionLayer.qml
         qml/TransitionOptions.qml
+        qml/TypedNumber.qml
         qml/ZoomButtons.qml
     SOURCES
         src/catalog.h
@@ -255,6 +256,10 @@ qt_add_qml_module(SimplePresenter
         src/ndisetup.cpp
         src/showstate.h
         src/showstate.cpp
+        src/slidenumber.h
+        src/slidenumber.cpp
+        src/numbertyping.h
+        src/numbertyping.cpp
         src/sessionlog.h
         src/sessionlog.cpp
         src/windowlists.h
