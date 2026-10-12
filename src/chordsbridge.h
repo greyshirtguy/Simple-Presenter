@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QObject>
 #include <QQuickTextDocument>
 #include <QStringList>
@@ -51,26 +52,32 @@ public:
 };
 
 // Colours ChordPro text as it is typed (ChordProEditor.qml): chords in the app's orange,
-// brackets and all, and the lines in curly brackets that name the song's parts greyed,
-// since they are not to be changed. It is given a TextEdit's document and does nothing
-// but colour it; the text is not touched.
+// brackets and all, or in the colour chosen for them in the settings (`color`), and the
+// lines in curly brackets that name the song's parts greyed, since they are not to be
+// changed. It is given a TextEdit's document and does nothing but colour it; the text
+// is not touched.
 class ChordHighlighter : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
 
     Q_PROPERTY(QQuickTextDocument *document READ document WRITE setDocument NOTIFY documentChanged)
+    Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
 
 public:
     using QObject::QObject;
 
     QQuickTextDocument *document() const { return m_document; }
     void setDocument(QQuickTextDocument *document);
+    QColor color() const { return m_color; }
+    void setColor(const QColor &color);
 
 signals:
     void documentChanged();
+    void colorChanged();
 
 private:
     QQuickTextDocument *m_document = nullptr;
     QSyntaxHighlighter *m_highlighter = nullptr;
+    QColor m_color = QColor(0xff, 0xb4, 0x5e);
 };

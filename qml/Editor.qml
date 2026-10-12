@@ -1088,8 +1088,11 @@ Rectangle {
             objectName: "chordProEditor"
             editor: screen.editor
             row: canvas.row
+            zoom: screen.textZoom
+            chordColor: screen.textChordColor !== "" ? screen.textChordColor : "#ffb45e"
             onFailed: (error) => screen.report(error)
             onRowPicked: (row) => screen.showRow(row)
+            onZoomEdited: (zoom) => screen.textZoomEdited(zoom)
         }
     }
 }
