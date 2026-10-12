@@ -22,6 +22,34 @@ QVariantMap picture(const QString &name, bool foreground = false)
             {"loops", false}, {"playback", 0}, {"loopCount", 0}, {"loopSeconds", 0.0}};
 }
 
+// A piece of audio, as a row of the audio bin is: music that plays once, unless said
+// otherwise.
+QVariantMap tune(const QString &name, const QString &playback = QStringLiteral("stop"))
+{
+    return {{"id", "row-" + name}, {"name", name}, {"path", "/media/" + name + ".mp3"}, {"missing", false}, {"playback", playback},
+            {"effect", false}, {"volume", 1.0}, {"duration", 60.0}, {"loopCount", 0}, {"loopSeconds", 0.0}};
+}
+
+QVariantMap soundEffect(const QString &name)
+{
+    QVariantMap sound = tune(name);
+    sound.insert("effect", true);
+    return sound;
+}
+
+QVariantMap audioAction(const QVariantMap &audio)
+{
+    return {{"kind", "audio"}, {"title", "Play the audio"}, {"done", true}, {"audio", audio}};
+}
+
+QStringList namesOf(const QVariantList &audio)
+{
+    QStringList names;
+    for (const QVariant &one : audio)
+        names << one.toMap().value("name").toString();
+    return names;
+}
+
 QVariantMap slide(const QString &id, const QVariantMap &media = {}, const QVariantList &actions = {})
 {
     QVariantMap map {{"id", id}, {"label", QString()}, {"mediaName", media.value("name").toString()}, {"actions", actions}};
@@ -125,7 +153,8 @@ Workspace workspace()
 // The kinds of what was to happen outside, in order, the log left out: "slide nomedia".
 QString outside(const Effects &effects)
 {
-    static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia", "timer", "look", "note", "problem"};
+    static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia", "audio", "nomusic", "nosounds",
+                                  "timer", "look", "note", "problem"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -883,6 +912,267 @@ private slots:
         QVERIFY(!show.at("song.pro", ""));
         QVERIFY(show.hasMedia);
         QCOMPARE(show.props, QStringList {"p1"});
+    }
+
+    // ---- The audio layer
+
+    void musicIsOneAtATime()
+    {
+        State show;
+        Effects effects = show.playAudio(tune("Prelude"), "list");
+        QCOMPARE(outside(effects), "audio");
+        QVERIFY(show.hasMusic);
+        QCOMPARE(show.music.value("name").toString(), "Prelude");
+        QCOMPARE(show.musicPlaylistId, "list");
+        const int first = show.music.value("play").toInt();
+        QVERIFY(first > 0);
+        // Another takes its place: one thing to start, and nothing told to stop (what
+        // plays them takes the one off as it brings the other on).
+        effects = show.playAudio(tune("Offertory"), "other");
+        QCOMPARE(outside(effects), "audio");
+        QCOMPARE(effects.last().media.value("name").toString(), "Offertory");
+        QCOMPARE(show.music.value("name").toString(), "Offertory");
+        QCOMPARE(show.musicPlaylistId, "other");
+        QVERIFY(show.music.value("play").toInt() != first);
+        QVERIFY(noted(effects, "in place of \"Prelude\""));
+        QVERIFY(show.sounds.isEmpty());
+    }
+
+    void soundEffectsPlayOverTheMusicAndOverEachOther()
+    {
+        State show;
+        show.playAudio(tune("Prelude"), "list");
+        Effects effects = show.playAudio(soundEffect("Thunder"), "list");
+        QCOMPARE(outside(effects), "audio");
+        effects = show.playAudio(soundEffect("Bell"), "");
+        QCOMPARE(outside(effects), "audio");
+        // The same one again is another playing of it.
+        show.playAudio(soundEffect("Bell"), "");
+        QCOMPARE(namesOf(show.sounds), (QStringList {"Thunder", "Bell", "Bell"}));
+        QVERIFY(show.sounds.at(1).toMap().value("play") != show.sounds.at(2).toMap().value("play"));
+        // And the music plays on, from the playlist it was played from.
+        QVERIFY(show.hasMusic);
+        QCOMPARE(show.music.value("name").toString(), "Prelude");
+        QCOMPARE(show.musicPlaylistId, "list");
+        // Music started after them leaves them playing.
+        show.playAudio(tune("Offertory"), "list");
+        QCOMPARE(show.sounds.size(), 3);
+    }
+
+    void audioThatIsNotOnThisComputerIsAProblemAndNothingGivesWay()
+    {
+        State show;
+        show.playAudio(tune("Prelude"), "list");
+        QVariantMap gone = tune("Lost");
+        gone.insert("missing", true);
+        gone.insert("path", QString());
+        const Effects effects = show.playAudio(gone, "list");
+        QCOMPARE(outside(effects), "problem");
+        QCOMPARE(show.music.value("name").toString(), "Prelude");
+    }
+
+    void musicThatPlaysOnceHasEndedWhenItEnds()
+    {
+        State show;
+        show.playAudio(tune("Prelude"), "list");
+        const QVariantList rows {tune("Prelude"), tune("Offertory")};
+        const Effects effects = show.audioFinished(show.music.value("play").toInt(), rows);
+        QCOMPARE(outside(effects), "");
+        QVERIFY(!show.hasMusic);
+        QVERIFY(show.music.isEmpty() && show.musicPlaylistId.isEmpty());
+    }
+
+    void musicThatGoesOnIsFollowedByTheNextOfItsPlaylist()
+    {
+        State show;
+        const QVariantList rows {tune("Prelude", "next"), tune("Offertory", "next"), tune("Postlude", "next")};
+        show.playAudio(rows.at(0).toMap(), "list");
+        Effects effects = show.audioFinished(show.music.value("play").toInt(), rows);
+        QCOMPARE(outside(effects), "audio");
+        QCOMPARE(show.music.value("name").toString(), "Offertory");
+        QCOMPARE(show.musicPlaylistId, "list");
+        effects = show.audioFinished(show.music.value("play").toInt(), rows);
+        QCOMPARE(show.music.value("name").toString(), "Postlude");
+        // The last has none after it: the music has ended. (It does not start at the
+        // first again.)
+        effects = show.audioFinished(show.music.value("play").toInt(), rows);
+        QCOMPARE(outside(effects), "");
+        QVERIFY(!show.hasMusic);
+        QVERIFY(noted(effects, "none after it"));
+    }
+
+    void theNextIsTheFirstAfterItThatHasAFile()
+    {
+        State show;
+        QVariantMap gone = tune("Lost", "next");
+        gone.insert("missing", true);
+        const QVariantList rows {tune("Prelude", "next"), gone, tune("Postlude")};
+        show.playAudio(rows.at(0).toMap(), "list");
+        show.audioFinished(show.music.value("play").toInt(), rows);
+        QCOMPARE(show.music.value("name").toString(), "Postlude");
+    }
+
+    void theNextGoesByThePlaylistAsItIsNow()
+    {
+        // Rows moved while it played: what follows it is what follows it now. And a
+        // row that has been taken out of its playlist is followed by nothing.
+        State show;
+        show.playAudio(tune("Prelude", "next"), "list");
+        show.audioFinished(show.music.value("play").toInt(), {tune("Offertory"), tune("Prelude", "next"), tune("Postlude")});
+        QCOMPARE(show.music.value("name").toString(), "Postlude");
+        State other;
+        other.playAudio(tune("Prelude", "next"), "list");
+        other.audioFinished(other.music.value("play").toInt(), {tune("Offertory"), tune("Postlude")});
+        QVERIFY(!other.hasMusic);
+    }
+
+    void musicPlayedByASlideOrAMacroIsFollowedByNothing()
+    {
+        State show;
+        show.playAudio(tune("Prelude", "next"), "");
+        const Effects effects = show.audioFinished(show.music.value("play").toInt(), {tune("Prelude", "next"), tune("Offertory")});
+        QCOMPARE(outside(effects), "");
+        QVERIFY(!show.hasMusic);
+    }
+
+    void aSoundEffectThatEndsIsNoLongerPlayingAndNothingFollowsIt()
+    {
+        State show;
+        show.playAudio(tune("Prelude"), "list");
+        show.playAudio(soundEffect("Thunder"), "list");
+        show.playAudio(soundEffect("Bell"), "list");
+        const int thunder = show.sounds.at(0).toMap().value("play").toInt();
+        const Effects effects = show.audioFinished(thunder, {soundEffect("Thunder"), soundEffect("Bell")});
+        QCOMPARE(outside(effects), "");
+        QCOMPARE(namesOf(show.sounds), QStringList {"Bell"});
+        QVERIFY(show.hasMusic);
+    }
+
+    void whatEndedAlreadyOrWasReplacedChangesNothing()
+    {
+        State show;
+        show.playAudio(tune("Prelude", "next"), "list");
+        const int first = show.music.value("play").toInt();
+        show.playAudio(tune("Offertory"), "list");
+        // The first, which gave way, is heard of late: nothing follows it now.
+        const Effects effects = show.audioFinished(first, {tune("Prelude", "next"), tune("Postlude")});
+        QVERIFY(effects.isEmpty());
+        QCOMPARE(show.music.value("name").toString(), "Offertory");
+        QVERIFY(show.audioFinished(9999, {}).isEmpty());
+    }
+
+    void clearingTheAudioStopsTheMusicAndTheSoundEffects()
+    {
+        State show;
+        show.playAudio(tune("Prelude"), "list");
+        show.playAudio(soundEffect("Thunder"), "list");
+        const Effects effects = show.clearAudio();
+        QCOMPARE(outside(effects), "nomusic nosounds");
+        QVERIFY(!show.hasMusic && show.sounds.isEmpty() && show.musicPlaylistId.isEmpty());
+        // With nothing playing there is nothing to clear.
+        QVERIFY(show.clearAudio().isEmpty());
+    }
+
+    void clearingTheAudioEffectsLeavesTheMusic()
+    {
+        State show;
+        show.playAudio(tune("Prelude"), "list");
+        show.playAudio(soundEffect("Thunder"), "list");
+        const Effects effects = show.clearAudioEffects();
+        QCOMPARE(outside(effects), "nosounds");
+        QVERIFY(show.hasMusic && show.sounds.isEmpty());
+    }
+
+    void clearingEverythingClearsTheAudioToo()
+    {
+        State show;
+        show.goLive(plainSong().cue(0), false, workspace());
+        show.playAudio(tune("Prelude"), "list");
+        show.playAudio(soundEffect("Thunder"), "list");
+        const Effects effects = show.clearAll();
+        QCOMPARE(outside(effects), "noslide nomusic nosounds");
+        QVERIFY(!show.hasMusic && show.sounds.isEmpty());
+    }
+
+    void theOtherClearsLeaveTheAudio()
+    {
+        State show;
+        show.goLive(plainSong().cue(0), false, workspace());
+        show.showMedia(video("waves.mp4"), "");
+        show.playAudio(tune("Prelude"), "list");
+        show.playAudio(soundEffect("Thunder"), "list");
+        show.clearSlide();
+        show.clearMedia();
+        show.clearProps();
+        QVERIFY(show.hasMusic);
+        QCOMPARE(show.sounds.size(), 1);
+    }
+
+    void aClearGroupClearsTheHalvesOfTheAudioItNames()
+    {
+        Workspace w = workspace();
+        w.clearGroups << QVariantMap {{"id", "fx"}, {"name", "Effects"}, {"layers", QStringList {"audioEffects"}}};
+        State show;
+        show.playAudio(tune("Prelude"), "list");
+        show.playAudio(soundEffect("Thunder"), "list");
+        // The audio effects alone: the music plays on.
+        Effects effects = show.clearGroup("fx", w);
+        QCOMPARE(outside(effects), "nosounds");
+        QVERIFY(show.hasMusic);
+        // The audio: the music, and the sound effects with it.
+        show.playAudio(soundEffect("Bell"), "list");
+        effects = show.clearGroup("extras", w);
+        QCOMPARE(outside(effects), "nomusic nosounds");
+        QVERIFY(!show.hasMusic && show.sounds.isEmpty());
+        // A group of nothing clears nothing.
+        show.playAudio(tune("Prelude"), "list");
+        show.clearGroup("none", w);
+        QVERIFY(show.hasMusic);
+    }
+
+    void anActionPlaysAPieceOfAudioFromNoPlaylist()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", {}, {audioAction(tune("Prelude", "next")), audioAction(soundEffect("Bell"))}), slide("b")};
+        const Effects effects = show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(outside(effects), "slide audio audio");
+        QCOMPARE(show.music.value("name").toString(), "Prelude");
+        QVERIFY(show.musicPlaylistId.isEmpty());
+        QCOMPARE(namesOf(show.sounds), QStringList {"Bell"});
+        // The next slide has no audio of its own: what is playing plays on.
+        show.goLive(song.cue(1), false, workspace());
+        QVERIFY(show.hasMusic);
+        QCOMPARE(show.sounds.size(), 1);
+    }
+
+    void anActionThatClearsTheAudioOrItsEffectsDoesSo()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", {}, {clearAction(8)}), slide("b", {}, {clearAction(1)}), slide("c", {}, {clearAction(0)})};
+        show.playAudio(tune("Prelude"), "list");
+        show.playAudio(soundEffect("Thunder"), "list");
+        Effects effects = show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(outside(effects), "slide nosounds");
+        QVERIFY(show.hasMusic);
+        show.playAudio(soundEffect("Thunder"), "list");
+        effects = show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(outside(effects), "slide nomusic nosounds");
+        show.playAudio(tune("Prelude"), "list");
+        effects = show.goLive(song.cue(2), false, workspace());
+        QVERIFY(!show.hasMusic && show.cleared);
+    }
+
+    void aMacroPlaysAudioAsASlideDoes()
+    {
+        Workspace w = workspace();
+        w.macros = {QVariantMap {{"id", "m"}, {"name", "Macros"}, {"macros", QVariantList {
+            QVariantMap {{"id", "walkin"}, {"name", "Walk In"}, {"actions", QVariantList {audioAction(tune("Prelude", "loop"))}}}}}}};
+        State show;
+        const Effects effects = show.runMacro("walkin", w);
+        QCOMPARE(outside(effects), "audio");
+        QCOMPARE(show.music.value("playback").toString(), "loop");
     }
 };
 

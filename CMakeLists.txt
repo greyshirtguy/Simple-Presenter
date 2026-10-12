@@ -189,6 +189,12 @@ qt_add_qml_module(SimplePresenter
     SOURCES
         src/catalog.h
         src/catalog.cpp
+        src/audiolayer.h
+        src/audiolayer.cpp
+        src/audiolevel.h
+        src/audiolevel.cpp
+        src/audiometer.h
+        src/audiometer.cpp
         src/decodingchoice.h
         src/decodingchoice.cpp
         src/decodingguard.h

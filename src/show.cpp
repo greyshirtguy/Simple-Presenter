@@ -53,6 +53,9 @@ void Show::change(const std::function<show::Effects()> &what)
         emit slideChanged();
     if (before.hasMedia != m_state.hasMedia || before.media != m_state.media || before.mediaPlaylistId != m_state.mediaPlaylistId)
         emit mediaChanged();
+    if (before.hasMusic != m_state.hasMusic || before.music != m_state.music || before.musicPlaylistId != m_state.musicPlaylistId
+        || before.sounds != m_state.sounds)
+        emit audioChanged();
     if (before.props != m_state.props)
         emit propsChanged();
     if (before.stageLayouts != m_state.stageLayouts)
@@ -83,6 +86,15 @@ void Show::change(const std::function<show::Effects()> &what)
         case show::Effect::NoMedia:
             emit mediaCleared();
             break;
+        case show::Effect::Audio:
+            emit audioStarted(effect.media);
+            break;
+        case show::Effect::NoMusic:
+            emit musicCleared();
+            break;
+        case show::Effect::NoSounds:
+            emit soundsCleared();
+            break;
         case show::Effect::Timer:
             emit timerAction(effect.action);
             break;
@@ -103,6 +115,11 @@ void Show::change(const std::function<show::Effects()> &what)
 QVariant Show::liveMedia() const
 {
     return m_state.hasMedia ? QVariant(m_state.media) : QVariant::fromValue(nullptr);
+}
+
+QVariant Show::liveMusic() const
+{
+    return m_state.hasMusic ? QVariant(m_state.music) : QVariant::fromValue(nullptr);
 }
 
 QVariantMap Show::screenLayouts() const
@@ -237,6 +254,26 @@ void Show::clearMedia()
 void Show::clearProps()
 {
     change([&] { return m_state.clearProps(); });
+}
+
+void Show::playAudio(const QVariantMap &audio, const QString &playlist)
+{
+    change([&] { return m_state.playAudio(audio, playlist); });
+}
+
+void Show::audioFinished(int play, const QVariantList &rows)
+{
+    change([&] { return m_state.audioFinished(play, rows); });
+}
+
+void Show::clearAudio()
+{
+    change([&] { return m_state.clearAudio(); });
+}
+
+void Show::clearAudioEffects()
+{
+    change([&] { return m_state.clearAudioEffects(); });
 }
 
 void Show::clearAll()

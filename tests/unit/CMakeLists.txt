@@ -138,3 +138,12 @@ qt_add_executable(tst_audiocue
 target_include_directories(tst_audiocue PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_audiocue PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME audiocue COMMAND tst_audiocue)
+
+qt_add_executable(tst_audiolevel
+    tst_audiolevel.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.h
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.cpp
+)
+target_include_directories(tst_audiolevel PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_audiolevel PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME audiolevel COMMAND tst_audiolevel)

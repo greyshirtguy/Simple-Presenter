@@ -21,6 +21,8 @@
 //   - the output is told what to show by the signals slideShown, slideCleared,
 //     mediaShown and mediaCleared (the operator window passes them on to the output
 //     window, which knows nothing of presentations);
+//   - what plays the audio (AudioLayer, audiolayer.h) is told by audioStarted,
+//     musicCleared and soundsCleared, and tells this when a piece comes to its end;
 //   - a timer is worked by timerAction;
 //   - the log is told directly.
 //
@@ -64,6 +66,13 @@ class Show : public QObject
     // playlist it was triggered from, "" if a slide triggered it.
     Q_PROPERTY(QVariant liveMedia READ liveMedia NOTIFY mediaChanged)
     Q_PROPERTY(QString liveMediaPlaylistId READ liveMediaPlaylistId NOTIFY mediaChanged)
+    // The audio layer: the music that is playing, as a row of the audio bin (see
+    // playlistfile.h) with the number of this playing of it as `play`, or null; the
+    // playlist of the bin it was played from, "" if a slide or a macro played it; and
+    // the sound effects that are playing, the same, in the order they were started.
+    Q_PROPERTY(QVariant liveMusic READ liveMusic NOTIFY audioChanged)
+    Q_PROPERTY(QString liveMusicPlaylistId READ liveMusicPlaylistId NOTIFY audioChanged)
+    Q_PROPERTY(QVariantList liveSounds READ liveSounds NOTIFY audioChanged)
     // The props that are on, by id, in the order they were turned on: the last is in front.
     Q_PROPERTY(QStringList liveProps READ liveProps NOTIFY propsChanged)
     // The stage layout each stage screen has, by the ids of both; a screen that is not
@@ -121,6 +130,9 @@ public:
     bool cueLive() const { return m_state.cueLive(); }
     QVariant liveMedia() const;
     QString liveMediaPlaylistId() const { return m_state.mediaPlaylistId; }
+    QVariant liveMusic() const;
+    QString liveMusicPlaylistId() const { return m_state.musicPlaylistId; }
+    QVariantList liveSounds() const { return m_state.sounds; }
     QStringList liveProps() const { return m_state.props; }
     QVariantMap screenLayouts() const;
     QString stageLayoutId() const;
@@ -174,9 +186,22 @@ public:
     Q_INVOKABLE void showMedia(const QVariantMap &media, const QString &playlist = QString());
     Q_INVOKABLE bool alreadyPlaying(const QVariantMap &media) const;
 
+    // Plays a piece of audio, a row of the audio bin; `playlist` is the playlist of
+    // the bin it was picked from, if it was. Music takes the place of the music that
+    // is playing, and a sound effect plays over whatever is.
+    Q_INVOKABLE void playAudio(const QVariantMap &audio, const QString &playlist = QString());
+    // A piece of audio has come to its end, by the number of that playing of it. If it
+    // was music that the next of its playlist follows, `rows` being that playlist's
+    // rows as they are now, the next is played (see show::State::audioFinished).
+    Q_INVOKABLE void audioFinished(int play, const QVariantList &rows);
+
     Q_INVOKABLE void clearSlide();
     Q_INVOKABLE void clearMedia();
     Q_INVOKABLE void clearProps();
+    // The audio layer, which is the music and the sound effects; and the sound
+    // effects alone.
+    Q_INVOKABLE void clearAudio();
+    Q_INVOKABLE void clearAudioEffects();
     Q_INVOKABLE void clearAll();
     // Clears what a clear group of the workspace clears, by the group's id (see
     // show::State::clearGroup).
@@ -229,6 +254,7 @@ public:
 signals:
     void slideChanged();
     void mediaChanged();
+    void audioChanged();
     void propsChanged();
     void screenLayoutsChanged();
     void lookChanged();
@@ -245,6 +271,11 @@ signals:
     void slideCleared();
     void mediaShown(const QVariantMap &media);
     void mediaCleared();
+    // A piece of audio is to be started (music in place of the music that is playing,
+    // a sound effect over what is); the music is to stop; every sound effect is.
+    void audioStarted(const QVariantMap &audio);
+    void musicCleared();
+    void soundsCleared();
     void timerAction(const QVariantMap &action);
 
 private:

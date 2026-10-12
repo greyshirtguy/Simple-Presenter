@@ -11,9 +11,9 @@
 //
 // This is the show itself, with nothing of the app round it: no window, no file, no
 // log, no clock. It is a handful of plain values (which slide the show is at, what is
-// on the media layer, which props are on, which layout the stage has) and the things
-// that can be done to them: a slide goes live, media is put on, a layer is cleared, a
-// prop is turned over, a macro is run. Each of those changes the values and says, as a
+// on the media layer, what audio is playing, which props are on, which layout the stage
+// has) and the things that can be done to them: a slide goes live, media is put on, a
+// piece of audio is played, a layer is cleared, a prop is turned over, a macro is run. Each of those changes the values and says, as a
 // list, what is then to happen outside: what the output is to be handed, which timer is
 // to be worked, what the log is to be told. Whoever owns one of these (the Show that
 // QML talks to, in show.h) carries that list out.
@@ -72,6 +72,9 @@ struct Effect
         NoSlide,        // take the slide layer off
         Media,          // start `media` on the media layer
         NoMedia,        // take the media layer off
+        Audio,          // start the piece of audio `media` (music takes the place of the music that is playing)
+        NoMusic,        // stop the music
+        NoSounds,       // stop every sound effect
         Timer,          // work a timer as `action` says
         Look,           // make the saved look whose id is `text` the live one (see lookfile.h)
         Note,           // tell the log `text`, under `topic`
@@ -109,6 +112,18 @@ public:
     bool hasMedia = false;
     QVariantMap media;
     QString mediaPlaylistId;
+
+    // The audio layer. Music is one piece at a time: what is playing, as a row of the
+    // audio bin (see playlistfile.h), and the playlist of the bin it was played from
+    // ("" if a slide or a macro played it). Sound effects are any number at once, over
+    // the music and over each other, in the order they were started. Each piece that
+    // is started has a number of its own, `play`, in its map: the same file played
+    // twice is two, and whatever plays them tells them apart by it.
+    bool hasMusic = false;
+    QVariantMap music;
+    QString musicPlaylistId;
+    QVariantList sounds;
+    int audioPlays = 0;
 
     // The props that are on, by id, in the order they were turned on: the last is in front.
     QStringList props;
@@ -161,13 +176,31 @@ public:
     // the way a slide's video plays takes effect when the slide is next triggered.
     bool alreadyPlaying(const QVariantMap &media) const;
 
+    // Plays a piece of audio: `audio` is a row of the audio bin, and `playlist` the
+    // playlist of the bin it was picked from, if it was. Music takes the place of the
+    // music that is playing; a sound effect is played over whatever is.
+    Effects playAudio(const QVariantMap &audio, const QString &playlist);
+    // A piece of audio has come to its end, by its number: it is playing no longer.
+    // If it is the music, and it is one that is followed by the next of its playlist,
+    // that is played: `rows` are the rows of that playlist as they are now, and the
+    // next is the first after it that has a file to play. With none after it, or its
+    // own row no longer there, the music has simply ended. (A GUESS: that ProPresenter
+    // stops at a playlist's last row and does not start at its first again.)
+    // What has ended already, or was never playing, changes nothing.
+    Effects audioFinished(int play, const QVariantList &rows);
+
     Effects clearSlide();
     Effects clearMedia();
     Effects clearProps();
+    // The audio layer: the music and every sound effect; and the sound effects alone.
+    Effects clearAudio();
+    Effects clearAudioEffects();
     Effects clearAll();
     // Clears what a clear group clears, which is those of its layers there are here:
-    // the slide, the media, the props. The others it names are ProPresenter's, and
-    // nothing is done for them. A group the workspace has not clears nothing.
+    // the slide, the media, the props, the audio (the music and the sound effects) and
+    // the audio effects (the sound effects alone). The others it names are
+    // ProPresenter's, and nothing is done for them. A group the workspace has not
+    // clears nothing.
     Effects clearGroup(const QString &id, const Workspace &workspace);
 
     // Turns a prop on, in front of the props that are on already, or off if it is on.
@@ -203,6 +236,9 @@ private:
     void clearSlide(Effects &effects);
     void clearMedia(Effects &effects);
     void clearProps(Effects &effects);
+    void clearMusic(Effects &effects);
+    void clearSounds(Effects &effects);
+    void startAudio(const QVariantMap &audio, const QString &playlist, Effects &effects);
     void clearGroup(const QVariantMap &group, Effects &effects);
     void toggleProp(const QString &id, const Workspace &workspace, Effects &effects);
 };
@@ -251,8 +287,9 @@ QVariantList stageAssignments(const QVariantMap &existing, const QVariantMap &la
 // they were and as they are; -1 if it is not there any more.
 int placeAfterReload(const QStringList &before, int index, const QStringList &after);
 
-// How media is spoken of in the log.
+// How media is spoken of in the log, and a piece of audio.
 QString mediaWords(const QVariantMap &media);
+QString audioWords(const QVariantMap &audio);
 QString quoted(const QString &name);
 
 }

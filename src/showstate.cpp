@@ -56,6 +56,14 @@ QString mediaWords(const QVariantMap &media)
          + (video && media.value("loops").toBool() ? QStringLiteral(", looping") : QString());
 }
 
+QString audioWords(const QVariantMap &audio)
+{
+    const QString playback = audio.value("playback").toString();
+    return (audio.value("effect").toBool() ? QStringLiteral("sound effect ") : QStringLiteral("music "))
+         + quoted(audio.value("name").toString())
+         + (playback == QLatin1String("loop") ? QStringLiteral(", looping") : playback == QLatin1String("next") ? QStringLiteral(", then the next") : QString());
+}
+
 bool State::at(const QString &key, const QString &playlistId) const
 {
     return atSlide && this->key == key && this->playlistId == playlistId;
@@ -223,6 +231,95 @@ void State::clearProps(Effects &effects)
     props.clear();
 }
 
+void State::clearMusic(Effects &effects)
+{
+    if (!hasMusic)
+        return;
+    effects << note("clear", QStringLiteral("the music, ") + quoted(music.value("name").toString()));
+    hasMusic = false;
+    music.clear();
+    musicPlaylistId.clear();
+    effects << plain(Effect::NoMusic);
+}
+
+void State::clearSounds(Effects &effects)
+{
+    if (sounds.isEmpty())
+        return;
+    effects << note("clear", QStringLiteral("the sound effects, %1 of them").arg(sounds.size()));
+    sounds.clear();
+    effects << plain(Effect::NoSounds);
+}
+
+// Starts a piece of audio. A piece whose file is not on this computer is not started,
+// and nothing that is playing gives way to it.
+void State::startAudio(const QVariantMap &asked, const QString &playlist, Effects &effects)
+{
+    if (asked.value("missing").toBool() || asked.value("path").toString().isEmpty()) {
+        effects << problem(QStringLiteral("The audio %1 is not on this computer, and was not played").arg(quoted(asked.value("name").toString())));
+        return;
+    }
+    QVariantMap audio = asked;
+    audio.insert("play", ++audioPlays);
+    if (audio.value("effect").toBool()) {
+        sounds.append(audio);
+        effects << note("audio", audioWords(audio) + QStringLiteral(", over what is playing; %1 playing").arg(sounds.size()));
+    } else {
+        effects << note("audio", audioWords(audio) + (hasMusic ? QStringLiteral(", in place of ") + quoted(music.value("name").toString()) : QString()));
+        hasMusic = true;
+        music = audio;
+        musicPlaylistId = playlist;
+    }
+    effects << withMedia(Effect::Audio, audio);
+}
+
+Effects State::playAudio(const QVariantMap &audio, const QString &playlist)
+{
+    Effects effects;
+    startAudio(audio, playlist, effects);
+    return effects;
+}
+
+Effects State::audioFinished(int play, const QVariantList &rows)
+{
+    Effects effects;
+    for (qsizetype i = 0; i < sounds.size(); ++i) {
+        if (sounds.at(i).toMap().value("play").toInt() == play) {
+            effects << note("audio", audioWords(sounds.at(i).toMap()) + QStringLiteral(" has played to its end"));
+            sounds.removeAt(i);
+            return effects;
+        }
+    }
+    if (!hasMusic || music.value("play").toInt() != play)
+        return effects;
+    const QVariantMap ended = music;
+    const QString playlist = musicPlaylistId;
+    hasMusic = false;
+    music.clear();
+    musicPlaylistId.clear();
+    // The next of its playlist, for music that is followed by it: the first row after
+    // its own that has a file to play.
+    QVariantMap following;
+    if (ended.value("playback").toString() == QLatin1String("next") && !playlist.isEmpty()) {
+        bool found = false;
+        for (const QVariant &entry : rows) {
+            const QVariantMap row = entry.toMap();
+            if (found && !row.value("missing").toBool() && !row.value("path").toString().isEmpty()) {
+                following = row;
+                break;
+            }
+            if (row.value("id") == ended.value("id"))
+                found = true;
+        }
+    }
+    effects << note("audio", audioWords(ended) + QStringLiteral(" has played to its end")
+                                 + (following.isEmpty() && ended.value("playback").toString() == QLatin1String("next")
+                                        ? QStringLiteral(", and there is none after it") : QString()));
+    if (!following.isEmpty())
+        startAudio(following, playlist, effects);
+    return effects;
+}
+
 Effects State::clearSlide()
 {
     Effects effects;
@@ -244,6 +341,21 @@ Effects State::clearProps()
     return effects;
 }
 
+Effects State::clearAudio()
+{
+    Effects effects;
+    clearMusic(effects);
+    clearSounds(effects);
+    return effects;
+}
+
+Effects State::clearAudioEffects()
+{
+    Effects effects;
+    clearSounds(effects);
+    return effects;
+}
+
 Effects State::clearAll()
 {
     Effects effects;
@@ -251,15 +363,24 @@ Effects State::clearAll()
     clearSlide(effects);
     clearMedia(effects);
     clearProps(effects);
+    clearMusic(effects);
+    clearSounds(effects);
     return effects;
 }
 
 // The layers go in the order everything is cleared in, whatever order the group has
 // them in: they are cleared together, and the log reads the same either way.
 //
-// TO COME: a group names ProPresenter's other layers too (audio, messages,
-// announcements, video inputs: see clearfile.h). As the show gains one of them, it is
-// cleared here, for a group that has it.
+//
+// The audio is two of ProPresenter's layers, "audio" and "audio effects". Here the
+// first is the whole audio layer, the music and the sound effects, which is what the
+// button that clears the audio clears; and the second the sound effects alone, so
+// that a group can stop those and leave the music playing. A GUESS: whether
+// ProPresenter's own "audio" stops its sound effects too has not been seen.
+//
+// TO COME: a group names ProPresenter's other layers too (messages, announcements,
+// video inputs: see clearfile.h). As the show gains one of them, it is cleared here,
+// for a group that has it.
 void State::clearGroup(const QVariantMap &group, Effects &effects)
 {
     const QStringList layers = group.value("layers").toStringList();
@@ -270,6 +391,10 @@ void State::clearGroup(const QVariantMap &group, Effects &effects)
         clearMedia(effects);
     if (layers.contains(QLatin1String("props")))
         clearProps(effects);
+    if (layers.contains(QLatin1String("audio")))
+        clearMusic(effects);
+    if (layers.contains(QLatin1String("audio")) || layers.contains(QLatin1String("audioEffects")))
+        clearSounds(effects);
 }
 
 Effects State::clearGroup(const QString &id, const Workspace &workspace)
@@ -402,6 +527,14 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
             clearSlide(effects);
             clearMedia(effects);
             clearProps(effects);
+            clearMusic(effects);
+            clearSounds(effects);
+        } else if (layer == 1) {
+            // (The audio: the music and the sound effects. See clearGroup.)
+            clearMusic(effects);
+            clearSounds(effects);
+        } else if (layer == 8) {
+            clearSounds(effects);
         } else if (layer == 2) {
             clearMedia(effects);
         } else if (layer == 4) {
@@ -409,6 +542,11 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
         } else {
             clearSlide(effects);
         }
+    } else if (kind == QLatin1String("audio")) {
+        // A piece of audio, as a row of the audio bin is (the action has the same
+        // things to say of it). It is played from no playlist, so nothing follows it.
+        effects << note("action", title);
+        startAudio(action.value("audio").toMap(), QString(), effects);
     } else if (kind == QLatin1String("clearGroup")) {
         const QVariantMap group = findClearGroup(action.value("groupId").toString(), action.value("groupName").toString(), workspace);
         effects << note("action", title + (group.isEmpty() ? QStringLiteral(": there is no such clear group here") : QString()));
