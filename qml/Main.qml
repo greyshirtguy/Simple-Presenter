@@ -397,6 +397,15 @@ Window {
     // The width slide thumbnails aim for. The grid fits as many columns of at least this
     // width as it can and stretches them to fill the row.
     property real thumbnailWidth: 250
+    // The chord editors (Editor.qml): how many times its usual size the chord sheet is
+    // drawn and the ChordPro text is set, each one of the same steps and kept apart (a
+    // size that suits a grid of slides is not the one that suits a page of text); and
+    // the colour of a chord in each, "" for the one it comes with. They are this
+    // app's, kept from one start to the next: nothing in any song's file says them.
+    property real chordSheetZoom: 0.8
+    property real chordTextZoom: 1
+    property string chordSheetColor: ""
+    property string chordTextColor: ""
     readonly property real smallestThumbnail: 180
     readonly property real largestThumbnail: 400
     // The same for the media bin's thumbnails
@@ -1188,6 +1197,24 @@ Window {
             target = Math.max(smallest, Math.min(largest, target + direction * 10))
         } while (columnsAt(target) === columns && target > smallest && target < largest)
         return target
+    }
+
+    // A size of the chord editors as it was kept: the nearest of the steps they go by,
+    // or `usual` for what is no size at all.
+    readonly property var chordZooms: [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5]
+
+    function chordZoom(kept, usual) {
+        const size = Number(kept)
+        if (!(size > 0))
+            return usual
+        return chordZooms.reduce((best, step) => Math.abs(step - size) < Math.abs(best - size) ? step : best, chordZooms[0])
+    }
+
+    // A colour of the chord editors as it is kept: "#rrggbb" in small letters, and ""
+    // (the colour it comes with) for anything else.
+    function chordColorKept(kept) {
+        const written = String(kept).toLowerCase()
+        return /^#[0-9a-f]{6}$/.test(written) ? written : ""
     }
 
     function zoomThumbnails(direction) {
@@ -2256,6 +2283,10 @@ Window {
         outputEnabled = String(saved("outputEnabled", true)) === "true"
         stageEnabled = String(saved("stageEnabled", true)) === "true"
         useX11 = String(saved("useX11", false)) === "true"
+        chordSheetZoom = chordZoom(saved("chordSheetZoom", chordSheetZoom), 0.8)
+        chordTextZoom = chordZoom(saved("chordTextZoom", chordTextZoom), 1)
+        chordSheetColor = chordColorKept(saved("chordSheetColor", ""))
+        chordTextColor = chordColorKept(saved("chordTextColor", ""))
         const decoding = String(saved("videoDecoding", "auto"))
         videoDecoding = ["processor", "hardware"].includes(decoding) ? decoding : "auto"
         decodingNoticeSeen = String(saved("decodingNoticeSeen", false)) === "true"
@@ -2415,6 +2446,10 @@ Window {
     onMediaListWidthChanged: save("mediaListWidth", mediaListWidth)
     onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
     onThumbnailWidthChanged: save("thumbnailWidth", thumbnailWidth)
+    onChordSheetZoomChanged: save("chordSheetZoom", chordSheetZoom)
+    onChordTextZoomChanged: save("chordTextZoom", chordTextZoom)
+    onChordSheetColorChanged: save("chordSheetColor", chordSheetColor)
+    onChordTextColorChanged: save("chordTextColor", chordTextColor)
     onMediaThumbnailWidthChanged: save("mediaThumbnailWidth", mediaThumbnailWidth)
     onSidePanelWidthChanged: save("sidePanelWidth", sidePanelWidth)
     onMediaBinHeightChanged: save("mediaBinHeight", mediaBinHeight)
@@ -3298,6 +3333,12 @@ Window {
         mediaFilter: win.catalog.mediaDialogFilter
         mediaFolder: win.catalog.mediaDirectory
         canPaste: win.catalog.hasCopiedSlide
+        sheetZoom: win.chordSheetZoom
+        textZoom: win.chordTextZoom
+        sheetChordColor: win.chordSheetColor
+        textChordColor: win.chordTextColor
+        onSheetZoomEdited: (zoom) => win.chordSheetZoom = win.chordZoom(zoom, 0.8)
+        onTextZoomEdited: (zoom) => win.chordTextZoom = win.chordZoom(zoom, 1)
         removeSlide: (path, slideId) => {
             Log.note("edit", "a slide deleted in the editor")
             win.slidesRearranged = true

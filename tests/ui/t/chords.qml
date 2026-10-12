@@ -323,16 +323,15 @@ QtObject {
                 const disk = onDisk(kept.path, herald)
                 check("a chord goes on any letter, and is kept on that letter in the file", names(kept.line + 1) === "1:E 3:F#m 13:Asus2 21:" + kept.picked
                       && disk !== null && disk.chords.some(c => c.at === herald.length + 1 + 3 && c.name === "F#m"), names(kept.line + 1))
-                const cards = sheet().rows.filter(row => row.kind === "line" && row.first)
-                const tall = lineItem(sheet().rows.findIndex(row => row.kind === "line" && row.count === sheet().mostLines && row.first))
-                check("each slide's lines are in a card, all of one size: that of the slide with the most lines", cards.length >= 20 && sheet().mostLines >= 2
-                      && sheet().cardHeight > sheet().mostLines * 40 && sheet().cardWidth > 300 && tall !== null, cards.length + " cards of " + sheet().mostLines + " lines, "
-                      + Math.round(sheet().cardWidth) + " by " + Math.round(sheet().cardHeight))
-                const one = sheet().rows.findIndex(row => row.kind === "line" && row.first && row.last && row.count === 1)
-                const next = sheet().rows.findIndex((row, index) => index > one && row.kind === "line" && row.first)
-                check("so a slide of one line takes as much room as one of two", one >= 0 && next > one
-                      && Math.abs((lineItem(next).mapToItem(null, 0, 0).y - lineItem(one).mapToItem(null, 0, 0).y) - (sheet().cardHeight + sheet().cardGap)) < 40,
-                      one + " " + next)
+                // The slides are a grid of cards (chords2 looks at how it is drawn, and at what the grid is for).
+                const cells = sheet().cells
+                const widths = cells.map(cell => cell.width).filter((width, index, all) => all.indexOf(width) === index)
+                check("each slide's lines are in a card of its own, the cards all of one width and side by side in rows", cells.length >= 20 && sheet().columns >= 2
+                      && widths.length === 1 && cells[0].y === cells[1].y && cells[1].x >= cells[0].x + cells[0].width
+                      && cells[sheet().columns].y >= cells[0].y + cells[0].height, cells.length + " cards, " + sheet().columns + " to a row, " + widths.join("/") + " wide")
+                const one = cells.find(cell => cell.count === 1 && cells.some(other => other.gridRow === cell.gridRow && other.count === 2))
+                check("and those of a row are one height, so that a slide of one line takes as much room as the slide of two beside it", one !== undefined
+                      && cells.filter(other => other.gridRow === one.gridRow).every(other => other.height === one.height), JSON.stringify(one ?? null))
                 // A line of chords with no words: one more on the end.
                 kept.alone = sheet().rows.findIndex(row => row.kind === "line" && row.alone)
                 kept.aloneCount = sheet().rows[kept.alone].chords.length

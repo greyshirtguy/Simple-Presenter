@@ -19,6 +19,7 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QUrl>
+#include <QWheelEvent>
 
 // (Qt's own way of sending a key by way of an application's shortcuts, which it keeps
 // for its tests.)
@@ -72,6 +73,15 @@ public:
             send(QEvent::MouseButtonDblClick, Qt::MouseButton(button));
             send(QEvent::MouseButtonRelease, Qt::NoButton);
         }
+    }
+    // The wheel of a mouse turned at a point of the window: `angle` in eighths of a
+    // degree as Qt counts it, 120 being one notch, away from the hand being positive.
+    Q_INVOKABLE void wheel(qreal x, qreal y, int angle, int modifiers = 0)
+    {
+        const QPointF at(x, y);
+        QWheelEvent event(at, window->mapToGlobal(at), QPoint(), QPoint(0, angle), Qt::NoButton, Qt::KeyboardModifiers(modifiers),
+                          Qt::NoScrollPhase, false);
+        QCoreApplication::sendEvent(window, &event);
     }
     // A key as the desktop would deliver it, by way of the app's shortcuts
     Q_INVOKABLE bool shortcut(int key, int modifiers = 0)

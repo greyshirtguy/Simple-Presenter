@@ -61,6 +61,13 @@ Rectangle {
     property var copySlide: (path, slideId) => ""
     // Whether a slide has been copied
     property bool canPaste: false
+    // How many times its usual size the chord sheet is drawn and the ChordPro text is
+    // set, and the colour of a chord in each ("" for the one it comes with): the
+    // operator window's, which keeps them. A change asked for here is told to it.
+    property real sheetZoom: 0.8
+    property real textZoom: 1
+    property string sheetChordColor: ""
+    property string textChordColor: ""
     // Something to tell the user, and whether it is a failure
     property string notice
     property bool noticeIsError: true
@@ -122,6 +129,8 @@ Rectangle {
 
     // A key that belongs to the operator window, not the editor, was pressed
     signal keyPassed(var event)
+    signal sheetZoomEdited(real zoom)
+    signal textZoomEdited(real zoom)
 
     // Opens a presentation file from a workspace folder, at the slide with the given id
     // if it has one. Returns an error message, empty on success.
@@ -1063,9 +1072,12 @@ Rectangle {
             editor: screen.editor
             groupColor: screen.groupColor
             row: canvas.row
+            zoom: screen.sheetZoom
+            chordColor: screen.sheetChordColor !== "" ? screen.sheetChordColor : "#ffd9a8"
             onFailed: (error) => screen.report(error)
             onTold: (message) => screen.tell(message)
             onRowPicked: (row) => screen.showRow(row)
+            onZoomEdited: (zoom) => screen.sheetZoomEdited(zoom)
         }
     }
 

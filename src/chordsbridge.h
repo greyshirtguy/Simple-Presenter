@@ -39,6 +39,11 @@ public:
     Q_INVOKABLE QVariantList chordsOf(const QString &chordPro) const;
     Q_INVOKABLE QString withoutChords(const QString &chordPro) const;
     Q_INVOKABLE bool isPlaceholders(const QString &line) const;
+    // The text the system has as what was last copied, by this app or any other; ""
+    // if it is not text. The chord sheet keeps the chords it copies to itself, so as
+    // not to put them in the way of what was copied elsewhere, and asks this to tell
+    // whether anything has been copied since (ChordSheet.qml, copiedLast).
+    Q_INVOKABLE QString copiedText() const;
     // What a ChordPro file holds, for the import to show before it is done: { title,
     // artist, key, sections: [{ name, lines }] (how many lines each), chords (how
     // many), error }.

@@ -3,6 +3,8 @@
 #include "chords.h"
 #include "songimport.h"
 
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QRegularExpression>
 #include <QTextCharFormat>
 
@@ -82,6 +84,12 @@ QString Chords::withoutChords(const QString &chordPro) const
 bool Chords::isPlaceholders(const QString &line) const
 {
     return chords::isPlaceholders(line);
+}
+
+QString Chords::copiedText() const
+{
+    const QClipboard *clipboard = QGuiApplication::clipboard();
+    return clipboard ? clipboard->text() : QString();
 }
 
 QVariantMap Chords::describeFile(const QString &path) const
