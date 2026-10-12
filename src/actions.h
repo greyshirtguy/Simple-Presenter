@@ -15,14 +15,14 @@
 //
 // What is done with them here. Some kinds are understood, which is to say shown, made,
 // changed and run: those to do with timers, clearing (a layer, or a clear group), the
-// stage, props, looks and macros.
+// stage, props, looks and macros, and those that play a piece of audio.
 // Every other kind is shown for what it is and left alone. This is the one place that
 // turns an action into the plain map QML works with, and such a map back into an
 // action, for a slide's cue and for a macro alike.
 //
 // The map has, for every action:
-//   id, kind ("timer", "clear", "clearGroup", "stage", "prop", "look", "macro" or
-//   "other"), title (a few words saying what it does), done (whether this app runs
+//   id, kind ("timer", "clear", "clearGroup", "stage", "prop", "look", "macro",
+//   "audio" or "other"), title (a few words saying what it does), done (whether this app runs
 //   it), and picture:
 //   which of ProPresenter's own pictures stands for it, by name (see iconprovider.h),
 //   where that is more than its kind says. An action that clears the media has the
@@ -34,8 +34,8 @@
 //           configuration (that part of the file, in base 64, as Timers::act takes
 //           it), and setKind, setDuration, setTimeOfDay, setStartTime, setEndTime,
 //           setHasEndTime, setOverrun (as a timer's own are, see Timers)
-//   clear:  layer (as the file numbers the layers: 0 everything, 2 the media behind
-//           the slides, 4 the props, 5 the slide)
+//   clear:  layer (as the file numbers the layers: 0 everything, 1 the audio, 2 the
+//           media behind the slides, 4 the props, 5 the slide, 8 the audio effects)
 //   clearGroup: groupId, groupName: the clear group it clears, which is one of the
 //           workspace's (see clearfile.h)
 //   stage:  assignments, a list of { screenId, screenName, layoutId, layoutName }, the
@@ -43,6 +43,10 @@
 //   prop:   propId, propName, collectionId, collectionName, clear (whether it takes
 //           the prop off, where otherwise it puts it on)
 //   macro:  macroId, macroName, collectionId, collectionName
+//   audio:  audio (the piece of audio, as a row of the audio bin is: see
+//           playlistfile.h), and playback ("stop" or "loop") and effect (whether it is
+//           a sound effect and not music) beside it. To make one, `item` is the id of
+//           the row of the audio bin it is to be a copy of (see audiocue.h)
 namespace actions {
 
 // Whether an action is one of those a cue has beside its slide and its media, which

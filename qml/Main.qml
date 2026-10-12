@@ -89,11 +89,19 @@ Window {
     // playlist or folder selected in its tree.
     property string mediaPlaylistId: ""
     property string selectedMediaNode: ""
+    // The same for the audio bin: the playlist of it being browsed, by id, and the
+    // playlist or folder that is picked in its list.
+    property string audioPlaylistId: ""
+    property string selectedAudioNode: ""
     // What is in them, re-read by refreshLists() whenever either path or the disk changes.
     // `documents` holds the rows of the library or playlist being browsed, in the shape
     // PlaylistFile describes; a row's `path` identifies the row, its `file` the presentation.
     property var documents: []
     property var mediaFiles: []
+    // The pieces of audio of the playlist being browsed in the audio bin, and what is
+    // typed in the box that narrows them
+    property var audioFiles: []
+    property string audioFilter: ""
 
     // The presentation shown in the grid: { name, path, slides, error } from Catalog.open()
     property var document: null
@@ -135,6 +143,22 @@ Window {
     // and alreadyPlaying, and for the sound MediaContent).
     readonly property var liveMedia: Show.liveMedia
     readonly property string liveMediaPlaylistId: Show.liveMediaPlaylistId
+    // The audio layer: the music that is playing, as a row of the audio bin, or null;
+    // the playlist of the bin it was played from; the sound effects that are playing;
+    // and whether anything is, which is whether there is audio to clear.
+    readonly property var liveMusic: Show.liveMusic
+    readonly property string liveMusicPlaylistId: Show.liveMusicPlaylistId
+    readonly property var liveSounds: Show.liveSounds
+    readonly property bool audioLive: liveMusic !== null || liveSounds.length > 0
+    // How long a fade of the audio is, in seconds, and whether one piece of music is
+    // crossed into the next (see AudioLayer, which goes by them); the device sound is
+    // played through, by its id as the system has it, "" for wherever the system sends
+    // sound; and how high the list of playlists is in the audio bin. All four are this
+    // app's own, and this computer's: kept in its settings.
+    property real audioFade: 1
+    property bool audioCrossfade: false
+    property string audioDevice: ""
+    property real audioSplit: 66
 
     // The transitions there are to choose from, with what can be adjusted about each
     // (see TransitionCatalogue), the one chosen, and what has been chosen for its
@@ -461,6 +485,7 @@ Window {
     function refreshLists() {
         documents = playlistId !== "" ? catalog.playlistItems(playlistId) : catalog.documentsIn(libraryPath)
         mediaFiles = catalog.mediaIn(mediaPlaylistId)
+        audioFiles = catalog.audioIn(audioPlaylistId)
     }
 
     function openLibrary(path) {
@@ -993,6 +1018,18 @@ Window {
             items.push({ label: "Change…", run: () => actionDialog.openTimer(target, action, "") })
         if (action.kind === "stage")
             items.push({ label: "Change…", run: () => actionDialog.openStage(target, action) })
+        // A piece of audio: how it plays on from its end (there is no playlist here
+        // for a next to follow), and whether it is music or a sound effect.
+        if (action.kind === "audio") {
+            const change = (how) => commitAction(target, Object.assign({ kind: "audio" }, how), action.id)
+            items.push({ header: "Playback" })
+            items.push({ label: "Stop", glyph: "stop", current: action.playback !== "loop", run: () => change({ playback: "stop" }) })
+            items.push({ label: "Loop", glyph: "loop", current: action.playback === "loop", run: () => change({ playback: "loop" }) })
+            items.push({ header: "Type" })
+            items.push({ label: "Music", glyph: "music", current: !action.effect, run: () => change({ effect: false }) })
+            items.push({ label: "Sound Effect", glyph: "sound", current: action.effect, run: () => change({ effect: true }) })
+            items.push({ header: "Action" })
+        }
         items.push({ label: "Remove", danger: true, run: () => removeAction(target, action) })
         menu.show(items, item, x, y)
     }
@@ -1054,6 +1091,31 @@ Window {
             commitAction(target, { kind: "clear", layer: dropped.layer }, "")
         else if (dropped.kind === "clearGroup")
             commitAction(target, clearGroupAction(dropped.id, dropped.groupName), "")
+        else if (dropped.kind === "audio")
+            commitAction(target, { kind: "audio", item: dropped.id }, "")
+    }
+
+    // The piece of audio that is being dragged out of the audio bin, as what the drag
+    // carries ({ id, name, playlist }), or null. (As a property for what is to follow
+    // it, and as a function for what asks once.)
+    readonly property var audioDragged: actionDrag.Drag.active && actionDrag.payload && actionDrag.payload.kind === "audio" ? actionDrag.payload : null
+
+    function draggedAudio() {
+        return audioDragged
+    }
+
+    // A piece of audio dropped on the bare list of the macros, on no macro: it is given
+    // a macro of its own, called what the piece is called, whose one action plays it.
+    function dropAudioAsMacro() {
+        const dropped = draggedAudio()
+        if (!dropped)
+            return
+        Log.note("drop", "a piece of audio dropped on the macros, on none of them: a macro is made for it")
+        const made = Macros.add("")
+        if (!report(made.error))
+            return
+        report(Macros.rename(made.id, dropped.name))
+        commitAction({ macro: made.id }, { kind: "audio", item: dropped.id }, "")
     }
 
     function dropActionOnSlide(index, item) {
@@ -1279,6 +1341,151 @@ Window {
         const scrolledTo = mediaBin.contentY
         report(catalog.moveMediaItem(sourceId, targetId, after))
         mediaBin.contentY = scrolledTo
+    }
+
+    // ---- The audio bin (AudioPanel.qml)
+
+    // (Only its own pieces are read again, and not the other lists with them: this is
+    // done as the app starts, and every list read again is every row of it made again.)
+    function openAudioPlaylist(id) {
+        selectedAudioNode = id
+        audioPlaylistId = id
+        audioFilter = ""
+        audioFiles = catalog.audioIn(id)
+    }
+
+    // Plays a piece of audio, a row of the audio bin: music in place of the music that
+    // is playing, a sound effect over whatever is (see show::State::playAudio).
+    function playAudio(audio, playlist = "") {
+        Show.playAudio(audio, playlist)
+    }
+
+    function clearAudio() {
+        Show.clearAudio()
+    }
+
+    function newAudioNodeParent() {
+        const selected = catalog.audioPlaylists.find(p => p.path === selectedAudioNode)
+        return !selected ? "" : selected.folder ? selected.path : selected.parent
+    }
+
+    function newAudioNode(folder, parent) {
+        const names = catalog.audioPlaylists.map(p => p.name)
+        const base = folder ? "New Folder" : "New Playlist"
+        let name = base
+        for (let n = 2; names.includes(name); ++n)
+            name = base + " " + n
+        const created = folder ? catalog.createAudioFolder(name, parent) : catalog.createAudioPlaylist(name, parent)
+        if (!report(created.error))
+            return
+        if (folder)
+            selectedAudioNode = created.id
+        else
+            openAudioPlaylist(created.id)
+        sidePanel.renameAudioPlaylist(created.id)
+    }
+
+    function browseForAudio() {
+        audioDialog.open()
+    }
+
+    function showAudioAddMenu(item) {
+        const items = [
+            { label: "Add Folder", run: () => newAudioNode(true, newAudioNodeParent()) },
+            { label: "Add Playlist", run: () => newAudioNode(false, newAudioNodeParent()) }
+        ]
+        if (audioPlaylistId !== "")
+            items.push({ label: "Add Audio…", run: () => browseForAudio() })
+        menu.show(items, item)
+    }
+
+    function showAudioNodeMenu(node, item) {
+        const items = []
+        if (node.folder) {
+            items.push({ label: "New Playlist Here", run: () => newAudioNode(false, node.path) })
+            items.push({ label: "New Folder Here", run: () => newAudioNode(true, node.path) })
+        }
+        items.push({ label: "Rename", run: () => sidePanel.renameAudioPlaylist(node.path) })
+        items.push({
+            label: node.folder ? "Remove Folder…" : "Remove Playlist…",
+            run: () => menu.show([
+                { header: "Remove “" + node.name + "”?" },
+                { note: node.folder ? "The playlists in it go too. Sound files stay on disk."
+                                    : "Its sound files stay on disk." },
+                { label: "Remove", danger: true, run: () => report(catalog.removeAudioPlaylist(node.path)) },
+                { label: "Cancel", run: () => {} }
+            ], item)
+        })
+        menu.show(items, item)
+    }
+
+    // What can be changed of a piece of audio: how it plays on from its end, and
+    // whether it is music or a sound effect (see audiocue.h). Both are the row's own,
+    // kept in ProPresenter's file of the audio bin.
+    function showAudioItemMenu(audio, item) {
+        const play = (how) => {
+            Log.note("edit", "the audio " + quoted(audio.name) + " set to " + how)
+            report(catalog.setAudioPlayback(audio.id, how))
+        }
+        const type = (effect) => {
+            Log.note("edit", "the audio " + quoted(audio.name) + " made " + (effect ? "a sound effect" : "music"))
+            report(catalog.setAudioEffect(audio.id, effect))
+        }
+        menu.show([
+            { header: "Playback" },
+            { label: "Stop", glyph: "stop", current: audio.playback === "stop", run: () => play("stop") },
+            { label: "Loop", glyph: "loop", current: audio.playback === "loop", run: () => play("loop") },
+            { label: "Next", glyph: "next", current: audio.playback === "next", run: () => play("next") },
+            { header: "Type" },
+            { label: "Music", glyph: "music", current: !audio.effect, run: () => type(false) },
+            { label: "Sound Effect", glyph: "sound", current: audio.effect, run: () => type(true) },
+            { header: "Playlist" },
+            { label: "Remove from Playlist", run: () => report(catalog.removeAudioItem(audio.id)) }
+        ], item)
+    }
+
+    function moveAudio(sourceId, targetId, after) {
+        report(catalog.moveAudioItem(sourceId, targetId, after))
+    }
+
+    // Answers a drag of files from another application that is over somewhere audio can
+    // be dropped: as acceptMediaDrag does, for sound files.
+    function acceptAudioDrag(drag) {
+        if (drag.source !== null)
+            return false
+        drag.action = Qt.CopyAction
+        const files = drag.urls.join("\n")
+        if (files !== draggedFiles) {
+            draggedFiles = files
+            draggedFilesMedia = catalog.audioAmong(drag.urls)
+        }
+        drag.accepted = draggedFilesMedia.length > 0
+        return drag.accepted
+    }
+
+    // Sound files dragged in from another application and dropped on a playlist of the
+    // audio bin: at its end, or beside one of its rows (`target`, by id).
+    function dropOnAudioPlaylist(playlist, drop, target = "", after = false) {
+        const node = catalog.audioPlaylists.find(p => p.path === playlist)
+        if (drop.source !== null || !node)
+            return
+        const all = drop.urls
+        const paths = catalog.audioAmong(all)
+        const left = all.length - paths.length
+        if (paths.length > 0)
+            drop.accept(Qt.CopyAction)
+        Log.note("drop", counted(all.length, "file", "files") + " dragged in from another application and dropped on the audio playlist "
+                 + quoted(node.name) + (paths.length === 0 ? ": none is a sound file this can play"
+                                        : left > 0 ? "; " + left + " left out, not being " + (left === 1 ? "a sound file" : "sound files") : ""))
+        draggedFiles = ""
+        takeFocus()
+        if (paths.length === 0 || !report(catalog.addAudio(playlist, all, target, after)))
+            return
+        if (playlist !== audioPlaylistId || left > 0) {
+            notice = counted(paths.length, "file", "files") + " added to " + quoted(node.name)
+                     + (left > 0 ? "; " + left + " left out, not being " + (left === 1 ? "a sound file" : "sound files") : "")
+            noticeIsError = false
+        }
     }
 
     // Shows an error from a change to the playlists, if there was one.
@@ -2283,6 +2490,12 @@ Window {
         outputEnabled = String(saved("outputEnabled", true)) === "true"
         stageEnabled = String(saved("stageEnabled", true)) === "true"
         useX11 = String(saved("useX11", false)) === "true"
+        const fade = Number(saved("audioFade", audioFade))
+        audioFade = isFinite(fade) ? Math.max(0, Math.min(30, fade)) : 1
+        audioCrossfade = String(saved("audioCrossfade", false)) === "true"
+        audioDevice = String(saved("audioDevice", ""))
+        const split = Number(saved("audioSplit", audioSplit))
+        audioSplit = isFinite(split) ? Math.max(36, split) : 66
         chordSheetZoom = chordZoom(saved("chordSheetZoom", chordSheetZoom), 0.8)
         chordTextZoom = chordZoom(saved("chordTextZoom", chordTextZoom), 1)
         chordSheetColor = chordColorKept(saved("chordSheetColor", ""))
@@ -2317,7 +2530,7 @@ Window {
             actionIconOpacity = Math.max(0.05, Math.min(1, iconOpacity))
 
         const tab = String(saved("showControlTab", "timers"))
-        if (["timers", "props", "macros", "stage"].includes(tab))
+        if (["timers", "props", "macros", "stage", "audio"].includes(tab))
             sidePanel.showControlTab = tab
         openShowControls(catalog.workspacePath)
         Log.watch(win, "operator window")
@@ -2373,6 +2586,10 @@ Window {
         const firstMediaPlaylist = catalog.mediaPlaylists.find(p => !p.folder)
         openMediaPlaylist(catalog.mediaPlaylists.some(p => p.path === mediaPlaylist && !p.folder) ? mediaPlaylist
                           : firstMediaPlaylist ? firstMediaPlaylist.path : "")
+        const audioPlaylist = savedSelection("audioPlaylist")
+        const firstAudioPlaylist = catalog.audioPlaylists.find(p => !p.folder)
+        openAudioPlaylist(catalog.audioPlaylists.some(p => p.path === audioPlaylist && !p.folder) ? audioPlaylist
+                          : firstAudioPlaylist ? firstAudioPlaylist.path : "")
         // Each stage screen has the layout it had, if the workspace still has that
         // layout: as it was left here, or, for a screen nothing is remembered of, as
         // ProPresenter's own file has it. (What was remembered before there could be
@@ -2415,6 +2632,8 @@ Window {
         libraryPath = ""
         mediaPlaylistId = ""
         selectedMediaNode = ""
+        audioPlaylistId = ""
+        selectedAudioNode = ""
         for (const screen of Screens.stage)
             Show.setStageLayout(screen.id, "")
         notice = ""
@@ -2535,6 +2754,11 @@ Window {
     onPlaylistIdChanged: saveSelection("playlist", playlistId)
     onDocumentKeyChanged: saveSelection("presentation", documentKey)
     onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
+    onAudioPlaylistIdChanged: saveSelection("audioPlaylist", audioPlaylistId)
+    onAudioFadeChanged: save("audioFade", audioFade)
+    onAudioCrossfadeChanged: save("audioCrossfade", audioCrossfade)
+    onAudioDeviceChanged: save("audioDevice", audioDevice)
+    onAudioSplitChanged: save("audioSplit", audioSplit)
     // What each stage screen has, as last noted in the log
     property var notedLayouts: ({})
 
@@ -2603,6 +2827,12 @@ Window {
         } else if (!catalog.mediaPlaylists.some(p => p.path === selectedMediaNode)) {
             selectedMediaNode = mediaPlaylistId
         }
+        if (!catalog.audioPlaylists.some(p => p.path === audioPlaylistId && !p.folder)) {
+            const first = catalog.audioPlaylists.find(p => !p.folder)
+            openAudioPlaylist(first ? first.path : "")
+        } else if (!catalog.audioPlaylists.some(p => p.path === selectedAudioNode)) {
+            selectedAudioNode = audioPlaylistId
+        }
     }
 
     Connections {
@@ -2665,6 +2895,21 @@ Window {
         currentFolder: "file://" + win.catalog.mediaDirectory
         nameFilters: [win.catalog.mediaDialogFilter, "All files (*)"]
         onAccepted: win.report(win.catalog.addMedia(win.mediaPlaylistId, selectedFiles))
+    }
+
+    // Sound files are added to the playlist of the audio bin being browsed, where they
+    // are on disk.
+    FileDialog {
+        id: audioDialog
+
+        title: "Add Audio"
+        fileMode: FileDialog.OpenFiles
+        currentFolder: "file://" + win.catalog.mediaDirectory
+        nameFilters: [win.catalog.audioDialogFilter, "All files (*)"]
+        onAccepted: {
+            Log.note("edit", win.counted(selectedFiles.length, "file", "files") + " chosen to add to the audio bin")
+            win.report(win.catalog.addAudio(win.audioPlaylistId, selectedFiles))
+        }
     }
 
     // The screens. Each one that is sent out through something (see Screens) has a scene
@@ -2862,9 +3107,53 @@ Window {
             win.eachAudienceScene(scene => scene.showMedia(null))
         }
 
+        // The audio layer is played by AudioLayer, which is told what the show says.
+        function onAudioStarted(audio) {
+            AudioLayer.start(audio)
+        }
+
+        function onMusicCleared() {
+            AudioLayer.stopMusic()
+        }
+
+        function onSoundsCleared() {
+            AudioLayer.stopSounds()
+        }
+
         function onTimerAction(action) {
             Timers.act(action)
         }
+    }
+
+    // A piece of audio has come to its end: the show says what follows, which for
+    // music that the next of its playlist follows is that, going by the playlist as it
+    // is now.
+    Connections {
+        target: AudioLayer
+
+        function onFinished(play) {
+            Show.audioFinished(play, win.catalog.audioIn(Show.liveMusicPlaylistId))
+        }
+    }
+
+    // How the audio is faded, and what it is played through, are the window's to keep
+    // and AudioLayer's to go by.
+    Binding {
+        target: AudioLayer
+        property: "fade"
+        value: win.audioFade
+    }
+
+    Binding {
+        target: AudioLayer
+        property: "crossfade"
+        value: win.audioCrossfade
+    }
+
+    Binding {
+        target: AudioLayer
+        property: "device"
+        value: win.audioDevice
     }
 
     // What of the workspace a slide's actions can name, which Show goes by: a prop that
@@ -3061,6 +3350,9 @@ Window {
             case Qt.Key_F4:
                 win.clearProps()
                 break
+            case Qt.Key_F5:
+                win.clearAudio()
+                break
             default:
                 return
             }
@@ -3111,6 +3403,7 @@ Window {
             win: win
             liveVideoSink: win.output ? win.output.liveVideoSink : null
             livePlayer: win.clocksHeld || !win.output ? null : win.output.livePlayer
+            audioPlaylistDrag: audioPlaylistDrag
             onShowControlTabChanged: win.save("showControlTab", showControlTab)
         }
 
@@ -3247,6 +3540,12 @@ Window {
             Drag.keys: ["mediaPlaylist"]
         }
 
+        RowDrag {
+            id: audioPlaylistDrag
+
+            Drag.keys: ["audioPlaylist"]
+        }
+
 
         // Dividers. Each starts from the pane's current, clamped size, so dragging back
         // from a limit responds at once.
@@ -3368,6 +3667,8 @@ Window {
                 win.clearMedia()
             else if (event.key === Qt.Key_F4)
                 win.clearProps()
+            else if (event.key === Qt.Key_F5)
+                win.clearAudio()
             else
                 return
             event.accepted = true
@@ -3503,6 +3804,11 @@ Window {
         onUseX11Edited: (useX11) => win.useX11 = useX11
         videoDecoding: win.videoDecoding
         onVideoDecodingEdited: (mode) => win.videoDecoding = mode
+        audioDevice: win.audioDevice
+        onAudioDeviceEdited: (id) => {
+            win.audioDevice = id
+            Log.note("settings", id === "" ? "sound is to be played wherever the system sends it" : "a device was chosen for sound")
+        }
         chordSheetColor: win.chordSheetColor
         chordTextColor: win.chordTextColor
         onChordSheetColorEdited: (color) => win.chordSheetColor = win.chordColorKept(color)

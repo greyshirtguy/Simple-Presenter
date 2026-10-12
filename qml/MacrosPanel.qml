@@ -16,7 +16,11 @@ import SimplePresenterApp
 // one, and for each action that has anything to change a row of its own leading to
 // Edit and Remove. A macro can be dragged onto a slide, which gives the slide the
 // action that runs it; and one of the clear buttons, or anything else that stands for
-// an action, can be dropped on a macro, which gives the macro that action.
+// an action, can be dropped on a macro, which gives the macro that action. A piece of
+// audio out of the audio bin dropped on the bare list, on no macro, is given a macro of
+// its own: one that is called what the piece is called and plays it. While such a
+// piece is being dragged there is a strip along the bottom that says so and takes it,
+// since a list with more macros than it has room for has no bare part to drop on.
 //
 // The macros themselves are `Macros`; what running one does is the operator window's,
 // since it is the operator window that has the timers, the layers and the stage.
@@ -167,11 +171,68 @@ Item {
         text: "No macros. Add one with the + above."
     }
 
+    // A piece of audio dropped on the bare list is given a macro of its own. (This
+    // is under the list, so a macro that is there has the drag first.)
+    DropArea {
+        id: bareDrop
+
+        anchors.fill: parent
+        keys: ["action"]
+        onEntered: (drag) => drag.accepted = panel.win.draggedAudio() !== null
+        onDropped: panel.win.dropAudioAsMacro()
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        visible: bareDrop.containsDrag
+        radius: 6
+        color: "transparent"
+        border.width: 2
+        border.color: "#c0ffffff"
+    }
+
+    // The strip that takes a piece of audio for a macro of its own: there only while
+    // one is being dragged.
+    Rectangle {
+        id: newStrip
+
+        objectName: "macroNewDrop"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 30
+        z: 1
+        visible: panel.win.audioDragged !== null
+        radius: 6
+        color: stripDrop.containsDrag ? "#3a3c42" : "#232427"
+        border.width: stripDrop.containsDrag ? 2 : 1
+        border.color: stripDrop.containsDrag ? panel.win.accentColor : "#5c5f66"
+
+        Text {
+            anchors.centerIn: parent
+            color: "#d6d8dc"
+            font.pixelSize: 12
+            text: "Drop here for a macro of its own"
+        }
+
+        DropArea {
+            id: stripDrop
+
+            anchors.fill: parent
+            keys: ["action"]
+            onEntered: (drag) => drag.accepted = panel.win.draggedAudio() !== null
+            onDropped: panel.win.dropAudioAsMacro()
+        }
+    }
+
     ListView {
         id: list
 
         objectName: "macroList"
         anchors.fill: parent
+        // (The strip above is over the list's foot while it is there: the list ends
+        // short of it, so that the last macro can still be dropped on.)
+        anchors.bottomMargin: newStrip.visible ? newStrip.height + 3 : 0
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         spacing: 3

@@ -20,6 +20,9 @@ Rectangle {
     // The colour of a chord's name on the chord sheet, and of a chord in the ChordPro
     // text, each as "#rrggbb"; "" for the one it comes with. See the Chords section.
     property string chordSheetColor: ""
+    // The device sound is played through, by its id as the system has it; "" for
+    // wherever the system sends sound
+    property string audioDevice: ""
     property string chordTextColor: ""
     readonly property color usualSheetChord: "#ffd9a8"
     readonly property color usualTextChord: "#ffb45e"
@@ -41,6 +44,7 @@ Rectangle {
     signal useX11Edited(bool useX11)
     signal videoDecodingEdited(string mode)
     signal chordSheetColorEdited(string color)
+    signal audioDeviceEdited(string id)
     signal chordTextColorEdited(string color)
     signal simpleKeepsSidePanelEdited(bool keeps)
     // A label kept ready is to be made (index -1) or changed, in the panel a label is
@@ -181,10 +185,10 @@ Rectangle {
     readonly property var sections: Qt.platform.os === "linux"
         ? [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
            { name: "Chords", path: "chords" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
-           { name: "Video", path: "video" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
+           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
         : [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
            { name: "Chords", path: "chords" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
-           { name: "Video", path: "video" }, { name: "About", path: "about" }]
+           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -819,6 +823,167 @@ Rectangle {
                              + "here. With the firmware put in (the README says where that is explained), it is tried again without "
                              + "anything being changed here."
                            : "")
+                }
+            }
+        }
+
+        // Audio: what sound is played through, for everything the app plays: the audio
+        // bin's music and sound effects, and a video's sound. The system's own choice,
+        // which is wherever it sends sound and follows it if that changes, or one of the
+        // devices it has. It is this computer's, kept with the app's own settings:
+        // ProPresenter's file of a workspace names a device too, one of the computer it
+        // was written on, and that is left as it is.
+        //
+        // (Made when the section is turned to: listing the devices means asking the
+        // system's sound service, which nothing waits for as the app starts.)
+        Loader {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            active: screen.section === "audio"
+            visible: active
+
+            sourceComponent: Flickable {
+                id: audioPart
+
+                clip: true
+                contentHeight: audioWords.height
+                boundsBehavior: Flickable.StopAtBounds
+
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AlwaysOn
+                    visible: audioPart.contentHeight > audioPart.height
+                }
+
+                KineticWheel {}
+
+                // One thing sound can be played through: a round mark, what it is
+                // called, and a word more about it
+                component DeviceChoice: Item {
+                    id: choice
+
+                    property string device
+                    property string title
+                    property string detail
+                    readonly property bool chosen: screen.audioDevice === device
+
+                    width: parent ? parent.width : 0
+                    height: Math.max(22, words.height)
+
+                    Rectangle {
+                        y: 2
+                        width: 18
+                        height: 18
+                        radius: 9
+                        color: "#15161a"
+                        border.width: 1.5
+                        border.color: choice.chosen ? "#ff8a1f" : choiceMouse.containsMouse ? "#8b8f98" : "#5c5f66"
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 10
+                            height: 10
+                            radius: 5
+                            visible: choice.chosen
+                            color: "#ff8a1f"
+                        }
+                    }
+
+                    Column {
+                        id: words
+
+                        x: 30
+                        width: parent.width - 30
+                        spacing: 2
+
+                        Text {
+                            width: parent.width
+                            elide: Text.ElideRight
+                            color: "#e6e6e6"
+                            font.pixelSize: 15
+                            text: choice.title
+                        }
+
+                        Text {
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            visible: text !== ""
+                            color: "#9a9da3"
+                            font.pixelSize: 13
+                            text: choice.detail
+                        }
+                    }
+
+                    MouseArea {
+                        id: choiceMouse
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: screen.audioDeviceEdited(choice.device)
+                    }
+                }
+
+                Column {
+                    id: audioWords
+
+                    objectName: "audioSettings"
+                    width: audioPart.width - 14
+                    spacing: 10
+
+                    Text {
+                        color: "#8d9097"
+                        font.pixelSize: 11
+                        font.bold: true
+                        text: "SOUND IS PLAYED THROUGH"
+                    }
+
+                    DeviceChoice {
+                        objectName: "audioDevice:"
+                        device: ""
+                        title: "The system's own choice"
+                        detail: {
+                            const usual = AudioLayer.devices.find(device => device.usual)
+                            return "Wherever this computer sends sound" + (usual ? ", which is now " + usual.name : "")
+                                   + ". If that is changed in the system's settings, the app goes with it."
+                        }
+                    }
+
+                    Repeater {
+                        model: AudioLayer.devices
+
+                        DeviceChoice {
+                            required property var modelData
+
+                            objectName: "audioDevice:" + modelData.name
+                            device: modelData.id
+                            title: modelData.name
+                            detail: ""
+                        }
+                    }
+
+                    // A device that was chosen and is not there now (unplugged, say)
+                    DeviceChoice {
+                        objectName: "audioDeviceGone"
+                        visible: screen.audioDevice !== "" && !AudioLayer.devices.some(device => device.id === screen.audioDevice)
+                        device: screen.audioDevice
+                        title: "The device that was chosen"
+                        detail: "It is not there now. Until it is, sound goes wherever this computer sends it."
+                    }
+
+                    Text {
+                        objectName: "audioDeviceNote"
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        topPadding: 6
+                        color: "#9a9da3"
+                        font.pixelSize: 13
+                        text: "This is for everything the app plays: the music and the sound effects of the audio bin, and the sound "
+                            + "of a video. What is playing goes over to a newly chosen device at once, but for a video, which goes "
+                            + "over when it is next started. How loud each is on that device is the system's to set."
+                    }
                 }
             }
         }

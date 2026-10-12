@@ -1,8 +1,12 @@
 #include "actions.h"
 
+#include "audiocue.h"
+#include "playlistfile.h"
 #include "timers.pb.h"
 #include "workspacefiles.h"
 
+#include <QFileInfo>
+#include <QUrl>
 #include <QVariantList>
 
 namespace actions {
@@ -166,6 +170,7 @@ QString layerWords(const Action::ClearType &clear, bool *done)
         *done = true;
         return QStringLiteral("Clear the slide");
     case Clear::CLEAR_TARGET_LAYER_AUDIO:
+        *done = true;
         return QStringLiteral("Clear the audio");
     case Clear::CLEAR_TARGET_LAYER_LIVE_VIDEO:
         return QStringLiteral("Clear the video input");
@@ -174,6 +179,7 @@ QString layerWords(const Action::ClearType &clear, bool *done)
     case Clear::CLEAR_TARGET_LAYER_MESSAGES:
         return QStringLiteral("Clear the messages");
     case Clear::CLEAR_TARGET_LAYER_AUDIO_EFFECTS:
+        *done = true;
         return QStringLiteral("Clear the audio effects");
     default:
         return QStringLiteral("Clear a layer");
@@ -244,6 +250,35 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("collectionId", text(macro.parent_collection().parameter_uuid().string()));
         map.insert("collectionName", text(macro.parent_collection().parameter_name()));
         map.insert("title", QStringLiteral("Run the macro %1").arg(quoted(text(macro.parameter_name()))));
+    } else if (audiocue::isAudio(action)) {
+        // A piece of audio: what a row of the audio bin is, by itself. What it is to
+        // play is found on this computer as a row's is; and it is called what the
+        // action is called, or failing that what its file is.
+        const rv::data::Media &media = action.media().element();
+        const QString file = workspace::findMediaFile(media.url());
+        QString name = text(action.name());
+        if (name.isEmpty())
+            name = file.isEmpty() ? QFileInfo(QUrl(text(media.url().absolute_string())).path()).completeBaseName()
+                                  : QFileInfo(file).completeBaseName();
+        QVariantMap audio {
+            {"id", text(action.uuid().string())},
+            {"name", name},
+            {"path", file},
+            {"source", file.isEmpty() ? QUrl() : QUrl::fromLocalFile(file)},
+            {"missing", file.isEmpty()},
+        };
+        const audiocue::Behaviour behaviour = audiocue::read(action, nullptr);
+        behaviour.describe(&audio);
+        map.insert("kind", QStringLiteral("audio"));
+        // (Its picture is one of this app's own drawings, and "SoundEffect" is the
+        // name of no picture of ProPresenter's: see ActionGlyph.qml.)
+        if (behaviour.effect)
+            map.insert("picture", QStringLiteral("SoundEffect"));
+        map.insert("audio", audio);
+        map.insert("playback", behaviour.playback);
+        map.insert("effect", behaviour.effect);
+        map.insert("title", QStringLiteral("Play the %1 %2%3").arg(behaviour.effect ? QStringLiteral("sound effect") : QStringLiteral("music"), quoted(name),
+                                                                    behaviour.playback == QLatin1String("loop") ? QStringLiteral(", looping") : QString()));
     } else if (action.has_clear_group()) {
         // (Which layers that is, is the group's to say when the action is run: see
         // show::State. Its picture here is the plain one of clearing.)
@@ -315,6 +350,24 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
         Identification *macro = action->mutable_macro()->mutable_identification();
         identify(macro, wanted.value("macroId").toString(), wanted.value("macroName").toString());
         identifyCollection(macro, wanted);
+    } else if (kind == QLatin1String("audio")) {
+        // A new one is a copy of the action of a row of the audio bin, `item`, as the
+        // bin's file has it: which file, how loud, and everything else ProPresenter
+        // keeps with a piece of audio, of which this app knows only a part. One that
+        // is there is given what the map says of how it plays, and is otherwise left
+        // as it is.
+        if (!audiocue::isAudio(*action)) {
+            const std::string id = action->uuid().string();
+            const QString error = PlaylistFile::audioAction(workspace::openWorkspace(), wanted.value("item").toString(), action);
+            if (!error.isEmpty())
+                return error;
+            action->mutable_uuid()->set_string(id);
+            // (A row that goes on to the next of its playlist has no playlist here.)
+        }
+        if (wanted.contains("playback") && !audiocue::setPlayback(action, nullptr, wanted.value("playback").toString()))
+            return QStringLiteral("That is not a way audio can be played");
+        if (wanted.contains("effect"))
+            audiocue::setEffect(action, wanted.value("effect").toBool());
     } else {
         return QStringLiteral("That kind of action cannot be made here");
     }

@@ -887,6 +887,259 @@ def after_chords(workspace, test_dir):
     return lines
 
 
+# ---- the audio bin
+
+# A row of the audio bin's file as ProPresenter writes one (version 21.4 on a Mac: the one file of its own that was
+# looked at), field for field, with made-up names. Which outputs each channel goes to was the user's own doing in
+# that file, and is here as something a change must leave alone.
+AUDIO_ROW = """\
+        items {
+          uuid { string: "%(id)s-ITEM" }
+          name: "%(name)s"
+          cue {
+            uuid { string: "%(id)s-CUE" }
+            name: "%(name)s"
+            %(target)s
+            completion_action_type: COMPLETION_ACTION_TYPE_LAST
+            hot_key { }
+            actions {
+              uuid { string: "%(id)s-ACTION" }
+              isEnabled: true
+              duration: %(seconds)s
+              type: ACTION_TYPE_MEDIA
+              media {
+                element {
+                  uuid { string: "%(id)s-MEDIA" }
+                  url { absolute_string: "%(address)s"
+                        platform: PLATFORM_MACOS local { root: ROOT_SHOW path: "Media/Assets/%(file)s" } }
+                  metadata { artist: "unknown" format: "wavfloat" color_format: COLOR_FORMAT_SDR }
+                  audio {
+                    audio { volume: %(volume)s audio_channels { outputs { channel_index: 2 } } audio_channels { index: 1 outputs { channel_index: 3 } }
+                            is_custom_mapping: true }
+                    transport { play_rate: 1 out_point: %(seconds)s should_fade_in: true should_fade_out: true end_point: %(seconds)s
+                                %(loop)s times_to_loop: 1 retrigger: RETRIGGER_SETTING_AUTOMATIC }
+                    file { local_url { absolute_string: "%(address)s"
+                                       platform: PLATFORM_MACOS local { root: ROOT_SHOW path: "Media/Assets/%(file)s" } } }
+                  }
+                }
+                audio { %(type)s }
+              }
+            }
+            isEnabled: true
+          }
+        }
+"""
+
+AUDIO_BIN = """\
+application_info { platform: PLATFORM_MACOS application: APPLICATION_PROPRESENTER application_version { major_version: 21 minor_version: 4 } }
+type: TYPE_AUDIO
+root_node {
+  uuid { string: "0A0A0A0A-0000-0000-0000-000000000000" }
+  name: "PLAYLIST"
+  expanded: true
+  playlists {
+    playlists {
+      uuid { string: "0A0A0A0A-0000-0000-0000-00000000F01D" }
+      name: "Services"
+      expanded: true
+      playlists {
+        playlists {
+          uuid { string: "0A0A0A0A-0000-0000-0000-000000000001" }
+          name: "Before the Service"
+          items {
+%(before)s
+          }
+        }
+        playlists {
+          uuid { string: "0A0A0A0A-0000-0000-0000-000000000002" }
+          name: "Effects"
+          items {
+%(effects)s
+          }
+        }
+      }
+    }
+    playlists {
+      uuid { string: "0A0A0A0A-0000-0000-0000-000000000003" }
+      name: "Nothing Yet"
+      items { }
+    }
+  }
+}
+"""
+
+# The sound files the test plays: what each is called, how long it is, how high its note is, and how loud it is on
+# the left and on the right, where 1 is as loud as a file can say.
+AUDIO_TONES = {
+    "Walk In.wav": (3.0, 440, 0.5, 0.5),
+    "Second Tune.wav": (3.0, 330, 0.25, 0.25),
+    "Last Tune.wav": (2.0, 392, 0.5, 0.5),
+    "Round.wav": (1.2, 523, 0.5, 0.5),
+    "Bell.wav": (2.0, 880, 0.5, 0.0),
+    "Thunder.wav": (4.0, 110, 0.5, 0.5),
+}
+
+
+def write_tone(path, seconds, pitch, left, right, test_dir):
+    """A sound file of one steady note: sixteen bits, two channels, 44,100 samples a second. It is written only if
+    where it would really be is inside the test's own folder: see prepare_audio."""
+    import math
+    import wave
+    if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("a test's sound file was about to be written outside the test's folder: %s" % os.path.realpath(path))
+    rate = 44100
+    frames = bytearray()
+    for n in range(int(seconds * rate)):
+        wave_at = math.sin(2 * math.pi * pitch * n / rate)
+        frames += struct.pack("<hh", int(32767 * left * wave_at), int(32767 * right * wave_at))
+    with wave.open(path, "wb") as out:
+        out.setnchannels(2)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(bytes(frames))
+
+
+def audio_row(key, name, file, seconds, sounds, target=True, loop=False, effect=False, volume=1):
+    return AUDIO_ROW % {"id": "0B0B0B0B-0000-0000-0000-%012d" % key, "name": name, "file": file,
+                        "address": "file://" + urllib.parse.quote(os.path.join(sounds, file)), "seconds": seconds, "volume": volume,
+                        "target": "completion_target_type: COMPLETION_TARGET_TYPE_NEXT" if target else "",
+                        "loop": "playback_behavior: PLAYBACK_BEHAVIOR_LOOP" if loop else "",
+                        "type": "audio_type: MEDIA_ACTION_AUDIO_TYPE_SOUND" if effect else ""}
+
+
+def prepare_audio(workspace, test_dir):
+    """An audio bin as ProPresenter might have left one: a folder of two playlists and a playlist with nothing in it,
+    one of their sound files not there; and two more sound files, for the test to add.
+
+    NOTHING IS WRITTEN UNDER THE WORKSPACE'S Media. In a copy of a fixture that folder is a link to the Media of the
+    workspace the fixture was made from, which is a real one: a file written "into the copy" there is written into
+    somebody's real media folder. (It was, once, the first time this was run.) So the sound files are in the test's
+    own folder, and each row of the file names its sound file by its whole address there; the place beside it that a
+    row has for where the file is in the workspace is as ProPresenter writes it, and names a file that is not there,
+    which is how a workspace that was copied without its media looks. write_tone refuses any other place."""
+    sounds = os.path.join(test_dir, "sounds")
+    os.makedirs(sounds)
+    for name, (seconds, pitch, left, right) in AUDIO_TONES.items():
+        write_tone(os.path.join(sounds, name), seconds, pitch, left, right, test_dir)
+    write_tone(os.path.join(sounds, "Extra Tune.wav"), 2.5, 660, 0.5, 0.5, test_dir)
+    write_tone(os.path.join(sounds, "Another.wav"), 1.0, 700, 0.5, 0.5, test_dir)
+    with open(os.path.join(sounds, "notes.txt"), "w") as out:
+        out.write("not a sound file\n")
+    before = (audio_row(1, "Walk In", "Walk In.wav", 3, sounds) + audio_row(2, "Second Tune", "Second Tune.wav", 3, sounds)
+              + audio_row(3, "Lost Tune", "Lost Tune.wav", 5, sounds) + audio_row(4, "Last Tune", "Last Tune.wav", 2, sounds)
+              + audio_row(5, "Round", "Round.wav", 1.2, sounds, target=False, loop=True))
+    effects = (audio_row(6, "Bell", "Bell.wav", 2, sounds, target=False, effect=True)
+               + audio_row(7, "Thunder", "Thunder.wav", 4, sounds, target=False, effect=True, volume=0.5))
+    path = os.path.join(workspace, "Playlists", "Audio")
+    with open(path, "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (AUDIO_BIN % {"before": before, "effects": effects}).encode()))
+    shutil.copy(path, os.path.join(test_dir, "audio-before"))
+
+
+def after_audio(workspace, test_dir):
+    """What the audio bin's file holds once the test has worked on it, set against the file the test was given
+    (prepare_audio): the rows that were left alone, the one that was changed, the one that was added and the playlist
+    that was made. And what a piece dragged onto a slide and onto the macros left in the song's file (set against
+    song-before, which the test kept) and in the workspace's file of macros (against the fixture's)."""
+    import difflib
+
+    def decoded(path, message="rv.data.PlaylistDocument", proto="propresenter.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def rows(text):
+        """Each row of a decoded playlists file, by its name: its lines of the text."""
+        found = {}
+        for block in re.finditer(r"^( +)items \{\n\1  uuid \{\n.*?^\1\}\n", text, re.S | re.M):
+            found[re.search(r'^ +name: "([^"]*)"', block.group(0), re.M).group(1)] = block.group(0)
+        return found
+
+    def added_and_removed(was, now):
+        """The lines one text has that the other has not, as two lists, each in order."""
+        added, removed = [], []
+        for line in difflib.ndiff(was.split("\n"), now.split("\n")):
+            if line.startswith("+ "):
+                added.append(line[2:])
+            elif line.startswith("- "):
+                removed.append(line[2:])
+        return added, removed
+
+    was = decoded(os.path.join(test_dir, "audio-before"))
+    now = decoded(os.path.join(workspace, "Playlists", "Audio"))
+    before, after = rows(was), rows(now)
+    untouched = ["Walk In", "Second Tune", "Lost Tune", "Round", "Bell", "Thunder"]
+    last_added, last_removed = added_and_removed(before.get("Last Tune", ""), after.get("Last Tune", ""))
+    extra = after.get("Extra Tune", "")
+    names = re.findall(r'^ +name: "([^"]*)"\n +(?:expanded: true\n +)?(?:playlists|items) \{', now, re.M)
+    sounds = os.path.join(test_dir, "sounds")
+    lines = [
+        said(list(after) == ["Walk In", "Second Tune", "Lost Tune", "Last Tune", "Round", "Extra Tune", "Bell", "Thunder"],
+             "in the audio bin's file: the rows ProPresenter wrote, in their order, and the one that was added after them in its playlist", ", ".join(after)),
+        said(all(name in before and before[name] == after.get(name) for name in untouched),
+             "in the audio bin's file: every row that was not changed is as ProPresenter wrote it, to the letter (one of them was made a sound effect and then music again)",
+             ", ".join(name for name in untouched if before.get(name) != after.get(name))),
+        said(last_added == [] and [line.strip() for line in last_removed] == ["completion_target_type: COMPLETION_TARGET_TYPE_NEXT"],
+             "in the audio bin's file: the row that was set to stop has lost the line that said the next follows it, and nothing else",
+             "added %s, removed %s" % (last_added, last_removed)),
+        said(all(part in extra for part in ("completion_target_type: COMPLETION_TARGET_TYPE_NEXT", "completion_action_type: COMPLETION_ACTION_TYPE_LAST",
+                                            "hot_key {", "isEnabled: true", "duration: 2.5", "type: ACTION_TYPE_MEDIA", "volume: 1", "play_rate: 1",
+                                            "out_point: 2.5", "end_point: 2.5", "should_fade_in: true", "should_fade_out: true", "times_to_loop: 1",
+                                            "retrigger: RETRIGGER_SETTING_AUTOMATIC", 'format: "WAV"'))
+             and extra.count("file://" + urllib.parse.quote(os.path.join(sounds, "Extra Tune.wav"))) == 2,
+             "in the audio bin's file: the row that was added is laid out as ProPresenter's are, and names its file where it is on this computer"),
+        said("audio_channels" not in extra and "is_custom_mapping" not in extra and "audio_type" not in extra and "playback_behavior" not in extra,
+             "in the audio bin's file: with nothing said of which outputs its channels go to, and nothing of what an action leaves unsaid"),
+        said(names == ["PLAYLIST", "Services", "Before the Service", "Effects", "Sunday", "Nothing Yet"] and now.count("type: TYPE_AUDIO") == 1
+             and re.search(r'name: "Sunday"\n +items \{\n +\}', now) is not None,
+             "in the audio bin's file: the playlist that was made is in the folder of the one that was picked, with nothing in it", ", ".join(names)),
+        said(now.split("root_node {")[0] == was.split("root_node {")[0],
+             "in the audio bin's file: what it says of itself is as it was"),
+    ]
+
+    # The song a sound effect was dragged onto
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+    song_was = decoded(os.path.join(frames, "song-before"), "rv.data.Presentation", "presentation.proto")
+    song = glob.glob(os.path.join(glob.escape(workspace), "Libraries", "*", "Awake My Soul.pro"))
+    song_now = decoded(song[0], "rv.data.Presentation", "presentation.proto") if song else ""
+    added, removed = added_and_removed(song_was, song_now)
+    block = "\n".join(added)
+    bell = before.get("Bell", "")
+    lines += [
+        # (One action's worth of lines and no more: one line that opens an action, and as many brackets closed as opened.)
+        said(removed == [] and len(added) > 20 and sum(1 for line in added if line.strip() == "actions {") == 1
+             and sum(line.count("{") for line in added) == sum(line.count("}") for line in added),
+             "in the song's file: an action has been added to it, and nothing else is other than it was", "%d lines added, %d removed" % (len(added), len(removed))),
+        said(all(part in block for part in ("type: ACTION_TYPE_MEDIA", "audio_type: MEDIA_ACTION_AUDIO_TYPE_SOUND", "is_custom_mapping: true", "channel_index: 3",
+                                            'artist: "unknown"', "duration: 2", "should_fade_in: true", 'name: "Bell"'))
+             and block.count("file://" + urllib.parse.quote(os.path.join(sounds, "Bell.wav"))) == 2,
+             "in the song's file: it is the row's own action as ProPresenter wrote it, with what this app knows nothing of, and called what the row is called"),
+        said("0B0B0B0B-0000-0000-0000-000000000006-ACTION" in bell and "0B0B0B0B-0000-0000-0000-000000000006-ACTION" not in block
+             and re.search(r'uuid \{\n +string: "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}"', block) is not None,
+             "in the song's file: with an id of its own, in the form ProPresenter uses"),
+        said("completion_target_type" not in block, "in the song's file: and nothing of what follows it, which is a row's to say and not an action's"),
+    ]
+
+    # The macros: one made for a piece, and given another
+    def macros(text):
+        return {re.search(r'^  name: "([^"]*)"', block, re.M).group(1): block for block in re.findall(r"^macros \{\n.*?^\}\n", text, re.S | re.M)}
+
+    macros_was = macros(decoded(os.path.join(FIXTURES, "workspaces", "Act", "Configuration", "Macros"), "rv.data.MacrosDocument", "macros.proto"))
+    macros_now = macros(decoded(os.path.join(workspace, "Configuration", "Macros"), "rv.data.MacrosDocument", "macros.proto"))
+    made = macros_now.get("Thunder", "")
+    actions = re.findall(r"^  actions \{\n.*?^  \}\n", made, re.S | re.M)
+    lines += [
+        said(set(macros_now) == set(macros_was) | {"Thunder"} and all(macros_now[name] == macros_was[name] for name in macros_was),
+             "in the macros' file: one macro more, and the others to the letter as they were", ", ".join(sorted(set(macros_now) ^ set(macros_was)))),
+        said(len(actions) == 2 and all("type: ACTION_TYPE_MEDIA" in action and "audio_type: MEDIA_ACTION_AUDIO_TYPE_SOUND" in action for action in actions)
+             and "Thunder.wav" in actions[0] and "volume: 0.5" in actions[0] and "Bell.wav" in actions[1],
+             "in the macros' file: its two actions are the two pieces, each as its row has it", "%d actions" % len(actions)),
+        said(len(actions) == 2 and "playback_behavior: PLAYBACK_BEHAVIOR_LOOP" in actions[1] and "playback_behavior" not in actions[0]
+             and "playback_behavior" not in bell,
+             "in the macros' file: the one that was set to go round says so in its media, and its row in the bin is as it was"),
+    ]
+    return lines
+
+
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
             "monitors": monitors}
@@ -907,6 +1160,7 @@ TESTS = {
     "actions": test("Demo", SHELL, 120, prepare=prepare_actions),
     "log": test("Demo"),
     "sound": test("Demo"),
+    "audio": test("Act", timeout=300, prepare=prepare_audio, after=after_audio),
     "drop": test("Demo"),
     "simple": test("Demo"),
     "shapes": test("Shapes", SHELL, 120),

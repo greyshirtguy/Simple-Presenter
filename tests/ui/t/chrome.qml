@@ -94,16 +94,16 @@ QtObject {
                 const inPane = texts(sidePanel)
                 check("the previews have no titles", !inPane.some(x => x.toLowerCase() === "output" || x.toLowerCase() === "stage") && !inPane.some(x => x.toLowerCase() === "timers"),
                       inPane.join(" | "))
-                const clears = ["clearSlide", "clearMedia", "clearProps"].map(name => named(name))
-                check("there are three clear buttons for the layers, across the whole width", clears.every(c => c !== null) && near(clears[0].width, clears[1].width)
-                      && near(clears[1].width, clears[2].width)
-                      && near(clears[0].mapToItem(sidePanel, 0, 0).x, 12) && near(clears[2].mapToItem(sidePanel, clears[2].width, 0).x, sidePanel.width - 12),
+                const clears = ["clearSlide", "clearMedia", "clearProps", "clearAudio"].map(name => named(name))
+                check("there are four clear buttons for the layers, across the whole width", clears.every(c => c !== null) && near(clears[0].width, clears[1].width)
+                      && near(clears[1].width, clears[2].width) && near(clears[2].width, clears[3].width)
+                      && near(clears[0].mapToItem(sidePanel, 0, 0).x, 12) && near(clears[3].mapToItem(sidePanel, clears[3].width, 0).x, sidePanel.width - 12),
                       clears.map(c => c ? c.width.toFixed(1) : "none").join(", ") + " in " + sidePanel.width)
                 const pictureOf = (item) => { const found = Lib.find(item, i => i.inkName !== undefined && i.name !== undefined && i.name !== "" && i.visible === true); return found ? found.name : "none" }
                 check("with pictures on them and no words: ProPresenter's own, of clearing each layer", clears.every(c => texts(c).length === 0)
-                      && clears.map(pictureOf).join() === "ClearPresentation,ClearMedia,ClearProps", clears.map(pictureOf).join())
+                      && clears.map(pictureOf).join() === "ClearPresentation,ClearMedia,ClearProps,ClearAudio", clears.map(pictureOf).join())
                 const groups = Lib.findAll(sidePanel, i => i.objectName === "clearGroup")
-                check("and under them the button of the workspace's clear group, as wide as the three together, with ProPresenter's picture of clearing and its name",
+                check("and under them the button of the workspace's clear group, as wide as the four together, with ProPresenter's picture of clearing and its name",
                       groups.length === 1 && near(groups[0].mapToItem(sidePanel, 0, 0).x, 12) && near(groups[0].mapToItem(sidePanel, groups[0].width, 0).x, sidePanel.width - 12)
                       && groups[0].mapToItem(sidePanel, 0, 0).y > clears[0].mapToItem(sidePanel, 0, clears[0].height).y && pictureOf(groups[0]) === "Clear"
                       && texts(groups[0]).join() === "Clear All", groups.length + " of them: " + (groups.length ? pictureOf(groups[0]) + " " + texts(groups[0]).join() : ""))
@@ -111,7 +111,10 @@ QtObject {
                       ClearGroups.groups.length === 1 && ClearGroups.groups[0].layers.length === 8 && !testInput.exists(catalog.workspacePath + "/Configuration/ClearGroups"))
                 const tabs = Lib.findAll(sidePanel, i => i.chosen !== undefined && i.modelData !== undefined && i.modelData.picture !== undefined)
                 check("and so are the tabs of the show controls: a timer, a pile of layers, a speaker at a lectern, an M in brackets",
-                      tabs.map(pictureOf).join() === "Countdown,Prop,Stage,Macro", tabs.map(pictureOf).join())
+                      tabs.map(pictureOf).join() === "Countdown,Prop,Stage,Macro,none", tabs.map(pictureOf).join())
+                // (The fifth, the audio bin's, has no picture in ProPresenter's pack: it is drawn here.)
+                check("and the audio bin's, which is two joined notes drawn here", tabs.length === 5 && tabs[4].modelData.id === "audio"
+                      && Lib.findAll(tabs[4], i => i.kind === "music" && i.size !== undefined && i.ink !== undefined).length === 1)
                 const pictures = Lib.findAll(win.contentItem, i => i.inkName !== undefined && i.name !== undefined && i.name !== "")
                 check("every one of those pictures that is asked for anywhere in the window is there to be had", pictures.length >= 10
                       && pictures.every(p => p.status === Image.Ready && p.implicitWidth > 0),
@@ -153,8 +156,8 @@ QtObject {
                       && bottomOf(transport) < topOf(lines[1]), lines.length + " lines")
                 // the show controls
                 const tabs = Lib.findAll(sidePanel, item => item.chosen !== undefined && item.modelData !== undefined && item.modelData.id !== undefined)
-                check("the four tabs fill the width", tabs.length === 4 && near(tabs[0].mapToItem(sidePanel, 0, 0).x, 12)
-                      && near(tabs[3].mapToItem(sidePanel, tabs[3].width, 0).x, sidePanel.width - 12) && near(tabs[0].width, tabs[3].width)
+                check("the five tabs fill the width", tabs.length === 5 && near(tabs[0].mapToItem(sidePanel, 0, 0).x, 12)
+                      && near(tabs[4].mapToItem(sidePanel, tabs[4].width, 0).x, sidePanel.width - 12) && near(tabs[0].width, tabs[4].width)
                       && topOf(tabs[0]) > topOf(lines[1]), tabs.map(x => x.width.toFixed(1)).join(", "))
                 const add = named("showControlAdd")
                 check("the + is under them at the right, and small", add !== null && add.visible && topOf(add) >= bottomOf(tabs[0]) && near(add.mapToItem(sidePanel, add.width, 0).x, sidePanel.width - 12)

@@ -17,7 +17,9 @@ import SimplePresenterApp
 // transition takes from nothing to all of it or back, and the sound is played that
 // much quieter. So a video dissolving in or out fades in or out to the ear as well,
 // and one that is cut to or from starts or stops at once. A video with no sound to
-// play is given no audio output at all, and costs nothing for it.
+// play is given no audio output at all, and costs nothing for it. Where a device has
+// been chosen for sound in the settings, it is played through that one (AudioLayer has
+// it); and what is played is handed to the meter in the preview as it goes (AudioTap).
 //
 // The image or the video is made when there is content and unmade when there is none,
 // so that a layer with nothing on it holds no decoder and no picture. That is how a
@@ -128,7 +130,8 @@ Item {
 
                 source: root.content?.source ?? ""
                 videoOutput: output
-                audioOutput: sound.item
+                audioOutput: sound.item ? sound.item.output : null
+                audioBufferOutput: sound.item ? sound.item.tap.output : null
                 loops: root.content?.loops === false ? 1
                      : root.content?.playback === 2 ? Math.max(1, root.content.loopCount) : MediaPlayer.Infinite
                 onErrorOccurred: (error, errorString) => {
@@ -168,9 +171,25 @@ Item {
 
                 active: movie.volume > 0
 
-                sourceComponent: AudioOutput {
-                    objectName: "mediaSound"
-                    volume: movie.volume * root.level
+                sourceComponent: QtObject {
+                    readonly property AudioOutput output: AudioOutput {
+                        objectName: "mediaSound"
+                        volume: movie.volume * root.level
+                    }
+                    // How loud it is, for the meter: as loud as it is played here,
+                    // while it is playing.
+                    readonly property AudioTap tap: AudioTap {
+                        gain: movie.volume * root.level
+                        playing: mediaPlayer.playbackState === MediaPlayer.PlayingState
+                    }
+                    // (Only where a device has been chosen: otherwise the output is
+                    // left to go where the system sends sound, and to follow it.)
+                    readonly property Binding chosen: Binding {
+                        target: output
+                        property: "device"
+                        value: AudioLayer.outputDevice
+                        when: AudioLayer.device !== ""
+                    }
                 }
             }
 
@@ -202,7 +221,7 @@ Item {
                     const heard = tracks === 0 ? "no sound in the file"
                                 : movie.volume <= 0 ? "its sound not played"
                                 : "its sound played" + (movie.volume < 1 ? " at " + Math.round(movie.volume * 100) + "%" : "")
-                                  + " through " + (sound.item.device.description || "no audio output")
+                                  + " through " + (sound.item.output.device.description || "no audio output")
                     Log.note("media", "video \"" + movie.name + "\": first picture after " + Math.round(Date.now() - movie.askedAt) + " ms; "
                              + description + (codec ? "; " + codec : "") + (rate > 0 ? ", " + (+rate.toFixed(2)) + " frames a second" : "")
                              + (mediaPlayer.duration > 0 ? ", " + (mediaPlayer.duration / 1000).toFixed(1) + " s long" : "")

@@ -111,6 +111,8 @@ qt_add_qml_module(SimplePresenter
         qml/AppComboBox.qml
         qml/ActionDialog.qml
         qml/ActionGlyph.qml
+        qml/AudioGlyph.qml
+        qml/AudioPanel.qml
         qml/ActionIcon.qml
         qml/AppSlider.qml
         qml/Benchmark.qml

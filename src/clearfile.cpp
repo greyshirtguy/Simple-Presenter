@@ -21,7 +21,10 @@ using rv::data::Action;
 // The layers, in ProPresenter's order (see clearfile.h). `ours` is whether this app has
 // the layer, and so whether a group's having it can be changed here.
 //
-// TO COME: when the app gains one of the others (audio, messages, announcements, video
+// (The audio and the audio effects are the two halves of this app's audio layer: see
+// State::clearGroup, src/showstate.cpp, for which half is which.)
+//
+// TO COME: when the app gains one of the others (messages, announcements, video
 // inputs), its `ours` below becomes true, which is all the window the groups are set up
 // in goes by (ClearGroupsPanel.qml). Two things go with that: the show is to clear the
 // layer for a group that has it (State::clearGroup, src/showstate.cpp), and the layer
@@ -34,8 +37,8 @@ struct Layer
     bool ours;
 };
 const Layer kLayers[] = {
-    {"audio", Clear::CLEAR_TARGET_LAYER_AUDIO, Action::CONTENT_DESTINATION_GLOBAL, false},
-    {"audioEffects", Clear::CLEAR_TARGET_LAYER_AUDIO_EFFECTS, Action::CONTENT_DESTINATION_GLOBAL, false},
+    {"audio", Clear::CLEAR_TARGET_LAYER_AUDIO, Action::CONTENT_DESTINATION_GLOBAL, true},
+    {"audioEffects", Clear::CLEAR_TARGET_LAYER_AUDIO_EFFECTS, Action::CONTENT_DESTINATION_GLOBAL, true},
     {"messages", Clear::CLEAR_TARGET_LAYER_MESSAGES, Action::CONTENT_DESTINATION_GLOBAL, false},
     {"props", Clear::CLEAR_TARGET_LAYER_PROP, Action::CONTENT_DESTINATION_GLOBAL, true},
     {"announcements", Clear::CLEAR_TARGET_LAYER_ALL, Action::CONTENT_DESTINATION_ANNOUNCEMENTS, false},

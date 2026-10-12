@@ -13,8 +13,11 @@ import QtQuick.Shapes
 // the media and not the plain crossed circle (see actions::describe, which chooses).
 // "other" is three dots.
 //
-// And, for how a video plays on from its end, "stop" (a square) or "loop" (an arrow
-// going round), which are this app's own.
+// And, for how a video or a piece of audio plays on from its end, "stop" (a square),
+// "loop" (an arrow going round) or "next" (an arrowhead against a bar: the next of its
+// playlist follows), which are this app's own. So are the two for an action that plays
+// a piece of audio, "audio": two joined notes for music, and a jagged line for one
+// whose `picture` says it is a sound effect ("SoundEffect"). See AudioGlyph.
 //
 // It takes up a box twelve high and twelve wide, sixteen wide for a picture that is
 // wider than it is high, and is drawn in `ink`.
@@ -28,7 +31,10 @@ Item {
 
     // The picture for a kind that has not said which is its own
     readonly property var pictures: ({ timer: "Countdown", clear: "Clear", look: "Looks", stage: "Stage", prop: "Prop", macro: "Macro" })
-    readonly property string shown: picture !== "" ? picture : (pictures[kind] ?? "")
+    // Which of the audio bin's pictures it is, if it is one of those: "" for none
+    readonly property string audio: kind === "next" ? "next" : picture === "SoundEffect" || kind === "sound" ? "sound"
+                                  : kind === "audio" || kind === "music" ? "music" : ""
+    readonly property string shown: audio !== "" ? "" : picture !== "" ? picture : (pictures[kind] ?? "")
     readonly property bool wide: shown === "Looks" || shown === "Macro" || shown === "ClearVideoInput" || shown === "ClearPresentation"
 
     width: wide ? 16 : 12
@@ -51,6 +57,18 @@ Item {
         font.pixelSize: 11
         font.bold: true
         text: "…"
+    }
+
+    // One of the audio bin's own pictures
+    Loader {
+        anchors.centerIn: parent
+        active: glyph.audio !== ""
+
+        sourceComponent: AudioGlyph {
+            kind: glyph.audio
+            ink: glyph.ink
+            size: 14
+        }
     }
 
     // Plays once and stops

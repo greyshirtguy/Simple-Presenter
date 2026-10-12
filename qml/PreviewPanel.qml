@@ -3,7 +3,8 @@ import QtMultimedia
 import SimplePresenterApp
 
 // The right of the operator window, from the toolbar to the bottom: what the audience
-// is being shown and under it what the stage is, the buttons that clear the output (a
+// is being shown (with, at its right edge while anything is sounding, how loud that is)
+// and under it what the stage is, the buttons that clear the output (a
 // row for the layers, and under it a row for the workspace's clear groups), the
 // transport for a video that is playing, and the show controls (timers, props and the
 // stage display). A line each side of the transport sets the three lots of controls
@@ -27,6 +28,13 @@ Rectangle {
     property var livePlayer: null
     // Which tab of the show controls is showing
     property alias showControlTab: showControl.tab
+    // What a playlist dragged out of the audio bin's list of them is carried by
+    required property Item audioPlaylistDrag
+
+    // Starts renaming a playlist or folder of the audio bin in place.
+    function renameAudioPlaylist(id) {
+        showControl.renameAudioPlaylist(id)
+    }
     // Whether something in the show controls is being renamed in place, and so has the
     // keyboard
     readonly property bool renaming: showControl.renaming
@@ -63,6 +71,8 @@ Rectangle {
     function groupLive(group) {
         return (group.layers.indexOf("slide") >= 0 && !win.cleared) || (group.layers.indexOf("media") >= 0 && win.liveMedia !== null)
                || (group.layers.indexOf("props") >= 0 && win.liveProps.length > 0)
+               || (group.layers.indexOf("audio") >= 0 && win.audioLive)
+               || (group.layers.indexOf("audioEffects") >= 0 && win.liveSounds.length > 0)
     }
 
     // A line across the panel, between one lot of controls and the next
@@ -80,19 +90,20 @@ Rectangle {
     component ClearButton: Rectangle {
         id: clearButton
 
-        // "slide", "media" or "props"
+        // "slide", "media", "props" or "audio"
         property string kind
         property bool live: false
         // The layer it clears, as an action's file numbers them, and what an action
         // that clears it is called
-        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4 })[kind] ?? 5
-        readonly property string title: ({ "slide": "Clear the Slide", "media": "Clear the Media", "props": "Clear the Props" })[kind] ?? ""
-        readonly property string picture: ({ "slide": "ClearPresentation", "media": "ClearMedia", "props": "ClearProps" })[kind] ?? "Clear"
+        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4, "audio": 1 })[kind] ?? 5
+        readonly property string title: ({ "slide": "Clear the Slide", "media": "Clear the Media", "props": "Clear the Props",
+                                           "audio": "Clear the Audio" })[kind] ?? ""
+        readonly property string picture: ({ "slide": "ClearPresentation", "media": "ClearMedia", "props": "ClearProps", "audio": "ClearAudio" })[kind] ?? "Clear"
         readonly property color ink: live ? "#ececec" : "#6c6f75"
 
         signal clicked
 
-        width: (layerClears.width - 2 * layerClears.spacing) / 3
+        width: (layerClears.width - 3 * layerClears.spacing) / 4
         height: 30
         radius: 6
         color: !live ? "#2b2d31" : clearMouse.pressed ? "#e25555" : clearMouse.containsMouse ? "#d84343" : "#c62828"
@@ -270,6 +281,86 @@ Rectangle {
                 duration: Math.round(Props.transitionDuration * 1000)
                 effects: false
             }
+
+            // How loud what the app is playing is, on the left and on the right: two
+            // bars up the preview's right edge, there only while something is sounding
+            // (a piece of audio, a video with its sound) and for the moment after in
+            // which they fall, and made only then. They go by decibels, each tenth of
+            // their height being 6 dB (see AudioMeter): green, then yellow for the top
+            // 12 dB, then red for the top 3, where sound is near as loud as it can be.
+            //
+            // A GUESS at ProPresenter, whose preview has meters at its side: how many
+            // bars, where the colours change and how fast they fall are this app's own.
+            Loader {
+                objectName: "audioMeter"
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 13
+                active: AudioMeter.sounding
+
+                sourceComponent: Rectangle {
+                    color: "#b0000000"
+
+                    component Bar: Item {
+                        id: bar
+
+                        // How far up it is, from 0 to 1
+                        property real level: 0
+
+                        width: 4
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: "#30ffffff"
+                        }
+
+                        // Three stretches, each as much of itself as the level reaches
+                        Rectangle {
+                            objectName: "audioMeterGreen"
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: Math.min(bar.level, 0.8) * parent.height
+                            color: "#35c463"
+                        }
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            y: parent.height * (1 - Math.min(bar.level, 0.95))
+                            height: Math.max(0, Math.min(bar.level, 0.95) - 0.8) * parent.height
+                            color: "#e6c229"
+                        }
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            y: parent.height * (1 - bar.level)
+                            height: Math.max(0, bar.level - 0.95) * parent.height
+                            color: "#e5484d"
+                        }
+                    }
+
+                    Bar {
+                        objectName: "audioMeterLeft"
+                        x: 2
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.margins: 3
+                        level: AudioMeter.left
+                    }
+
+                    Bar {
+                        objectName: "audioMeterRight"
+                        x: 7
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.margins: 3
+                        level: AudioMeter.right
+                    }
+                }
+            }
         }
     }
 
@@ -316,9 +407,10 @@ Rectangle {
         anchors.margins: sidePanel.gap
         spacing: 4
 
-        // The layers: the slide (F2), the media (F3), the props (F4).
+        // The layers: the slide (F2), the media (F3), the props (F4), the audio (F5),
+        // which is the music and the sound effects of the audio bin.
         //
-        // TO COME: a button here for each layer this app gains (audio, messages,
+        // TO COME: a button here for each layer this app gains (messages,
         // announcements, video inputs), which is also when that layer is to be switched
         // on among the layers a clear group can be given (see `ours` in
         // src/clearfile.cpp) and cleared by State::clearGroup (src/showstate.cpp).
@@ -347,6 +439,13 @@ Rectangle {
                 kind: "props"
                 live: sidePanel.win.liveProps.length > 0
                 onClicked: sidePanel.win.clearProps()
+            }
+
+            ClearButton {
+                objectName: "clearAudio"
+                kind: "audio"
+                live: sidePanel.win.audioLive
+                onClicked: sidePanel.win.clearAudio()
             }
         }
 
@@ -404,5 +503,6 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.margins: sidePanel.gap
         win: sidePanel.win
+        audioPlaylistDrag: sidePanel.audioPlaylistDrag
     }
 }

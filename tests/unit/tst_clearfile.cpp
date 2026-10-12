@@ -278,12 +278,37 @@ private slots:
         QTemporaryDir workspace;
         writeProPresenters(workspace.path());
         const quint64 was = fileItself(workspace.path());
-        QCOMPARE(ourLayers(), (QStringList {"props", "slide", "media"}));
+        QCOMPARE(ourLayers(), (QStringList {"audio", "audioEffects", "props", "slide", "media"}));
         QCOMPARE(layers(), kEveryLayer);
-        for (const QString &layer : {QStringLiteral("audio"), QStringLiteral("audioEffects"), QStringLiteral("messages"),
-                                     QStringLiteral("announcements"), QStringLiteral("videoInput"), QStringLiteral("logo")})
+        for (const QString &layer : {QStringLiteral("messages"), QStringLiteral("announcements"), QStringLiteral("videoInput"), QStringLiteral("logo")})
             QVERIFY(!setLayer(workspace.path(), kOwn, layer, false).isEmpty());
         QCOMPARE(fileItself(workspace.path()), was);
+    }
+
+    void theTwoHalvesOfTheAudioCanBeChangedAndNothingElseIsWith()
+    {
+        // ProPresenter's own group has all eight layers. The audio taken from it, and
+        // then the audio effects, and both put back: each time only that layer of
+        // that group is other than it was.
+        QTemporaryDir workspace;
+        writeProPresenters(workspace.path());
+        const Document before = fileOf(workspace.path());
+        QString error;
+        QVERIFY(setLayer(workspace.path(), kOwn, "audio", false).isEmpty());
+        QCOMPARE(groups(workspace.path(), &error).first().layers,
+                 (QStringList {"audioEffects", "messages", "props", "announcements", "slide", "media", "videoInput"}));
+        QVERIFY(setLayer(workspace.path(), kOwn, "audioEffects", false).isEmpty());
+        QCOMPARE(groups(workspace.path(), &error).first().layers, (QStringList {"messages", "props", "announcements", "slide", "media", "videoInput"}));
+        // The second group, and the rest of the first, are as they were.
+        const Document without = fileOf(workspace.path());
+        QCOMPARE(encoded(without.groups(1)), encoded(before.groups(1)));
+        QCOMPARE(without.groups(0).name(), before.groups(0).name());
+        QCOMPARE(without.groups(0).layer_targets_size(), before.groups(0).layer_targets_size() - 2);
+        QVERIFY(setLayer(workspace.path(), kOwn, "audio", true).isEmpty());
+        QVERIFY(setLayer(workspace.path(), kOwn, "audioEffects", true).isEmpty());
+        const QStringList again = groups(workspace.path(), &error).first().layers;
+        QCOMPARE(again.size(), 8);
+        QVERIFY(again.contains("audio") && again.contains("audioEffects"));
     }
 
     // ---- the groups
