@@ -17,6 +17,12 @@ Rectangle {
     property bool useX11: false
     // Who decodes video, "auto", "processor" or "hardware": see the Video section
     property string videoDecoding: "auto"
+    // The colour of a chord's name on the chord sheet, and of a chord in the ChordPro
+    // text, each as "#rrggbb"; "" for the one it comes with. See the Chords section.
+    property string chordSheetColor: ""
+    property string chordTextColor: ""
+    readonly property color usualSheetChord: "#ffd9a8"
+    readonly property color usualTextChord: "#ffb45e"
 
     // The hotkeys the workspace has for groups that are not in the list here, in words
     property string otherHotkeys: ""
@@ -34,6 +40,8 @@ Rectangle {
     signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
     signal videoDecodingEdited(string mode)
+    signal chordSheetColorEdited(string color)
+    signal chordTextColorEdited(string color)
     signal simpleKeepsSidePanelEdited(bool keeps)
     // A label kept ready is to be made (index -1) or changed, in the panel a label is
     // made in; or taken out of the list
@@ -105,15 +113,78 @@ Rectangle {
         }
     }
 
+    // One editor's colour: its name, the swatch to choose it from, the way back
+    // to the usual one, and at the right what a chord then looks like.
+    component ChordColour: Item {
+        id: colour
+
+        property string title
+        // The colour chosen, "" for the usual one, and what that is
+        property string chosen
+        property color usual
+        readonly property color shown: chosen !== "" ? chosen : usual
+        default property alias sample: sampled.data
+
+        signal edited(string color)
+
+        width: parent.width
+        height: 78
+
+        Text {
+            id: colourTitle
+
+            color: "#e6e6e6"
+            font.pixelSize: 14
+            font.bold: true
+            text: colour.title
+        }
+
+        Row {
+            anchors.top: colourTitle.bottom
+            anchors.topMargin: 12
+            spacing: 10
+
+            ColorButton {
+                objectName: "chordColour:" + colour.title
+                anchors.verticalCenter: parent.verticalCenter
+                value: colour.shown
+                hasAlpha: false
+                onChanging: (value) => colour.edited(String(value))
+                onPicked: (value) => colour.edited(String(value))
+            }
+
+            AppButton {
+                objectName: "usualColour:" + colour.title
+                anchors.verticalCenter: parent.verticalCenter
+                height: 26
+                font.pixelSize: 12
+                enabled: colour.chosen !== ""
+                text: "Usual Colour"
+                onClicked: colour.edited("")
+            }
+        }
+
+        Item {
+            id: sampled
+
+            objectName: "chordSample:" + colour.title
+            anchors.right: parent.right
+            anchors.rightMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            width: 200
+            height: 70
+        }
+    }
+
     // What the app is running on now: "wayland", "xcb" (X11), "windows", "cocoa", ...
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
         ? [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
-           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" }, { name: "Video", path: "video" },
-           { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
+           { name: "Chords", path: "chords" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
+           { name: "Video", path: "video" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
         : [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
-           { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" }, { name: "Video", path: "video" },
-           { name: "About", path: "about" }]
+           { name: "Chords", path: "chords" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
+           { name: "Video", path: "video" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -749,6 +820,136 @@ Rectangle {
                              + "anything being changed here."
                            : "")
                 }
+            }
+        }
+
+        // Chords: how a chord is coloured in each of the two chord editors, each with what
+        // it then looks like and a way back to the colour it comes with. They are only
+        // how this app draws a chord in its editors, kept with the app's own settings:
+        // nothing in a song's file says a colour.
+        //
+        // (Made when the section is turned to, and not with the rest as the app starts:
+        // a swatch brings a whole colour picker with it, and most starts of the app
+        // never come here.)
+        Loader {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            active: screen.section === "chords"
+            visible: active
+
+            sourceComponent: Column {
+                objectName: "chordSettings"
+                spacing: 18
+
+                ChordColour {
+                    id: sheetColour
+
+                    title: "On the chord sheet"
+                    chosen: screen.chordSheetColor
+                    usual: screen.usualSheetChord
+                    onEdited: (color) => screen.chordSheetColorEdited(color)
+
+                    // A chord as the sheet draws one: its name in a bubble, over a word
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 4
+                        color: "#222428"
+
+                        Rectangle {
+                            x: 12
+                            y: 9
+                            width: sampleName.implicitWidth + 14
+                            height: 22
+                            radius: 6
+                            color: "#34363c"
+                            border.width: 1
+                            border.color: "#5c5f66"
+
+                            Text {
+                                id: sampleName
+
+                                anchors.centerIn: parent
+                                color: sheetColour.shown
+                                font.pixelSize: 13
+                                font.bold: true
+                                text: "Em7"
+                            }
+                        }
+
+                        Rectangle {
+                            x: 15
+                            y: 30
+                            width: 2
+                            height: 8
+                            color: "#5c5f66"
+                        }
+
+                        Text {
+                            x: 12
+                            y: 36
+                            color: "#e6e6e6"
+                            font.pixelSize: 17
+                            text: "Amazing grace"
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width - 14
+                    height: 1
+                    color: "#3a3c42"
+                }
+
+                ChordColour {
+                    id: textColour
+
+                    title: "In ChordPro text"
+                    chosen: screen.chordTextColor
+                    usual: screen.usualTextChord
+                    onEdited: (color) => screen.chordTextColorEdited(color)
+
+                    // A line as the text shows one: the chords in their colour, bold, among
+                    // the words
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 4
+                        color: "#1b1c1f"
+                        border.width: 1
+                        border.color: "#3a3c42"
+
+                        Row {
+                            x: 12
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Repeater {
+                                model: [{ text: "[Em7]", chord: true }, { text: "Amazing ", chord: false }, { text: "[D]", chord: true }, { text: "grace", chord: false }]
+
+                                Text {
+                                    required property var modelData
+
+                                    color: modelData.chord ? textColour.shown : "#e6e6e6"
+                                    font.family: "monospace"
+                                    font.pixelSize: 14
+                                    font.bold: modelData.chord
+                                    text: modelData.text
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    width: parent.width - 14
+                    wrapMode: Text.Wrap
+                    color: "#9a9da3"
+                    font.pixelSize: 13
+                    text: "These are only how chords look in the two chord editors. Nothing in a song's file says a colour: the stage shows "
+                        + "chords in the colour its layout gives them, and ProPresenter in its own."
+                }
+        
             }
         }
 

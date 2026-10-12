@@ -37,6 +37,7 @@ repository: see tests/README.md.
 """
 import argparse
 import glob
+import hashlib
 import os
 import re
 import shutil
@@ -598,6 +599,27 @@ def prepare_decodeguard2(workspace, test_dir):
     write_settings(test_dir, ["decodingNoticeSeen=true", "videoDecoding=hardware"])
 
 
+def after_chords3(workspace, test_dir):
+    """What Revert kept: before it put the song back as it was opened, the song as it then was, as a copy among the
+    copies the editor keeps of a file before it is changed (which the app has no window for: they are files in a folder
+    of its own)."""
+    # (Which the test says in the app's own log of the run, as a sum of the file's bytes.)
+    left = []
+    for path in glob.glob(os.path.join(glob.escape(test_dir), "**", "Logs", "*"), recursive=True):
+        with open(path, errors="replace") as log:
+            left += re.findall(r"the song was left as ([0-9a-f]{40})", log.read())
+    copies = sorted(glob.glob(os.path.join(glob.escape(test_dir), "data", "**", "Edit Backups", "**", "Hark2 *.pro"), recursive=True))
+    sums = []
+    for copy in copies:
+        with open(copy, "rb") as source:
+            sums.append(hashlib.sha1(source.read()).hexdigest())
+    with open(os.path.join(FIXTURES, "songs", "Hark2.pro"), "rb") as source:
+        as_it_came = hashlib.sha1(source.read()).hexdigest()
+    return [said(len(left) == 1 and left[0] in sums, "among the editor's copies: the song as it was just before it was reverted, byte for byte",
+                 "%d copies" % len(copies)),
+            said(as_it_came in sums, "among the editor's copies: and the song as it was before its first change")]
+
+
 def prepare_library(workspace, test_dir):
     """The rows of the playlists as ProPresenter writes them on a Mac: the address of the file there, the system named,
     and the path from the workspace's folder. The rows the fixture has were added on this computer and give the file's
@@ -878,6 +900,7 @@ TESTS = {
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),
     "chords2": test("ProPresenter MR", timeout=240, prepare=prepare_chords),
+    "chords3": test("ProPresenter MR", timeout=240, prepare=prepare_chords, after=after_chords3),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)

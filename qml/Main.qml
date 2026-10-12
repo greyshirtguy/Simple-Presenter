@@ -3503,6 +3503,10 @@ Window {
         onUseX11Edited: (useX11) => win.useX11 = useX11
         videoDecoding: win.videoDecoding
         onVideoDecodingEdited: (mode) => win.videoDecoding = mode
+        chordSheetColor: win.chordSheetColor
+        chordTextColor: win.chordTextColor
+        onChordSheetColorEdited: (color) => win.chordSheetColor = win.chordColorKept(color)
+        onChordTextColorEdited: (color) => win.chordTextColor = win.chordColorKept(color)
         simpleKeepsSidePanel: win.simpleKeepsSidePanel
         onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
         onLabelEdited: (index) => win.editLabelPreset(index)
