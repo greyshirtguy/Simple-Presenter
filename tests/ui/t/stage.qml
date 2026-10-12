@@ -143,8 +143,12 @@ QtObject {
                 check("the second those of the slide after it", next.liveLinkText === lyrics(nextSlide) && next.liveLinkText.length > 10 && next.liveLinkText !== current.liveLinkText, JSON.stringify(next.liveLinkText))
                 check("which are plain words, whatever the slide does to them", !current.liveLinkText.includes("\\") && current.liveLinkText === Show.slideText(false, Show.ElementNamed, "lyrics", 0))
                 const clock = box(e => e.name === "Clock")
-                check("a box linked to something the app does not follow shows nothing, not its sample", clock !== undefined && clock.source.linkKind === "other"
-                      && clock.source.linkLabel === "Clock" && !clock.source.hasText && words(clock.source) === "1:23 PM", clock ? JSON.stringify([clock.source.linkKind, clock.source.hasText, words(clock.source)]) : "none")
+                // (ProPresenter's own layout has the time the short way, on the twenty-four hour clock: two figures, a colon, two figures.)
+                check("a box linked to the clock shows the time of day, and not the sample it was left with", clock !== undefined && clock.source.linkKind === "clock"
+                      && clock.source.linkClockTime === 1 && clock.source.linkClock24 === true && words(clock.source) === "1:23 PM"
+                      && /^\d\d:\d\d$/.test(clock.liveLinkText), clock ? JSON.stringify([clock.source.linkKind, clock.liveLinkText, words(clock.source)]) : "none")
+                const video = box(e => e.linkKind === "videoCountdown")
+                check("and one linked to a video's time shows that, at nothing with no video playing", video !== undefined && video.liveLinkText === "00:00", video ? video.liveLinkText : "none")
                 const time = box(e => e.name === "Timer")
                 check("a box linked to a timer shows the timer", time !== undefined && time.source.linkKind === "timer" && time.liveLinkText === "3:00", time ? time.liveLinkText : "none")
                 const live = box(e => words(e).replace(/\s+/g, " ") === "NLC LIVE")
@@ -216,7 +220,8 @@ QtObject {
             () => {
                 const shows = showsChoice()
                 check("the inspector lists the two slides among what a box can show", shows !== undefined && shows.model.includes("Current Slide") && shows.model.includes("Next Slide")
-                      && shows.model.includes("Timer: Timer") && shows.model.includes("Another Element: Next Slide"), shows ? shows.model.join(" | ") : "none")
+                      && shows.model.includes("Timer: Timer") && shows.model.includes("Another Element: Next Slide")
+                      && shows.model.includes("System Clock") && shows.model.includes("Video Countdown"), shows ? shows.model.join(" | ") : "none")
                 check("and has this one as the current slide's", shows.model[shows.choice] === "Current Slide" && shows.shown === "Current Slide", shows.model[shows.choice])
                 testInput.grab("5-inspector")
                 shows.chosen(shows.model.indexOf("Next Slide"))
@@ -258,9 +263,9 @@ QtObject {
             () => {
                 check("ProPresenter's own layout is there to edit too, each linked box marked with what it is", editScreen.canvas.slide.label === "Singing" && marks().length >= 5
                       && captions().includes("Current Slide: “Lyrics”") && captions().includes("Next Slide: “Lyrics”") && captions().includes("Timer: Timer")
-                      && captions().includes("Clock") && captions().includes("Video countdown"), captions())
+                      && captions().includes("System Clock") && captions().includes("Video Countdown"), captions())
                 const clock = Lib.findAll(editScreen.canvas, item => item.source !== undefined && item.sampled !== undefined).find(d => d.source.name === "Clock")
-                check("and the clock's box shows its sample here", clock !== undefined && clock.sampled && testInput.plain(clock.textOverride).trim() === "1:23 PM")
+                check("and the clock's box shows the time of day here", clock !== undefined && !clock.sampled && clock.source.linkKind === "clock" && /^\d{1,2}:\d\d/.test(clock.liveLinkText), clock ? clock.liveLinkText : "none")
                 editScreen.canvas.pick(editScreen.canvas.elements.find(e => e.linkKind === "slideText" && !e.linkSlideNext).id)
                 testInput.grab("6-singing-in-editor")
                 return 400

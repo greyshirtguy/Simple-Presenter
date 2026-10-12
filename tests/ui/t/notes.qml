@@ -7,9 +7,10 @@ import "lib.js" as Lib
 // moment later and, taken out again, leaves the file as it was; Ctrl+B, I and U; the panel a right click puts up, with
 // a font, a size and a colour; the pane's top edge dragged; undo and redo; and that the editors of props, stage
 // layouts and themes have neither button nor pane. The links: the one button that says what a box shows and the menu
-// it opens; a slide's text, its notes (with their formatting or without) and its elements of a name. Then on the
-// stage: the notes of the slide that is live, as words and as they were written, in the stage window and in what the
-// operator sees of it. What the files then hold is looked at when the test is over, by after_notes in run.py.
+// it opens; a slide's text, its notes (with their formatting or without) and its elements of a name; the clock and how
+// it is written; a video's time. Then on the stage: the notes of the slide that is live, as words and as they were
+// written, in the stage window and in what the operator sees of it; and the time a playing video has left. What the
+// files then hold is looked at when the test is over, by after_notes in run.py.
 QtObject {
     id: t
 
@@ -85,9 +86,13 @@ QtObject {
         return { shown: button.shown, model: rows.map(r => r.label), choice: rows.findIndex(r => r.current), chosen: (index) => rows[index].run() }
     }
 
-    // The text box the test made, as the editor has it
+    // The text box the test made, as the editor has it and as it is drawn on the editor's slide
     function made() {
         return editScreen.canvas.elements.find(e => e.id === kept.box) ?? null
+    }
+
+    function madeDrawn() {
+        return Lib.findAll(editScreen.canvas, item => item.source !== undefined && item.liveLinkText !== undefined).find(d => d.source.id === kept.box)
     }
 
     // The stage as the operator sees it, and the boxes of the layout drawn in that
@@ -99,6 +104,11 @@ QtObject {
     function stageBox(test) {
         const preview = stagePreview()
         return preview ? Lib.findAll(preview, item => item.source !== undefined && item.textBleed !== undefined && item.boxX !== undefined).find(item => test(item.source)) : undefined
+    }
+
+    function seconds(text) {
+        const parts = String(text).split(":").map(Number)
+        return parts.length === 2 && parts.every(n => !isNaN(n)) ? parts[0] * 60 + parts[1] : -1
     }
 
     function run() {
@@ -314,7 +324,7 @@ QtObject {
             },
             () => {
                 check("which opens a menu of what it can show, the elements and the timers each in a menu of their own",
-                      labels() === "[Shows], *Its Own Text, --, Another Element, Current Slide, Next Slide, Timer", labels())
+                      labels() === "[Shows], *Its Own Text, --, Another Element, Current Slide, Next Slide, Timer, System Clock, Video Countdown", labels())
                 const timers = menu.shown.find(i => i.label === "Timer")
                 check("the timers being the workspace's", timers.items.filter(i => i.label !== undefined).length === Timers.timers.length && Timers.timers.length > 0,
                       timers.items.map(i => i.label ?? i.header).join("|"))
@@ -366,12 +376,56 @@ QtObject {
             () => {
                 check("Next Slide is the same of the slide to come, set as it was", made().linkSlideNext === true && made().linkSlideSource === Show.ElementNamed && made().linkSlideName === "Lyrics"
                       && showsChoice().shown === "Next Slide")
+                // ---- The clock
+                const shows = showsChoice()
+                shows.chosen(shows.model.indexOf("System Clock"))
+                return 600
+            },
+            () => {
+                const drawn = madeDrawn()
+                check("System Clock links it to the time of day: the time alone, the short way, to begin with", made().linkKind === "clock" && made().linkClockDate === 0
+                      && made().linkClockTime === 1 && made().linkClock24 === false && showsChoice().shown === "System Clock",
+                      JSON.stringify([made().linkKind, made().linkClockDate, made().linkClockTime, made().linkClock24]))
+                check("which the editor's slide shows", drawn !== undefined && /^\d{1,2}:\d\d \S+$/.test(drawn.liveLinkText), drawn ? drawn.liveLinkText : "not drawn")
+                check("with how the date and the time are written under it, each one of five ways, and a tick box for the 24 hour clock", choice("linkClockDate") !== undefined
+                      && choice("linkClockDate").model.join("|") === "None|Short|Medium|Long|Full" && choice("linkClockTime").choice === 1 && shown("linkClock24") !== null
+                      && shown("linkSlideName") === null && choice("linkSlideSource") === undefined)
+                choice("linkClockDate").chosen(4)
+                click(centre(shown("linkClock24")))
+                return 600
+            },
+            () => {
+                const drawn = madeDrawn()
+                const year = String(new Date().getFullYear())
+                check("the date in full and the 24 hour clock are then what it shows", made().linkClockDate === 4 && made().linkClock24 === true && drawn.liveLinkText.includes(year)
+                      && /\d\d:\d\d$/.test(drawn.liveLinkText) && !/[AaPp]\.?[Mm]\.?$/.test(drawn.liveLinkText), drawn.liveLinkText)
+                testInput.snapshot(kept.path, "song-link-clock")
+                testInput.grab("8-link-clock")
+                // ---- A video's time
+                const shows = showsChoice()
+                shows.chosen(shows.model.indexOf("Video Countdown"))
+                return 600
+            },
+            () => {
+                const drawn = madeDrawn()
+                check("Video Countdown links it to how long the video has left: minutes and seconds, to begin with", made().linkKind === "videoCountdown" && made().linkTimerMinutes === Timers.Long
+                      && made().linkTimerSeconds === Timers.Long && made().linkTimerHours === Timers.None && showsChoice().shown === "Video Countdown",
+                      JSON.stringify([made().linkKind, made().linkTimerHours, made().linkTimerMinutes, made().linkTimerSeconds]))
+                check("which is nothing, with no video playing", drawn !== undefined && drawn.liveLinkText === "00:00", drawn ? drawn.liveLinkText : "not drawn")
+                check("with the four parts of a time under it, and a tick box for videos that loop", shown("linkVideoIgnoreLooping") !== null && !shown("linkVideoIgnoreLooping").checked
+                      && choice("linkClockDate") === undefined)
+                click(centre(shown("linkVideoIgnoreLooping")))
+                return 500
+            },
+            () => {
+                check("which is kept when ticked", made().linkVideoIgnoreLooping === true && onDisk(kept.row).elements.find(e => e.id === kept.box).linkVideoIgnoreLooping === true)
+                testInput.snapshot(kept.path, "song-link-video")
                 editScreen.canvas.editText(kept.box)
                 return 400
             },
             () => {
                 check("a box that shows such a thing has no text of its own to type over, and the editor says what it shows", editScreen.canvas.editingId === ""
-                      && editScreen.notice.includes("the text of the slide that is next"), editScreen.notice)
+                      && editScreen.notice.includes("how long a video has left"), editScreen.notice)
                 stopEditing()
                 return 700
             },
@@ -493,6 +547,54 @@ QtObject {
                 check("and what the operator sees of the stage", previewRed > 0.0001, kept.previewRed + " then " + previewRed)
                 testInput.grabStage("11-stage-notes-formatted")
                 testInput.grab("11-operator-notes-formatted")
+                // ---- A video's time, on ProPresenter's own layout that has one
+                clearMedia()
+                Show.setStageLayout(Show.stageScreens[0].id, layout("Singing").id)
+                return 1200
+            },
+            () => {
+                const video = stageBox(e => e.linkKind === "videoCountdown")
+                kept.second = Clocks.second
+                check("ProPresenter's layout for singing has a video's time, at nothing with none playing", video !== undefined && video.liveLinkText === "00:00" && player() === null
+                      && Clocks.videoWatched && lighter(video, 60) > 0.01, video ? video.liveLinkText + " " + lighter(video, 60) : "no box")
+                for (const list of catalog.mediaPlaylists.filter(p => !p.folder)) {
+                    openMediaPlaylist(list.path)
+                    if (mediaFiles.some(m => m.video))
+                        break
+                }
+                kept.video = mediaFiles.find(m => m.video)
+                showMedia(kept.video, mediaPlaylistId)
+                return 2500
+            },
+            () => {
+                const video = stageBox(e => e.linkKind === "videoCountdown")
+                const left = player() ? (player().duration - player().position) / 1000 : -1
+                kept.loops = liveMedia !== null && liveMedia.loops === true
+                kept.ignores = video.source.linkVideoIgnoreLooping === true
+                kept.left = seconds(video.liveLinkText)
+                check("a video is playing", kept.video !== undefined && player() !== null && player().duration > 3000 && left > 0, left)
+                check("and the box counts what it has left" + (kept.loops && kept.ignores ? " (not this one, which loops, and the layout ignores those)" : ""),
+                      kept.loops && kept.ignores ? video.liveLinkText === "00:00" : kept.left > 0 && Math.abs(kept.left - left) <= 1.5, video.liveLinkText + " with " + left + " left")
+                // The box the test made on the slide that is live, which was set to ignore videos that loop: as the output has it
+                const onOutput = Lib.findAll(output.contentItem, item => item.source !== undefined && item.liveLinkText !== undefined).find(d => d.source.id === kept.box)
+                check("the slide's own box, on the output, which ignores videos that loop, " + (kept.loops ? "has this one, which loops, at nothing" : "counts this one, which does not loop"),
+                      onOutput !== undefined && (onOutput.liveLinkText === "00:00") === kept.loops, onOutput ? onOutput.liveLinkText : "not on the output")
+                check("the clock on the same layout goes round with the seconds, while it is watched", Clocks.second !== kept.second, kept.second + " then " + Clocks.second)
+                testInput.grabStage("12-stage-video")
+                return 2000
+            },
+            () => {
+                const video = stageBox(e => e.linkKind === "videoCountdown")
+                const now = seconds(video.liveLinkText)
+                const left = (player().duration - player().position) / 1000
+                check("and goes on counting as the video plays", kept.loops && kept.ignores ? now === 0 : now > 0 && Math.abs(now - left) <= 1.5 && (now < kept.left || player().duration < 6000),
+                      kept.left + " then " + now)
+                clearMedia()
+                return 1200
+            },
+            () => {
+                const video = stageBox(e => e.linkKind === "videoCountdown")
+                check("with the video cleared it is at nothing again", video.liveLinkText === "00:00", video.liveLinkText)
             }
         ]
         next()

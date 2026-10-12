@@ -1206,7 +1206,7 @@ def after_notes(workspace, test_dir):
         said(notes_block is not None and bold.count("notes {") == 1,
              "in the song's file: the attributes ProPresenter wrote beside the notes are still beside them, and no other slide has notes"),
     ]
-    linked = {name: kept("song-link-" + name) for name in ("notes", "preserve", "name")}
+    linked = {name: kept("song-link-" + name) for name in ("notes", "preserve", "name", "clock", "video")}
 
     def link(name):
         """The link of the text box the test made, in one of the copies: the lines the copy has that the one before it had not."""
@@ -1221,6 +1221,14 @@ def after_notes(workspace, test_dir):
         said("source_option: TEXT_SOURCE_OPTION_ELEMENT_MATCHING_NAME" in link("name") and 'name_to_match: "Lyrics"' in link("name")
              and "preserve_notes_format: true" in link("name"),
              "in the song's file: linked to the elements of a name, it has the name, and what was said of the notes' formatting is left as it was"),
+        said("clock_text {" in link("clock") and 'clock_format_string: "${clock}"' in link("clock") and "date_type: DATE_FORMATTER_STYLE_FULL" in link("clock")
+             and "time_format: DATE_FORMATTER_STYLE_SHORT" in link("clock") and "military_time_enabled: true" in link("clock") and "slide_text {" not in link("clock"),
+             "in the song's file: linked to the clock, it has how the date and the time are written, and the slide's link is gone",
+             " | ".join(l for l in link("clock").splitlines() if "clock" in l or "date" in l or "time" in l or "military" in l)),
+        said("video_countdown {" in link("video") and 'timer_format_string: "${timer}"' in link("video") and "minute: STYLE_LONG" in link("video")
+             and "second: STYLE_LONG" in link("video") and "ignore_looping_videos: true" in link("video") and "clock_text {" not in link("video"),
+             "in the song's file: linked to a video's time, it has how that is written and that videos which loop are ignored",
+             " | ".join(l for l in link("video").splitlines() if "timer" in l or "STYLE" in l or "loop" in l)),
     ]
     out, put = changed(bold, decoded(os.path.join(workspace, "Libraries", "MainHall", "Notes Song.pro")))
     lines.append(said(all(line.startswith("rtf_data:") for line in out) and len(out) <= 1,

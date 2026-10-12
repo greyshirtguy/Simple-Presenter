@@ -3134,6 +3134,41 @@ Window {
         }
     }
 
+    // The clocks a text box can show besides a timer (see Clocks). The time of day
+    // stands still where the timers do, for pictures that are to come out the same at
+    // any hour. And how long the video that is playing has left is told from here,
+    // which has the output's player: as the player says where it has got to, and only
+    // while some text box is showing it (Clocks knows that from being asked).
+    Binding {
+        target: Clocks
+        property: "held"
+        value: win.clocksHeld
+    }
+
+    readonly property var countedPlayer: Clocks.videoWatched && !clocksHeld && output ? output.livePlayer : null
+
+    function tellVideoClock() {
+        const player = countedPlayer
+        if (player && player.duration > 0 && liveMedia !== null)
+            Clocks.setVideo((player.duration - player.position) / 1000, liveMedia.loops === true)
+        else
+            Clocks.noVideo()
+    }
+
+    onCountedPlayerChanged: tellVideoClock()
+
+    Connections {
+        target: win.countedPlayer
+
+        function onPositionChanged() {
+            win.tellVideoClock()
+        }
+
+        function onDurationChanged() {
+            win.tellVideoClock()
+        }
+    }
+
     // A piece of audio has come to its end: the show says what follows, which for
     // music that the next of its playlist follows is that, going by the playlist as it
     // is now.

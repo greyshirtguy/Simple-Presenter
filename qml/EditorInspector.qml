@@ -51,6 +51,9 @@ Rectangle {
     readonly property var timerStyleNames: ["Hidden", "Two digits", "One digit", "Two digits, hidden at 0",
                                             "One digit, hidden at 0"]
     readonly property var timerStyles: [Timers.None, Timers.Long, Timers.Short, Timers.RemoveLong, Timers.RemoveShort]
+    // The five ways a clock's date or time can be written, in the file's order (see
+    // clocktext.h), by ProPresenter's names for them
+    readonly property var clockStyles: ["None", "Short", "Medium", "Long", "Full"]
     // The four parts, with the key each is under in an element and how a newly linked
     // box has it: hours when there are any, then minutes and seconds
     readonly property var timerParts: [
@@ -1054,13 +1057,14 @@ Rectangle {
 
             // What this element shows in place of text of its own, in its own style:
             // the text of another element of the slide, the words or the notes of the
-            // slide that is live or of the one after it, or the time of a timer.
+            // slide that is live or of the one after it, the time of a timer, the
+            // time of day, or how long the video that is playing has left.
             //
             // It is picked as ProPresenter has it picked: one button that says what
             // the element shows, and opens a menu of what it can show. Where there
             // are several of a thing (the slide's other elements, the workspace's
             // timers) its row leads to a menu of them; where a thing has more to be
-            // said about it (which of a slide's text, how a time is written) that is
+            // said about it (which of a slide's text, how a clock is written) that is
             // set under the button once the thing is picked.
             //
             // A GUESS at ProPresenter, whose own menu was described and not looked at:
@@ -1096,6 +1100,8 @@ Rectangle {
                             ? (timerGone ? "Timer: " + inspector.oneLine(inspector.element.linkTimerName) + " (not here)"
                                : "Timer: " + (inspector.timerNames[timerPlace] !== "" ? inspector.timerNames[timerPlace] : "unnamed"))
                         : kind === "slideText" ? (inspector.element.linkSlideNext ? "Next Slide" : "Current Slide")
+                        : kind === "clock" ? "System Clock"
+                        : kind === "videoCountdown" ? "Video Countdown"
                         : "Its Own Text"
 
                     // The rows of the menu the button opens
@@ -1134,7 +1140,23 @@ Rectangle {
                             { label: "Current Slide", current: linkLine.kind === "slideText" && !element.linkSlideNext, run: () => slide(false) },
                             { label: "Next Slide", current: linkLine.kind === "slideText" && element.linkSlideNext, run: () => slide(true) },
                             { label: "Timer", current: linkLine.kind === "timer", disabled: timers.length === 0,
-                              items: [{ header: "Timer" }].concat(timers) }
+                              items: [{ header: "Timer" }].concat(timers) },
+                            { label: "System Clock", current: linkLine.kind === "clock", run: () => {
+                                // The first time, the time alone, the short way: as
+                                // ProPresenter's own stage layouts have a clock.
+                                const changes = { linkKind: "clock" }
+                                if (linkLine.kind !== "clock")
+                                    Object.assign(changes, { linkClockDate: 0, linkClockTime: 1, linkClock24: false })
+                                inspector.setProperties(changes, false)
+                            } },
+                            { label: "Video Countdown", current: linkLine.kind === "videoCountdown", run: () => {
+                                // The first time, minutes and seconds: likewise.
+                                const changes = { linkKind: "videoCountdown" }
+                                if (linkLine.kind !== "videoCountdown")
+                                    Object.assign(changes, { linkTimerHours: Timers.None, linkTimerMinutes: Timers.Long, linkTimerSeconds: Timers.Long,
+                                                             linkTimerHundredths: Timers.None, linkVideoIgnoreLooping: false })
+                                inspector.setProperties(changes, false)
+                            } }
                         ]
                     }
 
@@ -1321,10 +1343,10 @@ Rectangle {
                                   + " stays over its word, a line is never broken: text too wide for the box is made smaller instead."
                         }
 
-                        // How each part of the timer's time is written, as ProPresenter has
-                        // it: a drop-down for each of the four
+                        // How each part of a time is written, as ProPresenter has it: a
+                        // drop-down for each of the four. A timer's time, and a video's.
                         Repeater {
-                            model: linkLine.kind === "timer" ? inspector.timerParts : []
+                            model: linkLine.kind === "timer" || linkLine.kind === "videoCountdown" ? inspector.timerParts : []
 
                             delegate: Line {
                                 id: partLine
@@ -1341,6 +1363,52 @@ Rectangle {
                                     onChosen: (index) => inspector.setProperties({ [partLine.modelData.key]: inspector.timerStyles[index] }, false)
                                 }
                             }
+                        }
+
+                        AppCheck {
+                            objectName: "linkVideoIgnoreLooping"
+                            width: parent.width
+                            visible: linkLine.kind === "videoCountdown"
+                            text: "Ignore videos that loop"
+                            checked: inspector.element !== null && inspector.element.linkVideoIgnoreLooping === true
+                            onToggled: (checked) => inspector.setProperties({ linkVideoIgnoreLooping: checked }, false)
+                        }
+
+                        // The clock: how the date is written and how the time is, each one of
+                        // five ways (see clocktext.h), and which clock the time is on
+                        Line {
+                            caption: "Date"
+                            visible: linkLine.kind === "clock"
+
+                            Choice {
+                                objectName: "linkClockDate"
+                                width: textTab.width - 78
+                                model: inspector.clockStyles
+                                choice: inspector.element ? inspector.element.linkClockDate ?? 0 : 0
+                                onChosen: (index) => inspector.setProperties({ linkClockDate: index }, false)
+                            }
+                        }
+
+                        Line {
+                            caption: "Time"
+                            visible: linkLine.kind === "clock"
+
+                            Choice {
+                                objectName: "linkClockTime"
+                                width: textTab.width - 78
+                                model: inspector.clockStyles
+                                choice: inspector.element ? inspector.element.linkClockTime ?? 0 : 0
+                                onChosen: (index) => inspector.setProperties({ linkClockTime: index }, false)
+                            }
+                        }
+
+                        AppCheck {
+                            objectName: "linkClock24"
+                            width: parent.width
+                            visible: linkLine.kind === "clock"
+                            text: "24 hour time"
+                            checked: inspector.element !== null && inspector.element.linkClock24 === true
+                            onToggled: (checked) => inspector.setProperties({ linkClock24: checked }, false)
                         }
 
                         Note {
@@ -1373,6 +1441,18 @@ Rectangle {
                                   : "The time is the timer's; the font, colour and everything else here are this element's."
                                     + " A part that is hidden is counted in the next one shown, so seconds alone count past"
                                     + " sixty. Timers are set up and run from the show controls of the main window."
+                        }
+
+                        Note {
+                            visible: linkLine.kind === "clock"
+                            text: "The date and the time are this computer's, in the words and the order its settings have them."
+                                  + " The font, colour and everything else here are this element's."
+                        }
+
+                        Note {
+                            visible: linkLine.kind === "videoCountdown"
+                            text: "How long the video that is playing on the output has left. With none playing, the time is at nothing."
+                                  + " A video that loops is counted to the end of each time round, unless it is ignored."
                         }
                     }
                 }

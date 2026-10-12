@@ -1,5 +1,6 @@
 #include "proconvert.h"
 
+#include "clocktext.h"
 #include "fontresolver.h"
 #include "rtf.h"
 #include "rtfwriter.h"
@@ -219,6 +220,13 @@ void insertShadow(QVariantMap *map, const QString &prefix, const rv::data::Graph
     map->insert(prefix + "Radius", shadow.radius());
     map->insert(prefix + "Angle", shadow.angle());
     map->insert(prefix + "Offset", shadow.offset());
+}
+
+// The moment a clock stands at where there is no clock to ask: noon on the first day of
+// 2000, which has two figures in everything a clock can show.
+QDateTime standInMoment()
+{
+    return QDateTime(QDate(2000, 1, 1), QTime(12, 0, 0));
 }
 
 // A name for a kind of link this app does not act on, to show that it is there.
@@ -537,10 +545,10 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     map.insert("linkSlideNext", false);
     map.insert("linkSlideSource", 0);
     map.insert("linkSlideName", QString());
-    // (What only a link to a slide's notes has to say is put in for an element that
-    // has a link to a slide's text, below, and for no other: a map is made into QML's
-    // own kind of thing every time a slide is shown, key by key, and nearly every
-    // element there is has no such link.)
+    // (What only a link to a slide's notes, to the clock or to a video has to say is
+    // put in for an element that has such a link, below, and for no other: a map is
+    // made into QML's own kind of thing every time a slide is shown, key by key, and
+    // nearly every element there is has none of these.)
     map.insert("linkLabel", QString());
     map.insert("linkPicture", false);
     map.insert("visibilityRules", false);
@@ -573,6 +581,24 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("linkSlideName", QString::fromStdString(words.name_to_match()));
             map.insert("linkSlidePreserve", words.preserve_notes_format());
             map.insert("linkTransform", int(words.element_text_transform()));
+        } else if (link.has_clock_text()) {
+            const DataLink::ClockText &clock = link.clock_text();
+            map.insert("linkKind", QStringLiteral("clock"));
+            map.insert("linkClockDate", int(clock.format().date_type()));
+            map.insert("linkClockTime", int(clock.format().time_format()));
+            map.insert("linkClock24", clock.format().military_time_enabled());
+            map.insert("linkClockPattern", QString::fromStdString(clock.clock_format_string()));
+        } else if (link.has_video_countdown()) {
+            // The time is written as a timer's is, in the same four parts.
+            const DataLink::VideoCountdown &video = link.video_countdown();
+            map.insert("linkKind", QStringLiteral("videoCountdown"));
+            map.insert("linkTimerHours", int(video.timer_format().hour()));
+            map.insert("linkTimerMinutes", int(video.timer_format().minute()));
+            map.insert("linkTimerSeconds", int(video.timer_format().second()));
+            map.insert("linkTimerHundredths", int(video.timer_format().millisecond()));
+            map.insert("linkTimerHundredthsUnderMinute", video.timer_format().show_milliseconds_under_minute_only());
+            map.insert("linkTimerPattern", QString::fromStdString(video.timer_format_string()));
+            map.insert("linkVideoIgnoreLooping", video.ignore_looping_videos());
         } else if (link.has_visibility_link()) {
             QVariantList conditions;
             for (int index = 0; index < link.visibility_link().conditions_size(); ++index) {
@@ -616,13 +642,14 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
 }
 
 // Whether what an element shows is not text of the slide's but something that changes
-// while the slide is on show: a timer's time, or the words of the slide that is live or
-// of the one after it, which is what a stage layout shows. (The clock is another the
-// file format has.)
+// while the slide is on show: a timer's time, the clock's, how long a video has left,
+// or the words of the slide that is live or of the one after it, which is what a stage
+// layout shows.
 bool isLive(const QVariantMap &element)
 {
     const QString kind = element.value("linkKind").toString();
-    return kind == QLatin1String("timer") || kind == QLatin1String("slideText");
+    return kind == QLatin1String("timer") || kind == QLatin1String("slideText") || kind == QLatin1String("clock")
+        || kind == QLatin1String("videoCountdown");
 }
 
 // The element a link or a visibility rule refers to: by id, or failing that by name,
@@ -1009,7 +1036,12 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
                 const QString text = elements.at(source).toMap().value("text").value<RichText>().plainText();
                 display = restyled(linkTransformed(text, element.value("linkTransform").toInt()));
             }
-        } else if (element.value("linkKind").toString() == QLatin1String("timer")) {
+        } else if (element.value("linkKind").toString() == QLatin1String("clock")) {
+            // The clock at a moment that is always the same, for the same reason.
+            display = restyled(clocktext::linked(standInMoment(), element.value("linkClockDate").toInt(), element.value("linkClockTime").toInt(),
+                                                 element.value("linkClock24").toBool(), element.value("linkClockPattern").toString(), QLocale()));
+        } else if (element.value("linkKind").toString() == QLatin1String("timer")
+                   || element.value("linkKind").toString() == QLatin1String("videoCountdown")) {
             // What it shows changes while the slide is on show, so it is not known here:
             // whatever draws the element puts it in (see SlideElement.qml). This stands
             // in for it, as text of the same shape: the timer at nothing.
@@ -1295,7 +1327,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
     // it one takes away the link for another.
     static const char *const linkKeys[] = {"linkKind", "linkElementId", "linkTransform", "linkTimerId", "linkTimerName",
                                            "linkTimerHours", "linkTimerMinutes", "linkTimerSeconds", "linkTimerHundredths",
-                                           "linkSlideNext", "linkSlideSource", "linkSlideName", "linkSlidePreserve"};
+                                           "linkSlideNext", "linkSlideSource", "linkSlideName", "linkSlidePreserve",
+                                           "linkClockDate", "linkClockTime", "linkClock24", "linkVideoIgnoreLooping"};
     const bool linkChanges = std::any_of(std::begin(linkKeys), std::end(linkKeys),
                                          [&changes](const char *key) { return changes.contains(QLatin1String(key)); });
     if (linkChanges) {
@@ -1308,13 +1341,17 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
         };
         const QString was = existing(&DataLink::has_alternate_text) ? QStringLiteral("element")
                           : existing(&DataLink::has_timer_text) ? QStringLiteral("timer")
-                          : existing(&DataLink::has_slide_text) ? QStringLiteral("slideText") : QStringLiteral("none");
+                          : existing(&DataLink::has_slide_text) ? QStringLiteral("slideText")
+                          : existing(&DataLink::has_clock_text) ? QStringLiteral("clock")
+                          : existing(&DataLink::has_video_countdown) ? QStringLiteral("videoCountdown") : QStringLiteral("none");
         const QString kind = changes.value("linkKind", was).toString();
         // The links of the other kinds go first, which may move the one that stays.
         removeLinks(slideElement, [&kind](const DataLink &link) {
             return (link.has_alternate_text() && kind != QLatin1String("element"))
                 || (link.has_timer_text() && kind != QLatin1String("timer"))
-                || (link.has_slide_text() && kind != QLatin1String("slideText"));
+                || (link.has_slide_text() && kind != QLatin1String("slideText"))
+                || (link.has_clock_text() && kind != QLatin1String("clock"))
+                || (link.has_video_countdown() && kind != QLatin1String("videoCountdown"));
         });
         const auto transform = [&changes] {
             return DataLink::AlternateElementText::TextTransformOption(qBound(0, changes.value("linkTransform").toInt(), 3));
@@ -1367,6 +1404,43 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                 words->set_preserve_notes_format(changes.value("linkSlidePreserve").toBool());
             if (changes.contains("linkTransform"))
                 words->set_element_text_transform(transform());
+        } else if (kind == QLatin1String("clock")) {
+            DataLink *link = existing(&DataLink::has_clock_text);
+            const bool fresh = link == nullptr;
+            DataLink::ClockText *clock = (fresh ? slideElement->add_data_links() : link)->mutable_clock_text();
+            const auto style = [&changes](const char *key) {
+                return rv::data::Clock::Format::DateFormatterStyle(qBound(0, changes.value(QLatin1String(key)).toInt(), 4));
+            };
+            if (changes.contains("linkClockDate"))
+                clock->mutable_format()->set_date_type(style("linkClockDate"));
+            if (changes.contains("linkClockTime"))
+                clock->mutable_format()->set_time_format(style("linkClockTime"));
+            if (changes.contains("linkClock24"))
+                clock->mutable_format()->set_military_time_enabled(changes.value("linkClock24").toBool());
+            // What ProPresenter writes for a link that shows the clock and nothing else
+            // (seen in a stage layout of its own)
+            if (fresh)
+                clock->set_clock_format_string("${clock}");
+        } else if (kind == QLatin1String("videoCountdown")) {
+            DataLink *link = existing(&DataLink::has_video_countdown);
+            const bool fresh = link == nullptr;
+            DataLink::VideoCountdown *video = (fresh ? slideElement->add_data_links() : link)->mutable_video_countdown();
+            const auto style = [&changes](const char *key) {
+                return rv::data::Timer::Format::Style(qBound(0, changes.value(QLatin1String(key)).toInt(), 4));
+            };
+            if (changes.contains("linkTimerHours"))
+                video->mutable_timer_format()->set_hour(style("linkTimerHours"));
+            if (changes.contains("linkTimerMinutes"))
+                video->mutable_timer_format()->set_minute(style("linkTimerMinutes"));
+            if (changes.contains("linkTimerSeconds"))
+                video->mutable_timer_format()->set_second(style("linkTimerSeconds"));
+            if (changes.contains("linkTimerHundredths"))
+                video->mutable_timer_format()->set_millisecond(style("linkTimerHundredths"));
+            if (changes.contains("linkVideoIgnoreLooping"))
+                video->set_ignore_looping_videos(changes.value("linkVideoIgnoreLooping").toBool());
+            // (As ProPresenter's own stage layout has one.)
+            if (fresh)
+                video->set_timer_format_string("${timer}");
         }
     }
 

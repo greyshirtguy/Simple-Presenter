@@ -23,13 +23,13 @@ import SimplePresenterApp
 // component is the element on the output, in a thumbnail and under the editor's handles.
 //
 // The one thing not settled then is text that changes while the slide is on show, which
-// an element linked to a timer has, or one linked to the words or the notes of the
-// slide that is live: that is asked for here, as `liveLinkText`, and drawn in the
-// element's own style. It is drawn again only when the words change, which for a timer
-// is once a second while it runs, unless the element shows the timer's hundredths: then
-// it is thirty times a second where they can be read, and five in a small picture. (A
-// slide's notes can also be shown as they were written, in their own fonts and colours:
-// `liveLinkText` is then that text itself.)
+// an element linked to a timer has, or to the clock, or to how long a video has left,
+// or to the words or the notes of the slide that is live: that is asked for here, as
+// `liveLinkText`, and drawn in the element's own style. It is drawn again only when the
+// words change, which for a timer is once a second while it runs, unless the element
+// shows the timer's hundredths: then it is thirty times a second where they can be
+// read, and five in a small picture. (A slide's notes can also be shown as they were
+// written, in their own fonts and colours: `liveLinkText` is then that text itself.)
 //
 // A shadow is the one dear thing here. The shape or the text is drawn into a texture of
 // its own, which a blur then turns into the shadow under it: an extra pass, and an extra
@@ -61,10 +61,10 @@ Item {
     // worse than nothing.
     property bool standIns: false
     // The words of an element whose words change while it is shown, or undefined for an
-    // element that shows what its map says: a timer's time (see Timers), or the words
-    // or the notes of the slide that is live or of the one after it (see Show), which
-    // are what a stage layout is made of. Anything else of the kind belongs here as
-    // another case.
+    // element that shows what its map says: a timer's time (see Timers); the words or
+    // the notes of the slide that is live or of the one after it (see Show), which are
+    // what a stage layout is made of; the time of day, or how long a video has left
+    // (see Clocks). Anything else of the kind belongs here as another case.
     readonly property var liveLinkText: {
         switch (source.linkKind) {
         case "timer":
@@ -93,6 +93,19 @@ Item {
             return Show.revision < 0 ? ""
                 : source.linkSlidePreserve === true && source.linkSlideSource === Show.Notes ? Show.slideNotes(source.linkSlideNext) ?? ""
                 : Show.slideText(source.linkSlideNext, source.linkSlideSource, source.linkSlideName, source.linkTransform)
+        case "clock":
+            // Reading the second is what has this asked again as the clock goes on,
+            // and asking is what keeps the clock going (see Clocks): nothing else is
+            // said or made for it. (A clock that shows no seconds answers the same
+            // for sixty of them, and nothing is drawn for that.)
+            return Clocks.second >= 0
+                ? Clocks.clockText(source.linkClockDate, source.linkClockTime, source.linkClock24, source.linkClockPattern)
+                : ""
+        case "videoCountdown":
+            return Clocks.videoRevision >= 0
+                ? Clocks.videoText(source.linkTimerHours, source.linkTimerMinutes, source.linkTimerSeconds, source.linkTimerHundredths,
+                                   source.linkTimerHundredthsUnderMinute, source.linkVideoIgnoreLooping, source.linkTimerPattern)
+                : ""
         default:
             return undefined
         }

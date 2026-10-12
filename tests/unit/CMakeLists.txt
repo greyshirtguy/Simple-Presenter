@@ -147,3 +147,12 @@ qt_add_executable(tst_audiolevel
 target_include_directories(tst_audiolevel PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_audiolevel PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME audiolevel COMMAND tst_audiolevel)
+
+qt_add_executable(tst_clocktext
+    tst_clocktext.cpp
+    ${PROJECT_SOURCE_DIR}/src/clocktext.h
+    ${PROJECT_SOURCE_DIR}/src/clocktext.cpp
+)
+target_include_directories(tst_clocktext PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_clocktext PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME clocktext COMMAND tst_clocktext)

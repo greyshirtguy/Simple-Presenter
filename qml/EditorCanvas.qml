@@ -112,6 +112,10 @@ Item {
             return (element.linkSlideNext ? "Next Slide: " : "Current Slide: ")
                  + (element.linkSlideSource === Show.Notes ? "Notes"
                     : element.linkSlideSource === Show.ElementNamed ? "“" + element.linkSlideName + "”" : "Text")
+        case "clock":
+            return "System Clock"
+        case "videoCountdown":
+            return "Video Countdown"
         case "other":
             return element.linkLabel
         default:
@@ -326,6 +330,8 @@ Item {
                     : element.linkKind === "timer" ? "the timer “" + element.linkTimerName + "”"
                     : element.linkKind === "slideText" ? "the " + (element.linkSlideSource === Show.Notes ? "notes" : "text") + " of the slide that is "
                                                          + (element.linkSlideNext ? "next" : "live")
+                    : element.linkKind === "clock" ? "the system clock"
+                    : element.linkKind === "videoCountdown" ? "how long a video has left"
                     : "a " + element.linkLabel.toLowerCase() + ", set up in ProPresenter")
                  + ", so it has no text of its own to edit. Its font and colour can still be changed.")
             return

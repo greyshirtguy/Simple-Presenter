@@ -141,7 +141,8 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 //     chords::Notation) and chordColor; and, only when chordsOn, chordStyle: the
 //     style of its words as plain values { family, size, bold, italic, color,
 //     capitals, alignment (0 left, 1 centred, 2 right) } for ChordedText.qml
-//   linkKind ("none", "element", "timer", "slideText" or "other"): where the element's
+//   linkKind ("none", "element", "timer", "slideText", "clock", "videoCountdown" or
+//     "other"): where the element's
 //     text comes from, if it is not its own. For another element of the slide,
 //     linkElementId, linkElementName and linkTransform. For a timer, linkTimerId and
 //     linkTimerName (it is found by id, or failing that by name); linkTimerHours,
@@ -152,11 +153,18 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 //     linkSlideNext (it is the one after it instead), linkSlideSource (which of its
 //     text, as Show::Source), linkSlideName (the name of the elements whose text it
 //     is, if it goes by name), linkSlidePreserve (for a slide's notes: they are shown
-//     in their own fonts, sizes and colours, and not in this element's; it is there
-//     only for an element linked to a slide's text, and whoever reads it takes none
-//     to be no) and linkTransform. For anything else, which this app does not show,
-//     linkLabel names it and linkPicture says whether it is a picture or a colour that
-//     it puts in the element, in place of its fill, and not words
+//     in their own fonts, sizes and colours, and not in this element's) and
+//     linkTransform. For the system's clock, linkClockDate and linkClockTime (how the
+//     date and the time are written, each as clocktext::Style), linkClock24 (on the
+//     twenty-four hour clock) and linkClockPattern (text with "${clock}" where they
+//     go). For how long the video that is playing has left, the timer's four parts
+//     again (linkTimerHours and the rest, and linkTimerPattern) and
+//     linkVideoIgnoreLooping (a video that goes round is not counted down). Those
+//     six, of the notes, the clock and the video, are there only for an element that
+//     is linked to such a thing: whoever reads them takes none to be no. For
+//     anything else, which this app does not show, linkLabel names it and linkPicture
+//     says whether it is a picture or a colour that it puts in the element, in place of
+//     its fill, and not words
 //   visibilityRules (bool), visibilityCriterion (0 all, 1 any, 2 none),
 //     visibilityTimed (one of the conditions is about a timer, so whether the element
 //     shows is not settled until it is drawn: see Slide.qml),
@@ -168,13 +176,13 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 //   hasText, and visible (false if hidden or if its visibility rules say so).
 // All geometry is in slide units.
 //
-// An element linked to a timer, or to the text of the slide that is live, shows
-// something that is not in the slide at all, and that changes while the slide is on
-// show. So its displayText only stands in for it (the timer at nothing, or no words,
-// in the element's own style); what draws the element asks for the text as it is at
-// the moment (SlideElement.qml). A stage layout is a slide made of text boxes like
-// that. Another such thing, the clock say, is another linkKind handled in those same
-// two places.
+// An element linked to a timer, to the clock, to a video's time or to the text of the
+// slide that is live, shows something that is not in the slide at all, and that
+// changes while the slide is on show. So its displayText only stands in for it (the
+// timer at nothing, the clock at noon, or no words, in the element's own style); what
+// draws the element asks for the text as it is at the moment (SlideElement.qml). A
+// stage layout is a slide made of text boxes like that. Another such thing is another
+// linkKind handled in those same two places.
 //
 // An element linked to something this app does not show (linkKind "other") has no
 // displayText at all. The text such an element has of its own is only a sample of the
@@ -194,10 +202,11 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 //     for textShadow...
 //   verticalAlignment, textScale, marginLeft, marginTop, marginRight, marginBottom
 //   chordsOn, chordNotation, chordColor
-//   linkKind ("none", "element", "timer" or "slideText"), linkElementId,
-//     linkTransform, linkTimerId, linkTimerName, linkTimerHours, linkTimerMinutes,
-//     linkTimerSeconds, linkTimerHundredths, linkSlideNext, linkSlideSource,
-//     linkSlideName, linkSlidePreserve
+//   linkKind ("none", "element", "timer", "slideText", "clock" or "videoCountdown"),
+//     linkElementId, linkTransform, linkTimerId, linkTimerName, linkTimerHours,
+//     linkTimerMinutes, linkTimerSeconds, linkTimerHundredths, linkSlideNext,
+//     linkSlideSource, linkSlideName, linkSlidePreserve, linkClockDate, linkClockTime,
+//     linkClock24, linkVideoIgnoreLooping
 //   visibilityRules, visibilityCriterion, visibilityConditions (conditions of kind
 //     "other" are kept as they were, by their index)
 // Renaming an element also renames it where other elements of the slide refer to it.

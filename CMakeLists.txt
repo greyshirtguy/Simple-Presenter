@@ -192,6 +192,10 @@ qt_add_qml_module(SimplePresenter
     SOURCES
         src/catalog.h
         src/catalog.cpp
+        src/clocks.h
+        src/clocks.cpp
+        src/clocktext.h
+        src/clocktext.cpp
         src/audiolayer.h
         src/audiolayer.cpp
         src/audiolevel.h
