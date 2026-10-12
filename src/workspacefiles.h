@@ -39,6 +39,10 @@ bool isMedia(const QString &file);
 // a file dialog.
 QStringList mediaPatterns();
 QString mediaDialogFilter();
+// Which files are sound files the audio bin can take, going by their names, and the
+// same as a filter for a file dialog.
+bool isAudio(const QString &file);
+QString audioDialogFilter();
 
 // The entries of one directory that match, sorted the way a file manager would
 // ("Song 2" before "Song 10").

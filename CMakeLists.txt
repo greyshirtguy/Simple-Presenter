@@ -57,6 +57,10 @@ qt_add_executable(SimplePresenter
     src/fontresolver.h
     src/iconprovider.cpp
     src/iconprovider.h
+    src/audiocue.cpp
+    src/audiocue.h
+    src/audioprobe.cpp
+    src/audioprobe.h
     src/playlistfile.cpp
     src/playlistfile.h
     src/playlistimport.cpp

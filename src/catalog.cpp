@@ -1,5 +1,6 @@
 #include "catalog.h"
 
+#include "audioprobe.h"
 #include "songimport.h"
 
 #include "playlistimport.h"
@@ -31,6 +32,11 @@ Catalog::Catalog(const QString &workspace, QObject *parent)
 QString Catalog::mediaDialogFilter() const
 {
     return workspace::mediaDialogFilter();
+}
+
+QString Catalog::audioDialogFilter() const
+{
+    return workspace::audioDialogFilter();
 }
 
 QString Catalog::workspaceName() const
@@ -93,6 +99,10 @@ void Catalog::rescan()
     const PlaylistFile mediaPlaylists = PlaylistFile::loadMedia(m_root, &error);
     if (!error.isEmpty())
         qWarning("%s", qPrintable(error));
+    error.clear();
+    const PlaylistFile audioPlaylists = PlaylistFile::loadAudio(m_root, &error);
+    if (!error.isEmpty())
+        qWarning("%s", qPrintable(error));
 
     // The presentations of the libraries that have been looked into, read again.
     QHash<QString, QVariantList> documents;
@@ -111,6 +121,7 @@ void Catalog::rescan()
     const bool same = m_scanned && workspaces == m_workspaces && libraries == m_libraries
                       && playlists.nodes == m_playlists.nodes && playlists.items == m_playlists.items
                       && mediaPlaylists.nodes == m_mediaPlaylists.nodes && mediaPlaylists.items == m_mediaPlaylists.items
+                      && audioPlaylists.nodes == m_audioPlaylists.nodes && audioPlaylists.items == m_audioPlaylists.items
                       && documents == m_documents;
     if (same)
         return;
@@ -119,6 +130,7 @@ void Catalog::rescan()
     m_libraries = libraries;
     m_playlists = playlists;
     m_mediaPlaylists = mediaPlaylists;
+    m_audioPlaylists = audioPlaylists;
     m_documents = documents;
     ++m_revision;
     emit changed();
@@ -164,6 +176,11 @@ QVariantList Catalog::listDocuments(const QString &library) const
 QVariantList Catalog::mediaIn(const QString &playlist) const
 {
     return m_mediaPlaylists.items.value(playlist);
+}
+
+QVariantList Catalog::audioIn(const QString &playlist) const
+{
+    return m_audioPlaylists.items.value(playlist);
 }
 
 QVariantList Catalog::playlistItems(const QString &playlist) const
@@ -536,6 +553,77 @@ QString Catalog::setMediaItemForeground(const QString &item, bool foreground)
 QString Catalog::moveMediaItem(const QString &item, const QString &target, bool after)
 {
     return afterChange(PlaylistFile::moveItem(m_root, PlaylistFile::Media, item, target, after));
+}
+
+QVariantMap Catalog::createAudioPlaylist(const QString &name, const QString &parent)
+{
+    QString id;
+    const QString error = afterChange(PlaylistFile::createNode(m_root, PlaylistFile::Audio, name, parent, false, &id));
+    return {{"id", id}, {"error", error}};
+}
+
+QVariantMap Catalog::createAudioFolder(const QString &name, const QString &parent)
+{
+    QString id;
+    const QString error = afterChange(PlaylistFile::createNode(m_root, PlaylistFile::Audio, name, parent, true, &id));
+    return {{"id", id}, {"error", error}};
+}
+
+QString Catalog::renameAudioPlaylist(const QString &id, const QString &name)
+{
+    return afterChange(PlaylistFile::renameNode(m_root, PlaylistFile::Audio, id, name));
+}
+
+QString Catalog::removeAudioPlaylist(const QString &id)
+{
+    return afterChange(PlaylistFile::removeNode(m_root, PlaylistFile::Audio, id));
+}
+
+QString Catalog::moveAudioPlaylist(const QString &id, const QString &target, const QString &where)
+{
+    return afterChange(PlaylistFile::moveNode(m_root, PlaylistFile::Audio, id, target, where));
+}
+
+QStringList Catalog::audioAmong(const QList<QUrl> &files) const
+{
+    QStringList paths;
+    for (const QUrl &file : files) {
+        const QString path = file.toLocalFile();
+        if (workspace::isAudio(path) && QFileInfo(path).isFile())
+            paths << path;
+    }
+    return paths;
+}
+
+QString Catalog::addAudio(const QString &playlist, const QList<QUrl> &files, const QString &target, bool after)
+{
+    const QStringList paths = audioAmong(files);
+    if (paths.isEmpty())
+        return QStringLiteral("None of those files are sound files this can play");
+    QList<double> seconds;
+    for (const QString &path : paths)
+        seconds << audioprobe::seconds(path);
+    return afterChange(PlaylistFile::addAudio(m_root, playlist, paths, seconds, target, after));
+}
+
+QString Catalog::removeAudioItem(const QString &item)
+{
+    return afterChange(PlaylistFile::removeItem(m_root, PlaylistFile::Audio, item));
+}
+
+QString Catalog::moveAudioItem(const QString &item, const QString &target, bool after)
+{
+    return afterChange(PlaylistFile::moveItem(m_root, PlaylistFile::Audio, item, target, after));
+}
+
+QString Catalog::setAudioPlayback(const QString &item, const QString &playback)
+{
+    return afterChange(PlaylistFile::setAudioPlayback(m_root, item, playback));
+}
+
+QString Catalog::setAudioEffect(const QString &item, bool effect)
+{
+    return afterChange(PlaylistFile::setAudioEffect(m_root, item, effect));
 }
 
 void Catalog::rebuildThumbnails(const QStringList &paths)

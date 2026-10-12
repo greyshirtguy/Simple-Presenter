@@ -5,12 +5,19 @@
 #include <QStringList>
 #include <QVariantList>
 
+namespace rv::data {
+class Action;
+}
+
 // The playlists of a ProPresenter folder, read from <root>/Playlists/Library: a tree of
 // folders holding playlists, each playlist an ordered list of headers and presentations.
 // The media playlists, in <root>/Playlists/Media, are the same kind of file with media
 // files for rows, and are handled by the same code.
 //
-// Both files are one `PlaylistDocument` message: a root node whose children are folders
+// And the audio bin, in <root>/Playlists/Audio, is the same again with pieces of audio
+// for rows (audiocue.h has what a row of it says about how it plays).
+//
+// All three files are one `PlaylistDocument` message: a root node whose children are folders
 // (nodes that hold nodes) and playlists (nodes that hold items). A playlist does not
 // contain its presentations or media; each row refers to a file (see workspacefiles.h
 // for how those references are read and written).
@@ -21,8 +28,9 @@
 // truth, whichever of this app and ProPresenter wrote it last.
 struct PlaylistFile
 {
-    // Which of the two files: the playlists of presentations, or the media playlists.
-    enum Kind { Presentations, Media };
+    // Which of the three files: the playlists of presentations, the media playlists, or
+    // the audio bin's.
+    enum Kind { Presentations, Media, Audio };
 
     // The tree flattened in display order: { name, path, parent, depth, folder, icon }.
     // `path` is the node's id and `parent` its folder's, "" at the top level; `folder`
@@ -41,6 +49,10 @@ struct PlaylistFile
     // retriggers, volume }, where `id` is the row's own id and `path` the media file on
     // this machine, empty with `missing` set if it cannot be found. The last four are
     // how the row's media behaves, as workspace::MediaBehaviour describes.
+    //
+    // For a playlist of the audio bin: { id, name, path, source, missing, playback,
+    // effect, volume, duration, loopCount, loopSeconds }, the first five as a media
+    // playlist's are and the rest how the row plays, as audiocue::Behaviour describes.
     QHash<QString, QVariantList> items;
 
     // An absent file is an empty set of playlists, not an error.
@@ -48,6 +60,9 @@ struct PlaylistFile
     // The media playlists, from <root>/Playlists/Media; playlists carry the icon
     // "mediaPlaylist".
     static PlaylistFile loadMedia(const QString &root, QString *error);
+    // The audio bin's playlists, from <root>/Playlists/Audio; playlists carry the icon
+    // "audioPlaylist".
+    static PlaylistFile loadAudio(const QString &root, QString *error);
 
     // The functions below each change a file and write it back, returning an error
     // message that is empty on success. Everything else in the file is kept as it was.
@@ -107,6 +122,21 @@ struct PlaylistFile
                             const QString &targetId = {}, bool after = false);
     // Makes a row a background or a foreground (see workspace::MediaBehaviour).
     static QString setMediaForeground(const QString &root, const QString &itemId, bool foreground);
+    // Audio only:
+
+    // Adds sound files to a playlist of the audio bin, in the order given, where
+    // addMedia would put them. `seconds` is how long each is, in the same order, with 0
+    // (or nothing) for one whose length is not known.
+    static QString addAudio(const QString &root, const QString &playlistId, const QStringList &files,
+                            const QList<double> &seconds, const QString &targetId = {}, bool after = false);
+    // How a row plays on from its end: "stop", "loop" or "next" (see audiocue.h).
+    static QString setAudioPlayback(const QString &root, const QString &itemId, const QString &playback);
+    // Makes a row a sound effect, or music.
+    static QString setAudioEffect(const QString &root, const QString &itemId, bool effect);
+    // A copy of the action of a row, as the file has it, for a slide or a macro that is
+    // to play the same thing: given an id of its own, and nothing else changed.
+    static QString audioAction(const QString &root, const QString &itemId, rv::data::Action *action);
+
     // If there is no media playlists file yet, writes one that mirrors the folders under
     // <root>/Media: a playlist for each folder of media, inside playlist folders that
     // follow the folders on disk. Does nothing if the file exists.

@@ -1,5 +1,6 @@
 #include "playlistfile.h"
 
+#include "audiocue.h"
 #include "prodocument.h"
 #include "sessionlog.h"
 #include "workspacefiles.h"
@@ -27,6 +28,11 @@ QString mediaPlaylistPath(const QString &root)
     return QDir(root).absoluteFilePath("Playlists/Media");
 }
 
+QString audioPlaylistPath(const QString &root)
+{
+    return QDir(root).absoluteFilePath("Playlists/Audio");
+}
+
 // False with an empty *error if there is no file.
 bool readFile(const QString &path, rv::data::PlaylistDocument *document, QString *error)
 {
@@ -49,7 +55,7 @@ using Kind = PlaylistFile::Kind;
 
 QString pathOf(const QString &root, Kind kind)
 {
-    return kind == PlaylistFile::Media ? mediaPlaylistPath(root) : playlistPath(root);
+    return kind == PlaylistFile::Media ? mediaPlaylistPath(root) : kind == PlaylistFile::Audio ? audioPlaylistPath(root) : playlistPath(root);
 }
 
 bool read(const QString &root, Kind kind, rv::data::PlaylistDocument *document, QString *error)
@@ -187,7 +193,8 @@ rv::data::Playlist *rootNode(rv::data::PlaylistDocument *document, Kind kind)
     rv::data::Playlist *node = document->mutable_root_node();
     if (!node->has_uuid()) {
         document->set_type(kind == PlaylistFile::Media ? rv::data::PlaylistDocument::TYPE_MEDIA
-                                                       : rv::data::PlaylistDocument::TYPE_PRESENTATION);
+                           : kind == PlaylistFile::Audio ? rv::data::PlaylistDocument::TYPE_AUDIO
+                                                         : rv::data::PlaylistDocument::TYPE_PRESENTATION);
         node->mutable_uuid()->set_string(newUuid());
         node->set_name("PLAYLIST");
         node->set_expanded(true);
@@ -268,6 +275,54 @@ void addMediaNode(const rv::data::Playlist &node, const QString &parent, int dep
     result->items.insert(id, rows);
 }
 
+// The same for the audio bin: each row is a cue whose action is the sound file to play.
+void addAudioNode(const rv::data::Playlist &node, const QString &parent, int depth, workspace::FileFinder *finder,
+                  PlaylistFile *result)
+{
+    const QString id = QString::fromStdString(node.uuid().string());
+    const bool folder = node.has_playlists();
+    result->nodes.append(QVariantMap {
+        {"name", QString::fromStdString(node.name())},
+        {"path", id},
+        {"parent", parent},
+        {"depth", depth},
+        {"folder", folder},
+        {"icon", folder ? QStringLiteral("folder") : QStringLiteral("audioPlaylist")},
+    });
+    if (folder) {
+        for (const rv::data::Playlist &child : node.playlists().playlists())
+            addAudioNode(child, id, depth + 1, finder, result);
+        return;
+    }
+
+    QVariantList rows;
+    for (const rv::data::PlaylistItem &item : node.items().items()) {
+        if (item.is_hidden() || !item.has_cue())
+            continue;
+        const rv::data::Action *action = audiocue::audioOf(item.cue());
+        if (!action)
+            continue;
+        const rv::data::Media &media = action->media().element();
+        const QString file = finder->find(media.url());
+        // A row is called what it is called in the file: its name is the user's to
+        // give in ProPresenter, and is not always the file's.
+        QString name = QString::fromStdString(item.name());
+        if (name.isEmpty())
+            name = file.isEmpty() ? QFileInfo(QUrl(QString::fromStdString(media.url().absolute_string())).path()).completeBaseName()
+                                  : QFileInfo(file).completeBaseName();
+        QVariantMap row {
+            {"id", QString::fromStdString(item.uuid().string())},
+            {"name", name},
+            {"path", file},
+            {"source", file.isEmpty() ? QUrl() : QUrl::fromLocalFile(file)},
+            {"missing", file.isEmpty()},
+        };
+        audiocue::read(*action, &item.cue()).describe(&row);
+        rows.append(row);
+    }
+    result->items.insert(id, rows);
+}
+
 rv::data::PlaylistItem *findItem(rv::data::Playlist *node, const std::string &id)
 {
     if (node->has_playlists()) {
@@ -296,6 +351,19 @@ PlaylistFile PlaylistFile::loadMedia(const QString &root, QString *error)
     workspace::FileFinder finder(root, QStringLiteral("Media"));
     for (const rv::data::Playlist &child : document.root_node().playlists().playlists())
         addMediaNode(child, QString(), 0, &finder, &result);
+    return result;
+}
+
+PlaylistFile PlaylistFile::loadAudio(const QString &root, QString *error)
+{
+    PlaylistFile result;
+    rv::data::PlaylistDocument document;
+    if (!read(root, Audio, &document, error))
+        return result;
+    // (Sound files are kept with the rest of a workspace's media.)
+    workspace::FileFinder finder(root, QStringLiteral("Media"));
+    for (const rv::data::Playlist &child : document.root_node().playlists().playlists())
+        addAudioNode(child, QString(), 0, &finder, &result);
     return result;
 }
 
@@ -749,6 +817,107 @@ QString PlaylistFile::addMedia(const QString &root, const QString &playlistId, c
         ++place;
     }
     return write(root, kind, document);
+}
+
+QString PlaylistFile::addAudio(const QString &root, const QString &playlistId, const QStringList &files,
+                               const QList<double> &seconds, const QString &targetId, bool after)
+{
+    const Kind kind = Audio;
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::Playlist *playlist = findNode(document.mutable_root_node(), playlistId.toStdString());
+    if (!playlist || playlist->has_playlists())
+        return QStringLiteral("That playlist is no longer there");
+
+    // Where they are to go: the end, unless a row of the playlist is named.
+    auto *items = playlist->mutable_items()->mutable_items();
+    int place = items->size();
+    if (!targetId.isEmpty()) {
+        for (int i = 0; i < items->size(); ++i) {
+            if (items->Get(i).uuid().string() == targetId.toStdString())
+                place = i + (after ? 1 : 0);
+        }
+    }
+    // Each is added at the end and walked back up to its place, as a moved row is.
+    for (int n = 0; n < files.size(); ++n) {
+        const QString &file = files.at(n);
+        const QString name = QFileInfo(file).completeBaseName();
+        rv::data::PlaylistItem *item = playlist->mutable_items()->add_items();
+        item->mutable_uuid()->set_string(newUuid());
+        item->set_name(name.toStdString());
+        rv::data::URL reference;
+        workspace::recordFile(&reference, file, root);
+        audiocue::make(item->mutable_cue(), name, reference, QFileInfo(file).suffix().toUpper(), seconds.value(n, 0), newUuid);
+        for (int i = items->size() - 1; i > place; --i)
+            items->SwapElements(i, i - 1);
+        ++place;
+    }
+    return write(root, kind, document);
+}
+
+namespace {
+
+// Reads the audio bin's file, hands the row with this id to `change`, and writes the
+// file back if that says anything was changed.
+QString changeAudioItem(const QString &root, const QString &itemId,
+                        const std::function<bool(rv::data::Cue *, rv::data::Action *)> &change)
+{
+    const Kind kind = PlaylistFile::Audio;
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    rv::data::Action *action = item && item->has_cue() ? audiocue::audioOf(item->mutable_cue()) : nullptr;
+    if (!action)
+        return QStringLiteral("That audio is no longer in its playlist");
+    std::string before;
+    item->SerializeToString(&before);
+    if (!change(item->mutable_cue(), action))
+        return QStringLiteral("That is not a way audio can be played");
+    // (A row that is already as asked is not written again.)
+    std::string after;
+    item->SerializeToString(&after);
+    return after == before ? QString() : write(root, kind, document);
+}
+
+} // namespace
+
+QString PlaylistFile::setAudioPlayback(const QString &root, const QString &itemId, const QString &playback)
+{
+    return changeAudioItem(root, itemId, [&](rv::data::Cue *cue, rv::data::Action *action) {
+        return audiocue::setPlayback(action, cue, playback);
+    });
+}
+
+QString PlaylistFile::setAudioEffect(const QString &root, const QString &itemId, bool effect)
+{
+    return changeAudioItem(root, itemId, [&](rv::data::Cue *, rv::data::Action *action) {
+        audiocue::setEffect(action, effect);
+        return true;
+    });
+}
+
+QString PlaylistFile::audioAction(const QString &root, const QString &itemId, rv::data::Action *action)
+{
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, Audio, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    const rv::data::Action *found = item && item->has_cue() ? audiocue::audioOf(item->cue()) : nullptr;
+    if (!found)
+        return QStringLiteral("That audio is no longer in its playlist");
+    *action = *found;
+    action->mutable_uuid()->set_string(newUuid());
+    // (An action is called nothing in the bin's file, where its row has the name. On
+    // a slide or in a macro it is by itself, and takes the row's name with it. A GUESS
+    // at what ProPresenter does: no slide with audio that it made has been looked at.)
+    if (action->name().empty())
+        action->set_name(item->name());
+    return {};
 }
 
 QString PlaylistFile::seedMediaFromFolders(const QString &root)

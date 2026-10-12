@@ -25,6 +25,10 @@ namespace {
 
 const QStringList videoSuffixes = {"mp4", "mov", "m4v", "mkv", "webm", "avi"};
 const QStringList imageSuffixes = {"jpg", "jpeg", "png", "webp", "bmp", "gif"};
+// Sound files, for the audio bin. (The kinds a file of music or of a sound effect is
+// likely to be, which the system's own players of media can read: it is they that
+// play them, and one they cannot read says so when it is played.)
+const QStringList audioSuffixes = {"mp3", "m4a", "aac", "wav", "aif", "aiff", "flac", "ogg", "oga", "opus"};
 
 } // namespace
 
@@ -49,6 +53,19 @@ QStringList mediaPatterns()
 QString mediaDialogFilter()
 {
     return QStringLiteral("Images and videos (%1)").arg(mediaPatterns().join(u' '));
+}
+
+bool isAudio(const QString &file)
+{
+    return audioSuffixes.contains(QFileInfo(file).suffix().toLower());
+}
+
+QString audioDialogFilter()
+{
+    QStringList patterns;
+    for (const QString &suffix : audioSuffixes)
+        patterns << QStringLiteral("*.") + suffix;
+    return QStringLiteral("Audio (%1)").arg(patterns.join(u' '));
 }
 
 QList<QFileInfo> sortedEntries(const QString &directory, const QStringList &patterns, QDir::Filters filters)

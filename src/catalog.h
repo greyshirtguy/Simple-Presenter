@@ -17,6 +17,7 @@
 //   <workspace>/Media/...                   images and videos, in any depth of folders
 //   <workspace>/Playlists/Library           the playlists, in ProPresenter's own format
 //   <workspace>/Playlists/Media             the media playlists, likewise
+//   <workspace>/Playlists/Audio             the audio bin's playlists, likewise
 // which is how ProPresenter lays out its own folder, so a copy of one is a workspace.
 // Workspaces sit side by side in one folder, and the catalog can be switched from one to
 // another.
@@ -48,6 +49,8 @@ class Catalog : public QObject
     // The same for the media playlists and their folders, which are what the media bin
     // shows.
     Q_PROPERTY(QVariantList mediaPlaylists READ mediaPlaylists NOTIFY changed)
+    // And for the playlists of the audio bin and their folders.
+    Q_PROPERTY(QVariantList audioPlaylists READ audioPlaylists NOTIFY changed)
     // Goes up whenever anything on disk changed; bind to it to re-query the folder contents.
     Q_PROPERTY(int revision READ revision NOTIFY changed)
     // Goes up when cached thumbnails have been discarded. Thumbnail urls carry it, so the
@@ -57,6 +60,8 @@ class Catalog : public QObject
     Q_PROPERTY(bool importing READ importing NOTIFY importingChanged)
     // A filter for a file dialog, showing the media files the app can use.
     Q_PROPERTY(QString mediaDialogFilter READ mediaDialogFilter CONSTANT)
+    // And the sound files the audio bin can take.
+    Q_PROPERTY(QString audioDialogFilter READ audioDialogFilter CONSTANT)
     // Whether a slide has been copied, and so can be pasted
     Q_PROPERTY(bool hasCopiedSlide READ hasCopiedSlide NOTIFY copiedSlideChanged)
 
@@ -75,10 +80,12 @@ public:
     QVariantList libraries() const { return m_libraries; }
     QVariantList playlists() const { return m_playlists.nodes; }
     QVariantList mediaPlaylists() const { return m_mediaPlaylists.nodes; }
+    QVariantList audioPlaylists() const { return m_audioPlaylists.nodes; }
     int revision() const { return m_revision; }
     bool importing() const { return m_importing; }
     int thumbnailRevision() const { return m_thumbnailRevision; }
     QString mediaDialogFilter() const;
+    QString audioDialogFilter() const;
     bool hasCopiedSlide() const { return !m_copiedSlide.isEmpty(); }
 
     // Discards the cached thumbnails of these media files; they are made again as the
@@ -91,6 +98,8 @@ public:
     Q_INVOKABLE QVariantList documentsIn(const QString &library) const;
     // The rows of the media playlist with this id, as PlaylistFile describes them.
     Q_INVOKABLE QVariantList mediaIn(const QString &playlist) const;
+    // The rows of the audio bin's playlist with this id, as PlaylistFile describes them.
+    Q_INVOKABLE QVariantList audioIn(const QString &playlist) const;
     // The rows of the playlist with this id, as PlaylistFile describes them.
     Q_INVOKABLE QVariantList playlistItems(const QString &playlist) const;
     // Returns { name, path, slides, arrangements, arrangement, error }; error is empty on
@@ -176,6 +185,25 @@ public:
     Q_INVOKABLE QString setMediaItemForeground(const QString &item, bool foreground);
     Q_INVOKABLE QString moveMediaItem(const QString &item, const QString &target, bool after);
 
+    // The same again for the audio bin: its playlists and folders, and its rows, which
+    // are sound files. Files are referred to where they are, not copied.
+    Q_INVOKABLE QVariantMap createAudioPlaylist(const QString &name, const QString &parent);
+    Q_INVOKABLE QVariantMap createAudioFolder(const QString &name, const QString &parent);
+    Q_INVOKABLE QString renameAudioPlaylist(const QString &id, const QString &name);
+    Q_INVOKABLE QString removeAudioPlaylist(const QString &id);
+    Q_INVOKABLE QString moveAudioPlaylist(const QString &id, const QString &target, const QString &where);
+    // (How long each file is, is read from it as it is added, which takes a moment for
+    // each: the audio bin shows it, and ProPresenter's file has it.)
+    Q_INVOKABLE QString addAudio(const QString &playlist, const QList<QUrl> &files, const QString &target = {},
+                                 bool after = false);
+    // Which of these files are sound files, as paths.
+    Q_INVOKABLE QStringList audioAmong(const QList<QUrl> &files) const;
+    Q_INVOKABLE QString removeAudioItem(const QString &item);
+    Q_INVOKABLE QString moveAudioItem(const QString &item, const QString &target, bool after);
+    // How a row plays on from its end ("stop", "loop" or "next"), and whether it is a
+    // sound effect and not music (see audiocue.h). They are the row's own.
+    Q_INVOKABLE QString setAudioPlayback(const QString &item, const QString &playback);
+    Q_INVOKABLE QString setAudioEffect(const QString &item, bool effect);
     // Selects the named arrangement in the presentation file, or none for "", and saves
     // the file. Returns an error message, empty on success.
     Q_INVOKABLE QString setArrangement(const QString &path, const QString &arrangement);
@@ -238,6 +266,7 @@ private:
     QVariantList m_libraries;
     PlaylistFile m_playlists;
     PlaylistFile m_mediaPlaylists;
+    PlaylistFile m_audioPlaylists;
     int m_revision = 0;
     bool m_importing = false;
     int m_thumbnailRevision = 0;
