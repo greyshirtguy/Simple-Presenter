@@ -821,6 +821,37 @@ def after_chords(workspace, test_dir):
             said(names(box) == names(before) + " A" and spans(box) == " ".join("%d-%d" % (2 * i, 2 * i + 1) for i in range(count + 1)),
                  "in the song's file: and so are they written here, with one more on the end", names(box) + " over " + spans(box)),
         ]
+        # The one more is written where the line stands in the text box's RTF: Multitracks' own RTF to the byte, with
+        # a wide space and a stand-in put in after the line's last character, before the bracket that ends it. And
+        # nothing else of the text box is written, but that what it says of a range of its words (that they are in
+        # capitals) has its range go with the words: one that ended with the line, two characters longer now, still does.
+        rtf_now, rtf_was = (re.search(r'rtf_data: "((?:[^"\\]|\\.)*)"', each["is"]) for each in (box, before))
+        added = rtf_now.group(1)[len(rtf_was.group(1)) - 1:-1] if rtf_now and rtf_was else ""
+        ranged = re.compile(r"custom_attributes \{\s*(?:range \{\s*(?:start: (\d+)\s*)?(?:end: (\d+)\s*)?\}\s*)?(?!chord:)((?:[^{}]|\{[^{}]*\})*?)\s*\}")
+
+        def beside(each):
+            """A text box without its words, its chords and the ranges of what else it says of some of its words:
+            what a change to those must leave alone."""
+            return re.sub(r"\s+", " ", ranged.sub(lambda m: "(of a range) " + m.group(3), chord.sub("", re.sub(r'rtf_data: "((?:[^"\\]|\\.)*)"', "(the words)", each["is"]))))
+
+        def ranges(each):
+            return [(int(m.group(1) or 0), int(m.group(2) or 0)) for m in ranged.finditer(chord.sub("", each["is"]))]
+
+        # (The intro is the text box's one line: 2 * count - 1 characters before, two more now.)
+        length = 2 * count - 1
+        lines += [
+            said(rtf_now is not None and rtf_was is not None and rtf_was.group(1).endswith("}")
+                 and rtf_now.group(1).startswith(rtf_was.group(1)[:-1]) and rtf_now.group(1).endswith("}")
+                 and added in (numbered(0x2001) + numbered(0x200B), numbered(0x2001) + " "),
+                 "in the song's file: the intro's RTF is Multitracks' own to the byte, with the one stand-in more put in after the line's last",
+                 "put in: %s" % added),
+            said(beside(box) == beside(before),
+                 "in the song's file: and nothing else of that text box is written: what it keeps beside its words is as it was"),
+            said(len(ranges(before)) > 0 and ranges(box) == [(a if a < length else a + 2, b if b < length else b + 2) for a, b in ranges(before)]
+                 and any(b == length for _, b in ranges(before)),
+                 "in the song's file: but that what it says of all its words (that they are in capitals) is said of all of them still",
+                 "%s, was %s" % (ranges(box), ranges(before))),
+        ]
     # The presentation that was made new, and the one made after it by the same name
     new, second = (decoded(song(name)) if song(name) else "" for name in ("Sunday Notes.pro", "Sunday Notes 2.pro"))
     top = sorted(set(re.findall(r"^([a-z_A-Z]+)(?: \{|:)", new, re.M)))

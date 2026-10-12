@@ -4,6 +4,7 @@
 
 #include "proconvert.h"
 #include "richtext.h"
+#include "rtfstandins.h"
 #include "sessionlog.h"
 #include "workspacefiles.h"
 
@@ -1140,11 +1141,58 @@ QString PresentationEditor::setChordsAlone(int row, const QString &element, int 
             }
         }
 
+        // The line's characters are changed where they stand in the text box's RTF, and
+        // not another byte of it (rtfstandins.h, which has why, and whose rule this is):
+        // the bytes of the line's own characters, with the words between them that say
+        // how they are set left where they are. What comes of it is read back with the
+        // reader the app shows text by, and must be the old words with that line
+        // changed and nothing else. What the text box keeps beside its words, which a
+        // text written afresh has set again, is left as it is, but for this: what is
+        // said there of a range of the words ("these are in capitals") has its range
+        // go with the words, as the chords of the lines below do (see placeAfter, which
+        // says what is a guess in that). Most text boxes that hold a line of chords
+        // alone say of all their words that they are in capitals, and a range left as
+        // it was would stop short of the stand-in put in, or end past the last of the
+        // words with one taken out.
+        bool whereItStands = false;
         if (standIns != old) {
-            // The line's characters are changed, where they are: in the paragraph that
-            // has the line, and of that paragraph's runs only those the line is in, so
-            // that every other line keeps its own format. The stand-ins take the format
-            // the line began in.
+            const QByteArray rtf = QByteArray::fromStdString(text->rtf_data());
+            if (const std::optional<QByteArray> changed = rtfstandins::withLine(rtf, line, standIns)) {
+                rv::data::Graphics::Text tried = *text;
+                tried.set_rtf_data(changed->toStdString());
+                QStringList meant = lines;
+                meant[line] = standIns;
+                if (proconvert::readText(tried).plainText() == meant.join(u'\n')) {
+                    text->set_rtf_data(changed->toStdString());
+                    whereItStands = true;
+                    // (The chords are written below, all of them.)
+                    for (auto &custom : *text->mutable_attributes()->mutable_custom_attributes()) {
+                        if (custom.has_chord() || !custom.has_range())
+                            continue;
+                        const int from = rtfstandins::placeAfter(custom.range().start(), start, int(old.size()), int(standIns.size()));
+                        const int to = rtfstandins::placeAfter(custom.range().end(), start, int(old.size()), int(standIns.size()));
+                        if (from != custom.range().start())
+                            custom.mutable_range()->set_start(from);
+                        if (to != custom.range().end())
+                            custom.mutable_range()->set_end(to);
+                    }
+                }
+            }
+        }
+        if (standIns != old && !whereItStands) {
+            // It could not be: the RTF is of a kind that rule was not written for, or
+            // the two readers do not make the same words of what it made. So the text
+            // box's words are written again whole, as this app writes text, which is
+            // how it was always done here. (The editors for the Mac and for Windows,
+            // which have no writer of RTF, refuse at this point.) The log says so, for
+            // whoever wants to know what was done to a file.
+            //
+            // The line's characters are changed in the paragraph that has the line,
+            // and of that paragraph's runs only those the line is in, so that every
+            // other line keeps its own format. The stand-ins take the format the line
+            // began in.
+            SessionLog::write("edit", QStringLiteral("a line of chords with no words could not be changed where it stands in its text box's RTF: "
+                                                     "the text box's words were written again whole"));
             int first = 0;
             bool found = false;
             for (TextParagraph &paragraph : rich.paragraphs) {
@@ -1192,7 +1240,7 @@ QString PresentationEditor::setChordsAlone(int row, const QString &element, int 
             proconvert::writeText(text, rich);
         }
         // (Where the line was those stand-ins already, its chords renamed or put in
-        // another order, the text is not written again: only the chords are.)
+        // another order, not a byte of the words is written: only the chords are.)
         for (int i = 0; i < wanted.size(); ++i)
             kept.append({start + i * 2, wanted.at(i)});
         proconvert::writeChords(text, kept);

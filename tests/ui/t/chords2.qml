@@ -406,6 +406,9 @@ QtObject {
                 const sameFormat = (a, b) => a.fontName === b.fontName && a.size === b.size && a.color === b.color && a.bold === b.bold && a.capitalization === b.capitalization
                 check("and set as they were: their font, size and colour", wordsNow.length === 1 && wordsBefore.length === 1 && sameFormat(wordsNow[0], wordsBefore[0]),
                       JSON.stringify(wordsNow.map(run => [run.fontName, run.size, run.color])))
+                // (The log has a line whenever a text box's words had to be written again whole instead.)
+                check("and the line was changed where it stands in the text box's RTF: the text box was not written again whole",
+                      !testInput.readText(Log.path).includes("could not be changed where it stands"))
                 testInput.grab("7-chords-under-words")
                 // One from the middle, then the rest.
                 s.setSpot(kept.second, 2)
@@ -677,6 +680,8 @@ QtObject {
                     ++undone
                 }
                 check("everything undone, the song is as it was found", JSON.stringify(editScreen.editor.song()) === kept.song, undone + " steps")
+                check("and in all of this no line of chords alone had its text box written again whole: each was changed where it stands",
+                      !testInput.readText(Log.path).includes("could not be changed where it stands"))
                 stopEditing()
                 return 500
             }

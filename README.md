@@ -198,8 +198,9 @@ The big things lately, the newest first.
   over both editors. The way of working is a switch in the middle of the toolbar.
   Under the editors it says **Autosave on**, and **Revert…** makes the song what it was
   when it was opened. The ChordPro text has a size of its own, and the settings have
-  the colour of a chord in each. And a line of chords with no words that has lost its
-  last chord can be given chords again.
+  the colour of a chord in each. A line of chords with no words that has lost its
+  last chord can be given chords again; and a chord more or fewer on such a line now
+  changes that line's own characters in the file and nothing else of its text box.
 - **A slide by its number.** Type a slide's number while showing and it comes up over
   the slides, large; Enter takes that slide live, as a click on it would. Typing takes
   nothing live by itself, and a number left alone for a second goes away again. See
@@ -1186,8 +1187,10 @@ What makes it quick:
 - **A line of chords with no words that loses its last chord takes chords again.** It
   is left one character that does not show, and is still on the sheet with the spot on
   it. (It was left with none, and under a verse such a line was then gone for good but
-  for undo.) And where the chords of such a line are only renamed, or put in another
-  order, nothing of the text box's words is written again.
+  for undo.) Where the chords of such a line are only renamed, or put in another
+  order, nothing of the text box's words is written; and a chord more or fewer changes
+  the line's own characters in the file and leaves the rest of the text box as
+  ProPresenter wrote it, byte for byte.
 - **Nothing is lost.** Every change is saved at once, into the song's own file, and
   Ctrl+Z takes it back. The words are never changed here, only the chords.
 
@@ -1280,11 +1283,28 @@ song's key. The same **+** has **New Presentation…** and **New Library**.
   space, whatever its chords hung on, as the Mac and Windows editors leave it. That
   ProPresenter makes nothing of such a line is a guess: a line of the kind with chords
   on it has been seen there, and one with none has not.
-- A chord more or fewer on a line of chords with no words is written by writing that
-  text box's words again, as this app writes text (the line's own characters are
-  changed and every other line keeps its format, but the whole is written afresh).
-  The Mac and Windows editors change the line's characters where they stand in the
-  file and nothing else; that has not been brought here yet.
+- A chord more or fewer on a line of chords with no words changes that line's own
+  characters where they stand in the text box's RTF, and not another byte of it, as
+  the Mac and Windows editors do it and by the same rule, held to the same cases
+  (`src/rtfstandins.h`). What comes of it is read back before it is kept. Where that
+  cannot be done cleanly, the text box's words are written again whole, as this app
+  writes text, and the log says so; the other two editors, which have no writer of
+  RTF, refuse there instead. One kind of RTF is known to want that: one that has a
+  character follow each numbered one to stand in for it, which Apple's text system
+  never writes. What ProPresenter on Windows writes is not known.
+- With such a line made longer or shorter, what its text box says of a range of its
+  words and is not a chord ("these are in capitals", a gradient over some of them)
+  has its range go with the words: one that ended with the line or went on past it
+  still does, and one over all the words is over all of them still. That is what a
+  text system does when characters are typed after others, and what ProPresenter is
+  taken to do. In this the app is not as the other two editors, which leave such
+  ranges as they are. It matters in real songs: of 164 text boxes with a line of
+  chords alone in the libraries looked at, 96 say of all their words that they are in
+  capitals, and with a chord taken off, that range left alone would end past the
+  last of the words.
+- The first chords of a slide with no words are still written with this app's own
+  writer, in the font the text box keeps for what is typed into it. The other two
+  editors take the opening of a neighbouring text box's RTF instead.
 - A song whose file names the key its chords are written in and not the one it is
   shown in is taken as shown in its own. No file looked at is like that.
 - Two fingers spread or closed on a trackpad are meant to zoom the sheet, as on the
@@ -2223,6 +2243,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `icons/`, `src/iconprovider.*`, `qml/ProIcon.qml` | ProPresenter's own pictures for what this app has too, where they are from and how the files were made (`icons/README.md`, `icons/make.py`), and how one is drawn in any colour at any size |
 | `qml/ThemesPanel.qml` | The themes, let down from the toolbar's button |
 | `qml/SearchPanel.qml` | The search window |
+| `src/rtfstandins.*` | A line of chords with no words given more stand-in characters or fewer, where it stands in a text box's RTF |
 | `qml/ChordSheet.qml`, `qml/ChordProEditor.qml` | The two chord editors: the song as a sheet with its chords in bubbles, and as ChordPro text |
 | `qml/EditorModes.qml` | The switch between the editor's three ways of working, in the middle of its toolbar |
 | `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |

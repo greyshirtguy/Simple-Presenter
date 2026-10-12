@@ -69,6 +69,8 @@ qt_add_executable(SimplePresenter
     src/richtext.h
     src/rtf.cpp
     src/rtf.h
+    src/rtfstandins.cpp
+    src/rtfstandins.h
     src/rtfwriter.cpp
     src/rtfwriter.h
     src/benchmark.cpp

@@ -14,12 +14,13 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are thirteen:
+So far there are fourteen:
 
 | Test | What it tries |
 | --- | --- |
 | `tst_lookfile` | The looks in ProPresenter's set-up file (`src/lookfile.h`): what each gives each screen, the live look as a look of its own (made from a saved one, changed by itself, saved as that one, made again), a theme known by its place whatever computer named it, and changes that leave the rest of the file alone |
 | `tst_chords` | Chords (`src/chords.h`): a chord's parts, changing key, the four notations, a key's own chords, what a typed chord might become, the stretch of the words a chord is written over in the file (with words, and with none), ChordPro there and back, a song read from a ChordPro file |
+| `tst_rtfstandins` | A line of chords with no words changed where it stands in an RTF (`src/rtfstandins.h`): held to the cases the chord editors for the Mac and Windows are held to (`tests/unit/data/`, copied from [Pro7 Chord Editor](https://github.com/greyshirtguy/Pro7ChordEditor)'s `testdata/vectors`, whose `tools/standins.py` made them and is the rule's reference), so that all three write the same bytes; and its reader of RTF to what the app's own reader makes of the same samples |
 | `tst_thememath` | Which text box of a slide goes into which text box of a theme (`src/thememath.h`): by name, by size, in order |
 | `tst_searchindex` | Finding presentations by their names and words (`src/searchindex.h`): capitals, punctuation and accents, the order of what is found, the line that is shown; and a list on the screen narrowed to the names that have what was typed, a playlist's headings with it |
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |

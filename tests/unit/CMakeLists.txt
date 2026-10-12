@@ -118,3 +118,14 @@ qt_add_executable(tst_slidenumber
 target_include_directories(tst_slidenumber PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_slidenumber PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME slidenumber COMMAND tst_slidenumber)
+
+# (Held to cases that are kept beside it: tests/unit/data, which the test is told of.)
+qt_add_executable(tst_rtfstandins
+    tst_rtfstandins.cpp
+    ${PROJECT_SOURCE_DIR}/src/rtfstandins.h
+    ${PROJECT_SOURCE_DIR}/src/rtfstandins.cpp
+)
+target_include_directories(tst_rtfstandins PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_definitions(tst_rtfstandins PRIVATE VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/data")
+target_link_libraries(tst_rtfstandins PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME rtfstandins COMMAND tst_rtfstandins)
