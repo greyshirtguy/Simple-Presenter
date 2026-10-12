@@ -3,7 +3,8 @@
 // The app is a window, some screens and a folder.
 //
 //   The folder is a workspace: libraries of ProPresenter 7 presentations, media files,
-//   two playlists files, the timers, the props and the stage layouts, laid out exactly
+//   three playlists files (of presentations, of media and of audio), the timers, the
+//   props and the stage layouts, laid out exactly
 //   as ProPresenter lays out its own folder (src/catalog.h; src/timers.h, src/props.h
 //   and src/stagelayouts.h for the last three). Nothing is imported or converted; the
 //   app works on the files as they are, and writes its changes back into them.
@@ -59,6 +60,16 @@
 //   A slide's cue may do more than show the slide. It may trigger media, which goes to
 //   the media layer as a background that stays or as a foreground that plays once (see
 //   workspace::MediaBehaviour in src/workspacefiles.h); and it may work a timer.
+//
+// What is heard.
+//
+//   Besides the layers that are seen there is the audio layer: the pieces of the audio
+//   bin (qml/AudioPanel.qml; src/audiocue.h for what ProPresenter's file says of one).
+//   What is to be playing is the show's to say, as what is on the output is: music one
+//   piece at a time, sound effects over it (src/showstate.h). It is played by
+//   AudioLayer (src/audiolayer.h), which has the fades and the device sound goes to;
+//   and what is played, a video's sound with it, is handed to the meter in the preview
+//   as it goes (src/audiometer.h).
 //
 //   What is not settled when a file is read is text that changes while it is on show: a
 //   timer's time, which SlideElement asks Timers for (src/timers.h), and the words of

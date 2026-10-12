@@ -50,9 +50,9 @@ length:
 **It works on a ProPresenter workspace as it is.** Copy the folder ProPresenter keeps
 everything in onto the Linux computer and pick it in the app. Nothing is converted and
 there is no importing to do: the libraries and their presentations, the playlists and
-their folders, the media bin, the timers, props, stage layouts, macros, screens, looks
-and themes, and the hotkeys of the groups, are all read from the files ProPresenter
-keeps them in. What is changed here (a slide edited, a playlist made, a
+their folders, the media bin, the audio bin, the timers, props, stage layouts, macros,
+screens, looks and themes, and the hotkeys of the groups, are all read from the files
+ProPresenter keeps them in. What is changed here (a slide edited, a playlist made, a
 chord put on) is saved into those same files, and whatever is in them that this app
 does not understand is written back exactly as it was found. A playlist exported from
 ProPresenter can be brought into a workspace too. More under [Workspaces](#workspaces).
@@ -126,8 +126,8 @@ a slide is up, and plays a 4K video under the words with most of the machine to 
 see [Built for modest hardware](#built-for-modest-hardware).
 
 **What it cannot do** is a longer list. ProPresenter does a great deal more than this:
-there are no announcements, no messages, no audio bin and no Bible here yet, among much
-else. See [TODO](#todo).
+there are no announcements, no messages and no Bible here yet, among much else. See
+[TODO](#todo).
 
 ### Custom features
 
@@ -187,6 +187,17 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **The audio bin, and how loud it all is.** ProPresenter's [audio bin](#audio) is
+  here, as another tab of the show controls: its playlists and their folders, read
+  from ProPresenter's own file of them, and under them the pieces of the one picked. A
+  click plays a piece. A piece is music or a sound effect: music is one at a time, and
+  sound effects play over it and over each other. A piece stops at its end, goes
+  round, or is followed by the next of its playlist. One piece of music can be crossed
+  into the next, and how long a fade is can be set. Pieces can be dragged onto a slide
+  or a macro. There is a button that clears the audio (and F5), the clear groups can
+  have the audio among their layers, and the preview of the output has two bars at its
+  edge that show how loud what is playing is. The settings say which device sound is
+  played through.
 - **The chord editors, as they came back from the Mac.** The [chord
   editor](#the-chord-editor) was made into a program of its own for the Mac and for
   Windows ([Pro7 Chord Editor](https://github.com/greyshirtguy/Pro7ChordEditor)), and
@@ -342,17 +353,23 @@ the top of this page.
       that a whole workspace survives being read and written back unchanged; one
       command that runs every check there is; and the checks run by themselves on every
       pull request.
-- [ ] **Clear groups**: they are there, for the three layers this app has (the slide,
-      the media, the props). Still to come: the other layers a group can name (audio,
-      messages, announcements, video inputs), each of which also wants a clear button
-      of its own when the layer comes; giving a group a picture of one's own; and
-      putting the groups in another order by dragging.
+- [ ] **Clear groups**: they are there, for the layers this app has (the slide, the
+      media, the props, the audio and the audio effects). Still to come: the other
+      layers a group can name (messages, announcements, video inputs), each of which
+      also wants a clear button of its own when the layer comes; giving a group a
+      picture of one's own; and putting the groups in another order by dragging.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
-      stage, props, macros and looks, and those are run. Still to come: the rest of
-      ProPresenter's kinds (audio, messages, communications, capture and more, which
+      stage, props, macros, looks and audio, and those are run. Still to come: the rest
+      of ProPresenter's kinds (messages, communications, capture and more, which
       are kept in the files and shown, and not done), an action's delay, putting a
       slide's or a macro's actions in another order, and the clear layers the app
       does not have yet.
+- [ ] **The audio bin**: it is there (see [Audio](#audio)). Still to come: shuffling a
+      playlist; a hot key for a piece; where a piece starts and stops, how loud it
+      is, and its own fades, which ProPresenter's inspector sets and which are kept
+      in the file and, but for how loud, not gone by; going round a number of times
+      or for a length of time, which is played and cannot be set; and a transport for
+      the music (the one under the previews is the video's).
 
 ### To try, and see what happens
 
@@ -363,8 +380,6 @@ experiment.
 - [ ] **A simple help file**: the app's own features explained in one place, in the app
 - [ ] **Announcements**
 - [ ] **Messages**
-- [ ] **Audio bin**
-- [ ] **Audio levels**, shown over the previews
 - [ ] **Masks**
 - [ ] **Video input**
 - [ ] **Clear to logo**
@@ -667,7 +682,8 @@ In the files this is what ProPresenter keeps: the layer a media action is on, an
 its video plays on. Media set up there behaves here as it was set there.
 
 **Sound.** A foreground video is played with its sound, through the system's audio
-output, at the volume ProPresenter has for it (full, unless it was turned down there).
+output or the device chosen for sound in the settings (see [Audio](#audio)), at the
+volume ProPresenter has for it (full, unless it was turned down there).
 A background video is silent, whatever sound its file has: it is there to be looked at
 behind the words. The sound follows the picture through a transition, fading in or
 out with a dissolve and starting or stopping at once with a cut. There is nowhere yet
@@ -706,6 +722,109 @@ the first of which is what F1 clears: to begin with that is Clear All. Under tho
 the **transport**, for the video on the output: how far in it is and how much is left, a
 slider that can be dragged to move it, and buttons to go back to the start, to play or
 pause, and to skip fifteen seconds back or on.
+
+## Audio
+
+The **audio bin** is ProPresenter's: playlists of sound files, for the music before a
+service, a track to sing to, a sound effect. It is a tab of the show controls, the one
+with two joined notes, and what it shows is read from the file ProPresenter keeps it in
+(`Playlists/Audio`), where what is changed here is saved.
+
+At the top, on the lighter ground, are the playlists and the folders they are kept in;
+under them, on the darker, the pieces of the playlist picked. The line between the two
+is dragged to share out the height. Over the pieces it says how many there are, and at
+the right of that a **+** browses for sound files to add. Sound files can also be
+dragged in from the file manager, onto a playlist or among the pieces. They are
+referred to where they are on disk, not copied. The **+** under the tabs adds a
+playlist or a folder; a right click on one renames or removes it, and one can be
+dragged onto another to move it.
+
+**A click on a piece plays it.** What it is says how:
+
+- A piece is **music** (two joined notes at its left) or a **sound effect** (a jagged
+  line). Music is one at a time: a piece of music takes the place of the one that is
+  playing. Sound effects do not stop anything: they play over the music and over each
+  other, as many at once as are clicked, the same one twice if it is clicked twice.
+- At its end a piece **stops** (a square at its right), **loops** (an arrow going
+  round) until it is cleared or other music takes its place, or is followed by the
+  **next** of its playlist (an arrowhead against a bar), so that a playlist of music
+  plays through. A piece whose file is not on this computer says "missing", is not
+  played, and is passed over by the one before it. It is music that the next follows:
+  a sound effect set to Next plays once, and nothing follows it.
+
+A right click on a piece sets those: **Stop**, **Loop** or **Next**, and **Music** or
+**Sound Effect**. They are the piece's own, kept in ProPresenter's file as ProPresenter
+keeps them. What is playing is marked orange, and the music counts down what it has
+left.
+
+**All of it is the audio layer**, which has a clear button of its own beside those of
+the slide, the media and the props, with ProPresenter's picture of clearing the audio:
+red while anything is playing, and **F5** does the same. Clearing everything clears it
+too, and a [clear group](#clear-groups) can have it among its layers.
+
+Along the bottom of the bin:
+
+- a switch, two lines that cross, for **crossing** one piece of music into the next.
+  On, music that takes the place of music comes in as the other goes out, and a piece
+  that the next follows hands over a fade's length before its end, so that the two
+  cross. Off, the one stops and the other starts.
+- a box that **narrows the list** to the pieces whose names have what is typed in it.
+  Esc empties it.
+- **how long a fade is**, as a slider and as a number of seconds, a second unless it is
+  changed. It is how long a crossing takes, and how long the audio takes to go out
+  when it is cleared. With no length, clearing stops it at once.
+
+**A piece can be dragged** onto a slide, which gives the slide an [action](#actions)
+that plays it when the slide goes live; and onto a [macro](#macros). To get to the
+macros with a piece in hand, hold it over their tab: the tab comes forward after a
+moment. There it is dropped on a macro, which is given the action, or on the strip
+along the bottom, which makes a macro of its own for it, called what the piece is
+called. An action that plays audio is a copy of the piece as the bin had it then, and
+has its own Stop or Loop and Music or Sound Effect, in its menu; it has no playlist, so
+nothing follows it.
+
+**How loud it is** is shown in the preview of the output: two bars up its right edge,
+the left and the right, there while anything is sounding (a piece of audio, or a video
+with its sound) and gone when nothing is. They go by decibels as a sound desk's do:
+green, yellow for the top 12, red for the top 3. They show the sound as the app plays
+it; the system's own volume, and whatever comes after the app, is not in them.
+
+**Where sound goes** is in the settings, under **Audio**: the system's own choice, which
+is wherever this computer sends sound, or one of the devices it has. It is for
+everything the app plays, the audio bin and a video's sound alike, and is this
+computer's, kept with the app's own settings; ProPresenter's file of the workspace
+names a device too, one of the computer it was written on, and that is left as it is.
+A device that was chosen and is not there now (unplugged, say) is said to be gone, and
+sound goes wherever the system sends it until it is back.
+
+What is a guess, ProPresenter's own audio bin having been described and not looked at,
+and one file of its own having been read (version 21.4, six pieces):
+
+- How the bin is laid out is as it was described by the person this was made for.
+- A file added here is set to be followed by the next, as five of that file's six
+  pieces are, and is given what those pieces have but for which outputs their channels
+  go to, which was plainly that user's own doing.
+- Where the file says a piece goes round is known from the one piece of that file that
+  does; that the next following a piece is the cue's "completion target" is known from
+  the five that have it. An action has a second place that could say it goes round,
+  which that file never uses: it is read if it is there, and never written.
+- That ProPresenter stops at a playlist's last piece and does not begin again at its
+  first.
+- That nothing follows a sound effect. ProPresenter may well play the next after one
+  that is set to Next, as it does after music: that has not been looked at, and here
+  it is not done.
+- What ProPresenter's fade applies to and how long its crossfade is. Here one length
+  does for both, and a new piece of music cuts in unless crossing is on.
+- That clearing the audio stops the sound effects as well as the music, and that the
+  "audio effects" a clear group can name are the sound effects.
+- That F5 is ProPresenter's key for clearing the audio. It is believed to be, and has
+  not been checked there.
+- What ProPresenter gives a slide's or a macro's action that plays audio: here it is a
+  copy of the bin's own action for the piece, with the piece's name on it.
+- How many bars ProPresenter's meters have, where their colours change and how fast
+  they fall.
+
+Not done: see [TODO](#todo).
 
 ## Timers
 
@@ -787,7 +906,7 @@ shown that group too, and the file is not written until something is changed.
 
 Each group has a button, in a row of its own under the clears of the layers, in the
 order the groups are in. The buttons share the width between them, so the one group a
-workspace starts with has a button as wide as the three above it, with its picture and
+workspace starts with has a button as wide as the four above it, with its picture and
 its name; several have room for their pictures alone. A button is red while any of the
 group's layers has something on it, and a click clears them. **F1 clears the first
 group**, which is Clear All unless the list has been put in another order. A group's
@@ -800,10 +919,12 @@ one picked has.
 
 - **The layers it clears.** ProPresenter's eight, in its order: audio, audio effects,
   messages, props, announcements, the slide, the media and video inputs. This app has
-  three of them (the props, the slide and the media), and those are ticked and
-  unticked. The others are greyed: they are shown as the group has them in the file,
-  are kept exactly so, and cannot be changed here, there being nothing here yet for
-  them to clear.
+  five of them (the audio, the audio effects, the props, the slide and the media), and
+  those are ticked and unticked. The audio is the whole of the [audio](#audio) layer,
+  its music and its sound effects; the audio effects are the sound effects alone, so
+  that a group can stop those and leave the music playing. The others are greyed:
+  they are shown as the group has them in the file, are kept exactly so, and cannot be
+  changed here, there being nothing here yet for them to clear.
 - **The picture** on its button, one of the thirty-two ProPresenter has to choose from.
   For the two that ProPresenter's icon pack has (the one called All, and the message)
   it is ProPresenter's own picture; the digits are digits; and the rest are this app's
@@ -824,7 +945,8 @@ the file exactly as it was.
 
 What is a guess, ProPresenter's own window for this not having been looked at: how
 that window is laid out; the order the layers are listed in, which is the order
-ProPresenter's own group has them in; that F1 is for the first group of the list; what
+ProPresenter's own group has them in; that its "audio" stops the sound effects as well
+as the music; that F1 is for the first group of the list; what
 a new group is given (here a name, no layers, and for its picture the first digit that
 no group has); and that any group, the one a workspace starts with among them, can be
 renamed, moved and removed. What it rests on is one file of ProPresenter's own, with
@@ -842,7 +964,8 @@ is marked as the live one, and the arrow keys go on from it.)
 - **Timer**: start, stop or reset a [timer](#timers), or reset and start it, and
   optionally set it up anew first (as a countdown of so long, a countdown to a time of
   day, or an elapsed time).
-- **Clear**: everything, the slide, the media or the props.
+- **Clear**: everything, the slide, the media or the props. (And the audio, by
+  dragging its clear button onto the slide.)
 - **Clear Group**: clear one of the workspace's [clear groups](#clear-groups), which is
   to say those of its layers that there are here.
 - **Stage**: give each stage screen one of the workspace's [stage layouts](#stage-layouts),
@@ -850,6 +973,8 @@ is marked as the live one, and the arrow keys go on from it.)
 - **Prop**: put a [prop](#props) on (Trigger) or take it off (Clear).
 - **Macro**: run a [macro](#macros).
 - **Audience Look**: make one of the workspace's [looks](#looks) the live one.
+- **Audio**: play a piece of the [audio bin](#audio), music or a sound effect. It is
+  made by dragging the piece onto the slide.
 
 Each action a slide has is a small icon in the top left corner of its thumbnail, after
 the icons for its hotkey and its media. A right click on a slide offers **Add Action**,
@@ -857,7 +982,8 @@ which leads to the kinds above: Clear, Clear Group, Prop, Macro and Audience Loo
 lists to pick from (a prop by its collection, then Trigger or Clear; a macro by its
 collection), Timer and Stage to a small panel to fill in. Under it is **Remove Action**,
 which lists the actions the slide has. A right click on an action's icon says what the
-action is and offers to change it, for a timer or a stage action, or to remove it.
+action is and offers to change it, for a timer or a stage action, or to remove it;
+for one that plays audio it has Stop or Loop, and Music or Sound Effect.
 
 A row of a menu that leads to a menu of its own has an arrowhead at its right, and its
 menu opens beside it when the pointer rests on the row (or on a click). The menu it
@@ -865,15 +991,17 @@ came from stays where it is, and each is kept inside the window.
 
 Whatever is listed in the show controls can also be **dragged onto a slide**: a timer
 or the stage screen, which bring up their panel; a prop, which asks whether it is to
-be triggered or cleared; a macro, which needs nothing more. So can the **clear
+be triggered or cleared; a macro, which needs nothing more; a piece of audio, which
+needs nothing more either. So can the **clear
 buttons** under the previews, each of which gives the slide the action that clears its
 layer, or its group; and those can be dropped on a macro as well.
 
-ProPresenter has many more kinds of action than these seven (messages, audio,
+ProPresenter has many more kinds of action than these eight (messages,
 communications and so on). A slide or a macro that has one keeps it: it is shown as a
 fainter icon, said for what it is, written back untouched and not done. An action for
 a timer, a prop, a macro, a layout, a look or a clear group that is not in the
-workspace does nothing, and the [log](#log) says so.
+workspace does nothing, and the [log](#log) says so; so does one that plays a sound
+file that is not on this computer.
 
 A stage action names the stage screens it is for, and its panel has a line for each
 stage screen of the workspace: the layout that screen is to be given, or that it is to
@@ -939,7 +1067,8 @@ slide); **Remove Action**, which lists its actions; a row for each action that h
 anything to change (a timer action, a stage action), leading to Edit and Remove;
 Rename; Colour; Duplicate; Move to another collection; and Remove. The `+` over the
 list adds a macro or a collection. One of the clear buttons dragged onto a macro
-gives it that clear action, a layer's or a group's. A macro can run another macro; two that run each other
+gives it that clear action, a layer's or a group's; a piece out of the [audio
+bin](#audio) dragged onto one gives it the action that plays that piece. A macro can run another macro; two that run each other
 are stopped after eight turns.
 
 The macros are ProPresenter's own, in `Configuration/Macros`, read and written as
@@ -1642,7 +1771,7 @@ NDI® is a registered trademark of Vizrt NDI AB.
 | Right, Space / Left | Next / previous slide |
 | Down / Up | Next / previous presentation |
 | F1 | Clear the first [clear group](#clear-groups), which to begin with is Clear All |
-| F2 / F3 / F4 | Clear the slide layer / media layer / props |
+| F2 / F3 / F4 / F5 | Clear the slide layer / media layer / props / audio |
 | ~, held for most of a second | [Simple View](#simple-view) on or off |
 | A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
 | A number, then Enter | Goes to the slide with that number |
@@ -1710,7 +1839,7 @@ In the editor:
 | Ctrl+Z / Ctrl+Shift+Z, Ctrl+Y | Undo / redo |
 | Shift while dragging | Move in a straight line; resize from a corner in proportion |
 | Ctrl while dragging | No snapping |
-| F1 / F2 / F3 / F4 | The clears, as when showing |
+| F1 / F2 / F3 / F4 / F5 | The clears, as when showing |
 
 The chord editor has keys of its own, which are listed with it: [Chords](#chords).
 
@@ -2155,7 +2284,8 @@ the whole of it).
 
 **Unit tests** try the parts of the app that are plain rules, by themselves, with no
 window and no workspace: the rules of the show (`src/showstate.*`), chords, the screens
-and the looks in ProPresenter's file, search, and the matching of themes. They are
+and the looks in ProPresenter's file, how a piece of audio plays and how loud it is,
+search, and the matching of themes. They are
 built with the app and take a few milliseconds:
 
 ```
@@ -2163,7 +2293,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: over thirty scripts and over sixteen
+and look at what its windows then hold and show: over thirty scripts and over eighteen
 hundred checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
@@ -2188,7 +2318,11 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/prodocument.*` | Reads `.pro` files for showing, and makes the changes show mode can |
 | `src/proconvert.*` | Turns a slide in a `.pro` file into what is drawn, and changes back into the file's terms |
 | `src/presentationeditor.*` | A presentation, the props, the stage layouts or a theme open in the editor: its changes (a song's chords among them), undo, saving and backups |
-| `src/playlistfile.*` | Reads and writes the two playlists files |
+| `src/playlistfile.*` | Reads and writes the three playlists files: of presentations, of media, and of the audio bin |
+| `src/audiocue.*` | How a piece of audio plays, as ProPresenter's files say it: read from a row of the audio bin or an action, and changed there |
+| `src/audiolayer.*` | What plays the audio layer: the music and the sound effects, their fades and crossing, and the device sound goes to |
+| `src/audiometer.*`, `src/audiolevel.*` | The meter of what is being played, and the arithmetic of sound: how loud a stretch of it is, what a meter shows of that, how a fade goes |
+| `src/audioprobe.*` | How long a sound file is, read from it as it is added to the audio bin |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
 | `src/slidenumber.*`, `src/numbertyping.*` | A slide asked for by its number, typed: what the digits make and which slide that is, and what QML reaches those rules by |
@@ -2201,7 +2335,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
 | `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |
 | `src/props.*`, `src/stagelayouts.*` | The workspace's props and their collections, and its stage layouts: their files, and adding to, renaming and removing them |
-| `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a clear, a prop or a macro does |
+| `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a piece of audio, a clear, a prop or a macro does |
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
@@ -2231,11 +2365,12 @@ repository's to publish), so on another computer only the unit tests run as they
 | `tests/ui/` | The scripted tests, the scripts' shared helpers, and the program that runs them on a desktop of their own |
 | `qml/Main.qml` | The operator window: what is open, and what a click or a key does |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
+| `qml/AudioPanel.qml`, `qml/AudioGlyph.qml` | The audio bin, a tab of the show controls; and its pictures, which are drawn here |
 | `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |
 | `qml/TypedNumber.qml` | The panel over the slides that shows a slide's number while it is typed |
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml`, `MacrosPanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props, stage screens and macros |
 | `qml/ActionDialog.qml`, `qml/PopupMenu.qml` | The panel a timer action or a stage action is set up in, and the menus, which open one out of another |
-| `qml/SettingsScreen.qml` | The settings: groups, slides, screens, looks, windows, and what the app is |
+| `qml/SettingsScreen.qml` | The settings: groups, slides, screens, looks, video, audio, windows, and what the app is |
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists and its three ways of working, the slide being worked on, and the properties panel |
 | `qml/OutputScene.qml`, `qml/StageScene.qml`, `qml/StageView.qml` | What an audience screen and a stage screen show, whatever they are sent out through; and the plain view a stage screen has without a layout |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |
