@@ -130,6 +130,18 @@ public:
         if (QQuickWindow *stage = named("stage"))
             stage->grabWindow().save(directory + "/" + name + ".png");
     }
+    // How much of a part of a picture is red, from 0 to 1 (see windowRed)
+    static double redShare(const QImage &image, const QRect &asked)
+    {
+        const QRect part = asked.intersected(image.rect());
+        qint64 red = 0;
+        for (int row = part.top(); row <= part.bottom(); ++row) {
+            const QRgb *line = reinterpret_cast<const QRgb *>(image.constScanLine(row));
+            for (int column = part.left(); column <= part.right(); ++column)
+                red += qRed(line[column]) > 150 && qGreen(line[column]) < 90 && qBlue(line[column]) < 90 ? 1 : 0;
+        }
+        return part.isEmpty() ? 0 : double(red) / (double(part.width()) * part.height());
+    }
     // The colour of a pixel of the output or the stage window, as "#rrggbb"; x and y from 0 to 1
     // A pixel of the operator window, at a point of it, as "#rrggbb"
     Q_INVOKABLE QString windowPixel(qreal x, qreal y)
@@ -152,6 +164,25 @@ public:
                 lighter += qGray(line[column]) > grey ? 1 : 0;
         }
         return part.isEmpty() ? 0 : double(lighter) / (double(part.width()) * part.height());
+    }
+    // How much of a part of the operator window is red (and not orange, nor the fringe of white text), from 0 to 1:
+    // for text that was given a colour, which is too fine to find a point at a time. The part is in the window's
+    // own points.
+    Q_INVOKABLE double windowRed(qreal x, qreal y, qreal width, qreal height)
+    {
+        const QImage image = window->grabWindow().convertToFormat(QImage::Format_RGB32);
+        const qreal ratio = image.width() / qreal(window->width());
+        return redShare(image, QRect(int(x * ratio), int(y * ratio), int(width * ratio), int(height * ratio)));
+    }
+    // The same of a part of the output or the stage window, the part given as shares of the window
+    Q_INVOKABLE double red(bool ofStage, qreal x, qreal y, qreal width, qreal height)
+    {
+        QQuickWindow *window = named(ofStage ? "stage" : "output");
+        if (!window)
+            return -1;
+        const QImage image = window->grabWindow().convertToFormat(QImage::Format_RGB32);
+        return redShare(image, QRect(int(x * image.width()), int(y * image.height()), int(width * image.width()),
+                                     int(height * image.height())));
     }
     Q_INVOKABLE QString pixel(bool ofStage, qreal x, qreal y)
     {

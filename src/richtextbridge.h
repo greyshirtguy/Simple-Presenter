@@ -21,6 +21,11 @@ public:
 
     // Replaces the document's contents with the text.
     Q_INVOKABLE void load(QQuickTextDocument *document, const QVariant &richText) const;
+    // The same, for a box of text that is itself what is looked at (a slide's notes):
+    // the text has its colours, underlines and strike-throughs in the document too.
+    Q_INVOKABLE void loadShown(QQuickTextDocument *document, const QVariant &richText) const;
+    // The text's words, with no formatting.
+    Q_INVOKABLE QString plainText(const QVariant &richText) const;
     // The document's contents as a RichText value.
     Q_INVOKABLE QVariant save(QQuickTextDocument *document) const;
     // Replaces what is selected in the document, if anything, with plain text from the

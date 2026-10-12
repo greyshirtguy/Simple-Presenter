@@ -135,6 +135,7 @@ void PresentationEditor::start(Kind kind, const QString &path, const QString &wo
     m_undo.clear();
     m_redo.clear();
     m_madeForChords.clear();
+    m_notesMade.clear();
     m_changed = false;
     m_backupPath.clear();
     m_asOpened.clear();
@@ -305,6 +306,7 @@ void PresentationEditor::close()
     m_undo.clear();
     m_redo.clear();
     m_madeForChords.clear();
+    m_notesMade.clear();
     m_changed = false;
     m_backupPath.clear();
     m_asOpened.clear();
@@ -411,6 +413,8 @@ QVariantMap PresentationEditor::describe(int row) const
                      : proconvert::toSlideMap(action.slide().presentation().base_slide(),
                                               QString::fromStdString(action.label().text()));
         slide.insert("id", QString::fromStdString(cue.uuid().string()));
+        if (!prop)
+            proconvert::addNotes(action.slide().presentation(), &slide);
     }
     slide.insert("group", place.group);
     slide.insert("groupColor", place.groupColor);
@@ -588,6 +592,55 @@ QString PresentationEditor::setProperties(int row, const QString &element, const
 void PresentationEditor::previewProperties(int row, const QString &element, const QVariantMap &changes)
 {
     preview(row, [&](rv::data::Slide *slide) { proconvert::applyChanges(slide, element, changes); });
+}
+
+QVariant PresentationEditor::notes(int row) const
+{
+    if (m_kind != Kind::Presentation || row < 0 || row >= m_rows.size())
+        return {};
+    const rv::data::Cue &cue = m_presentation.cues(m_rows.at(row).unit);
+    const int action = slideAction(cue);
+    const RichText kept = action < 0 ? RichText() : proconvert::readNotes(cue.actions(action).slide().presentation());
+    // (Notes that are there with no words in them keep the format they have.)
+    if (!kept.paragraphs.isEmpty())
+        return QVariant::fromValue(kept);
+    return QVariant::fromValue(RichText::plain(QString(), proconvert::notesFormat(), Qt::AlignLeft));
+}
+
+QString PresentationEditor::setNotes(int row, const QVariant &richText)
+{
+    if (m_kind != Kind::Presentation)
+        return QStringLiteral("Only the slides of a presentation have notes.");
+    if (m_previewRow >= 0)
+        commitPreview();
+    if (row < 0 || row >= m_rows.size())
+        return gone;
+    rv::data::Cue *cue = m_presentation.mutable_cues(m_rows.at(row).unit);
+    const int action = slideAction(*cue);
+    if (action < 0)
+        return gone;
+    rv::data::PresentationSlide *slide = cue->mutable_actions(action)->mutable_slide()->mutable_presentation();
+    const RichText rich = richText.value<RichText>();
+    const QString id = QString::fromStdString(cue->uuid().string());
+    const std::string before = cue->SerializeAsString();
+    if (!slide->has_notes()) {
+        // Nothing typed into nothing is nothing to keep.
+        if (rich.isEmpty())
+            return {};
+        m_notesMade.insert(id);
+        proconvert::writeNotes(slide, rich);
+    } else if (rich.isEmpty() && m_notesMade.contains(id)) {
+        // What was typed here has all been taken out again: so is what it was kept in.
+        slide->clear_notes();
+        m_notesMade.remove(id);
+    } else if (proconvert::readNotes(*slide) == rich) {
+        // (As they are already: nothing is written, the RTF least of all, which this
+        // app would write in its own words.)
+        return {};
+    } else {
+        proconvert::writeNotes(slide, rich);
+    }
+    return commit(row, before);
 }
 
 QString PresentationEditor::setText(int row, const QString &element, const QVariant &richText)

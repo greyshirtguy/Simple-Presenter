@@ -165,6 +165,8 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                                                            QString::fromStdString(action.label().text()));
                 // The colour of its label, which the label has beside its words
                 slide.insert("labelColor", labelfile::read(action.label()).color);
+                // Its notes, if it has any: for a text box that shows the live slide's
+                proconvert::addNotes(action.slide().presentation(), &slide);
                 slides.append(slide);
             } else if (isVisualMedia(action) && name.isEmpty()) {
                 name = workspace::fileNameOf(action.media().element().url());

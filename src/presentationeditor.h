@@ -7,6 +7,7 @@
 
 #include <QAbstractListModel>
 #include <QHash>
+#include <QSet>
 #include <QUrl>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
@@ -105,6 +106,14 @@ public:
     // Applies a format to part of an element's text: see RichText::formatted. To format
     // all of it, give a range that covers it, such as 0 to a very large number.
     Q_INVOKABLE QString formatText(int row, const QString &element, int start, int end, const QVariantMap &format);
+    // A slide's notes (see proconvert::readNotes), as a RichText value: its own, or
+    // for a slide with none, no words in the format notes are typed in. Only a
+    // presentation's slides have notes: nothing, for a prop, a layout or a theme.
+    Q_INVOKABLE QVariant notes(int row) const;
+    // Makes them this text. Notes with no words, on a slide that had no notes until
+    // they were typed here since the presentation was opened, are taken out of the file
+    // again, which is then as it was: nothing is left in a file for notes nobody kept.
+    Q_INVOKABLE QString setNotes(int row, const QVariant &richText);
     // Adds a text box, its text set like that of the element `like` if there is one.
     // Returns { id, error }.
     Q_INVOKABLE QVariantMap addText(int row, const QString &like);
@@ -304,6 +313,9 @@ private:
         std::string look;
     };
     QHash<QString, MadeForChords> m_madeForChords;
+    // The slides, by their cues' ids, that had no notes in the file and have been
+    // given some here since the presentation was opened (see setNotes)
+    QSet<QString> m_notesMade;
     bool m_changed = false;
     QString m_backupPath;
     // The presentation's file as it was read when it was opened here, and the same as

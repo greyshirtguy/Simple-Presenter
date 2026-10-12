@@ -51,6 +51,36 @@ RichText readText(const rv::data::Graphics::Text &text);
 // so that correcting a word does not cost a song its chords.
 void writeText(rv::data::Graphics::Text *text, const RichText &rich);
 
+// A slide's notes: words for whoever is running the show or standing on the stage, kept
+// with the slide and never shown to the audience. Only a slide of a presentation has
+// them (a prop, a stage layout and a theme's slide have nowhere for them in their
+// files).
+//
+// How ProPresenter keeps them (seen in fifteen slides of real libraries, version 7 on a
+// Mac): beside the slide itself, as RTF with a set of attributes, which is the pair a
+// text box keeps its text as. The RTF is all there is to them: of those fifteen, eight
+// have attributes with nothing in them, and seven have the look the notes were first
+// typed in (a font, a colour, a paragraph), with no ranges in it. A slide that has
+// never had notes has no such message at all.
+//
+// readNotes gives them as the text they are, with no paragraphs if the slide has
+// none. writeNotes writes the RTF, and leaves whatever the attributes hold as it was;
+// for a slide that had no notes it makes the message, with attributes that hold
+// nothing, as most of those seen have. Notes with no words in them are still notes to
+// the file: whether the message is to be taken out again is for whoever knows it was
+// not there before (PresentationEditor::setNotes).
+//
+// notesFormat is what notes are typed in where there are none yet: the font, the size
+// and the white that ProPresenter's own start in (Helvetica Neue, 24 points), as the
+// notes looked at have them. A GUESS that it is the same in every version and on
+// Windows.
+RichText readNotes(const rv::data::PresentationSlide &slide);
+void writeNotes(rv::data::PresentationSlide *slide, const RichText &rich);
+TextRun notesFormat();
+// Puts a slide's notes into its map, as `notes` (the text they are) and `notesText`
+// (their words): only for a slide that has any.
+void addNotes(const rv::data::PresentationSlide &slide, QVariantMap *map);
+
 // The chords over a text element's words, in order, and replacing them.
 //
 // How ProPresenter keeps them (worked out from songs it imported from Multitracks, and

@@ -81,3 +81,8 @@ qreal fittingScale(const RichText &text, const QSizeF &room, int fit);
 // over the real drawing, not for showing: colours and decorations are not in it.
 void toDocument(const RichText &text, QTextDocument *document);
 RichText fromDocument(const QTextDocument *document);
+// The same, for a document that is itself what is looked at: a slide's notes, which are
+// typed in a plain box of text and drawn nowhere else. Each stretch also has its
+// colour, its underline and its strike-through as the document draws such things.
+// fromDocument reads either kind back alike.
+void toShownDocument(const RichText &text, QTextDocument *document);

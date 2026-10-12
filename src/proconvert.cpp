@@ -763,6 +763,45 @@ RichText readText(const Text &text)
     return rich;
 }
 
+// A slide's notes are kept as a text box keeps its text, an RTF and a set of attributes,
+// so they are read as one is: as that text box would be.
+RichText readNotes(const rv::data::PresentationSlide &slide)
+{
+    if (!slide.has_notes() || slide.notes().rtf_data().empty())
+        return {};
+    Text text;
+    text.set_rtf_data(slide.notes().rtf_data());
+    *text.mutable_attributes() = slide.notes().attributes();
+    return readText(text);
+}
+
+void writeNotes(rv::data::PresentationSlide *slide, const RichText &rich)
+{
+    rv::data::PresentationSlide::Notes *notes = slide->mutable_notes();
+    notes->set_rtf_data(writeRtf(rich).toStdString());
+    // (There with nothing in it, where it was not there: as ProPresenter leaves most.)
+    notes->mutable_attributes();
+}
+
+TextRun notesFormat()
+{
+    TextRun run;
+    run.fontName = QStringLiteral("HelveticaNeue");
+    run.family = resolvePostScriptName(run.fontName, QStringLiteral("Helvetica Neue")).family;
+    run.size = 24;
+    run.fill = Qt::white;
+    return run;
+}
+
+void addNotes(const rv::data::PresentationSlide &slide, QVariantMap *map)
+{
+    const RichText notes = readNotes(slide);
+    if (notes.isEmpty())
+        return;
+    map->insert("notes", QVariant::fromValue(notes));
+    map->insert("notesText", notes.plainText());
+}
+
 QList<chords::Chord> readChords(const Text &text)
 {
     QList<chords::Chord> result;

@@ -430,6 +430,10 @@ Window {
     property real chordTextZoom: 1
     property string chordSheetColor: ""
     property string chordTextColor: ""
+    // Whether the editor has the pane for a slide's notes up under the slide, and how
+    // tall that pane is: how the editor was left, kept with the app's settings.
+    property bool editorNotes: false
+    property real editorNotesHeight: 150
     readonly property real smallestThumbnail: 180
     readonly property real largestThumbnail: 400
     // The same for the media bin's thumbnails
@@ -2496,6 +2500,9 @@ Window {
         audioDevice = String(saved("audioDevice", ""))
         const split = Number(saved("audioSplit", audioSplit))
         audioSplit = isFinite(split) ? Math.max(36, split) : 66
+        editorNotes = String(saved("editorNotes", false)) === "true"
+        const notesHeight = Number(saved("editorNotesHeight", editorNotesHeight))
+        editorNotesHeight = isFinite(notesHeight) ? Math.max(60, notesHeight) : 150
         chordSheetZoom = chordZoom(saved("chordSheetZoom", chordSheetZoom), 0.8)
         chordTextZoom = chordZoom(saved("chordTextZoom", chordTextZoom), 1)
         chordSheetColor = chordColorKept(saved("chordSheetColor", ""))
@@ -2666,6 +2673,8 @@ Window {
     onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
     onThumbnailWidthChanged: save("thumbnailWidth", thumbnailWidth)
     onChordSheetZoomChanged: save("chordSheetZoom", chordSheetZoom)
+    onEditorNotesChanged: save("editorNotes", editorNotes)
+    onEditorNotesHeightChanged: save("editorNotesHeight", editorNotesHeight)
     onChordTextZoomChanged: save("chordTextZoom", chordTextZoom)
     onChordSheetColorChanged: save("chordSheetColor", chordSheetColor)
     onChordTextColorChanged: save("chordTextColor", chordTextColor)
@@ -3638,6 +3647,13 @@ Window {
         textChordColor: win.chordTextColor
         onSheetZoomEdited: (zoom) => win.chordSheetZoom = win.chordZoom(zoom, 0.8)
         onTextZoomEdited: (zoom) => win.chordTextZoom = win.chordZoom(zoom, 1)
+        notesShown: win.editorNotes
+        notesHeight: win.editorNotesHeight
+        onNotesShownEdited: (shown) => {
+            win.editorNotes = shown
+            Log.note("edit", "the slide's notes " + (shown ? "shown" : "put away") + " in the editor")
+        }
+        onNotesHeightEdited: (height) => win.editorNotesHeight = height
         removeSlide: (path, slideId) => {
             Log.note("edit", "a slide deleted in the editor")
             win.slidesRearranged = true

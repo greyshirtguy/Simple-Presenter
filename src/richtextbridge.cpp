@@ -15,6 +15,17 @@ void RichTextBridge::load(QQuickTextDocument *document, const QVariant &richText
         toDocument(richText.value<RichText>(), document->textDocument());
 }
 
+void RichTextBridge::loadShown(QQuickTextDocument *document, const QVariant &richText) const
+{
+    if (document && document->textDocument())
+        toShownDocument(richText.value<RichText>(), document->textDocument());
+}
+
+QString RichTextBridge::plainText(const QVariant &richText) const
+{
+    return richText.value<RichText>().plainText();
+}
+
 QVariant RichTextBridge::save(QQuickTextDocument *document) const
 {
     if (!document || !document->textDocument())

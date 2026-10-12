@@ -382,7 +382,19 @@ qreal fittingScale(const RichText &text, const QSizeF &room, int fit)
     return fitting >= 64 ? fitting : largest(fitting, fitting * 2);
 }
 
-void toDocument(const RichText &text, QTextDocument *document)
+namespace {
+
+// A run's format for a document that is looked at: with what a document draws of it.
+QTextCharFormat shownFormat(const TextRun &run)
+{
+    QTextCharFormat format = documentFormat(run);
+    format.setForeground(run.fillVisible ? run.fill : QColor(Qt::transparent));
+    format.setFontUnderline(run.underline);
+    format.setFontStrikeOut(run.strikethrough);
+    return format;
+}
+
+void fillDocument(const RichText &text, QTextDocument *document, QTextCharFormat (*formatOf)(const TextRun &))
 {
     document->clear();
     document->setDocumentMargin(0);
@@ -393,7 +405,7 @@ void toDocument(const RichText &text, QTextDocument *document)
     bool first = true;
     for (const TextParagraph &paragraph : text.paragraphs) {
         // An empty paragraph still has a format, for what is typed into it.
-        const QTextCharFormat lead = documentFormat(paragraph.runs.isEmpty() ? TextRun() : paragraph.runs.first());
+        const QTextCharFormat lead = formatOf(paragraph.runs.isEmpty() ? TextRun() : paragraph.runs.first());
         if (first) {
             cursor.setBlockFormat(documentFormat(paragraph));
             cursor.setBlockCharFormat(lead);
@@ -404,12 +416,24 @@ void toDocument(const RichText &text, QTextDocument *document)
         first = false;
         for (const TextRun &run : paragraph.runs) {
             if (!run.text.isEmpty())
-                cursor.insertText(run.text, documentFormat(run));
+                cursor.insertText(run.text, formatOf(run));
         }
     }
     cursor.endEditBlock();
     document->clearUndoRedoStacks();
     document->setModified(false);
+}
+
+} // namespace
+
+void toDocument(const RichText &text, QTextDocument *document)
+{
+    fillDocument(text, document, [](const TextRun &run) { return documentFormat(run); });
+}
+
+void toShownDocument(const RichText &text, QTextDocument *document)
+{
+    fillDocument(text, document, shownFormat);
 }
 
 RichText fromDocument(const QTextDocument *document)

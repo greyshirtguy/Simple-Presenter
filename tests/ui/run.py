@@ -1140,6 +1140,85 @@ def after_audio(workspace, test_dir):
     return lines
 
 
+# A slide's notes as ProPresenter keeps them: Apple's RTF, Helvetica Neue at 24 points (which RTF counts in halves), in
+# white. The words are nobody's.
+NOTES_RTF = ("{\\rtf1\\ansi\\ansicpg1252\\cocoartf2822\n"
+             "\\cocoatextscaling0\\cocoaplatform0{\\fonttbl\\f0\\fnil\\fcharset0 HelveticaNeue;}\n"
+             "{\\colortbl;\\red255\\green255\\blue255;\\red255\\green255\\blue255;}\n"
+             "{\\*\\expandedcolortbl;;\\csgray\\c100000;}\n"
+             "\\pard\\pardirnatural\\partightenfactor0\n\n"
+             "\\f0\\fs48 \\cf2 Watch the band for the ending\\\n"
+             "Hold the last chord}")
+
+
+def prepare_notes(workspace, test_dir):
+    """A song with notes on its second slide, as ProPresenter writes a slide's notes: the RTF, and beside it the
+    attributes it leaves empty. It is a song of the workspace under another name, so that the song itself is left as
+    it was. Nothing is written but that one file, in the copy's library."""
+    library = os.path.join(workspace, "Libraries", "MainHall")
+    with open(os.path.join(library, "Awake My Soul.pro"), "rb") as source:
+        text = protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+    places = [found.end() for found in re.finditer(r"^ +presentation \{\n", text, re.M)]
+    if len(places) < 3 or "notes {" in text:
+        raise RuntimeError("the song the notes test is made from is not as it was: %d slides" % len(places))
+    notes = 'notes {\n  rtf_data: "%s"\n  attributes {\n  }\n}\n' % NOTES_RTF.replace("\\", "\\\\").replace("\n", "\\n")
+    text = text[:places[1]] + notes + text[places[1]:]
+    text = re.sub(r'^name: ".*"$', 'name: "Notes Song"', text, count=1, flags=re.M)
+    text = re.sub(r'^uuid \{\n  string: "[^"]*"', 'uuid {\n  string: "%s"' % str(uuid.uuid4()).upper(), text, count=1, flags=re.M)
+    target = os.path.join(library, "Notes Song.pro")
+    if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("the notes test would write outside its own folder: " + os.path.realpath(target))
+    with open(target, "wb") as out:
+        out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+
+
+def after_notes(workspace, test_dir):
+    """What the notes left in the files, read with protoc and not by the app: the song as the test kept it at each
+    step (song-before and song-bold), and the stage layouts, which are to be as the fixture has them."""
+    import difflib
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+
+    def decoded(path, message="rv.data.Presentation", proto="presentation.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def changed(was, now):
+        """The lines taken out and the lines put in, without their indents."""
+        out, put = [], []
+        for line in difflib.unified_diff(was.splitlines(), now.splitlines(), lineterm="", n=0):
+            if line.startswith("-") and not line.startswith("---"):
+                out.append(line[1:].strip())
+            elif line.startswith("+") and not line.startswith("+++"):
+                put.append(line[1:].strip())
+        return out, put
+
+    def kept(name):
+        path = os.path.join(frames, name)
+        return decoded(path) if os.path.exists(path) else ""
+
+    before, bold = kept("song-before"), kept("song-bold")
+    out, put = changed(before, bold)
+    notes_block = re.search(r"notes \{\n\s+rtf_data: .*\n\s+attributes \{\n\s+\}\n\s+\}", bold)
+    lines = [
+        said(before != "" and bold != "" and len(out) == 1 and len(put) == 1 and out[0].startswith("rtf_data:") and put[0].startswith("rtf_data:")
+             and "Watch" in put[0] and "\\\\b" in put[0],
+             "in the song's file: a word of the notes made bold changed the notes' RTF and not one other line", "%d out, %d in" % (len(out), len(put))),
+        said(notes_block is not None and bold.count("notes {") == 1,
+             "in the song's file: the attributes ProPresenter wrote beside the notes are still beside them, and no other slide has notes"),
+    ]
+    out, put = changed(bold, decoded(os.path.join(workspace, "Libraries", "MainHall", "Notes Song.pro")))
+    lines.append(said(all(line.startswith("rtf_data:") for line in out) and len(out) <= 1,
+                      "in the song's file: at the end, nothing that was there is gone but the notes' RTF as it was before they were formatted again",
+                      "%d lines out" % len(out)))
+    stage_was = decoded(os.path.join(FIXTURES, "workspaces", "Act", "Configuration", "Stage"), "rv.data.Stage.Document", "stage.proto")
+    stage_now = decoded(os.path.join(workspace, "Configuration", "Stage"), "rv.data.Stage.Document", "stage.proto")
+    out, put = changed(stage_was, stage_now)
+    lines.append(said(out == [] and put == [],
+                      "in the stage layouts' file: not one line is changed",
+                      "%d out, in: %s" % (len(out), " | ".join(put)[:200])))
+    return lines
+
+
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
             "monitors": monitors}
@@ -1161,6 +1240,7 @@ TESTS = {
     "log": test("Demo"),
     "sound": test("Demo"),
     "audio": test("Act", timeout=300, prepare=prepare_audio, after=after_audio),
+    "notes": test("Act", timeout=300, prepare=prepare_notes, after=after_notes),
     "drop": test("Demo"),
     "simple": test("Demo"),
     "shapes": test("Shapes", SHELL, 120),

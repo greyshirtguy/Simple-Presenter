@@ -73,6 +73,11 @@ Rectangle {
     property real textZoom: 1
     property string sheetChordColor: ""
     property string textChordColor: ""
+    // Whether the pane for a slide's notes is up under the slide, and how tall it is
+    // asked to be: the window's to keep, as the zooms are (notesShownEdited,
+    // notesHeightEdited say what was asked for here).
+    property bool notesShown: false
+    property real notesHeight: 150
     // Something to tell the user, and whether it is a failure
     property string notice
     property bool noticeIsError: true
@@ -94,6 +99,11 @@ Rectangle {
     // layouts and themes have no chords.
     property string mode: "slides"
     readonly property bool chordable: kind === "presentation"
+    // Whether what is being edited has notes: the slides of a presentation do, and
+    // nothing else that is edited here (a prop, a stage layout and a theme's slide
+    // have nowhere in their files for any). And whether their pane is up.
+    readonly property bool notable: kind === "presentation" && mode === "slides"
+    readonly property bool notesUp: notable && notesShown
     readonly property string rowWord: kind === "props" ? "Prop" : kind === "stage" ? "Layout" : kind === "theme" ? "Theme Slide" : "Slide"
     // For a theme: its place under the workspace's Themes folder (see Themes)
     readonly property string themePlace: kind === "theme" ? editor.path.replace(/^.*\/Themes\//, "").replace(/\/Theme$/, "") : ""
@@ -110,6 +120,8 @@ Rectangle {
                                     : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
     // What the toolbar button under the pointer does, in words, or ""
     readonly property string toolHint: {
+        if (notesToggle.hovered)
+            return notesToggle.hint
         for (const tools of [actions.children, songKeys.item ? songKeys.item.children : [], saving.item ? saving.item.children : []]) {
             for (let i = 0; i < tools.length; ++i) {
                 const tool = tools[i]
@@ -140,6 +152,8 @@ Rectangle {
     signal keyPassed(var event)
     signal sheetZoomEdited(real zoom)
     signal textZoomEdited(real zoom)
+    signal notesShownEdited(bool shown)
+    signal notesHeightEdited(real height)
 
     // Opens a presentation file from a workspace folder, at the slide with the given id
     // if it has one. Returns an error message, empty on success.
@@ -285,6 +299,8 @@ Rectangle {
     function finish() {
         canvas.finishText()
         canvas.settle()
+        if (notes.item)
+            notes.item.send()
         // Whichever chord editor is up keeps what was being typed in it: a chord in its
         // bubble, or ChordPro text that is saved a moment after the typing stops.
         if (mode !== "slides" && chordView.item)
@@ -1149,7 +1165,7 @@ Rectangle {
         anchors.left: left.right
         anchors.right: inspector.left
         anchors.top: strip.bottom
-        anchors.bottom: hint.top
+        anchors.bottom: notes.active ? notes.top : hint.top
         visible: screen.mode === "slides"
         clip: true
         editor: editor
@@ -1159,6 +1175,33 @@ Rectangle {
         onTold: (message) => screen.tell(message)
         onMenuRequested: (x, y) => screen.showElementMenu(canvas, x, y)
         onSlideStepRequested: (delta) => screen.showRow(canvas.row + delta)
+    }
+
+    // The slide's notes, in a pane under the slide: only for a presentation's slides,
+    // and only made while it is up (the button that puts it up and away is at the right
+    // of the line under it). Its top edge is dragged to share out the height; the slide
+    // is always left the more of it.
+    Loader {
+        id: notes
+
+        anchors.left: left.right
+        anchors.right: inspector.left
+        anchors.bottom: hint.top
+        height: Math.max(60, Math.min(screen.notesHeight, (hint.y - strip.y - strip.height) * 0.6))
+        active: screen.notesUp
+        visible: active
+
+        sourceComponent: SlideNotes {
+            objectName: "slideNotes"
+            editor: screen.editor
+            row: canvas.row
+            families: screen.families
+            onFailed: (error) => screen.report(error)
+            onResized: (height) => screen.notesHeightEdited(Math.max(60, Math.min(height, (hint.y - strip.y - strip.height) * 0.6)))
+            onFinished: canvas.takeFocus()
+            onUndoRequested: canvas.undo()
+            onRedoRequested: canvas.redo()
+        }
     }
 
     // Whatever there is to tell the user, and otherwise how to work the canvas, for
@@ -1176,7 +1219,7 @@ Rectangle {
             id: hintText
 
             anchors.left: parent.left
-            anchors.right: saving.visible ? saving.left : subjectBelow.visible ? subjectBelow.left : parent.right
+            anchors.right: saving.visible ? saving.left : subjectBelow.visible ? subjectBelow.left : notesToggle.visible ? notesToggle.left : parent.right
             anchors.leftMargin: 12
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
@@ -1188,6 +1231,7 @@ Rectangle {
                 : screen.toolHint !== "" ? screen.toolHint
                 : screen.mode === "chords" ? "1 to 7: the key's chords  ·  A to G: type one, and a click on the next place keeps it  ·  Drag moves a chord, with Ctrl copies it  ·  Delete removes  ·  Ctrl+C and Ctrl+V: a line's chords onto another"
                 : screen.mode === "chordpro" ? "[ opens a chord and closes it  ·  Backspace on a bracket removes the chord  ·  The words cannot be changed here"
+                : notes.item && notes.item.typing ? "Notes: select text to format part of it  ·  Ctrl+B, I, U  ·  Right click: font, size and colour  ·  Esc gives the keys back to the slide"
                 : canvas.editing ? "Select text to format part of it  ·  Esc or a click elsewhere finishes  ·  Ctrl+B, I, U"
                 : canvas.selected ? "Drag to move, handles to resize  ·  Shift: straight, or in proportion  ·  Ctrl: no snapping  ·  Arrows nudge  ·  Double-click or Enter edits the text"
                 : "Click an element to pick it  ·  Double-click text to edit it  ·  Arrows change slide"
@@ -1198,13 +1242,86 @@ Rectangle {
             id: subjectBelow
 
             objectName: "editorSubjectBelow"
-            anchors.right: parent.right
+            anchors.right: notesToggle.visible ? notesToggle.left : parent.right
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             visible: !subjectText.visible && !saving.visible && screen.notice === ""
             color: "#7d8088"
             font.pixelSize: 12
             text: subjectText.text
+        }
+
+        // Puts the pane for the slide's notes up, and away: at the bottom right, under
+        // where the pane is. Only where there are notes to be had: over a
+        // presentation's slides. It is filled in while the pane is up.
+        Rectangle {
+            id: notesToggle
+
+            objectName: "notesToggle"
+            readonly property bool hovered: notesMouse.containsMouse
+            readonly property string hint: screen.notesShown ? "Put the slide's notes away" : "Show the slide's notes, under the slide"
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            width: notesWord.implicitWidth + 30
+            height: 20
+            radius: 5
+            visible: screen.notable
+            color: screen.notesShown ? "#1e88e5" : notesMouse.pressed ? "#50535a" : notesMouse.containsMouse ? "#45484e" : "#34363c"
+
+            // A page with lines on it
+            Item {
+                x: 7
+                anchors.verticalCenter: parent.verticalCenter
+                width: 10
+                height: 12
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 1.5
+                    color: "transparent"
+                    border.width: 1.2
+                    border.color: screen.notesShown ? "white" : "#c9cdd6"
+                }
+
+                Repeater {
+                    model: 3
+
+                    Rectangle {
+                        required property int index
+
+                        x: 2.5
+                        y: 3 + index * 2.6
+                        width: index === 2 ? 3 : 5
+                        height: 1
+                        color: screen.notesShown ? "white" : "#c9cdd6"
+                    }
+                }
+            }
+
+            Text {
+                id: notesWord
+
+                x: 22
+                anchors.verticalCenter: parent.verticalCenter
+                color: screen.notesShown ? "white" : "#c9cdd6"
+                font.pixelSize: 12
+                text: "Notes"
+            }
+
+            MouseArea {
+                id: notesMouse
+
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: {
+                    // (What was being typed in the pane goes into the file as it goes away.)
+                    if (notes.item)
+                        notes.item.send()
+                    screen.notesShownEdited(!screen.notesShown)
+                    canvas.takeFocus()
+                }
+            }
         }
 
         // Nothing is saved by hand here, and over the chord editors the line says so.

@@ -167,6 +167,7 @@ qt_add_qml_module(SimplePresenter
         qml/SearchPanel.qml
         qml/SettingsScreen.qml
         qml/SimpleViewToggle.qml
+        qml/SlideNotes.qml
         qml/ShowControl.qml
         qml/Sidebar.qml
         qml/SidebarList.qml
