@@ -187,6 +187,16 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Slide notes, and more for a text box to show.** A slide's notes are in the
+  [editor](#editing), in a pane under the slide that a button at the bottom right puts
+  up and away, and whose top edge is dragged to size it. They are formatted text, kept
+  in the presentation's file as ProPresenter keeps them: Ctrl+B, I and U, and a right
+  click for a font, a size and a colour. A text box can show the notes of the slide
+  that is live, or of the next, in its own style or as they were written, which is
+  what a stage layout wants them for. A text box can also show the **system clock**,
+  and how long the video that is playing has left (a **video countdown**). And what a
+  box shows is now picked as ProPresenter has it picked: from one menu, with what
+  there is to say about the thing picked set underneath.
 - **The audio bin, and how loud it all is.** ProPresenter's [audio bin](#audio) is
   here, as another tab of the show controls: its playlists and their folders, read
   from ProPresenter's own file of them, and under them the pieces of the one picked. A
@@ -322,8 +332,8 @@ the top of this page.
       and removed, and their text and looks changed; slides can be added, copied,
       pasted and deleted; a song's chords can be put on. Still to do: reordering
       slides, the rest of ProPresenter's shapes, picking several elements at once,
-      lists and scrolling text, a slide's notes (editing them, and text boxes linked
-      to them), builds (the things on a slide coming on one after another), and a
+      lists and scrolling text, builds (the things on a slide coming on one after
+      another), and a
       theme for a new slide (everything that makes a new slide, which is the `+` over
       the editor's slides, New Slide in a slide's menu, media dropped between slides
       and the first slide of a new presentation, is to offer a theme's slide as well
@@ -343,9 +353,8 @@ the top of this page.
       plays once with its sound.
 - [ ] **Show controls**: the timers, the props, the stage layouts and the macros are
       there, for as many stage screens as are wanted. Still to come: more of what a
-      stage layout can show (the clock, a slide's notes, pictures of the slides and of
-      the output, stage messages, the time left of a video); a prop's own transition
-      and clearing itself after a time.
+      stage layout can show (pictures of the slides and of the output, stage
+      messages); a prop's own transition and clearing itself after a time.
 - [ ] **Helping yourself with an AI**: the advice, and what an agent is told, are there
       ([Helping yourself, with an AI](#helping-yourself-with-an-ai)). Still to do, so
       that an agent or anyone else can check its own work: a workspace that can be
@@ -1094,7 +1103,13 @@ and changed in the same [editor](#editing) as a slide. A text box of one can sho
   own font and colour;
 - those words with the song's chords over them, in the key picked for it
   ([Chords](#chords));
-- the time of a [timer](#timers).
+- the notes of the slide that is live, or of the one after it: their words in the
+  box's own font and colour, or the notes as they were written;
+- the time of a [timer](#timers);
+- the time of day, and the date;
+- how long the video that is playing has left.
+
+[Editing](#editing) has how each is set, under Linked text.
 
 The `+` makes a layout to start from, with a box for each of the two slides, gives it
 to the first stage screen and opens it in the editor. The editor's own list of layouts has a `+`
@@ -1105,12 +1120,11 @@ given to the stage. What they have that is shown here: boxes for the words of th
 and the next slide, including those that take only the text of the slide's elements of
 a given name (and nothing at all of a slide that has no element of that name, which is
 how ProPresenter has it and is made use of), and with a song's chords over them where a
-box has those switched on; timers; and boxes that show only while a timer is running,
-or has run out. What they
-have that is not shown yet (the clock, a slide's notes, the stage message, the time
-left of a video, pictures of the slides or of an output) is left empty on the stage,
-and in the editor is marked with what it is; the links themselves are kept, so the
-layouts still work in ProPresenter.
+box has those switched on; a slide's notes; timers; the clock; the time left of a
+video; and boxes that show only while a timer is running, or has run out. What they
+have that is not shown yet (the stage message, pictures of the slides or of an output)
+is left empty on the stage, and in the editor is marked with what it is; the links
+themselves are kept, so the layouts still work in ProPresenter.
 
 ## Editing
 
@@ -1180,17 +1194,55 @@ choose between three ways of working. **Slides** is everything described here.
   before; deleting asks first.
 - **Visibility.** An element can be set to show only when other elements of the slide
   have text, or have none: all, any or none of a list of conditions.
-- **Linked text.** A text box can show the text of another element of the slide, in
-  its own font and colour, as it is or run together onto one line, or broken into a
-  word or a letter to a line. Or it can show the time of one of the workspace's
-  [timers](#timers). How the time is written is set as ProPresenter sets it, a part at
-  a time: the hours, the minutes, the seconds and the hundredths of a second are each
-  hidden, or shown as one digit or as two, or shown that way but hidden while they are
-  nothing. A part that is hidden is counted in the next one shown, so seconds alone
-  count past sixty. Or it can show the words of the slide that is live, or of the one
-  after it, which is what the boxes of a stage layout mostly do. A linked box has a
-  yellow outline in the editor, and in small yellow print at its foot what it is
-  linked to.
+- **Linked text.** A text box can show something other than text of its own, in its
+  own font and colour. What it shows is picked from the one button beside **Shows**,
+  which opens a menu, as ProPresenter's does; where there is more to say about the
+  thing picked, that is set under the button.
+  - **Another Element** leads to the slide's other elements: the box shows that one's
+    text, as it is or run together onto one line, or broken into a word or a letter to
+    a line.
+  - **Current Slide** and **Next Slide** show something of the slide that is live, or
+    of the one after it, which is what the boxes of a stage layout mostly do. A picker
+    under the button says what: **Text**, all of the slide's words; **Notes**, the
+    slide's notes, with a tick box for keeping their formatting (their own fonts,
+    sizes and colours, in place of the box's); or **Match Element Name**, the words of
+    the slide's elements of the name typed under it.
+  - **Timer** leads to the workspace's [timers](#timers): the box shows that one's
+    time. How the time is written is set as ProPresenter sets it, a part at a time:
+    the hours, the minutes, the seconds and the hundredths of a second are each
+    hidden, or shown as one digit or as two, or shown that way but hidden while they
+    are nothing. A part that is hidden is counted in the next one shown, so seconds
+    alone count past sixty.
+  - **System Clock** shows the time of day, the date, or both. Each is written one of
+    five ways, by the names ProPresenter has for them (None, Short, Medium, Long,
+    Full), in the words and the order this computer is set to; a tick box has the
+    time on the 24 hour clock.
+  - **Video Countdown** shows how long the video that is playing on the output has
+    left, written a part at a time as a timer is, and nothing (`00:00`, say) while no
+    video plays. A tick box has videos that loop left out.
+
+  A linked box has a yellow outline in the editor, and in small yellow print at its
+  foot what it is linked to. Some of this is a guess at ProPresenter, whose own menu
+  was described and not looked at: the order and the names of the menu's rows; how a
+  date and a time are joined when both are shown; what a video's time is when no video
+  plays, and that a looping video that is left out counts as none; and that notes
+  shown with their formatting kept are drawn at their own sizes, which on a layout as
+  big as a screen are small unless the notes were written large.
+- **Notes.** A slide of a presentation has notes: words for whoever runs the show or
+  stands on the stage, which the audience never sees. **Notes**, at the bottom right
+  of the editor, puts up a pane for them under the slide, and puts it away again; the
+  pane's top edge is dragged to make it taller or shorter. It is a plain box of
+  formatted text with no controls of its own, as ProPresenter's is: Ctrl+B, Ctrl+I
+  and Ctrl+U make what is selected bold, italic or underlined (or all of the notes,
+  with nothing selected), and a right click puts up a small panel with a font, a size
+  and a colour. What is typed is saved a moment after the typing stops, and when the
+  pane is left or another slide turned to; Undo takes it back. Notes start out as
+  ProPresenter's do, in Helvetica Neue at 24 points, in white. They are kept in the
+  presentation's file where ProPresenter keeps them, so each program shows what the
+  other wrote; and notes typed onto a slide that had none and taken out again leave
+  the file as it was. Props, stage layouts and themes have no notes, and their
+  editors have neither the button nor the pane. (That the keys are these three and
+  the panel has these three things is a guess at ProPresenter.)
 - **Scale.** Text can be set, as in ProPresenter, to be made smaller until it fits its
   box, larger until it fills it, or either. Presentations that have this set in
   ProPresenter are drawn that way here.
@@ -2118,11 +2170,14 @@ Three rules run through all of it.
   marks or shows it reads it from there.
 
 Most of what a slide shows is settled when its file is read. The exception is text that
-changes while the slide is on show: a timer's time, or the words of the slide that is
-live. An element linked to a timer is drawn by asking `Timers`, the one object that
-holds the timers and keeps them running, what the time is now, and is drawn again when
-the answer changes; one linked to the live slide asks `Show`, which is what keeps what
-is live. A stage layout is nothing more than a slide made of such
+changes while the slide is on show: a timer's time, the words or the notes of the
+slide that is live, the time of day, or the time a video has left. An element linked to
+a timer is drawn by asking `Timers`, the one object that holds the timers and keeps
+them running, what the time is now, and is drawn again when the answer changes; one
+linked to the live slide asks `Show`, which is what keeps what is live; and one linked
+to the clock or to a video asks `Clocks`, which goes round once a second, and is told
+where the video has got to, only while some box is showing it. A stage layout is
+nothing more than a slide made of such
 boxes, and a prop nothing more than a slide laid over the others, so both are drawn by
 what draws every slide and edited by what edits every slide.
 
@@ -2285,7 +2340,7 @@ the whole of it).
 **Unit tests** try the parts of the app that are plain rules, by themselves, with no
 window and no workspace: the rules of the show (`src/showstate.*`), chords, the screens
 and the looks in ProPresenter's file, how a piece of audio plays and how loud it is,
-search, and the matching of themes. They are
+search, how a date and a time are written, and the matching of themes. They are
 built with the app and take a few milliseconds:
 
 ```
@@ -2293,7 +2348,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: over thirty scripts and over eighteen
+and look at what its windows then hold and show: nearly forty scripts and about nineteen
 hundred checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
@@ -2324,6 +2379,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/audiometer.*`, `src/audiolevel.*` | The meter of what is being played, and the arithmetic of sound: how loud a stretch of it is, what a meter shows of that, how a fade goes |
 | `src/audioprobe.*` | How long a sound file is, read from it as it is added to the audio bin |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
+| `src/clocks.*`, `src/clocktext.*` | The time of day and the time a video has left, for text boxes linked to them, kept going only while one is shown; and how a date and a time are written |
 | `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
 | `src/slidenumber.*`, `src/numbertyping.*` | A slide asked for by its number, typed: what the digits make and which slide that is, and what QML reaches those rules by |
 | `src/groupedit.*` | Putting a slide, and those after it in its group, into another group, as ProPresenter does |
@@ -2366,6 +2422,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/Main.qml` | The operator window: what is open, and what a click or a key does |
 | `qml/Toolbar.qml`, `Sidebar.qml`, `SlideGrid.qml`, `PreviewPanel.qml`, `MediaBin.qml` | The parts of the operator window |
 | `qml/AudioPanel.qml`, `qml/AudioGlyph.qml` | The audio bin, a tab of the show controls; and its pictures, which are drawn here |
+| `qml/SlideNotes.qml` | A slide's notes, in a pane under the slide in the editor |
 | `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |
 | `qml/TypedNumber.qml` | The panel over the slides that shows a slide's number while it is typed |
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml`, `MacrosPanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props, stage screens and macros |

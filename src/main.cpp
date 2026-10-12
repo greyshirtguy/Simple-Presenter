@@ -72,8 +72,10 @@
 //   as it goes (src/audiometer.h).
 //
 //   What is not settled when a file is read is text that changes while it is on show: a
-//   timer's time, which SlideElement asks Timers for (src/timers.h), and the words of
-//   the slide that is live, which it asks Show for (src/show.h). A prop and a stage
+//   timer's time, which SlideElement asks Timers for (src/timers.h); the words of the
+//   slide that is live, or its notes, which it asks Show for (src/show.h); and the time
+//   of day or the time a video has left, which it asks Clocks for (src/clocks.h), a
+//   clock that goes only while some box shows it. A prop and a stage
 //   layout are slides too, in files of their own. A prop is laid over the output and
 //   stays until it is turned off; a stage layout is made of boxes linked to what is
 //   live. Both go the same way to the screen as any slide, from step 2 on, and both
