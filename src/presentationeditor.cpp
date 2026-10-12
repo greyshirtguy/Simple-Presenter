@@ -4,12 +4,14 @@
 
 #include "proconvert.h"
 #include "richtext.h"
+#include "sessionlog.h"
 #include "workspacefiles.h"
 
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QSet>
 #include <QStandardPaths>
 
@@ -134,6 +136,10 @@ void PresentationEditor::start(Kind kind, const QString &path, const QString &wo
     m_madeForChords.clear();
     m_changed = false;
     m_backupPath.clear();
+    m_asOpened.clear();
+    m_asOpenedWritten.clear();
+    m_revertible = false;
+    m_beforeRevert.clear();
     m_previewRow = -1;
     m_previewBefore.clear();
     m_rows.clear();
@@ -166,8 +172,23 @@ QString PresentationEditor::open(const QString &path, const QString &workspace)
     if (!proconvert::readPresentation(path, &presentation, &error))
         return error;
 
+    // What the file was when this sitting with it began, for revertToOpened(). The same file
+    // opened again while it is open (which is how a slide added or removed by the
+    // operator window comes to be shown here) is the same sitting, and what is kept
+    // stays; closed and opened again, it is a new one.
+    QByteArray asOpened = m_asOpened;
+    std::string asOpenedWritten = m_asOpenedWritten;
+    if (m_kind != Kind::Presentation || path != m_path || asOpened.isEmpty()) {
+        QFile file(path);
+        asOpened = file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+        asOpenedWritten = presentation.SerializeAsString();
+    }
+
     start(Kind::Presentation, path, workspace, QFileInfo(path).completeBaseName());
     m_presentation = presentation;
+    m_asOpened = asOpened;
+    m_asOpenedWritten = asOpenedWritten;
+    noteFileState();
 
     // Every cue that shows a slide, group by group as the presentation stores them,
     // then any cue that no group has.
@@ -285,6 +306,10 @@ void PresentationEditor::close()
     m_madeForChords.clear();
     m_changed = false;
     m_backupPath.clear();
+    m_asOpened.clear();
+    m_asOpenedWritten.clear();
+    m_revertible = false;
+    m_beforeRevert.clear();
     m_previewRow = -1;
     m_previewBefore.clear();
     endResetModel();
@@ -401,13 +426,10 @@ void PresentationEditor::refresh(int row)
     emit slideChanged(row);
 }
 
-// The file as it was before this session's first change goes into a folder of the app's
-// own, under the workspace's name and the file's place in it, with the time in its
-// name. Only so many are kept for each presentation.
-void PresentationEditor::backUp()
+// The folder the copies of the open file go to: one of the app's own, under the
+// workspace's name and the file's place in it.
+QString PresentationEditor::backupFolder() const
 {
-    if (m_changed || !m_backupPath.isEmpty())
-        return;
     const QFileInfo file(m_path);
     QString place = file.dir().dirName();
     if (!m_workspace.isEmpty()) {
@@ -419,8 +441,22 @@ void PresentationEditor::backUp()
                          + QStringLiteral("/Edit Backups/") + place);
     if (!directory.mkpath(QStringLiteral("."))) {
         qWarning("Cannot create %s", qPrintable(directory.path()));
-        return;
+        return {};
     }
+    return directory.path();
+}
+
+// The file as it was before this session's first change goes into that folder, with
+// the time in its name. Only so many are kept for each presentation.
+void PresentationEditor::backUp()
+{
+    if (m_changed || !m_backupPath.isEmpty())
+        return;
+    const QString folder = backupFolder();
+    if (folder.isEmpty())
+        return;
+    const QDir directory(folder);
+    const QFileInfo file(m_path);
     // Under the file's own name and ending, which the props and the stage layouts do
     // not have one of.
     const QString base = file.completeBaseName();
@@ -438,6 +474,14 @@ void PresentationEditor::backUp()
     const QStringList copies = directory.entryList({base + QStringLiteral(" ????" "-??" "-?? ??.??.??") + ending}, QDir::Files, QDir::Name);
     for (qsizetype i = 0; i < copies.size() - backupsKept; ++i)
         QFile::remove(directory.filePath(copies.at(i)));
+}
+
+// Whether the presentation's file is still what it was when it was opened here. It is
+// asked after everything that writes the file, and is what Revert is offered by.
+void PresentationEditor::noteFileState()
+{
+    m_revertible = m_kind == Kind::Presentation && !m_asOpened.isEmpty()
+                   && m_presentation.SerializeAsString() != m_asOpenedWritten;
 }
 
 // Saves the cue or layout of a row as it now is, as one change from how it was
@@ -464,6 +508,9 @@ QString PresentationEditor::commit(int row, const std::string &before)
     if (m_undo.size() > undoLimit)
         m_undo.removeFirst();
     m_redo.clear();
+    // (A revert can be taken back only until something else is done.)
+    m_beforeRevert.clear();
+    noteFileState();
     refresh(row);
     emit historyChanged();
     return {};
@@ -671,8 +718,8 @@ QString PresentationEditor::move(int row, const QString &element, int index)
     });
 }
 
-// Takes the last step off one list, puts its cue or layout as it was at the other end
-// of that step, saves, and puts the step on the other list.
+// Takes the last step off one list, puts its cue or layout (or the presentation's keys)
+// as it was at the other end of that step, saves, and puts the step on the other list.
 QString PresentationEditor::restore(QList<Step> *from, QList<Step> *to, bool forwards)
 {
     if (m_previewRow >= 0)
@@ -680,20 +727,38 @@ QString PresentationEditor::restore(QList<Step> *from, QList<Step> *to, bool for
     if (from->isEmpty())
         return {};
     const Step step = from->last();
-    google::protobuf::Message *unit = unitAt(step.row);
-    if (!unit)
-        return gone;
-    unit->ParseFromString(forwards ? step.after : step.before);
-    const QString error = write();
-    if (!error.isEmpty()) {
-        unit->ParseFromString(forwards ? step.before : step.after);
-        return error;
+    if (step.row < 0) {
+        // A change of key, which is no slide's
+        const std::string now = musicState();
+        setMusicState(forwards ? step.after : step.before);
+        const QString error = write();
+        if (!error.isEmpty()) {
+            setMusicState(now);
+            return error;
+        }
+    } else {
+        google::protobuf::Message *unit = unitAt(step.row);
+        if (!unit)
+            return gone;
+        unit->ParseFromString(forwards ? step.after : step.before);
+        const QString error = write();
+        if (!error.isEmpty()) {
+            unit->ParseFromString(forwards ? step.before : step.after);
+            return error;
+        }
     }
     from->removeLast();
     to->append(step);
-    refresh(step.row);
-    emit historyChanged();
-    emit restored(step.row);
+    m_beforeRevert.clear();
+    noteFileState();
+    if (step.row < 0) {
+        emit historyChanged();
+        emit keyChanged();
+    } else {
+        refresh(step.row);
+        emit historyChanged();
+        emit restored(step.row);
+    }
     // A step joined to the one before it goes with it: back, the one before follows;
     // forwards, the one that was joined to this follows.
     if (!from->isEmpty() && (forwards ? from->last().joined : step.joined))
@@ -709,6 +774,56 @@ QString PresentationEditor::key() const
     return chords::keyName(int(original.music_key()), original.music_scale() == rv::data::MusicKeyScale::MUSIC_SCALE_MINOR);
 }
 
+QString PresentationEditor::shownKey() const
+{
+    if (m_kind != Kind::Presentation || !m_presentation.has_music())
+        return {};
+    // (A file that names the key and not the one it is shown in is taken as shown in
+    // its own: nobody chose another. A GUESS at what leaving it out means; no file
+    // looked at does.)
+    const rv::data::Presentation::Music &music = m_presentation.music();
+    const rv::data::MusicKeyScale &shown = music.has_user() ? music.user() : music.original();
+    return chords::keyName(int(shown.music_key()), shown.music_scale() == rv::data::MusicKeyScale::MUSIC_SCALE_MINOR);
+}
+
+// The two keys as the file has them: a mark that there are any, and then the part of
+// the file that holds them, whole. (A part with nothing set in it is written as nothing
+// at all, which is why its being there is said apart.)
+std::string PresentationEditor::musicState() const
+{
+    return m_presentation.has_music() ? "1" + m_presentation.music().SerializeAsString() : std::string("0");
+}
+
+void PresentationEditor::setMusicState(const std::string &state)
+{
+    if (state.empty() || state.front() != '1')
+        m_presentation.clear_music();
+    else
+        m_presentation.mutable_music()->ParseFromString(state.substr(1));
+}
+
+QString PresentationEditor::commitMusic(const std::string &before)
+{
+    if (musicState() == before)
+        return {};
+    backUp();
+    const QString error = write();
+    if (!error.isEmpty()) {
+        setMusicState(before);
+        return error;
+    }
+    m_changed = true;
+    m_undo.append({-1, before, musicState(), false});
+    if (m_undo.size() > undoLimit)
+        m_undo.removeFirst();
+    m_redo.clear();
+    m_beforeRevert.clear();
+    noteFileState();
+    emit historyChanged();
+    emit keyChanged();
+    return {};
+}
+
 QString PresentationEditor::setKey(const QString &key)
 {
     using Scale = rv::data::MusicKeyScale;
@@ -717,27 +832,43 @@ QString PresentationEditor::setKey(const QString &key)
         return QStringLiteral("%1 is not a key").arg(key);
     if (key == this->key())
         return {};
-    const rv::data::Presentation::Music before = m_presentation.music();
-    const bool had = m_presentation.has_music();
-    // The key the chords are shown in goes with it: until someone shows the song in
-    // another key, that is the key it is in.
-    for (Scale *target : {m_presentation.mutable_music()->mutable_original(), m_presentation.mutable_music()->mutable_user()}) {
+    if (m_previewRow >= 0)
+        commitPreview();
+    const std::string before = musicState();
+    // The key the chords are shown in goes with it, if nobody has chosen another: the
+    // presentation named no key, or its two were the same. Where they differ, someone
+    // has had the song shown in another key than it is written in (a song from
+    // Multitracks set a tone lower for a singer, say), and saying what key the chords
+    // are written in is not to undo that.
+    const bool together = shownKey() == this->key();
+    rv::data::Presentation::Music *music = m_presentation.mutable_music();
+    QList<Scale *> targets = {music->mutable_original()};
+    if (together)
+        targets << music->mutable_user();
+    for (Scale *target : std::as_const(targets)) {
         target->set_music_key(Scale::MusicKey(number));
         target->set_music_scale(chords::keyIsMinor(key) ? Scale::MUSIC_SCALE_MINOR : Scale::MUSIC_SCALE_MAJOR);
     }
-    backUp();
-    const QString error = write();
-    if (!error.isEmpty()) {
-        if (had)
-            *m_presentation.mutable_music() = before;
-        else
-            m_presentation.clear_music();
-        return error;
-    }
-    m_changed = true;
-    emit historyChanged();
-    emit keyChanged();
-    return {};
+    return commitMusic(before);
+}
+
+QString PresentationEditor::setShownKey(const QString &key)
+{
+    using Scale = rv::data::MusicKeyScale;
+    const int number = chords::keyNumber(key);
+    if (m_kind != Kind::Presentation || number < 0)
+        return QStringLiteral("%1 is not a key").arg(key);
+    if (!m_presentation.has_music())
+        return QStringLiteral("This song does not say what key it is in. Set its key first, and then the key it is to be shown in.");
+    if (key == shownKey())
+        return {};
+    if (m_previewRow >= 0)
+        commitPreview();
+    const std::string before = musicState();
+    Scale *shown = m_presentation.mutable_music()->mutable_user();
+    shown->set_music_key(Scale::MusicKey(number));
+    shown->set_music_scale(chords::keyIsMinor(key) ? Scale::MUSIC_SCALE_MINOR : Scale::MUSIC_SCALE_MAJOR);
+    return commitMusic(before);
 }
 
 QVariantList PresentationEditor::song() const
@@ -1071,6 +1202,66 @@ QString PresentationEditor::setChordsAlone(int row, const QString &element, int 
     if (error.isEmpty() && !madeId.isEmpty())
         m_madeForChords.insert(boxKey(row, madeId), made);
     return error;
+}
+
+// Puts bytes in the place of the presentation's file, exactly as they are and not as a
+// presentation read and written again, and reads the presentation afresh from them: the
+// rows are listed again, nothing can be undone, and nothing is remembered of what was
+// made for a blank slide's chords, which was of the file as it was.
+QString PresentationEditor::putBack(const QByteArray &bytes)
+{
+    rv::data::Presentation read;
+    if (bytes.isEmpty() || !read.ParseFromArray(bytes.constData(), int(bytes.size())))
+        return QStringLiteral("What was kept of %1 is not a presentation, so it was not put back.").arg(QFileInfo(m_path).fileName());
+    QSaveFile file(m_path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())
+        return QStringLiteral("Cannot write %1: %2").arg(QFileInfo(m_path).fileName(), file.errorString());
+    SessionLog::write("saved", m_path);
+    // (open() keeps what the file was when the sitting began: it is the same file.)
+    return open(QString(m_path), QString(m_workspace));
+}
+
+QString PresentationEditor::revertToOpened()
+{
+    if (m_kind != Kind::Presentation || !m_revertible)
+        return {};
+    if (m_previewRow >= 0)
+        commitPreview();
+    // The file as it is now is kept first, twice over: in memory, for taking this
+    // back, and as a copy among the others, in case the app does not live to do it.
+    QFile now(m_path);
+    if (!now.open(QIODevice::ReadOnly))
+        return QStringLiteral("Cannot read %1 to keep a copy of it first, so it was not reverted: %2").arg(QFileInfo(m_path).fileName(), now.errorString());
+    const QByteArray current = now.readAll();
+    now.close();
+    const QString folder = backupFolder();
+    if (!folder.isEmpty()) {
+        const QFileInfo file(m_path);
+        const QString ending = file.suffix().isEmpty() ? QString() : u'.' + file.suffix();
+        const QString target = QDir(folder).filePath(file.completeBaseName()
+                                                     + QDateTime::currentDateTime().toString(QStringLiteral(" yyyy-MM-dd HH.mm.ss")) + ending);
+        QFile copy(target);
+        // (Never over a copy that is there: the first change of this very second made it.)
+        if (!QFile::exists(target) && copy.open(QIODevice::WriteOnly))
+            copy.write(current);
+    }
+    const QString error = putBack(QByteArray(m_asOpened));
+    if (!error.isEmpty())
+        return error;
+    m_beforeRevert = current;
+    emit historyChanged();
+    return {};
+}
+
+QString PresentationEditor::takeBackRevert()
+{
+    if (m_kind != Kind::Presentation || m_beforeRevert.isEmpty())
+        return {};
+    const QString error = putBack(QByteArray(m_beforeRevert));
+    if (!error.isEmpty())
+        return error;
+    emit historyChanged();
+    return {};
 }
 
 QString PresentationEditor::undo()

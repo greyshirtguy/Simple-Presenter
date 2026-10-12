@@ -119,6 +119,7 @@ qt_add_qml_module(SimplePresenter
         qml/Editor.qml
         qml/EditorCanvas.qml
         qml/EditorInspector.qml
+        qml/EditorModes.qml
         qml/EditorTool.qml
         qml/EmptyNote.qml
         qml/FontPicker.qml

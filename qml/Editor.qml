@@ -23,7 +23,12 @@ import SimplePresenterApp
 //   only thing that changes it; it is also the list model of the slides. A change is a
 //   call to it, which alters the one slide, writes the file, and describes that slide
 //   afresh for whatever draws it. Undo is a list of that slide's cue as it was before
-//   and after each change.
+//   and after each change (and, for a change of a song's key, of its two keys). It
+//   also keeps the file as it was when it was opened, which Revert puts back whole.
+//
+//   EditorModes is the switch, in the middle of the toolbar, between the editor's
+//   three ways of working on a presentation (`mode`, below); ChordSheet and
+//   ChordProEditor are the two that are for a song's chords.
 //
 //   EditorCanvas draws the slide being worked on with the same SlideElement that draws
 //   the output, and lays over it what editing needs: the handles, the lines snapped
@@ -105,15 +110,19 @@ Rectangle {
                                     : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
     // What the toolbar button under the pointer does, in words, or ""
     readonly property string toolHint: {
-        for (const tools of [actions.children, modes.children]) {
+        for (const tools of [actions.children, songKeys.item ? songKeys.item.children : [], saving.item ? saving.item.children : []]) {
             for (let i = 0; i < tools.length; ++i) {
                 const tool = tools[i]
                 if (tool.hovered === true && tool.hint)
                     return tool.hint
             }
         }
-        return ""
+        return modes.hint
     }
+    // The keys a song can be said to be in: every usual one (chords.h)
+    readonly property var usualKeys: Chords.majorKeys.concat(Chords.minorKeys)
+    // What the line along the bottom says after a revert, while it can be taken back
+    readonly property string revertedNotice: "The song is as it was when it was opened here."
     // A filter for a file dialog showing the media files the app can use, and the
     // folder such a dialog starts in
     property string mediaFilter: "All files (*)"
@@ -319,6 +328,58 @@ Rectangle {
         notice = message
         noticeIsError = false
         noticeTimer.restart()
+    }
+
+    // Revert asks first. It takes back everything done to the song since it was opened
+    // here, which may be an hour's work, and its name alone could be read as taking
+    // back the last change, which is Undo's. So the question says which: all of them.
+    function askToRevert(item) {
+        if (!editor.canRevert)
+            return
+        // (The question is the menu's note and not its heading: a heading is one line,
+        // cut short where it is too long, and this is to be read whole.)
+        showMenu([
+            { header: "Revert" },
+            { note: "Revert “" + subject + "” to how it was when it was opened? This takes back EVERY change made to this song since it was opened in this editor." },
+            { label: "Revert All Changes", danger: true, run: () => screen.revert() },
+            { label: "Cancel", run: () => screen.takeFocus() }
+        ], item, 0, -150)
+    }
+
+    // The answer was yes: the song's file is made what it was when it was opened here
+    // (PresentationEditor::revertToOpened, which keeps what it is now first), and the
+    // line along the bottom offers to take that back for as long as it says so.
+    function revert() {
+        finish()
+        const row = canvas.row
+        if (!report(editor.revertToOpened()))
+            return
+        Log.note("edit", "the presentation was reverted to as it was opened in the editor")
+        canvas.showRow(Math.max(0, Math.min(row, editor.count - 1)))
+        slideList.positionViewAtIndex(canvas.row, ListView.Contain)
+        tell(revertedNotice)
+        takeFocus()
+    }
+
+    function takeBackRevert() {
+        finish()
+        const row = canvas.row
+        if (!report(editor.takeBackRevert()))
+            return
+        Log.note("edit", "the revert was taken back")
+        canvas.showRow(Math.max(0, Math.min(row, editor.count - 1)))
+        slideList.positionViewAtIndex(canvas.row, ListView.Contain)
+        tell("The song is as it was before it was reverted.")
+        takeFocus()
+    }
+
+    // Sets one of the song's two keys from its picker. Whatever was being typed in a
+    // chord editor is kept first: nothing else is done to the song before that.
+    function pickKey(key, shown) {
+        finish()
+        if (key !== "None")
+            report(shown ? editor.setShownKey(key) : editor.setKey(key))
+        takeFocus()
     }
 
     function showRow(row) {
@@ -867,11 +928,14 @@ Rectangle {
             // What can be added: a text box, a shape from a short list of them, and
             // a picture or a video. Underneath they are all the one kind of element:
             // any of them can be given words by double-clicking it, and any fill.
+            // (These, and the two after them, are for the slides and are not there
+            // over the chord editors, which have the song's keys in their place.)
             EditorTool {
                 objectName: "addTextTool"
                 kind: "text"
                 hint: "Add a text box"
-                available: canvas.slide !== null && screen.mode === "slides"
+                visible: screen.mode === "slides"
+                available: canvas.slide !== null
                 onClicked: canvas.addText()
             }
 
@@ -881,7 +945,8 @@ Rectangle {
                 objectName: "addShapeTool"
                 kind: "shapes"
                 hint: "Add a shape: a rectangle, a rounded rectangle, an ellipse or an arrow"
-                available: canvas.slide !== null && screen.mode === "slides"
+                visible: screen.mode === "slides"
+                available: canvas.slide !== null
                 onClicked: screen.showMenu([
                     { header: "Shapes" },
                     { label: "Rectangle", run: () => canvas.addShape("rectangle") },
@@ -895,11 +960,13 @@ Rectangle {
                 objectName: "addMediaTool"
                 kind: "media"
                 hint: "Add a picture or a video from a file"
-                available: canvas.slide !== null && screen.mode === "slides"
+                visible: screen.mode === "slides"
+                available: canvas.slide !== null
                 onClicked: screen.chooseMedia("add")
             }
 
             Item {
+                visible: screen.mode === "slides"
                 width: 10
                 height: 1
             }
@@ -907,18 +974,21 @@ Rectangle {
             EditorTool {
                 kind: "duplicate"
                 hint: "Duplicate the picked element (Ctrl+D)"
-                available: canvas.selected !== null && screen.mode === "slides"
+                visible: screen.mode === "slides"
+                available: canvas.selected !== null
                 onClicked: canvas.duplicate()
             }
 
             EditorTool {
                 kind: "delete"
                 hint: "Delete the picked element (Delete)"
-                available: canvas.selected !== null && screen.mode === "slides"
+                visible: screen.mode === "slides"
+                available: canvas.selected !== null
                 onClicked: canvas.removeSelected()
             }
 
             Item {
+                visible: screen.mode === "slides"
                 width: 10
                 height: 1
             }
@@ -950,51 +1020,125 @@ Rectangle {
             }
         }
 
-        // The three ways of working on a presentation (see `mode`)
-        Row {
-            id: modes
+        // The song's two keys, where the chord editors are: the key its chords are
+        // written in and, quieter beside it, the key they are shown in. Neither changes
+        // any chord in the file. They are here, over both chord editors, and not in
+        // the chord sheet's own strip, where the first of them was: the ChordPro text
+        // had no way to say what key a song is in.
+        // (Like the chord editors themselves they are made when one of those is turned
+        // to, and are gone when it is left: over the slides they cost nothing.)
+        Loader {
+            id: songKeys
 
-            anchors.right: parent.right
-            anchors.rightMargin: 12
+            anchors.left: actions.right
+            anchors.leftMargin: 16
             anchors.verticalCenter: parent.verticalCenter
-            visible: screen.chordable
-            spacing: 2
+            active: screen.mode !== "slides" && screen.chordable
+            visible: active
 
-            EditorTool {
-                objectName: "slidesMode"
-                label: "Slides"
-                on: screen.mode === "slides"
-                hint: "The slides: move, size and style what is on each"
-                onClicked: screen.setMode("slides")
-            }
+            sourceComponent: Row {
+                spacing: 8
 
-            EditorTool {
-                objectName: "chordsMode"
-                label: "Chords"
-                on: screen.mode === "chords"
-                hint: "The song's chords: point at a word and press 1 to 7, or type a chord; drag chords about"
-                onClicked: screen.setMode("chords")
-            }
+                // (In a narrow window the two words go, and the pickers say what they
+                // are on the line along the bottom when the pointer is on them.)
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: strip.width >= 760
+                    color: "#9a9da3"
+                    font.pixelSize: 13
+                    text: "Key"
+                }
 
-            EditorTool {
-                objectName: "chordProMode"
-                label: "ChordPro"
-                on: screen.mode === "chordpro"
-                hint: "The song as ChordPro text: type chords in square brackets among the words"
-                onClicked: screen.setMode("chordpro")
+                AppComboBox {
+                    objectName: "chordKeyBox"
+                    readonly property string hint: editor.key === "" ? "This song does not say what key it is in. Pick the key its chords are written in."
+                                                                     : "The key the song's chords are written in. Changing it changes no chord."
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 82
+                    height: 28
+                    font.pixelSize: 13
+                    // Every usual key, with the song's own before them if it is not one of
+                    // them; and for a song that names none, "None".
+                    model: editor.key === "" ? ["None"].concat(screen.usualKeys)
+                         : screen.usualKeys.includes(editor.key) ? screen.usualKeys : [editor.key].concat(screen.usualKeys)
+                    currentIndex: editor.key === "" ? 0 : model.indexOf(editor.key)
+                    onActivated: (index) => screen.pickKey(model[index], false)
+                }
+
+                Item {
+                    width: 4
+                    height: 1
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: strip.width >= 760
+                    color: "#7d8088"
+                    font.pixelSize: 13
+                    text: "Shown in"
+                }
+
+                AppComboBox {
+                    objectName: "chordShownKeyBox"
+                    readonly property string hint: editor.key === "" ? "Set the song's key first, and then the key it is to be shown in."
+                        : "The key ProPresenter shows this song's chords in, and this app's stage until another is picked there. They are moved to it as they are drawn; the chords here stay as they are written."
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 82
+                    height: 28
+                    font.pixelSize: 13
+                    enabled: editor.key !== ""
+                    opacity: enabled ? 1 : 0.45
+                    model: editor.shownKey === "" ? ["None"].concat(screen.usualKeys)
+                         : screen.usualKeys.includes(editor.shownKey) ? screen.usualKeys : [editor.shownKey].concat(screen.usualKeys)
+                    currentIndex: editor.shownKey === "" ? 0 : model.indexOf(editor.shownKey)
+                    onActivated: (index) => screen.pickKey(model[index], true)
+                }
             }
         }
 
-        Text {
-            anchors.left: actions.right
-            anchors.leftMargin: 14
-            anchors.right: modes.visible ? modes.left : parent.right
-            anchors.rightMargin: 14
+        // The three ways of working on a presentation (see `mode`), in the middle of
+        // the toolbar. The middle is that of the toolbar as it is over the chord
+        // editors, which is the wider (there is no inspector beside them), so that the
+        // switch does not move from under the pointer when it is clicked; and where
+        // there is not room for it there, it is as near as what is at the toolbar's
+        // left lets it be. In a window too narrow for all of it, the switch is drawn
+        // without its pictures; and narrower still, it keeps to the toolbar's right end
+        // and covers what is at the left, as the three small buttons it was once did.
+        EditorModes {
+            id: modes
+
+            objectName: "editorModes"
+            readonly property real leftEnd: Math.max(actions.x + actions.width, songKeys.visible ? songKeys.x + songKeys.width : 0) + 16
+
             anchors.verticalCenter: parent.verticalCenter
+            x: Math.min(strip.width - width - 12, Math.max(leftEnd, Math.round((screen.width - left.width - width) / 2)))
+            compact: strip.width < leftEnd + widest + 12
+            visible: screen.chordable
+            mode: screen.mode
+            onPicked: (mode) => screen.setMode(mode)
+        }
+
+        // What is being edited, and which of it this is: after the switch, where there
+        // is room for it there. Over the slides, with the inspector beside them, a
+        // window of the usual size has none, and it is said on the line along the
+        // bottom instead (see `subjectBelow`).
+        Text {
+            id: subjectText
+
+            readonly property real from: modes.visible ? modes.x + modes.width + 16 : actions.x + actions.width + 14
+            readonly property real room: Math.max(0, parent.width - 14 - from)
+
+            x: from
+            width: room
+            anchors.verticalCenter: parent.verticalCenter
+            horizontalAlignment: modes.visible ? Text.AlignRight : Text.AlignLeft
+            // Here if all of it can be read here. (Over the chord editors the line
+            // along the bottom has other things at its right, and it is here cut
+            // short if it must be.)
+            visible: implicitWidth <= room || (saving.visible && room > 70)
             elide: Text.ElideRight
             color: "#9a9da3"
             font.pixelSize: 13
-            // What is being edited, and which of it this is
             text: screen.subject + (canvas.slide ? "   ·   " + screen.rowWord + " " + (canvas.row + 1) + " of " + editor.count : "")
         }
     }
@@ -1032,7 +1176,7 @@ Rectangle {
             id: hintText
 
             anchors.left: parent.left
-            anchors.right: parent.right
+            anchors.right: saving.visible ? saving.left : subjectBelow.visible ? subjectBelow.left : parent.right
             anchors.leftMargin: 12
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
@@ -1047,6 +1191,85 @@ Rectangle {
                 : canvas.editing ? "Select text to format part of it  ·  Esc or a click elsewhere finishes  ·  Ctrl+B, I, U"
                 : canvas.selected ? "Drag to move, handles to resize  ·  Shift: straight, or in proportion  ·  Ctrl: no snapping  ·  Arrows nudge  ·  Double-click or Enter edits the text"
                 : "Click an element to pick it  ·  Double-click text to edit it  ·  Arrows change slide"
+        }
+
+        // What is being edited, where the toolbar had no room to say it
+        Text {
+            id: subjectBelow
+
+            objectName: "editorSubjectBelow"
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !subjectText.visible && !saving.visible && screen.notice === ""
+            color: "#7d8088"
+            font.pixelSize: 12
+            text: subjectText.text
+        }
+
+        // Nothing is saved by hand here, and over the chord editors the line says so.
+        // Revert makes the song what it was when it was opened, after asking; and where
+        // a Save button would be are the words that say why there is none, for the eye
+        // that looks for one. After a revert, for as long as the line says it was made,
+        // it can be taken back. (Only over the chord editors, which are this app's own:
+        // the slides are edited as ProPresenter edits them, which has neither.)
+        Loader {
+            id: saving
+
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            active: screen.mode !== "slides" && screen.chordable
+            visible: active
+
+            sourceComponent: Row {
+                spacing: 10
+
+                AppButton {
+                    objectName: "revertUndoButton"
+                    readonly property string hint: "Put the song back as it was just before it was reverted"
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: editor.canTakeBackRevert && screen.notice === screen.revertedNotice
+                    height: 20
+                    leftPadding: 9
+                    rightPadding: 9
+                    font.pixelSize: 12
+                    text: "Undo"
+                    onClicked: screen.takeBackRevert()
+                }
+
+                AppButton {
+                    id: revertButton
+
+                    objectName: "revertButton"
+                    readonly property string hint: "Take back every change made to this song since it was opened here, after asking. What the song is now is kept as a copy first."
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 20
+                    leftPadding: 9
+                    rightPadding: 9
+                    font.pixelSize: 12
+                    enabled: editor.canRevert
+                    text: "Revert…"
+                    onClicked: screen.askToRevert(revertButton)
+                }
+
+                Text {
+                    objectName: "autosaveNote"
+                    readonly property bool hovered: autosaveMouse.containsMouse
+                    readonly property string hint: "There is nothing to save by hand: every change is saved as it is made, with a copy of the song as it was kept first."
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#8d9097"
+                    font.pixelSize: 12
+                    text: "Autosave on"
+
+                    MouseArea {
+                        id: autosaveMouse
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                    }
+                }
+            }
         }
     }
 

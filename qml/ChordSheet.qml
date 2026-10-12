@@ -1136,7 +1136,9 @@ FocusScope {
         color: "#1b1c1f"
     }
 
-    // The key, its own chords on the keys 1 to 7, and the size of the words
+    // The key's own chords on the keys 1 to 7, and the size of the words. (The key
+    // itself is picked in the editor's toolbar, over this, where it is there for the
+    // ChordPro text as well: it was picked here at first.)
     Rectangle {
         id: bar
 
@@ -1161,36 +1163,6 @@ FocusScope {
                 x: 14
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
-
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: "#9a9da3"
-                    font.pixelSize: 13
-                    text: "Key"
-                }
-
-                AppComboBox {
-                    id: keyBox
-
-                    objectName: "chordKeyBox"
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 82
-                    height: 28
-                    font.pixelSize: 13
-                    // Every usual key, and the song's own first if it is not one of them
-                    readonly property var usual: Chords.majorKeys.concat(Chords.minorKeys)
-                    model: usual.includes(sheet.key) ? usual : [sheet.key].concat(usual)
-                    currentIndex: model.indexOf(sheet.key)
-                    onActivated: (index) => {
-                        sheet.report(sheet.editor.setKey(model[index]))
-                        sheet.takeKeys()
-                    }
-                }
-
-                Item {
-                    width: 10
-                    height: 1
-                }
 
                 Repeater {
                     model: sheet.inKey

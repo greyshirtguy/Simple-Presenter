@@ -13,10 +13,6 @@ Rectangle {
     property string kind
     property string hint
     property bool available: true
-    // A tool that is drawn as a short word and not a glyph (the editor's three ways of
-    // working, which no picture says), and whether it is the one that is on
-    property string label
-    property bool on: false
     // Whether it opens a list of things to choose from
     readonly property bool opens: kind === "shapes"
     readonly property bool hovered: mouse.containsMouse
@@ -34,10 +30,10 @@ Rectangle {
 
     signal clicked
 
-    width: label !== "" ? word.implicitWidth + 22 : opens ? 44 : 34
+    width: opens ? 44 : 34
     height: 30
     radius: 6
-    color: on ? "#ff8a1f" : !available ? "#2b2d31" : mouse.pressed ? "#50535a" : mouse.containsMouse ? "#45484e" : "#3a3c42"
+    color: !available ? "#2b2d31" : mouse.pressed ? "#50535a" : mouse.containsMouse ? "#45484e" : "#3a3c42"
 
     Text {
         anchors.centerIn: parent
@@ -49,23 +45,12 @@ Rectangle {
         text: "T"
     }
 
-    Text {
-        id: word
-
-        anchors.centerIn: parent
-        visible: tool.label !== ""
-        color: tool.on ? "#1b1c1f" : tool.ink
-        font.pixelSize: 13
-        font.weight: Font.Medium
-        text: tool.label
-    }
-
     Shape {
         x: tool.opens ? 8 : (parent.width - width) / 2
         anchors.verticalCenter: parent.verticalCenter
         width: 18
         height: 16
-        visible: tool.kind !== "text" && tool.label === ""
+        visible: tool.kind !== "text"
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
