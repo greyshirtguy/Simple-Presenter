@@ -857,8 +857,24 @@ const rv::data::Slide::Element *PresentationEditor::wordsBoxNear(int row)
     return nullptr;
 }
 
+// What a blank slide's text box is remembered by: its slide and its id. An id alone
+// will not do: a slide made by duplicating another keeps its boxes' ids, and in real
+// libraries a quarter of the songs have text boxes on different slides with one id.
+QString PresentationEditor::boxKey(int row, const QString &element) const
+{
+    return m_slides.value(row).toMap().value("id").toString() + u'/' + element;
+}
+
 QString PresentationEditor::setChordsAlone(int row, const QString &element, int line, const QStringList &names, bool joined)
 {
+    // The names as they will be written. One that is nothing is left out here, as it
+    // would be when the chords are written, so that it is given no stand-in either.
+    QStringList wanted;
+    for (const QString &name : names) {
+        const QString tidy = chords::tidied(name);
+        if (!tidy.isEmpty())
+            wanted << tidy;
+    }
     // What this change makes for a blank slide's chords, to be remembered once it has
     // been saved (see m_madeForChords).
     QString madeId;
@@ -869,7 +885,7 @@ QString PresentationEditor::setChordsAlone(int row, const QString &element, int 
         if (element.isEmpty()) {
             // A blank slide that has no text box to put chords in (see song()).
             // Nothing to put: nothing is made.
-            if (names.isEmpty())
+            if (wanted.isEmpty())
                 return QString();
             const QVariantList now = songOf(row);
             if (now.size() != 1 || !now.first().toMap().value("element").toString().isEmpty())
@@ -903,10 +919,10 @@ QString PresentationEditor::setChordsAlone(int row, const QString &element, int 
         if (made.added || (had.isEmpty() && noWords(rich.plainText()))) {
             // A blank slide's text box. Nothing to put and nothing there: it is left
             // exactly as it is, not written again to say the same.
-            if (names.isEmpty())
+            if (wanted.isEmpty())
                 return QString();
             // As the file had it, to go back to if the chords are taken off again.
-            if (!made.added && !m_madeForChords.contains(element)) {
+            if (!made.added && !m_madeForChords.contains(boxKey(row, element))) {
                 madeId = element;
                 made.was = text->SerializeAsString();
             }
@@ -918,85 +934,142 @@ QString PresentationEditor::setChordsAlone(int row, const QString &element, int 
             // Zero-width spaces, as an import here writes them.
             TextParagraph paragraph = rich.paragraphs.isEmpty() ? TextParagraph() : rich.paragraphs.first();
             TextRun run = rich.firstRun();
-            run.text = chords::placeholders(int(names.size()));
+            run.text = chords::placeholders(int(wanted.size()));
             paragraph.runs = {run};
             rich.paragraphs = {paragraph};
             proconvert::writeText(text, rich);
             QList<chords::Chord> put;
-            for (int i = 0; i < names.size(); ++i)
-                put.append({i * 2, chords::tidied(names.at(i))});
+            for (int i = 0; i < wanted.size(); ++i)
+                put.append({i * 2, wanted.at(i)});
             proconvert::writeChords(text, put);
             if (!madeId.isEmpty() && !made.added)
                 made.look = lookOf(*text);
             return QString();
         }
-        // The line is a paragraph, or part of one that has line breaks in it. Its
-        // words become the stand-ins, in the format the paragraph starts in.
-        // In the character the line hangs its chords on now, if it has one.
-        const QStringList linesNow = rich.plainText().split(u'\n');
-        const bool spaces = line < linesNow.size() && !linesNow.at(line).contains(QChar(0x200B)) && linesNow.at(line).contains(u' ');
-        const QString standIns = chords::placeholders(int(names.size()), spaces ? QChar(u' ') : QChar(0x200B));
-        int first = 0;
-        int start = 0;
-        bool found = false;
-        for (TextParagraph &paragraph : rich.paragraphs) {
-            QString whole;
-            for (const TextRun &run : std::as_const(paragraph.runs))
-                whole += run.text;
-            QStringList lines = whole.split(QChar::LineSeparator);
-            if (line < first + lines.size()) {
-                for (int i = 0; i < line - first; ++i)
-                    start += int(lines.at(i).size()) + 1;
-                lines[line - first] = standIns;
-                TextRun run = paragraph.runs.isEmpty() ? rich.firstRun() : paragraph.runs.first();
-                run.text = lines.join(QChar::LineSeparator);
-                paragraph.runs = {run};
-                found = true;
-                break;
-            }
-            first += int(lines.size());
-            start += int(whole.size()) + 1;
-        }
-        if (!found)
+
+        // A line of chords alone that is there already, with its stand-ins: one line
+        // of the box's words, which may have others.
+        const QStringList lines = rich.plainText().split(u'\n');
+        if (line < 0 || line >= lines.size())
             return QStringLiteral("The text has no such line");
+        const QString old = lines.at(line);
+        // Only such a line is ever made stand-ins. One that has words is not the chord
+        // editors' to change, and an empty one has nothing to say it is a line of
+        // chords; neither is asked for by anything in the app, and it is not left to
+        // that.
+        if (!chords::isPlaceholders(old))
+            return QStringLiteral("That is not a line of chords with no words.");
+        int start = 0;
+        for (int i = 0; i < line; ++i)
+            start += int(lines.at(i).size()) + 1;
+        // One stand-in for each chord, in the character the line hangs its chords on
+        // now. And with no chord, one zero-width space all the same, whatever it hung
+        // them on: that is what keeps it a line of chords alone, to be given chords
+        // again. (Not the plain space it may have had: a box left holding one plain
+        // space and no chord is read, the next time, as a stray space and no more.)
+        const bool spaces = !old.contains(QChar(0x200B)) && old.contains(u' ');
+        const QString standIns = wanted.isEmpty() ? chords::placeholders(1)
+                                                  : chords::placeholders(int(wanted.size()), spaces ? QChar(u' ') : QChar(0x200B));
         // The chords of the other lines keep their characters; those after this line
-        // move by as much as it has grown or shrunk. This line's are put on its new
-        // stand-ins, every other character (see chords::placeholders).
+        // move by as much as it grows or shrinks. This line's own, and one on the line
+        // break that ends it, are replaced by the names.
         QList<chords::Chord> kept;
-        const QStringList beforeLines = proconvert::readText(*text).plainText().split(u'\n');
-        const int oldLength = line < beforeLines.size() ? int(beforeLines.at(line).size()) : 0;
-        const int shift = int(standIns.size()) - oldLength;
+        const int shift = int(standIns.size() - old.size());
         for (const chords::Chord &chord : had) {
             if (chord.at < start)
                 kept.append(chord);
-            else if (chord.at > start + oldLength)
+            else if (chord.at > start + old.size())
                 kept.append({chord.at + shift, chord.name});
         }
-        proconvert::writeText(text, rich);
-        for (int i = 0; i < names.size(); ++i)
-            kept.append({start + i * 2, chords::tidied(names.at(i))});
-        proconvert::writeChords(text, kept);
-        // The last chord taken off a blank slide that was given its chords while the
-        // presentation has been open here: what was made for them is unmade, so that
-        // the slide is as it was found and not left with an empty text box it never
-        // had, or with one written afresh to say nothing.
-        const auto known = m_madeForChords.constFind(element);
-        if (known != m_madeForChords.constEnd() && kept.isEmpty() && noWords(rich.plainText())) {
-            if (known->added) {
-                // The text box that was added for them goes with them.
-                takeOff(slide, indexOfElement(*slide, element));
-            } else if (lookOf(*text) == known->look) {
-                // The box's own text goes back as the file had it. (Unless something
-                // else has been done to the box meanwhile, its font changed in Slides
-                // say: then it keeps that, and is simply empty.)
-                text->ParseFromString(known->was);
+
+        // A change of mind: the last chord taken off a blank slide that was given its
+        // chords while the presentation has been open here, whose box holds nothing
+        // but this line's stand-ins. What was made for them is unmade, so that the
+        // slide is as it was found and not left with a text box it never had, or with
+        // one written afresh to say nothing. (This comes before the rule that a line
+        // with no chord keeps one stand-in: what was made here is unmade whole.)
+        const auto known = m_madeForChords.constFind(boxKey(row, element));
+        if (known != m_madeForChords.constEnd() && wanted.isEmpty() && kept.isEmpty()) {
+            QStringList others = lines;
+            others[line].clear();
+            if (noWords(others.join(u'\n'))) {
+                if (known->added) {
+                    // The text box that was added for them goes with them.
+                    takeOff(slide, indexOfElement(*slide, element));
+                    return QString();
+                }
+                if (lookOf(*text) == known->look) {
+                    // The box's own text goes back as the file had it.
+                    text->ParseFromString(known->was);
+                    return QString();
+                }
+                // (Something else has been done to the box meanwhile, its font changed
+                // in Slides say: it keeps that, and is left as any line of chords alone
+                // is, below.)
             }
         }
+
+        if (standIns != old) {
+            // The line's characters are changed, where they are: in the paragraph that
+            // has the line, and of that paragraph's runs only those the line is in, so
+            // that every other line keeps its own format. The stand-ins take the format
+            // the line began in.
+            int first = 0;
+            bool found = false;
+            for (TextParagraph &paragraph : rich.paragraphs) {
+                QString whole;
+                for (const TextRun &run : std::as_const(paragraph.runs))
+                    whole += run.text;
+                const QStringList inParagraph = whole.split(QChar::LineSeparator);
+                if (line >= first + inParagraph.size()) {
+                    first += int(inParagraph.size());
+                    continue;
+                }
+                // Where the line is in the paragraph
+                int from = 0;
+                for (int i = 0; i < line - first; ++i)
+                    from += int(inParagraph.at(i).size()) + 1;
+                const int to = from + int(old.size());
+                // What the line has of each run is cut out of it, and the stand-ins go
+                // where the first of that was. A run the line was the whole of, after
+                // the first, is left with nothing in it and goes.
+                bool put = false;
+                int at = 0;
+                QList<TextRun> runs;
+                for (TextRun run : std::as_const(paragraph.runs)) {
+                    const int runStart = at;
+                    const bool wasEmpty = run.text.isEmpty();
+                    at += int(run.text.size());
+                    const int cutFrom = qMax(from, runStart);
+                    const int cutTo = qMin(to, at);
+                    if (cutFrom < cutTo) {
+                        run.text = run.text.left(cutFrom - runStart) + (put ? QString() : standIns) + run.text.mid(cutTo - runStart);
+                        put = true;
+                    }
+                    if (run.text.isEmpty() && !wasEmpty)
+                        continue;
+                    runs.append(run);
+                }
+                if (!put)
+                    return QStringLiteral("The text has no such line");
+                paragraph.runs = runs;
+                found = true;
+                break;
+            }
+            if (!found)
+                return QStringLiteral("The text has no such line");
+            proconvert::writeText(text, rich);
+        }
+        // (Where the line was those stand-ins already, its chords renamed or put in
+        // another order, the text is not written again: only the chords are.)
+        for (int i = 0; i < wanted.size(); ++i)
+            kept.append({start + i * 2, wanted.at(i)});
+        proconvert::writeChords(text, kept);
         return QString();
     });
     m_joinNext = false;
     if (error.isEmpty() && !madeId.isEmpty())
-        m_madeForChords.insert(madeId, made);
+        m_madeForChords.insert(boxKey(row, madeId), made);
     return error;
 }
 

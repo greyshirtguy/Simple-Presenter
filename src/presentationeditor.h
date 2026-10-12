@@ -136,6 +136,20 @@ public:
     // the line's stand-in characters are made anew, one for each (see
     // chords::placeholders). It is the one change the chord editors make to the words.
     //
+    //   - Only a line of chords alone is ever made stand-ins. A line that has words, or
+    //     an empty one, is refused, whatever asks: the words are not the chord editors'
+    //     to change.
+    //   - With no chords left, the line is one zero-width space, whatever it hung its
+    //     chords on, and so is a line of chords alone still: one can be put on it again.
+    //     (Left with no stand-in at all it would be an empty line, which takes nothing,
+    //     and a line of chords under a verse, once emptied, would be gone for good but
+    //     for undo. And left with the plain space it may have hung its chords on, its
+    //     text box would be read next time as holding a stray space and no more.)
+    //   - Where the line is those stand-ins already (its chords renamed, or put in
+    //     another order), only the chords are written: the text is not written again
+    //     to say the same.
+    //   - A name that is nothing once tidied is left out, and gets no stand-in.
+    //
     // For a blank slide (see song()) the line is all its box has. Nothing is done to
     // such a slide until a chord is put on it. Its first chords give the box stand-ins
     // where it had no text, in the box's own format; and where the slide has no text
@@ -146,7 +160,7 @@ public:
     // there has its text back as the file had it. So a change of mind leaves the slide
     // as it was found. (Nothing of this is kept once the presentation is closed: a
     // slide left with chords keeps what was made for them, and taking them off another
-    // day leaves its text box empty.)
+    // day leaves its text box with one stand-in, as any line of chords alone is left.)
     Q_INVOKABLE QString setChordsAlone(int row, const QString &element, int line, const QStringList &names, bool joined = false);
     // Says what key the chords are written in. Not a change to any slide, so not one
     // that undo takes back.
@@ -216,6 +230,8 @@ private:
     QString commit(int row, const std::string &before);
     QString restore(QList<Step> *from, QList<Step> *to, bool forwards);
     void backUp();
+    // What a blank slide's box is remembered by in m_madeForChords.
+    QString boxKey(int row, const QString &element) const;
 
     Kind m_kind = Kind::Presentation;
     // The file, as whichever of the three it is
@@ -231,12 +247,14 @@ private:
     QList<Step> m_undo;
     QList<Step> m_redo;
     // What the chord editors have made for chords on blank slides since the
-    // presentation was opened, by the id of the text box, so that taking the chords
-    // off again can unmake it (setChordsAlone). `added`: the slide had no text box
-    // and this one was added. Otherwise `was` is the box's text as the file had it,
-    // and `look` is what the text said of itself, apart from its words and chords,
-    // once the chords were on: while it still says the same, nothing else has been
-    // done to the box and `was` can go back.
+    // presentation was opened, by the slide and the id of the text box (boxKey: an id
+    // is one box's only on its own slide, a slide made by duplicating another keeping
+    // its boxes' ids), so that taking the chords off again can unmake it
+    // (setChordsAlone). `added`: the slide had no text box and this one was added.
+    // Otherwise `was` is the box's text as the file had it, and `look` is what the
+    // text said of itself, apart from its words and chords, once the chords were on:
+    // while it still says the same, nothing else has been done to the box and `was`
+    // can go back.
     struct MadeForChords
     {
         bool added = false;
