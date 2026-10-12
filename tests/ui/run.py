@@ -1173,8 +1173,8 @@ def prepare_notes(workspace, test_dir):
 
 
 def after_notes(workspace, test_dir):
-    """What the notes left in the files, read with protoc and not by the app: the song as the test kept it at each
-    step (song-before and song-bold), and the stage layouts, which are to be as the fixture has them."""
+    """What the notes and the links left in the files, read with protoc and not by the app: the song as the test kept
+    it at each step (song-before, song-bold and the song-link-… copies) and the stage layouts against the fixture's."""
     import difflib
     frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
 
@@ -1206,6 +1206,22 @@ def after_notes(workspace, test_dir):
         said(notes_block is not None and bold.count("notes {") == 1,
              "in the song's file: the attributes ProPresenter wrote beside the notes are still beside them, and no other slide has notes"),
     ]
+    linked = {name: kept("song-link-" + name) for name in ("notes", "preserve", "name")}
+
+    def link(name):
+        """The link of the text box the test made, in one of the copies: the lines the copy has that the one before it had not."""
+        return "\n".join(changed(bold, linked[name])[1])
+
+    lines += [
+        said("slide_text {" in link("notes") and "source_option: TEXT_SOURCE_OPTION_NOTES" in link("notes") and "preserve_notes_format" not in link("notes")
+             and "source_slide" not in link("notes"),
+             "in the song's file: a text box linked to the current slide's notes says so, and nothing about their formatting"),
+        said("source_option: TEXT_SOURCE_OPTION_NOTES" in link("preserve") and "preserve_notes_format: true" in link("preserve"),
+             "in the song's file: with their formatting kept, it says that too"),
+        said("source_option: TEXT_SOURCE_OPTION_ELEMENT_MATCHING_NAME" in link("name") and 'name_to_match: "Lyrics"' in link("name")
+             and "preserve_notes_format: true" in link("name"),
+             "in the song's file: linked to the elements of a name, it has the name, and what was said of the notes' formatting is left as it was"),
+    ]
     out, put = changed(bold, decoded(os.path.join(workspace, "Libraries", "MainHall", "Notes Song.pro")))
     lines.append(said(all(line.startswith("rtf_data:") for line in out) and len(out) <= 1,
                       "in the song's file: at the end, nothing that was there is gone but the notes' RTF as it was before they were formatted again",
@@ -1213,8 +1229,8 @@ def after_notes(workspace, test_dir):
     stage_was = decoded(os.path.join(FIXTURES, "workspaces", "Act", "Configuration", "Stage"), "rv.data.Stage.Document", "stage.proto")
     stage_now = decoded(os.path.join(workspace, "Configuration", "Stage"), "rv.data.Stage.Document", "stage.proto")
     out, put = changed(stage_was, stage_now)
-    lines.append(said(out == [] and put == [],
-                      "in the stage layouts' file: not one line is changed",
+    lines.append(said(out == [] and put == ["preserve_notes_format: true"],
+                      "in the stage layouts' file: the one box set to keep the notes' formatting says so, and not one other line is changed",
                       "%d out, in: %s" % (len(out), " | ".join(put)[:200])))
     return lines
 

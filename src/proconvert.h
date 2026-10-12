@@ -151,9 +151,12 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 //     "${timer}" where the time goes). For the text of the slide that is live,
 //     linkSlideNext (it is the one after it instead), linkSlideSource (which of its
 //     text, as Show::Source), linkSlideName (the name of the elements whose text it
-//     is, if it goes by name) and linkTransform. For anything else, which this app
-//     does not show, linkLabel names it and linkPicture says whether it is a picture or
-//     a colour that it puts in the element, in place of its fill, and not words
+//     is, if it goes by name), linkSlidePreserve (for a slide's notes: they are shown
+//     in their own fonts, sizes and colours, and not in this element's; it is there
+//     only for an element linked to a slide's text, and whoever reads it takes none
+//     to be no) and linkTransform. For anything else, which this app does not show,
+//     linkLabel names it and linkPicture says whether it is a picture or a colour that
+//     it puts in the element, in place of its fill, and not words
 //   visibilityRules (bool), visibilityCriterion (0 all, 1 any, 2 none),
 //     visibilityTimed (one of the conditions is about a timer, so whether the element
 //     shows is not settled until it is drawn: see Slide.qml),
@@ -194,7 +197,7 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 //   linkKind ("none", "element", "timer" or "slideText"), linkElementId,
 //     linkTransform, linkTimerId, linkTimerName, linkTimerHours, linkTimerMinutes,
 //     linkTimerSeconds, linkTimerHundredths, linkSlideNext, linkSlideSource,
-//     linkSlideName
+//     linkSlideName, linkSlidePreserve
 //   visibilityRules, visibilityCriterion, visibilityConditions (conditions of kind
 //     "other" are kept as they were, by their index)
 // Renaming an element also renames it where other elements of the slide refer to it.

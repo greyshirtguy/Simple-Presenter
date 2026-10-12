@@ -241,9 +241,13 @@ public:
     // What a text box linked to a slide's text shows: of the live slide, or with `next`
     // of the one after it; `source` is a Source and `name` the element name it goes by,
     // if it goes by one; `transform` is what is done to the text on the way, as for
-    // text linked from another element (see proconvert). Nothing for a slide's notes,
-    // which this app does not read.
+    // text linked from another element (see proconvert). For a slide's notes, their
+    // words.
     Q_INVOKABLE QString slideText(bool next, int source, const QString &name, int transform) const;
+    // The notes of the live slide, or of the one after it, as the text they are, with
+    // their own fonts, sizes and colours (a RichText): what a text box that shows a
+    // slide's notes and keeps their formatting draws. Nothing, for a slide with none.
+    Q_INVOKABLE QVariant slideNotes(bool next) const;
     // The same words line by line with their chords, for a text box set to draw them:
     // a list of { text, chords: [{ at, name }] }, each chord's place counted along its
     // line and its name already in the key being shown and in `notation` (a

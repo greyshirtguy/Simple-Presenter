@@ -23,11 +23,13 @@ import SimplePresenterApp
 // component is the element on the output, in a thumbnail and under the editor's handles.
 //
 // The one thing not settled then is text that changes while the slide is on show, which
-// an element linked to a timer has, or one linked to the words of the slide that is
-// live: that is asked for here, as `liveLinkText`, and drawn in the element's own style.
-// It is drawn again only when the words change, which for a timer is once a second while
-// it runs, unless the element shows the timer's hundredths: then it is thirty times a
-// second where they can be read, and five in a small picture.
+// an element linked to a timer has, or one linked to the words or the notes of the
+// slide that is live: that is asked for here, as `liveLinkText`, and drawn in the
+// element's own style. It is drawn again only when the words change, which for a timer
+// is once a second while it runs, unless the element shows the timer's hundredths: then
+// it is thirty times a second where they can be read, and five in a small picture. (A
+// slide's notes can also be shown as they were written, in their own fonts and colours:
+// `liveLinkText` is then that text itself.)
 //
 // A shadow is the one dear thing here. The shape or the text is drawn into a texture of
 // its own, which a blur then turns into the shadow under it: an extra pass, and an extra
@@ -60,8 +62,9 @@ Item {
     property bool standIns: false
     // The words of an element whose words change while it is shown, or undefined for an
     // element that shows what its map says: a timer's time (see Timers), or the words
-    // of the slide that is live or of the one after it (see Show), which are what a
-    // stage layout is made of. Anything else of the kind belongs here as another case.
+    // or the notes of the slide that is live or of the one after it (see Show), which
+    // are what a stage layout is made of. Anything else of the kind belongs here as
+    // another case.
     readonly property var liveLinkText: {
         switch (source.linkKind) {
         case "timer":
@@ -74,9 +77,22 @@ Item {
                 : ""
         case "slideText":
             // Reading the revision is what has this follow what is live.
-            return Show.revision >= 0
-                ? Show.slideText(source.linkSlideNext, source.linkSlideSource, source.linkSlideName, source.linkTransform)
-                : ""
+            //
+            // A slide's notes that are to keep their formatting are answered as the
+            // text they are, fonts, sizes, colours and all (a RichText), and not as
+            // words: what draws the text (StrokedText) then draws that, with
+            // nothing of the element's own style put on it. A slide with no notes
+            // has no words. (It is answered here, and not in a property of its own,
+            // because a property is something every element of every slide would
+            // have to have and work out, for the sake of very few.)
+            //
+            // A GUESS at ProPresenter: that keeping the formatting keeps the sizes
+            // too, so that notes written at 24 points are 24 points on a layout as
+            // big as the screen, which is small; and that where the lines stand in
+            // the box is still the box's own.
+            return Show.revision < 0 ? ""
+                : source.linkSlidePreserve === true && source.linkSlideSource === Show.Notes ? Show.slideNotes(source.linkSlideNext) ?? ""
+                : Show.slideText(source.linkSlideNext, source.linkSlideSource, source.linkSlideName, source.linkTransform)
         default:
             return undefined
         }

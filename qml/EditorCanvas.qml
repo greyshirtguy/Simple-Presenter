@@ -324,6 +324,8 @@ Item {
             told((element.name !== "" ? "“" + element.name + "”" : "This element") + " shows "
                  + (element.linkKind === "element" ? "the text of “" + element.linkElementName + "”"
                     : element.linkKind === "timer" ? "the timer “" + element.linkTimerName + "”"
+                    : element.linkKind === "slideText" ? "the " + (element.linkSlideSource === Show.Notes ? "notes" : "text") + " of the slide that is "
+                                                         + (element.linkSlideNext ? "next" : "live")
                     : "a " + element.linkLabel.toLowerCase() + ", set up in ProPresenter")
                  + ", so it has no text of its own to edit. Its font and colour can still be changed.")
             return

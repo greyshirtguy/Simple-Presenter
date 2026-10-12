@@ -918,6 +918,7 @@ Rectangle {
         selection: canvas.selection
         families: screen.families
         setProperties: (changes, interim) => canvas.setProperties(changes, interim)
+        showMenu: (items, item, x, y) => screen.showMenu(items, item, x, y)
         chooseMedia: () => screen.chooseMedia("fill")
         setFormat: (format, interim) => canvas.setFormat(format, interim)
         settle: () => canvas.settle()

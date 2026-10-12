@@ -47,7 +47,9 @@ class StrokedText : public QQuickPaintedItem
     // Words to draw in place of the content's own, as a string, or undefined to draw
     // the content. They are set in the style the content starts in, so that an element
     // whose words come from elsewhere (a timer's time, say) still looks as it was made
-    // to look.
+    // to look. Or text that has its own fonts, sizes and colours (a RichText), which
+    // is then drawn as it is, in place of the content and with nothing of the
+    // content's style: a slide's notes, shown as they were written.
     Q_PROPERTY(QVariant replacement MEMBER m_replacement NOTIFY replacementChanged)
     // Output pixels per slide unit.
     Q_PROPERTY(qreal unit MEMBER m_unit NOTIFY unitChanged)

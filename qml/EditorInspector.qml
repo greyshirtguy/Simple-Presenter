@@ -22,6 +22,8 @@ Rectangle {
     // The installed font families
     property var families: []
     property var setProperties: (changes, interim) => {}
+    // Shows a menu (see PopupMenu) by an item, at a place in it
+    property var showMenu: (items, item, x, y) => {}
     // Asks for a media file to fill the element with
     property var chooseMedia: () => {}
     property var setFormat: (format, interim) => {}
@@ -1051,8 +1053,18 @@ Rectangle {
             }
 
             // What this element shows in place of text of its own, in its own style:
-            // the text of another element of the slide, the words of the slide that is
-            // live or of the one after it, or the time of a timer
+            // the text of another element of the slide, the words or the notes of the
+            // slide that is live or of the one after it, or the time of a timer.
+            //
+            // It is picked as ProPresenter has it picked: one button that says what
+            // the element shows, and opens a menu of what it can show. Where there
+            // are several of a thing (the slide's other elements, the workspace's
+            // timers) its row leads to a menu of them; where a thing has more to be
+            // said about it (which of a slide's text, how a time is written) that is
+            // set under the button once the thing is picked.
+            //
+            // A GUESS at ProPresenter, whose own menu was described and not looked at:
+            // the order of the rows and what each is called.
             Column {
                 width: parent.width
                 spacing: 6
@@ -1073,166 +1085,296 @@ Rectangle {
                     readonly property int timerPlace: inspector.timers.findIndex(t => t.id === timerId)
                     readonly property bool elementGone: kind === "element" && place < 0
                     readonly property bool timerGone: kind === "timer" && timerPlace < 0
-                    // Linked to a slide's text, but not to all of it: to its notes, or
-                    // to its elements of some name. Those are ProPresenter's to set
-                    // up; one that is there is listed, so that what it is can be seen.
-                    readonly property bool slidePart: kind === "slideText" && inspector.element.linkSlideSource !== Show.Words
-                    readonly property string slidePartName: !slidePart ? ""
-                        : (inspector.element.linkSlideNext ? "the next slide's " : "the current slide's ")
-                          + (inspector.element.linkSlideSource === Show.Notes
-                             ? "notes" : "“" + inspector.element.linkSlideName + "” text")
-                    // Where the two slides start in the list below, and the timers
-                    readonly property int firstSlide: 1 + (elementGone ? 1 : 0) + inspector.others.length
-                    readonly property int firstTimer: firstSlide + 2 + (slidePart ? 1 : 0) + (timerGone ? 1 : 0)
+                    // Which of a slide's text it shows, where it shows a slide's
+                    readonly property int slideSource: kind === "slideText" ? inspector.element.linkSlideSource : Show.Words
+                    readonly property bool notes: kind === "slideText" && slideSource === Show.Notes
+                    // What it shows, in a few words, for the button
+                    readonly property string shown: kind === "element"
+                            ? (elementGone ? "“" + inspector.oneLine(inspector.element.linkElementName) + "” (gone)"
+                               : "Element: " + (inspector.otherNames[place] !== "" ? inspector.otherNames[place] : "unnamed"))
+                        : kind === "timer"
+                            ? (timerGone ? "Timer: " + inspector.oneLine(inspector.element.linkTimerName) + " (not here)"
+                               : "Timer: " + (inspector.timerNames[timerPlace] !== "" ? inspector.timerNames[timerPlace] : "unnamed"))
+                        : kind === "slideText" ? (inspector.element.linkSlideNext ? "Next Slide" : "Current Slide")
+                        : "Its Own Text"
+
+                    // The rows of the menu the button opens
+                    function choices() {
+                        const element = inspector.element
+                        // A slide's text: all of its words, as it was last set if it
+                        // was set to show a slide's already
+                        const slide = (next) => {
+                            const changes = { linkKind: "slideText", linkSlideNext: next }
+                            if (linkLine.kind !== "slideText")
+                                changes.linkSlideSource = Show.Words
+                            inspector.setProperties(changes, false)
+                        }
+                        const timer = (which) => {
+                            // The first time, it is written the usual way; after
+                            // that, the way it was set to be.
+                            const changes = { linkKind: "timer", linkTimerId: which.id, linkTimerName: which.name }
+                            if (linkLine.kind !== "timer")
+                                inspector.timerParts.forEach(part => changes[part.key] = part.usual)
+                            inspector.setProperties(changes, false)
+                        }
+                        const others = inspector.others.map((other, index) => ({
+                            label: inspector.otherNames[index] !== "" ? inspector.otherNames[index] : "An unnamed element",
+                            current: linkLine.kind === "element" && linkLine.place === index,
+                            run: () => inspector.setProperties({ linkKind: "element", linkElementId: other.id }, false) }))
+                        const timers = inspector.timers.map((which, index) => ({
+                            label: inspector.timerNames[index] !== "" ? inspector.timerNames[index] : "An unnamed timer",
+                            current: linkLine.kind === "timer" && linkLine.timerPlace === index,
+                            run: () => timer(which) }))
+                        return [
+                            { header: "Shows" },
+                            { label: "Its Own Text", current: linkLine.kind === "none", run: () => inspector.setProperties({ linkKind: "none" }, false) },
+                            { divider: true },
+                            { label: "Another Element", current: linkLine.kind === "element", disabled: others.length === 0,
+                              items: [{ header: "Another Element" }].concat(others) },
+                            { label: "Current Slide", current: linkLine.kind === "slideText" && !element.linkSlideNext, run: () => slide(false) },
+                            { label: "Next Slide", current: linkLine.kind === "slideText" && element.linkSlideNext, run: () => slide(true) },
+                            { label: "Timer", current: linkLine.kind === "timer", disabled: timers.length === 0,
+                              items: [{ header: "Timer" }].concat(timers) }
+                        ]
+                    }
 
                     caption: "Shows"
 
-                    Choice {
+                    // The button: what the element shows, and a mark that it opens
+                    Rectangle {
+                        id: linkButton
+
+                        objectName: "linkChoice"
+                        readonly property string shown: linkLine.shown
                         width: textTab.width - 78
-                        model: ["its own text"]
-                            .concat(linkLine.elementGone ? ["“" + inspector.element.linkElementName + "” (gone)"] : [])
-                            .concat(inspector.otherNames.map(name => name !== "" ? "the text of “" + name + "”"
-                                                                                  : "the text of an unnamed element"))
-                            .concat(["the current slide's text", "the next slide's text"])
-                            .concat(linkLine.slidePart ? [linkLine.slidePartName] : [])
-                            .concat(linkLine.timerGone ? ["the timer “" + inspector.element.linkTimerName + "” (not here)"] : [])
-                            .concat(inspector.timerNames.map(name => name !== "" ? "the timer “" + name + "”" : "an unnamed timer"))
-                        choice: linkLine.kind === "element" ? (linkLine.elementGone ? 1 : linkLine.place + 1)
-                              : linkLine.kind === "timer" ? linkLine.firstTimer + (linkLine.timerGone ? -1 : linkLine.timerPlace)
-                              : linkLine.kind === "slideText" ? linkLine.firstSlide + (linkLine.slidePart ? 2
-                                                                : inspector.element.linkSlideNext ? 1 : 0)
-                              : 0
-                        onChosen: (index) => {
-                            const other = inspector.others[index - 1 - (linkLine.elementGone ? 1 : 0)]
-                            const timer = index >= linkLine.firstTimer ? inspector.timers[index - linkLine.firstTimer] : undefined
-                            // (A row that only says what the element is linked to
-                            // already, or was, is none of these: nothing to change.)
-                            if (index === 0) {
-                                inspector.setProperties({ linkKind: "none" }, false)
-                            } else if (index < linkLine.firstSlide) {
-                                if (other)
-                                    inspector.setProperties({ linkKind: "element", linkElementId: other.id }, false)
-                            } else if (index <= linkLine.firstSlide + 1) {
-                                // All of the slide's words: of the one that is live,
-                                // or of the one after it
-                                inspector.setProperties({ linkKind: "slideText", linkSlideNext: index > linkLine.firstSlide,
-                                                          linkSlideSource: Show.Words }, false)
-                            } else if (timer) {
-                                // The first time, it is written the usual way; after
-                                // that, the way it was set to be.
-                                const changes = { linkKind: "timer", linkTimerId: timer.id, linkTimerName: timer.name }
-                                if (linkLine.kind !== "timer")
-                                    inspector.timerParts.forEach(part => changes[part.key] = part.usual)
-                                inspector.setProperties(changes, false)
+                        height: 28
+                        radius: 6
+                        color: linkMouse.pressed ? "#50535a" : linkMouse.containsMouse ? "#45484e" : "#3a3c42"
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 12
+                            anchors.right: parent.right
+                            anchors.rightMargin: 24
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            color: "#e6e6e6"
+                            font.pixelSize: 13
+                            text: linkLine.shown
+                        }
+
+                        Text {
+                            anchors.right: parent.right
+                            anchors.rightMargin: 9
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#9a9da3"
+                            font.pixelSize: 10
+                            text: "▾"
+                        }
+
+                        MouseArea {
+                            id: linkMouse
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: inspector.showMenu(linkLine.choices(), linkButton, 0, linkButton.height + 2)
+                        }
+                    }
+                }
+
+                // What there is to set about the thing picked. It is made only for a box
+                // that shows something other than its own text: the drop-downs are dear to
+                // make, the editor is made as the app starts, and most boxes show their own.
+                Loader {
+                    objectName: "linkSettings"
+                    width: parent.width
+                    active: linkLine.kind !== "none"
+                    visible: active
+
+                    sourceComponent: Column {
+                        spacing: 6
+
+                        // A slide's text: which of it. All its words; its notes; or the words
+                        // of its elements of some name, which is how a stage layout shows a
+                        // song's words and leaves out whatever else is on the slide.
+                        Line {
+                            caption: "Source"
+                            visible: linkLine.kind === "slideText"
+
+                            Choice {
+                                objectName: "linkSlideSource"
+                                width: textTab.width - 78
+                                model: ["Text", "Notes", "Match Element Name"]
+                                choice: linkLine.slideSource
+                                onChosen: (index) => inspector.setProperties({ linkSlideSource: index }, false)
                             }
                         }
-                    }
-                }
 
-                Line {
-                    caption: "Set"
-                    visible: linkLine.kind === "element" || linkLine.kind === "slideText"
+                        Line {
+                            caption: "Name"
+                            visible: linkLine.kind === "slideText" && linkLine.slideSource === Show.ElementNamed
 
-                    Choice {
-                        width: textTab.width - 78
-                        model: inspector.transforms
-                        choice: inspector.element ? inspector.element.linkTransform : 0
-                        onChosen: (index) => inspector.setProperties({ linkTransform: index }, false)
-                    }
-                }
+                            AppTextField {
+                                id: matchField
 
-                // Chords, for a text box that shows a slide's words: whether the song's
-                // chords are drawn over them, in what colour, and how they are written.
-                // They are ProPresenter's own three settings, with its names for the
-                // four ways of writing a chord; it is on a stage layout that they are
-                // wanted. (How they are drawn is ChordedText.qml's business.)
-                Line {
-                    caption: "Chords"
-                    visible: linkLine.kind === "slideText"
+                                function show() {
+                                    text = inspector.element ? inspector.element.linkSlideName : ""
+                                }
 
-                    AppCheck {
-                        objectName: "chordsCheck"
-                        width: 76
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Show"
-                        checked: inspector.element !== null && inspector.element.chordsOn === true
-                        onToggled: (checked) => inspector.setProperties({ chordsOn: checked }, false)
-                    }
+                                objectName: "linkSlideName"
+                                width: textTab.width - 78
+                                height: 26
+                                font.pixelSize: 12
+                                placeholderText: "An element's name"
+                                placeholderTextColor: "#7d8088"
+                                onEditingFinished: {
+                                    if (inspector.element && linkLine.kind === "slideText" && text.trim() !== inspector.element.linkSlideName)
+                                        inspector.setProperties({ linkSlideName: text.trim() }, false)
+                                }
+                                onAccepted: inspector.finished()
+                                Keys.onEscapePressed: {
+                                    show()
+                                    inspector.finished()
+                                }
+                                Component.onCompleted: show()
 
-                    ColorButton {
-                        objectName: "chordColor"
-                        hasAlpha: false
-                        value: inspector.element ? inspector.element.chordColor : "white"
-                        onChanging: (value) => inspector.setProperties({ chordColor: value }, true)
-                        onPicked: (value) => inspector.setProperties({ chordColor: value }, false)
-                        onClosed: inspector.finished()
-                    }
-                }
+                                Connections {
+                                    target: inspector
 
-                Line {
-                    caption: "As"
-                    visible: linkLine.kind === "slideText" && inspector.element !== null && inspector.element.chordsOn === true
+                                    function onElementChanged() {
+                                        if (!matchField.activeFocus)
+                                            matchField.show()
+                                    }
+                                }
+                            }
+                        }
 
-                    Choice {
-                        objectName: "chordNotation"
-                        width: textTab.width - 78
-                        model: ["Chords", "Numbers", "Numerals", "Do Re Mi"]
-                        choice: inspector.element ? inspector.element.chordNotation : 0
-                        onChosen: (index) => inspector.setProperties({ chordNotation: index }, false)
-                    }
-                }
+                        // A slide's notes: as they were written, in their own fonts, sizes and
+                        // colours, or as words in this element's style.
+                        AppCheck {
+                            objectName: "linkSlidePreserve"
+                            width: parent.width
+                            visible: linkLine.notes
+                            text: "Preserve the notes' text formatting"
+                            checked: inspector.element !== null && inspector.element.linkSlidePreserve === true
+                            onToggled: (checked) => inspector.setProperties({ linkSlidePreserve: checked }, false)
+                        }
 
-                Note {
-                    visible: linkLine.kind === "slideText" && inspector.element !== null && inspector.element.chordsOn === true
-                    text: "A song's chords are drawn over its words, in the key picked for it over its slides. So that each chord"
-                          + " stays over its word, a line is never broken: text too wide for the box is made smaller instead."
-                }
+                        Line {
+                            caption: "Set"
+                            visible: linkLine.kind === "element"
+                                     || (linkLine.kind === "slideText" && !(linkLine.notes && inspector.element.linkSlidePreserve === true))
 
-                // How each part of the timer's time is written, as ProPresenter has it:
-                // a drop-down for each of the four
-                Repeater {
-                    model: linkLine.kind === "timer" ? inspector.timerParts : []
+                            Choice {
+                                width: textTab.width - 78
+                                model: inspector.transforms
+                                choice: inspector.element ? inspector.element.linkTransform : 0
+                                onChosen: (index) => inspector.setProperties({ linkTransform: index }, false)
+                            }
+                        }
 
-                    delegate: Line {
-                        id: partLine
+                        // Chords, for a text box that shows a slide's words: whether the song's
+                        // chords are drawn over them, in what colour, and how they are written.
+                        // They are ProPresenter's own three settings, with its names for the
+                        // four ways of writing a chord; it is on a stage layout that they are
+                        // wanted. (How they are drawn is ChordedText.qml's business. Notes
+                        // have no chords.)
+                        Line {
+                            caption: "Chords"
+                            visible: linkLine.kind === "slideText" && !linkLine.notes
 
-                        required property var modelData
+                            AppCheck {
+                                objectName: "chordsCheck"
+                                width: 76
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Show"
+                                checked: inspector.element !== null && inspector.element.chordsOn === true
+                                onToggled: (checked) => inspector.setProperties({ chordsOn: checked }, false)
+                            }
 
-                        caption: modelData.caption
+                            ColorButton {
+                                objectName: "chordColor"
+                                hasAlpha: false
+                                value: inspector.element ? inspector.element.chordColor : "white"
+                                onChanging: (value) => inspector.setProperties({ chordColor: value }, true)
+                                onPicked: (value) => inspector.setProperties({ chordColor: value }, false)
+                                onClosed: inspector.finished()
+                            }
+                        }
 
-                        Choice {
-                            width: textTab.width - 78
-                            model: inspector.timerStyleNames
-                            choice: inspector.element !== null
-                                    ? Math.max(0, inspector.timerStyles.indexOf(inspector.element[partLine.modelData.key])) : 0
-                            onChosen: (index) => inspector.setProperties({ [partLine.modelData.key]: inspector.timerStyles[index] }, false)
+                        Line {
+                            caption: "As"
+                            visible: linkLine.kind === "slideText" && !linkLine.notes && inspector.element !== null && inspector.element.chordsOn === true
+
+                            Choice {
+                                objectName: "chordNotation"
+                                width: textTab.width - 78
+                                model: ["Chords", "Numbers", "Numerals", "Do Re Mi"]
+                                choice: inspector.element ? inspector.element.chordNotation : 0
+                                onChosen: (index) => inspector.setProperties({ chordNotation: index }, false)
+                            }
+                        }
+
+                        Note {
+                            visible: linkLine.kind === "slideText" && !linkLine.notes && inspector.element !== null && inspector.element.chordsOn === true
+                            text: "A song's chords are drawn over its words, in the key picked for it over its slides. So that each chord"
+                                  + " stays over its word, a line is never broken: text too wide for the box is made smaller instead."
+                        }
+
+                        // How each part of the timer's time is written, as ProPresenter has
+                        // it: a drop-down for each of the four
+                        Repeater {
+                            model: linkLine.kind === "timer" ? inspector.timerParts : []
+
+                            delegate: Line {
+                                id: partLine
+
+                                required property var modelData
+
+                                caption: modelData.caption
+
+                                Choice {
+                                    width: textTab.width - 78
+                                    model: inspector.timerStyleNames
+                                    choice: inspector.element !== null
+                                            ? Math.max(0, inspector.timerStyles.indexOf(inspector.element[partLine.modelData.key])) : 0
+                                    onChosen: (index) => inspector.setProperties({ [partLine.modelData.key]: inspector.timerStyles[index] }, false)
+                                }
+                            }
+                        }
+
+                        Note {
+                            visible: linkLine.kind === "element"
+                            text: linkLine.elementGone ? "The element this showed the text of is no longer on the slide, so it shows nothing. Choose another."
+                                : "The text is the other element's; the font, colour and everything else here are this one's."
+                        }
+
+                        Note {
+                            visible: linkLine.kind === "slideText"
+                            text: linkLine.notes
+                                  ? "The notes are those of the slide that is " + (inspector.element !== null && inspector.element.linkSlideNext
+                                                                                  ? "to come next" : "live")
+                                    + " while this is shown" + (inspector.element !== null && inspector.element.linkSlidePreserve === true
+                                      ? ", as they were written: in their own fonts, sizes and colours, and not this element's."
+                                      : ": their words, in this element's font and colour.")
+                                    + " A slide's notes are written under the slide, in this editor. Until a slide is live, the element's own text stands in for them here."
+                                  : "The words are those of the slide that is " + (inspector.element !== null && inspector.element.linkSlideNext
+                                                                                  ? "to come next" : "live")
+                                    + " while this is shown" + (linkLine.slideSource === Show.ElementNamed ? ", from its elements of that name" : "")
+                                    + ", without their formatting: the font, colour and everything else here"
+                                    + " are this element's. Until a slide is live, the element's own text stands in for them here."
+                        }
+
+                        Note {
+                            visible: linkLine.kind === "timer"
+                            text: linkLine.timerGone
+                                  ? "This workspace has no timer of that name, so the time stays at nothing. Add one called “"
+                                    + (inspector.element ? inspector.element.linkTimerName : "") + "” to the timers, or choose another."
+                                  : "The time is the timer's; the font, colour and everything else here are this element's."
+                                    + " A part that is hidden is counted in the next one shown, so seconds alone count past"
+                                    + " sixty. Timers are set up and run from the show controls of the main window."
                         }
                     }
-                }
-
-                Note {
-                    visible: linkLine.kind === "element"
-                    text: "The text is the other element's; the font, colour and everything else here are this one's."
-                }
-
-                Note {
-                    visible: linkLine.kind === "slideText"
-                    text: inspector.element !== null && inspector.element.linkSlideSource === Show.Notes
-                          ? "This app does not read a slide's notes, so there is nothing for this element to show."
-                          : "The words are those of the slide that is " + (inspector.element !== null && inspector.element.linkSlideNext
-                                                                          ? "to come next" : "live")
-                            + " while this is shown, without their formatting: the font, colour and everything else here"
-                            + " are this element's. Until a slide is live, the element's own text stands in for them here."
-                }
-
-                Note {
-                    visible: linkLine.kind === "timer"
-                    text: linkLine.timerGone
-                          ? "This workspace has no timer of that name, so the time stays at nothing. Add one called “"
-                            + (inspector.element ? inspector.element.linkTimerName : "") + "” to the timers, or choose another."
-                          : "The time is the timer's; the font, colour and everything else here are this element's."
-                            + " A part that is hidden is counted in the next one shown, so seconds alone count past"
-                            + " sixty. Timers are set up and run from the show controls of the main window."
                 }
             }
 

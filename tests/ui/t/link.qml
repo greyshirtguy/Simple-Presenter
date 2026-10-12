@@ -26,8 +26,27 @@ QtObject {
         return Lib.findAll(inspector(), item => item.choice !== undefined && item.model !== undefined && item.chosen !== undefined).find(c => c.visible && test(c))
     }
 
+    // What the inspector's "Shows" button offers, as one list: the rows of the menu it opens, a row that leads to a
+    // menu of its own being each row of that one with what it leads from before it ("Timer: Service Countdown").
+    // With which of them is the one in force (-1 if none is, as when what it is linked to has gone), what the button
+    // says, and a way to choose one, which does what a click on its row does.
     function showsChoice() {
-        return choice(c => c.model.length > 0 && c.model[0] === "its own text")
+        const button = Lib.find(inspector(), item => item.objectName === "linkChoice")
+        if (!button || !button.visible)
+            return undefined
+        const rows = []
+        for (const row of button.parent.parent.choices()) {
+            if (row.items) {
+                for (const sub of row.items) {
+                    if (sub.label)
+                        rows.push({ label: row.label + ": " + sub.label, run: sub.run, current: sub.current === true })
+                }
+            } else if (row.label) {
+                rows.push({ label: row.label, run: row.run, current: row.current === true })
+            }
+        }
+        return { shown: button.shown, model: rows.map(r => r.label), choice: rows.findIndex(r => r.current),
+                 chosen: (index) => rows[index].run(), activated: (index) => rows[index].run() }
     }
 
     // The drop-downs for the four parts of a timer's time, in the order they are laid out
@@ -169,9 +188,9 @@ QtObject {
                 kept.elementId = canvas().selectedId
                 check("the linked box is picked", sel() !== null && sel().linkKind === "timer")
                 const shows = showsChoice()
-                check("the inspector says which timer it shows", shows !== undefined && shows.model[shows.choice] === "the timer “Timer”", shows ? shows.model.join(" | ") + " -> " + shows.choice : "none")
-                check("and lists the slide's other element, though it has no name", shows.model.includes("the text of an unnamed element") || canvas().elements.length !== 2, shows.model.join(" | "))
-                check("and offers every timer of the workspace", shows.model.filter(m => m.startsWith("the timer")).length === 4)
+                check("the inspector says which timer it shows", shows !== undefined && shows.model[shows.choice] === "Timer: Timer" && shows.shown === "Timer: Timer", shows ? shows.model.join(" | ") + " -> " + shows.choice : "none")
+                check("and lists the slide's other element, though it has no name", shows.model.includes("Another Element: An unnamed element") || canvas().elements.length !== 2, shows.model.join(" | "))
+                check("and offers every timer of the workspace", shows.model.filter(m => m.startsWith("Timer: ")).length === 4)
                 const parts = partChoices()
                 check("and has a drop-down for each of hours, minutes, seconds and hundredths", parts.length === 4
                       && parts.every(c => c.model.join("|") === "Hidden|Two digits|One digit|Two digits, hidden at 0|One digit, hidden at 0"),
@@ -186,7 +205,7 @@ QtObject {
                 check("its text cannot be typed over, and the editor says why", canvas().editingId === "" && editScreen.notice.includes("shows the timer “Timer”"), editScreen.notice)
                 // Another timer
                 const shows = showsChoice()
-                shows.activated(shows.model.indexOf("the timer “Service Countdown”"))
+                shows.activated(shows.model.indexOf("Timer: Service Countdown"))
                 return 400
             },
             () => {
@@ -243,7 +262,7 @@ QtObject {
                       sel() ? sel().linkKind : "nothing picked")
                 // Linked to another element instead
                 const shows = showsChoice()
-                const other = shows.model.findIndex(m => m.startsWith("the text of"))
+                const other = shows.model.findIndex(m => m.startsWith("Another Element: "))
                 kept.hasOther = other >= 0
                 if (other >= 0)
                     shows.activated(other)
@@ -260,7 +279,7 @@ QtObject {
                 kept.elementId = canvas().selectedId
                 check("a new text box is picked, and is being typed in", sel() !== null && sel().linkKind === "none" && canvas().editingId === kept.elementId)
                 const shows = showsChoice()
-                shows.activated(shows.model.indexOf("the timer “NLC Live”"))
+                shows.activated(shows.model.indexOf("Timer: NLC Live"))
                 return 500
             },
             () => {
@@ -388,7 +407,7 @@ QtObject {
             },
             () => {
                 const shows = showsChoice()
-                check("and the editor says the timer is not here, keeping the link", shows !== undefined && shows.model[shows.choice] === "the timer “NLC Live” (not here)"
+                check("and the editor says the timer is not here, keeping the link", shows !== undefined && shows.choice === -1 && shows.shown === "Timer: NLC Live (not here)"
                       && sel().linkKind === "timer", shows ? shows.model.join(" | ") + " -> " + shows.choice : "none")
                 testInput.grab("8-editor-timer-gone")
                 stopEditing()

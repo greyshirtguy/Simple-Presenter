@@ -362,6 +362,11 @@ void Show::setChordKey(const QString &key)
     emit changed();
 }
 
+QVariant Show::slideNotes(bool next) const
+{
+    return (next ? nextSlide() : currentSlide()).value("notes");
+}
+
 QVariantList Show::chordLines(bool next, int source, const QString &name, int transform, int notation) const
 {
     const QVariantMap slide = next ? nextSlide() : currentSlide();
@@ -437,6 +442,8 @@ QString Show::slideText(bool next, int source, const QString &name, int transfor
     QString text;
     if (source == Words) {
         text = slide.value("plainText").toString();
+    } else if (source == Notes) {
+        text = slide.value("notesText").toString();
     } else if (source == ElementNamed) {
         // Of every element of that name that shows, whichever case the name is in
         QStringList texts;

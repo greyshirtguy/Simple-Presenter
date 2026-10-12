@@ -537,6 +537,10 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     map.insert("linkSlideNext", false);
     map.insert("linkSlideSource", 0);
     map.insert("linkSlideName", QString());
+    // (What only a link to a slide's notes has to say is put in for an element that
+    // has a link to a slide's text, below, and for no other: a map is made into QML's
+    // own kind of thing every time a slide is shown, key by key, and nearly every
+    // element there is has no such link.)
     map.insert("linkLabel", QString());
     map.insert("linkPicture", false);
     map.insert("visibilityRules", false);
@@ -567,6 +571,7 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("linkSlideNext", words.source_slide() == DataLink::SLIDE_SOURCE_TYPE_NEXT_SLIDE);
             map.insert("linkSlideSource", int(words.source_option()));
             map.insert("linkSlideName", QString::fromStdString(words.name_to_match()));
+            map.insert("linkSlidePreserve", words.preserve_notes_format());
             map.insert("linkTransform", int(words.element_text_transform()));
         } else if (link.has_visibility_link()) {
             QVariantList conditions;
@@ -1290,7 +1295,7 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
     // it one takes away the link for another.
     static const char *const linkKeys[] = {"linkKind", "linkElementId", "linkTransform", "linkTimerId", "linkTimerName",
                                            "linkTimerHours", "linkTimerMinutes", "linkTimerSeconds", "linkTimerHundredths",
-                                           "linkSlideNext", "linkSlideSource", "linkSlideName"};
+                                           "linkSlideNext", "linkSlideSource", "linkSlideName", "linkSlidePreserve"};
     const bool linkChanges = std::any_of(std::begin(linkKeys), std::end(linkKeys),
                                          [&changes](const char *key) { return changes.contains(QLatin1String(key)); });
     if (linkChanges) {
@@ -1358,6 +1363,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                 words->set_source_option(DataLink::SlideText::TextSourceOption(qBound(0, changes.value("linkSlideSource").toInt(), 2)));
             if (changes.contains("linkSlideName"))
                 words->set_name_to_match(changes.value("linkSlideName").toString().toStdString());
+            if (changes.contains("linkSlidePreserve"))
+                words->set_preserve_notes_format(changes.value("linkSlidePreserve").toBool());
             if (changes.contains("linkTransform"))
                 words->set_element_text_transform(transform());
         }

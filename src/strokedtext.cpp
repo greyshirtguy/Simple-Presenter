@@ -51,9 +51,12 @@ void StrokedText::geometryChange(const QRectF &newGeometry, const QRectF &oldGeo
     }
 }
 
-// What there is to draw: the content, or the replacement in the content's style.
+// What there is to draw: the content, or the replacement in the content's style; or a
+// replacement that is text with a style of its own, as it is.
 RichText StrokedText::shown() const
 {
+    if (m_replacement.userType() == qMetaTypeId<RichText>())
+        return m_replacement.value<RichText>();
     const RichText content = m_content.value<RichText>();
     if (m_replacement.typeId() != QMetaType::QString)
         return content;

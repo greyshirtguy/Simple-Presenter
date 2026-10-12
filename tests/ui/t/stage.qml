@@ -42,8 +42,27 @@ QtObject {
         return Lib.findAll(editScreen.inspector, item => item.choice !== undefined && item.model !== undefined && item.chosen !== undefined).find(c => c.visible && test(c))
     }
 
+    // What the inspector's "Shows" button offers, as one list: the rows of the menu it opens, a row that leads to a
+    // menu of its own being each row of that one with what it leads from before it ("Timer: Service Countdown").
+    // With which of them is the one in force (-1 if none is, as when what it is linked to has gone), what the button
+    // says, and a way to choose one, which does what a click on its row does.
     function showsChoice() {
-        return choice(c => c.model.length > 0 && c.model[0] === "its own text")
+        const button = Lib.find(editScreen.inspector, item => item.objectName === "linkChoice")
+        if (!button || !button.visible)
+            return undefined
+        const rows = []
+        for (const row of button.parent.parent.choices()) {
+            if (row.items) {
+                for (const sub of row.items) {
+                    if (sub.label)
+                        rows.push({ label: row.label + ": " + sub.label, run: sub.run, current: sub.current === true })
+                }
+            } else if (row.label) {
+                rows.push({ label: row.label, run: row.run, current: row.current === true })
+            }
+        }
+        return { shown: button.shown, model: rows.map(r => r.label), choice: rows.findIndex(r => r.current),
+                 chosen: (index) => rows[index].run(), activated: (index) => rows[index].run() }
     }
 
     function marks() {
@@ -196,18 +215,18 @@ QtObject {
             },
             () => {
                 const shows = showsChoice()
-                check("the inspector lists the two slides among what a box can show", shows !== undefined && shows.model.includes("the current slide's text") && shows.model.includes("the next slide's text")
-                      && shows.model.includes("the timer “Timer”") && shows.model.includes("the text of “Next Slide”"), shows ? shows.model.join(" | ") : "none")
-                check("and has this one as the current slide's", shows.model[shows.choice] === "the current slide's text", shows.model[shows.choice])
+                check("the inspector lists the two slides among what a box can show", shows !== undefined && shows.model.includes("Current Slide") && shows.model.includes("Next Slide")
+                      && shows.model.includes("Timer: Timer") && shows.model.includes("Another Element: Next Slide"), shows ? shows.model.join(" | ") : "none")
+                check("and has this one as the current slide's", shows.model[shows.choice] === "Current Slide" && shows.shown === "Current Slide", shows.model[shows.choice])
                 testInput.grab("5-inspector")
-                shows.chosen(shows.model.indexOf("the next slide's text"))
+                shows.chosen(shows.model.indexOf("Next Slide"))
                 return 400
             },
             () => {
                 const e = editScreen.canvas.selected
                 check("choosing the next slide links the box to that", e.linkKind === "slideText" && e.linkSlideNext && e.linkSlideSource === Show.Words && captions().startsWith("Next Slide: Text"), captions())
                 const shows = showsChoice()
-                shows.chosen(shows.model.indexOf("the timer “Timer”"))
+                shows.chosen(shows.model.indexOf("Timer: Timer"))
                 return 400
             },
             () => {
@@ -216,7 +235,7 @@ QtObject {
                 const onDisk = StageLayouts.reload() === "" ? StageLayouts.layouts[4].slide.elements[0] : null
                 check("which is what is in the file", onDisk !== null && onDisk.linkKind === "timer" && onDisk.linkTimerId === timer("Timer").id, onDisk ? onDisk.linkKind : "none")
                 const shows = showsChoice()
-                shows.chosen(shows.model.indexOf("the current slide's text"))
+                shows.chosen(shows.model.indexOf("Current Slide"))
                 return 400
             },
             () => {
@@ -248,7 +267,11 @@ QtObject {
             },
             () => {
                 const shows = showsChoice()
-                check("a box linked to a slide's elements of a name is listed as that", shows !== undefined && shows.model[shows.choice] === "the current slide's “Lyrics” text", shows ? shows.model[shows.choice] : "none")
+                const source = choice(c => c.objectName === "linkSlideSource")
+                const name = Lib.find(editScreen.inspector, item => item.objectName === "linkSlideName")
+                check("a box linked to a slide's elements of a name says so: the current slide, by an element's name, and the name", shows !== undefined && shows.shown === "Current Slide"
+                      && source !== undefined && source.model[source.choice] === "Match Element Name" && name !== null && name.visible && name.text === "Lyrics",
+                      (shows ? shows.shown : "none") + " / " + (source ? source.model[source.choice] : "none") + " / " + (name ? name.text : "none"))
                 check("nothing was changed by looking", testInput.fileHash(StageLayouts.path) !== kept.stageHash && StageLayouts.reload() === "" && StageLayouts.layouts[0].slide.elements.length === layout("Singing").slide.elements.length)
                 // ---- renaming, copying and removing, from the editor's list
                 const rows = editorRows()
@@ -319,7 +342,7 @@ QtObject {
             },
             () => {
                 const shows = showsChoice()
-                shows.chosen(shows.model.indexOf("the timer “Timer”"))
+                shows.chosen(shows.model.indexOf("Timer: Timer"))
                 return 400
             },
             () => {

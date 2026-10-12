@@ -2,16 +2,23 @@ import QtQuick
 import SimplePresenterApp
 import "lib.js" as Lib
 
-// A slide's notes: the button for them at the bottom right of the editor and the pane it puts up under the slide;
-// notes ProPresenter wrote, read and drawn; typing, which is saved a moment later and, taken out again, leaves the
-// file as it was; Ctrl+B, I and U; the panel a right click puts up, with a font, a size and a colour; the pane's top
-// edge dragged; undo and redo; and that the editors of props, stage layouts and themes have neither button nor pane.
-// What the files then hold is looked at when the test is over, by after_notes in run.py.
+// A slide's notes, and what a text box can be linked to. The notes: the button for them at the bottom right of the
+// editor and the pane it puts up under the slide; notes ProPresenter wrote, read and drawn; typing, which is saved a
+// moment later and, taken out again, leaves the file as it was; Ctrl+B, I and U; the panel a right click puts up, with
+// a font, a size and a colour; the pane's top edge dragged; undo and redo; and that the editors of props, stage
+// layouts and themes have neither button nor pane. The links: the one button that says what a box shows and the menu
+// it opens; a slide's text, its notes (with their formatting or without) and its elements of a name. Then on the
+// stage: the notes of the slide that is live, as words and as they were written, in the stage window and in what the
+// operator sees of it. What the files then hold is looked at when the test is over, by after_notes in run.py.
 QtObject {
     id: t
 
 //COMMON
     readonly property string words: "Watch the band for the ending\nHold the last chord"
+
+    function tabs() {
+        return Lib.findAll(sidePanel, item => item.chosen !== undefined && item.modelData !== undefined && item.modelData.id !== undefined)
+    }
 
     function layout(name) {
         return StageLayouts.layouts.find(l => l.name === name)
@@ -47,6 +54,51 @@ QtObject {
     function lighter(item, grey) {
         const at = item.mapToItem(null, 0, 0)
         return testInput.windowLighter(at.x, at.y, item.width, item.height, grey)
+    }
+
+    function choice(name) {
+        return Lib.findAll(editScreen.inspector, item => item.choice !== undefined && item.model !== undefined && item.chosen !== undefined)
+                  .find(c => c.visible && c.objectName === name)
+    }
+
+    function shown(name) {
+        const found = Lib.find(editScreen.inspector, item => item.objectName === name)
+        return found !== null && found.visible ? found : null
+    }
+
+    // What the inspector's "Shows" button offers, as one list (see stage.qml)
+    function showsChoice() {
+        const button = Lib.find(editScreen.inspector, item => item.objectName === "linkChoice")
+        if (!button || !button.visible)
+            return undefined
+        const rows = []
+        for (const row of button.parent.parent.choices()) {
+            if (row.items) {
+                for (const sub of row.items) {
+                    if (sub.label)
+                        rows.push({ label: row.label + ": " + sub.label, run: sub.run, current: sub.current === true })
+                }
+            } else if (row.label) {
+                rows.push({ label: row.label, run: row.run, current: row.current === true })
+            }
+        }
+        return { shown: button.shown, model: rows.map(r => r.label), choice: rows.findIndex(r => r.current), chosen: (index) => rows[index].run() }
+    }
+
+    // The text box the test made, as the editor has it
+    function made() {
+        return editScreen.canvas.elements.find(e => e.id === kept.box) ?? null
+    }
+
+    // The stage as the operator sees it, and the boxes of the layout drawn in that
+    function stagePreview() {
+        return Lib.findAll(sidePanel, item => item.slide !== undefined && item.slideWidth !== undefined && item.showsNow !== undefined)
+                  .find(item => item.visible && stageLayout !== null && item.slide !== null && item.slide.label === stageLayout.name)
+    }
+
+    function stageBox(test) {
+        const preview = stagePreview()
+        return preview ? Lib.findAll(preview, item => item.source !== undefined && item.textBleed !== undefined && item.boxX !== undefined).find(item => test(item.source)) : undefined
     }
 
     function run() {
@@ -244,6 +296,82 @@ QtObject {
             },
             () => {
                 check("Redo puts it back, in both", String(runs(kept.row)[0].color) === "#ff2a1a" && red(box()) > 0.002, told(runs(kept.row)) + " " + red(box()))
+                // ---- Links: the one button, and its menu
+                editScreen.canvas.addText()
+                return 600
+            },
+            () => {
+                kept.box = editScreen.canvas.selectedId
+                editScreen.inspector.tab = "text"
+                return 400
+            },
+            () => {
+                const shows = showsChoice()
+                check("what a text box shows is said on one button: its own text, to begin with", shows !== undefined && shows.shown === "Its Own Text" && shows.model[shows.choice] === "Its Own Text"
+                      && made() !== null && made().linkKind === "none", shows ? shows.shown : "no button")
+                click(centre(named("linkChoice")))
+                return 500
+            },
+            () => {
+                check("which opens a menu of what it can show, the elements and the timers each in a menu of their own",
+                      labels() === "[Shows], *Its Own Text, --, Another Element, Current Slide, Next Slide, Timer", labels())
+                const timers = menu.shown.find(i => i.label === "Timer")
+                check("the timers being the workspace's", timers.items.filter(i => i.label !== undefined).length === Timers.timers.length && Timers.timers.length > 0,
+                      timers.items.map(i => i.label ?? i.header).join("|"))
+                testInput.grab("6-shows-menu")
+                click(menuRow("Current Slide"))
+                return 500
+            },
+            () => {
+                const source = choice("linkSlideSource")
+                check("Current Slide links the box to the text of the slide that is live", made().linkKind === "slideText" && !made().linkSlideNext && made().linkSlideSource === Show.Words
+                      && showsChoice().shown === "Current Slide", JSON.stringify([made().linkKind, made().linkSlideSource]))
+                check("with a picker under it: Text, Notes, Match Element Name", source !== undefined && source.model.join("|") === "Text|Notes|Match Element Name" && source.choice === 0
+                      && shown("linkSlideName") === null && shown("linkSlidePreserve") === null && shown("chordsCheck") !== null, source ? source.model.join("|") : "none")
+                source.chosen(1)
+                return 500
+            },
+            () => {
+                check("Notes links it to the slide's notes, with a tick box for keeping their formatting, not ticked", made().linkSlideSource === Show.Notes && !made().linkSlidePreserve
+                      && shown("linkSlidePreserve") !== null && !shown("linkSlidePreserve").checked && shown("linkSlideName") === null)
+                check("and nothing about chords, which notes have none of", shown("chordsCheck") === null)
+                testInput.snapshot(kept.path, "song-link-notes")
+                testInput.grab("7-link-notes")
+                click(centre(shown("linkSlidePreserve")))
+                return 500
+            },
+            () => {
+                check("ticking it keeps their formatting", made().linkSlidePreserve === true && shown("linkSlidePreserve").checked && onDisk(kept.row).elements.find(e => e.id === kept.box).linkSlidePreserve === true)
+                testInput.snapshot(kept.path, "song-link-preserve")
+                choice("linkSlideSource").chosen(2)
+                return 500
+            },
+            () => {
+                const name = shown("linkSlideName")
+                check("Match Element Name gives a box to type an element's name in", made().linkSlideSource === Show.ElementNamed && name !== null && shown("linkSlidePreserve") === null)
+                name.text = "Lyrics"
+                name.editingFinished()
+                return 500
+            },
+            () => {
+                const disk = onDisk(kept.row).elements.find(e => e.id === kept.box)
+                check("and the name typed is what it matches, what was said of the notes' formatting being left as it was", made().linkSlideName === "Lyrics" && disk.linkKind === "slideText"
+                      && disk.linkSlideSource === Show.ElementNamed && disk.linkSlideName === "Lyrics" && disk.linkSlidePreserve === true,
+                      JSON.stringify([disk.linkSlideSource, disk.linkSlideName, disk.linkSlidePreserve]))
+                testInput.snapshot(kept.path, "song-link-name")
+                const shows = showsChoice()
+                shows.chosen(shows.model.indexOf("Next Slide"))
+                return 500
+            },
+            () => {
+                check("Next Slide is the same of the slide to come, set as it was", made().linkSlideNext === true && made().linkSlideSource === Show.ElementNamed && made().linkSlideName === "Lyrics"
+                      && showsChoice().shown === "Next Slide")
+                editScreen.canvas.editText(kept.box)
+                return 400
+            },
+            () => {
+                check("a box that shows such a thing has no text of its own to type over, and the editor says what it shows", editScreen.canvas.editingId === ""
+                      && editScreen.notice.includes("the text of the slide that is next"), editScreen.notice)
                 stopEditing()
                 return 700
             },
@@ -270,12 +398,101 @@ QtObject {
                 return 600
             },
             () => {
+                kept.stageHash = testInput.fileHash(StageLayouts.path)
                 startEditingStage(layout("Slide Notes").id)
                 return 700
             },
             () => {
                 check("nor has the editor of the stage layouts", editing && editScreen.editor.kind === "stage" && !named("notesToggle").visible && pane() === null, editScreen.editor.kind)
+                const notes = editScreen.canvas.elements.find(e => e.linkKind === "slideText" && e.linkSlideSource === Show.Notes)
+                check("ProPresenter's own layout for the notes has a box linked to them", notes !== undefined && !notes.linkSlideNext && !notes.linkSlidePreserve)
+                kept.notesBox = notes.id
+                editScreen.canvas.pick(notes.id)
+                editScreen.inspector.tab = "text"
+                return 500
+            },
+            () => {
+                check("which the inspector says: the current slide, its notes, their formatting not kept", showsChoice().shown === "Current Slide" && choice("linkSlideSource").choice === 1
+                      && shown("linkSlidePreserve") !== null && !shown("linkSlidePreserve").checked && testInput.fileHash(StageLayouts.path) === kept.stageHash)
                 stopEditing()
+                return 600
+            },
+            () => {
+                // ---- On the stage
+                click(centre(tabs()[2]))
+                return 400
+            },
+            () => {
+                Show.setStageLayout(Show.stageScreens[0].id, layout("Slide Notes").id)
+                openEntry(entry("Notes Song"))
+                return 600
+            },
+            () => {
+                goLive(kept.row)
+                return 1500
+            },
+            () => {
+                const notes = stageBox(e => e.id === kept.notesBox)
+                check("with the slide live, the stage's box for the notes shows that slide's notes", stageLayout !== null && stageLayout.name === "Slide Notes" && notes !== undefined
+                      && notes.liveLinkText === words, notes ? JSON.stringify(notes.liveLinkText) : "no box")
+                check("as words in the box's own style, ProPresenter's layout not keeping their formatting", typeof notes.liveLinkText === "string")
+                kept.stageRed = testInput.red(true, 0, 0, 1, 1)
+                kept.previewRed = red(stagePreview())
+                check("drawn in the stage window, and in what the operator sees of the stage, with nothing red in either", testInput.lit(true, 0, 0.15, 1, 0.55) > 0.03
+                      && lighter(notes, 150) > 0.02 && kept.stageRed === 0 && kept.previewRed === 0,
+                      testInput.lit(true, 0, 0.15, 1, 0.55) + " and " + lighter(notes, 150) + ", red " + kept.stageRed + " and " + kept.previewRed)
+                testInput.grabStage("10-stage-notes-plain")
+                testInput.grab("10-operator-notes-plain")
+                goLive(kept.bare)
+                return 1000
+            },
+            () => {
+                // (A slide can say which layout the stage is to have, as the song's first does: the layout is asked for again.)
+                clearMedia()
+                Show.setStageLayout(Show.stageScreens[0].id, layout("Slide Notes").id)
+                return 800
+            },
+            () => {
+                const notes = stageBox(e => e.id === kept.notesBox)
+                check("a slide with no notes shows none", stageLayout.name === "Slide Notes" && (notes === undefined || notes.liveLinkText === "") && testInput.lit(true, 0, 0.15, 1, 0.55) < 0.005,
+                      (notes ? JSON.stringify(notes.liveLinkText) : "no box") + " " + testInput.lit(true, 0, 0.15, 1, 0.55))
+                startEditingStage(layout("Slide Notes").id)
+                return 700
+            },
+            () => {
+                editScreen.canvas.pick(kept.notesBox)
+                editScreen.inspector.tab = "text"
+                return 400
+            },
+            () => {
+                click(centre(shown("linkSlidePreserve")))
+                return 500
+            },
+            () => {
+                check("the layout's box set to keep the notes' formatting", editScreen.canvas.selected.linkSlidePreserve === true && testInput.fileHash(StageLayouts.path) !== kept.stageHash)
+                stopEditing()
+                return 600
+            },
+            () => {
+                goLive(kept.row)
+                return 1000
+            },
+            () => {
+                Show.setStageLayout(Show.stageScreens[0].id, layout("Slide Notes").id)
+                return 1000
+            },
+            () => {
+                const notes = stageBox(e => e.id === kept.notesBox)
+                const drawn = notes && typeof notes.liveLinkText === "object" ? testInput.runsOf(notes.liveLinkText) : []
+                check("then shows them as they were written: the word that was made red, bigger and bold is so", drawn.length === 3 && drawn[0].text === "Watch" && String(drawn[0].color) === "#ff2a1a"
+                      && drawn[0].size === 40 && drawn[0].bold === true && String(drawn[1].color) === "#ffffff", told(drawn))
+                const stageRed = testInput.red(true, 0, 0, 1, 1)
+                const previewRed = red(stagePreview())
+                // (At their own sizes, which on a layout as big as a screen are small: a few points of red, where there were none.)
+                check("which is what the stage window draws: red where there was none", stageRed > 0.0001, kept.stageRed + " then " + stageRed)
+                check("and what the operator sees of the stage", previewRed > 0.0001, kept.previewRed + " then " + previewRed)
+                testInput.grabStage("11-stage-notes-formatted")
+                testInput.grab("11-operator-notes-formatted")
             }
         ]
         next()
