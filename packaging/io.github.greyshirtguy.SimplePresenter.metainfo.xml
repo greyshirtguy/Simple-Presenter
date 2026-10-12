@@ -38,6 +38,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.89" date="2026-10-12">
+      <description>
+        <p>
+          The chord editors, as they came back from the editor that was made of them for the
+          Mac and for Windows: the chord sheet's slides are a grid that zooms, each in a frame
+          of its group's colour; a paste says what came of it; a song's two keys are over both
+          editors; under them it says Autosave on, with Revert beside it; the ChordPro text
+          has a size of its own; and the settings have the colour of a chord in each.
+        </p>
+      </description>
+    </release>
     <release version="0.88" date="2026-10-12">
       <description>
         <p>
