@@ -82,6 +82,16 @@
 //   are edited by the editor that edits a presentation's slides
 //   (src/presentationeditor.h).
 //
+//   Over the props is one more layer, the messages': things to say over everything
+//   else, made and shown from their tab of the show controls (qml/MessagesPanel.qml;
+//   src/messagefile.h for ProPresenter's file of them). Which are shown is the show's
+//   to say, like everything that is seen (src/showstate.h). A message is drawn as a
+//   slide too: the slide of a theme, with the message's words in its first text box
+//   (Messages::slideOf, src/messages.h); and its words, which can have the time of day
+//   or a timer in them, are worked out once for all the screens and asked for by that
+//   box as they change. What the people on the stage are told, the stage message, is
+//   the same idea and simpler: a text box linked to it asks Show what it is.
+//
 // Choices made for modest hardware. The app is developed on a 2017 laptop with
 // integrated graphics, and is meant to run a show on one.
 //
@@ -120,6 +130,7 @@
 #include "decodingchoice.h"
 #include "decodingguard.h"
 #include "iconprovider.h"
+#include "messagetext.h"
 #include "selftest.h"
 #include "sessionlog.h"
 #include "thumbnailprovider.h"
@@ -330,6 +341,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     engine.addImageProvider("thumbnail", new ThumbnailProvider);
     engine.addImageProvider("icon", new IconProvider);
+    engine.addImageProvider("token", new TokenPictures);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     QVariantMap initial {

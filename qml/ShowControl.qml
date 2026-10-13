@@ -1,8 +1,8 @@
 import QtQuick
 
 // The show controls: what is worked during a show besides the slides and the media, a
-// tab for each kind: the timers, the props, the stage screens, the macros, and the
-// audio bin.
+// tab for each kind: the timers, the props, the stage screens, the macros, the audio
+// bin, and the messages.
 //
 // Whatever a tab lists can also be dragged onto a slide, which gives the slide the
 // action that goes with it: do this to that timer, show that prop, give the stage
@@ -11,8 +11,10 @@ import QtQuick
 // The tabs are a row of buttons across the whole width, pictures and not words, as
 // ProPresenter's are, and the pictures are ProPresenter's own: its timer, its pile of
 // layers for the props, its speaker at a lectern for the stage, its M in brackets for
-// the macros. (The audio bin's, two joined notes, is drawn here: ProPresenter's pack has
-// no picture of it. See AudioGlyph.) The one whose tab is showing is blue. Under them,
+// the macros, its paper plane for the messages. (The audio bin's, two joined notes, is
+// drawn here: ProPresenter's pack has no picture of it. See AudioGlyph.) The one whose
+// tab is showing is blue. (A GUESS: where the messages' tab stands among ProPresenter's
+// own. It is the last here, being the last that was made.) Under them,
 // at the right, is the button that adds to what the tab holds.
 //
 // A piece of audio dragged out of the audio bin and held over a tab brings that tab
@@ -25,18 +27,20 @@ Item {
 
     // The operator window
     required property var win
-    // Which tab is showing: "timers", "props", "stage", "macros" or "audio"
+    // Which tab is showing: "timers", "props", "stage", "macros", "audio" or "messages"
     property string tab: "timers"
     // What a playlist dragged out of the audio bin's list of them is carried by
     required property Item audioPlaylistDrag
     // Whether something here is being renamed in place, and so has the keyboard
     readonly property bool renaming: props.renaming !== "" || macros.renaming !== "" || (audio.item !== null && audio.item.renaming !== "")
+                                     || (messages.item !== null && messages.item.renaming !== "")
     readonly property var tabs: [
         { id: "timers", name: "Timers", picture: "Countdown" },
         { id: "props", name: "Props", picture: "Prop" },
         { id: "stage", name: "Stage", picture: "Stage" },
         { id: "macros", name: "Macros", picture: "Macro" },
-        { id: "audio", name: "Audio", picture: "" }
+        { id: "audio", name: "Audio", picture: "" },
+        { id: "messages", name: "Messages", picture: "Message" }
     ]
 
     // Starts renaming a playlist or folder of the audio bin in place.
@@ -159,19 +163,21 @@ Item {
                     macros.showAddMenu(add)
                 else if (control.tab === "audio")
                     audio.item.showAddMenu(add)
+                else if (control.tab === "messages")
+                    messages.item.add()
                 else
                     stage.add()
             }
         }
     }
 
-    // What the tab holds, under the button that adds to it. (The audio bin, which has
-    // two lists to find room for, starts beside that button and leaves its corner free
-    // for it: see AudioPanel.)
+    // What the tab holds, under the button that adds to it. (The audio bin and the
+    // messages, which each have two things to find room for, start beside that button
+    // and leave its corner free for it: see AudioPanel.)
     Item {
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: control.tab === "audio" ? buttons.bottom : add.bottom
+        anchors.top: control.tab === "audio" || control.tab === "messages" ? buttons.bottom : add.bottom
         anchors.topMargin: 6
         anchors.bottom: parent.bottom
 
@@ -233,6 +239,27 @@ Item {
                 win: control.win
                 playlistDrag: control.audioPlaylistDrag
                 forward: audio.forward
+            }
+        }
+
+        // (Made when its tab is first come to, and kept, as the audio bin is.)
+        Loader {
+            id: messages
+
+            property bool wanted: false
+            readonly property bool forward: control.tab === "messages"
+
+            anchors.fill: parent
+            visible: forward
+            active: wanted
+            onForwardChanged: {
+                if (forward)
+                    wanted = true
+            }
+            Component.onCompleted: wanted = forward
+
+            sourceComponent: MessagesPanel {
+                win: control.win
             }
         }
     }

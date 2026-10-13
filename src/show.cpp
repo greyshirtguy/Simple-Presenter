@@ -58,6 +58,10 @@ void Show::change(const std::function<show::Effects()> &what)
         emit audioChanged();
     if (before.props != m_state.props)
         emit propsChanged();
+    if (before.messages != m_state.messages)
+        emit messagesChanged();
+    if (before.stageMessage != m_state.stageMessage)
+        emit stageMessageChanged();
     if (before.stageLayouts != m_state.stageLayouts)
         emit screenLayoutsChanged();
     if (before.lookId != m_state.lookId)
@@ -100,6 +104,12 @@ void Show::change(const std::function<show::Effects()> &what)
             break;
         case show::Effect::Look:
             emit lookAsked(effect.text);
+            break;
+        case show::Effect::Message:
+            emit messageShown(effect.text);
+            break;
+        case show::Effect::MessageTime:
+            timeMessage(effect.text, effect.seconds);
             break;
         case show::Effect::Note:
             SessionLog::write(effect.topic.toLatin1().constData(), effect.text);
@@ -289,6 +299,104 @@ void Show::clearGroup(const QString &id)
 void Show::toggleProp(const QString &id)
 {
     change([&] { return m_state.toggleProp(id, m_workspace); });
+}
+
+void Show::setMessages(const QVariantList &messages)
+{
+    m_workspace.messages = messages;
+    emit workspaceChanged();
+    // A message that is no longer there is no longer shown, and has no time to count.
+    change([&] { m_state.dropMissingMessages(m_workspace); return show::Effects(); });
+    const QStringList counted = m_messageTimes.keys();
+    for (const QString &id : counted) {
+        if (!m_state.messages.contains(id))
+            timeMessage(id, 0);
+    }
+}
+
+void Show::toggleMessage(const QString &id)
+{
+    change([&] { return m_state.toggleMessage(id, m_workspace); });
+}
+
+void Show::setMessage(const QString &id, bool on)
+{
+    change([&] { return m_state.setMessage(id, on, m_workspace); });
+}
+
+void Show::clearMessages()
+{
+    change([&] { return m_state.clearMessages(); });
+}
+
+// A message that goes by itself is counted here, each with a clock of its own, since
+// several can be shown at once and each from its own moment. One that is shown again
+// is counted from the start again; one that is hidden, or cleared, is counted no more.
+void Show::timeMessage(const QString &id, double seconds)
+{
+    QTimer *time = m_messageTimes.take(id);
+    if (time) {
+        time->stop();
+        time->deleteLater();
+    }
+    if (seconds <= 0)
+        return;
+    time = new QTimer(this);
+    time->setSingleShot(true);
+    connect(time, &QTimer::timeout, this, [this, id] {
+        // (Taken out of the list first: what the change then says of this message's
+        // time finds none being counted.)
+        if (QTimer *done = m_messageTimes.take(id))
+            done->deleteLater();
+        change([&] { return m_state.messageTimeUp(id, m_workspace); });
+    });
+    m_messageTimes.insert(id, time);
+    time->start(int(seconds * 1000));
+}
+
+void Show::showStageMessage(const QString &text)
+{
+    change([&] { return m_state.showStageMessage(text); });
+    // Shown, it flashes where it is set to, each time it is shown: the same words
+    // shown again are meant to be looked at again.
+    flashStage(!m_state.stageMessage.isEmpty());
+}
+
+void Show::hideStageMessage()
+{
+    change([&] { return m_state.hideStageMessage(); });
+    flashStage(false);
+}
+
+// The flash: on at once, and then off and on four times a second for two seconds,
+// ending off. Nothing runs before a stage message is shown or after those two seconds.
+// (ABOUT two seconds, at that beat, is what was asked for; what ProPresenter's own
+// flash is like has not been seen.)
+void Show::flashStage(bool start)
+{
+    if (!m_flash.isActive() && !start && !m_stageFlash)
+        return;
+    // (Its beat is set up the first time it is wanted.)
+    if (m_flash.interval() != 250) {
+        m_flash.setInterval(250);
+        connect(&m_flash, &QTimer::timeout, this, [this] {
+            m_stageFlash = !m_stageFlash;
+            if (--m_flashesLeft <= 0) {
+                m_stageFlash = false;
+                m_flash.stop();
+            }
+            emit stageFlashChanged();
+        });
+    }
+    const bool was = m_stageFlash;
+    m_stageFlash = start;
+    m_flashesLeft = start ? 8 : 0;
+    if (start)
+        m_flash.start();
+    else
+        m_flash.stop();
+    if (was != m_stageFlash)
+        emit stageFlashChanged();
 }
 
 void Show::setProp(const QString &id, bool on)

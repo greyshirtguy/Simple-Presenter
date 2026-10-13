@@ -18,9 +18,11 @@ AuxWindow {
     property alias slideOn: scene.slideOn
     property alias mediaOn: scene.mediaOn
     property alias propsOn: scene.propsOn
+    property alias messagesOn: scene.messagesOn
     property alias lookFade: scene.lookFade
     property alias props: scene.props
     property alias propsDuration: scene.propsDuration
+    property alias messages: scene.messages
     readonly property var liveVideoSink: scene.liveVideoSink
     readonly property var livePlayer: scene.livePlayer
     readonly property var heldSlide: scene.heldSlide

@@ -1,7 +1,8 @@
 import QtQuick
 import QtQuick.Controls.Basic
 
-// A list of { name, path } entries, one selected and one optionally marked live. Entries
+// A list of { name, path } entries, one selected and one optionally marked live (or, for
+// a list of which several things can be live at once, each entry that says `live`). Entries
 // with a `depth` are indented by it, which is how trees are drawn, and a `detail` is
 // shown dimmed after the name. An entry with a `kind` of "header" only labels what
 // follows it: it is drawn in its `color` and is not picked by a click. An entry marked
@@ -130,7 +131,7 @@ ListView {
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             width: 6
-            visible: list.livePath !== "" && entry.modelData.path === list.livePath
+            visible: (list.livePath !== "" && entry.modelData.path === list.livePath) || entry.modelData.live === true
             color: "#ff8a1f"
         }
 

@@ -97,7 +97,7 @@ QtObject {
             },
             () => {
                 const panes = Lib.findAll(menu.contentItem, i => i.px !== undefined && i.rows !== undefined)
-                check("clearing: the layers there are here, in a third menu", labels() === "[Clear], Everything, The Slide, The Media, The Props" && panes.length === 3, labels())
+                check("clearing: the layers there are here, in a third menu", labels() === "[Clear], Everything, The Slide, The Media, The Props, The Messages" && panes.length === 3, labels())
                 check("every menu is inside the window", panes.every(p => p.x >= 0 && p.y >= 0 && p.x + p.width <= win.width && p.y + p.height <= win.height))
                 testInput.grab("0-menus")
                 // Back on another row of the second menu, the third shuts

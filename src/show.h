@@ -1,7 +1,9 @@
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QStringList>
+#include <QTimer>
 #include <QVariantList>
 #include "showstate.h"
 
@@ -24,6 +26,8 @@
 //   - what plays the audio (AudioLayer, audiolayer.h) is told by audioStarted,
 //     musicCleared and soundsCleared, and tells this when a piece comes to its end;
 //   - a timer is worked by timerAction;
+//   - a message that is to go by itself after so many seconds is counted here, and
+//     taken off when its time is up;
 //   - the log is told directly.
 //
 // What the rules need to know of the workspace (its props, macros and stage layouts,
@@ -75,6 +79,14 @@ class Show : public QObject
     Q_PROPERTY(QVariantList liveSounds READ liveSounds NOTIFY audioChanged)
     // The props that are on, by id, in the order they were turned on: the last is in front.
     Q_PROPERTY(QStringList liveProps READ liveProps NOTIFY propsChanged)
+    // The messages that are shown, on their own layer over the props, the same.
+    Q_PROPERTY(QStringList liveMessages READ liveMessages NOTIFY messagesChanged)
+    // What the stage is being told, "" for nothing: what a text box linked to the
+    // stage message shows. And, for the two seconds after it is shown, a beat that
+    // goes on and off four times a second: a box set to flash has its flash colour for
+    // its fill while this is on (SlideElement reads it, and only such a box does).
+    Q_PROPERTY(QString stageMessage READ stageMessage NOTIFY stageMessageChanged)
+    Q_PROPERTY(bool stageFlash READ stageFlash NOTIFY stageFlashChanged)
     // The stage layout each stage screen has, by the ids of both; a screen that is not
     // in it has the plain view. And that of the first stage screen, "" for the plain
     // view: the one meant where only one stage screen is spoken of.
@@ -95,6 +107,9 @@ class Show : public QObject
     // Its clear groups, as ClearGroups lists them: what a group's button, F1 and an
     // action that names a group clear
     Q_PROPERTY(QVariantList clearGroups READ clearGroups WRITE setClearGroups NOTIFY workspaceChanged)
+    // Its messages, { id, name, seconds } each, as Messages lists them: what an action
+    // that names a message shows, and how long one is shown before it goes by itself
+    Q_PROPERTY(QVariantList messages READ messages WRITE setMessages NOTIFY workspaceChanged)
 
     // The slide that is live and the one that would come next, as maps (see
     // proconvert), or empty maps for none
@@ -134,6 +149,9 @@ public:
     QString liveMusicPlaylistId() const { return m_state.musicPlaylistId; }
     QVariantList liveSounds() const { return m_state.sounds; }
     QStringList liveProps() const { return m_state.props; }
+    QStringList liveMessages() const { return m_state.messages; }
+    QString stageMessage() const { return m_state.stageMessage; }
+    bool stageFlash() const { return m_stageFlash; }
     QVariantMap screenLayouts() const;
     QString stageLayoutId() const;
     void setStageLayoutId(const QString &id);
@@ -150,6 +168,8 @@ public:
     void setLooks(const QVariantList &looks);
     QVariantList clearGroups() const { return m_workspace.clearGroups; }
     void setClearGroups(const QVariantList &groups);
+    QVariantList messages() const { return m_workspace.messages; }
+    void setMessages(const QVariantList &messages);
     QString lookId() const { return m_state.lookId; }
     void setLookId(const QString &id);
 
@@ -202,6 +222,7 @@ public:
     // effects alone.
     Q_INVOKABLE void clearAudio();
     Q_INVOKABLE void clearAudioEffects();
+    Q_INVOKABLE void clearMessages();
     Q_INVOKABLE void clearAll();
     // Clears what a clear group of the workspace clears, by the group's id (see
     // show::State::clearGroup).
@@ -210,6 +231,17 @@ public:
     // Turns a prop on, in front of the others, or off if it is on; or puts it one way.
     Q_INVOKABLE void toggleProp(const QString &id);
     Q_INVOKABLE void setProp(const QString &id, bool on);
+
+    // Shows a message, in front of the others, or hides it if it is shown; or puts it
+    // one way. Shown while it is shown, it is shown again: in front, its time started
+    // again (see show::State::setMessage).
+    Q_INVOKABLE void toggleMessage(const QString &id);
+    Q_INVOKABLE void setMessage(const QString &id, bool on);
+
+    // Tells the stage something, which every text box linked to the stage message then
+    // shows, those set to flash flashing for two seconds; or stops telling it.
+    Q_INVOKABLE void showStageMessage(const QString &text);
+    Q_INVOKABLE void hideStageMessage();
 
     // Runs a macro by hand.
     Q_INVOKABLE void runMacro(const QString &id);
@@ -260,6 +292,13 @@ signals:
     void mediaChanged();
     void audioChanged();
     void propsChanged();
+    void messagesChanged();
+    // A message has been shown, or shown again while it was shown: what it says and
+    // how it looks are to be taken as they are now. (What is drawn of a message is
+    // what it was when it was last shown, and not what has been typed into it since.)
+    void messageShown(const QString &id);
+    void stageMessageChanged();
+    void stageFlashChanged();
     void screenLayoutsChanged();
     void lookChanged();
     // A saved look is to be made the live one, by hand or by an action: whoever keeps
@@ -287,8 +326,19 @@ private:
     // what the change asks of the world outside.
     void change(const std::function<show::Effects()> &what);
 
+    // Counts a message's time, or stops counting it (0 seconds)
+    void timeMessage(const QString &id, double seconds);
+    // Starts the flashing that follows a stage message being shown, or ends it
+    void flashStage(bool start);
+
     show::State m_state;
     show::Workspace m_workspace;
+    // What counts the time of each message that is to go by itself, by the message's id
+    QHash<QString, QTimer *> m_messageTimes;
+    // The flashing: its beat, how many more times it is to change, and whether it is on
+    QTimer m_flash;
+    int m_flashesLeft = 0;
+    bool m_stageFlash = false;
     int m_revision = 0;
     QString m_originalKey;
     QString m_chordKey;

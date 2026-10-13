@@ -147,14 +147,33 @@ Workspace workspace()
         QVariantMap {{"id", "extras"}, {"name", "Extras"}, {"layers", QStringList {"audio", "messages", "props"}}},
         QVariantMap {{"id", "none"}, {"name", "Nothing"}, {"layers", QStringList {}}},
     };
+    // Two messages: one that stays until it is hidden, one that goes after ten seconds
+    w.messages = {QVariantMap {{"id", "parent"}, {"name", "Parent Wanted"}, {"seconds", 0.0}},
+                  QVariantMap {{"id", "lights"}, {"name", "Car Lights"}, {"seconds", 10.0}}};
     return w;
+}
+
+QVariantMap messageAction(const QString &id, const QString &name = {})
+{
+    return {{"kind", "message"}, {"title", "Show the message"}, {"done", true}, {"messageId", id}, {"messageName", name}};
+}
+
+// The times that were set going or stopped, in order: "lights:10 parent:0"
+QString times(const Effects &effects)
+{
+    QStringList said;
+    for (const Effect &effect : effects) {
+        if (effect.kind == Effect::MessageTime)
+            said << effect.text + QLatin1Char(':') + QString::number(effect.seconds);
+    }
+    return said.join(u' ');
 }
 
 // The kinds of what was to happen outside, in order, the log left out: "slide nomedia".
 QString outside(const Effects &effects)
 {
     static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia", "audio", "nomusic", "nosounds",
-                                  "timer", "look", "note", "problem"};
+                                  "timer", "look", "message", "messagetime", "note", "problem"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -457,7 +476,7 @@ private slots:
         song.slides = {slide("a", video("waves.mp4"))};
         show.goLive(song.cue(0), false, workspace());
         show.toggleProp("p1", workspace());
-        // The props, and two layers that are ProPresenter's: the slide and its media stay.
+        // The props, and the audio and the messages, of which there are none: the slide and its media stay.
         const Effects effects = show.clearGroup("extras", workspace());
         QCOMPARE(outside(effects), "");
         QVERIFY(show.props.isEmpty() && !show.cleared && show.hasMedia);
@@ -1173,6 +1192,140 @@ private slots:
         const Effects effects = show.runMacro("walkin", w);
         QCOMPARE(outside(effects), "audio");
         QCOMPARE(show.music.value("playback").toString(), "loop");
+    }
+
+    // ---- messages
+
+    void messagesStackInTheOrderTheyWereShown()
+    {
+        State show;
+        Effects effects = show.toggleMessage("parent", workspace());
+        QCOMPARE(show.messages, QStringList({"parent"}));
+        QVERIFY(noted(effects, "\"Parent Wanted\" shown"));
+        // (Whoever draws it is told it was shown, to take it as it is now.)
+        QCOMPARE(outside(effects), "message messagetime");
+        // (One that stays until it is hidden has no time: any that was being counted is stopped.)
+        QCOMPARE(times(effects), "parent:0");
+        show.toggleMessage("lights", workspace());
+        QCOMPARE(show.messages, QStringList({"parent", "lights"}));
+        // Hidden, and the other is left
+        effects = show.toggleMessage("parent", workspace());
+        QCOMPARE(show.messages, QStringList({"lights"}));
+        QVERIFY(noted(effects, "hidden"));
+        // One the workspace has not is not shown
+        QVERIFY(show.toggleMessage("nothing", workspace()).isEmpty());
+        QCOMPARE(show.messages, QStringList({"lights"}));
+    }
+
+    void aMessageThatGoesByItselfIsTimedAndShownAgainIsTimedAgain()
+    {
+        State show;
+        Effects effects = show.setMessage("lights", true, workspace());
+        QCOMPARE(times(effects), "lights:10");
+        QVERIFY(noted(effects, "to go by itself after 10 seconds"));
+        show.setMessage("parent", true, workspace());
+        // Shown while it is shown: it comes to the front, and its time starts again
+        effects = show.setMessage("lights", true, workspace());
+        QCOMPARE(show.messages, QStringList({"parent", "lights"}));
+        QCOMPARE(times(effects), "lights:10");
+        QVERIFY(noted(effects, "shown again"));
+        // Its time is up: it goes, and the other stays
+        effects = show.messageTimeUp("lights", workspace());
+        QCOMPARE(show.messages, QStringList({"parent"}));
+        QVERIFY(noted(effects, "its time being up"));
+        // A time that is up for a message that was hidden meanwhile does nothing
+        QVERIFY(show.messageTimeUp("lights", workspace()).isEmpty());
+        // Hidden by hand, its time is stopped
+        show.setMessage("lights", true, workspace());
+        QCOMPARE(times(show.setMessage("lights", false, workspace())), "lights:0");
+        QVERIFY(show.setMessage("lights", false, workspace()).isEmpty());
+    }
+
+    void clearingTheMessagesTakesThemAllAndStopsTheirTimes()
+    {
+        State show;
+        QVERIFY(show.clearMessages().isEmpty());
+        show.setMessage("parent", true, workspace());
+        show.setMessage("lights", true, workspace());
+        show.toggleProp("p1", workspace());
+        const Effects effects = show.clearMessages();
+        QVERIFY(show.messages.isEmpty());
+        QCOMPARE(times(effects), "parent:0 lights:0");
+        QVERIFY(noted(effects, "the messages, 2 of them"));
+        // The props are another layer
+        QCOMPARE(show.props, QStringList({"p1"}));
+    }
+
+    void clearingEverythingAndAGroupThatHasThemClearTheMessages()
+    {
+        State show;
+        show.setMessage("parent", true, workspace());
+        show.clearAll();
+        QVERIFY(show.messages.isEmpty());
+        show.setMessage("parent", true, workspace());
+        show.clearGroup("none", workspace());
+        QCOMPARE(show.messages, QStringList({"parent"}));
+        // ("Extras" is the audio, the messages and the props.)
+        show.clearGroup("extras", workspace());
+        QVERIFY(show.messages.isEmpty());
+    }
+
+    void anActionClearsTheMessagesAndAnActionShowsOneFoundByIdOrFailingThatByName()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", {}, {messageAction("parent")}), slide("b", {}, {messageAction("not here", "Car Lights")}),
+                       slide("c", {}, {clearAction(7)}), slide("d", {}, {messageAction("not here", "Nor This")}), slide("e", {}, {clearAction(0)})};
+        Effects effects = show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(show.messages, QStringList({"parent"}));
+        effects = show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(show.messages, QStringList({"parent", "lights"}));
+        QCOMPARE(times(effects), "lights:10");
+        // The layer of messages, as an action's file numbers it: the slide stays
+        effects = show.goLive(song.cue(2), false, workspace());
+        QVERIFY(show.messages.isEmpty() && !show.cleared);
+        effects = show.goLive(song.cue(3), false, workspace());
+        QVERIFY(show.messages.isEmpty());
+        QVERIFY(noted(effects, "there is no such message here"));
+        show.setMessage("parent", true, workspace());
+        show.goLive(song.cue(4), false, workspace());
+        QVERIFY(show.messages.isEmpty() && show.cleared);
+    }
+
+    void aMessageThatIsNoLongerThereIsNoLongerShown()
+    {
+        State show;
+        show.setMessage("parent", true, workspace());
+        show.setMessage("lights", true, workspace());
+        Workspace fewer = workspace();
+        fewer.messages.removeFirst();
+        QVERIFY(show.dropMissingMessages(fewer));
+        QCOMPARE(show.messages, QStringList({"lights"}));
+        QVERIFY(!show.dropMissingMessages(fewer));
+    }
+
+    // ---- the stage message
+
+    void theStageIsToldSomethingUntilItIsToldNoMore()
+    {
+        State show;
+        QVERIFY(show.hideStageMessage().isEmpty());
+        Effects effects = show.showStageMessage("Wrap it up");
+        QCOMPARE(show.stageMessage, "Wrap it up");
+        // (The log has that there was one, and not what it said.)
+        QVERIFY(noted(effects, "a stage message shown") && !noted(effects, "Wrap"));
+        show.showStageMessage("Two minutes");
+        QCOMPARE(show.stageMessage, "Two minutes");
+        // Nothing clears it but being hidden: it is no layer of the output
+        show.clearAll();
+        QCOMPARE(show.stageMessage, "Two minutes");
+        effects = show.hideStageMessage();
+        QCOMPARE(show.stageMessage, "");
+        QVERIFY(noted(effects, "hidden"));
+        // No words is no message
+        show.showStageMessage("Something");
+        show.showStageMessage("   ");
+        QCOMPARE(show.stageMessage, "");
     }
 };
 

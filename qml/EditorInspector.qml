@@ -1058,7 +1058,8 @@ Rectangle {
             // What this element shows in place of text of its own, in its own style:
             // the text of another element of the slide, the words or the notes of the
             // slide that is live or of the one after it, the time of a timer, the
-            // time of day, or how long the video that is playing has left.
+            // time of day, how long the video that is playing has left, or what the
+            // stage is being told (the stage message).
             //
             // It is picked as ProPresenter has it picked: one button that says what
             // the element shows, and opens a menu of what it can show. Where there
@@ -1102,6 +1103,7 @@ Rectangle {
                         : kind === "slideText" ? (inspector.element.linkSlideNext ? "Next Slide" : "Current Slide")
                         : kind === "clock" ? "System Clock"
                         : kind === "videoCountdown" ? "Video Countdown"
+                        : kind === "stageMessage" ? "Stage Message"
                         : "Its Own Text"
 
                     // The rows of the menu the button opens
@@ -1155,6 +1157,14 @@ Rectangle {
                                 if (linkLine.kind !== "videoCountdown")
                                     Object.assign(changes, { linkTimerHours: Timers.None, linkTimerMinutes: Timers.Long, linkTimerSeconds: Timers.Long,
                                                              linkTimerHundredths: Timers.None, linkVideoIgnoreLooping: false })
+                                inspector.setProperties(changes, false)
+                            } },
+                            { label: "Stage Message", current: linkLine.kind === "stageMessage", run: () => {
+                                // The first time, set to flash, in the red the boxes
+                                // of ProPresenter's own stage layouts flash.
+                                const changes = { linkKind: "stageMessage" }
+                                if (linkLine.kind !== "stageMessage")
+                                    Object.assign(changes, { linkFlash: true, linkFlashColor: "#ff2d21" })
                                 inspector.setProperties(changes, false)
                             } }
                         ]
@@ -1409,6 +1419,40 @@ Rectangle {
                             text: "24 hour time"
                             checked: inspector.element !== null && inspector.element.linkClock24 === true
                             onToggled: (checked) => inspector.setProperties({ linkClock24: checked }, false)
+                        }
+
+                        // The stage message: whether the box flashes when a message is
+                        // shown, and the colour its fill flashes
+                        Line {
+                            caption: "Flash"
+                            visible: linkLine.kind === "stageMessage"
+
+                            AppCheck {
+                                objectName: "linkFlash"
+                                width: 150
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "When it is shown"
+                                checked: inspector.element !== null && inspector.element.linkFlash === true
+                                onToggled: (checked) => inspector.setProperties({ linkFlash: checked }, false)
+                            }
+
+                            ColorButton {
+                                objectName: "linkFlashColor"
+                                hasAlpha: false
+                                enabled: inspector.element !== null && inspector.element.linkFlash === true
+                                opacity: enabled ? 1 : 0.4
+                                value: inspector.element && inspector.element.linkFlashColor !== undefined ? inspector.element.linkFlashColor : "#ff2d21"
+                                onChanging: (value) => inspector.setProperties({ linkFlashColor: value }, true)
+                                onPicked: (value) => inspector.setProperties({ linkFlashColor: value }, false)
+                                onClosed: inspector.finished()
+                            }
+                        }
+
+                        Note {
+                            visible: linkLine.kind === "stageMessage"
+                            text: "What the stage is being told: the stage message, which is typed and shown from the Stage tab of the show controls."
+                                  + " Until one is shown, the element shows nothing. Set to flash, the element has that colour for its"
+                                  + " fill, on and off, for two seconds each time a message is shown."
                         }
 
                         Note {

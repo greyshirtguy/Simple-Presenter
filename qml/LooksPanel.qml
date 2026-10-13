@@ -29,8 +29,8 @@ import SimplePresenterApp
 //     showing. The saved look it came from has a green dot.
 //   - The layers are in the order they lie on a screen, the top one first: masks,
 //     messages, props, announcements, the presentation (its slides, then its media),
-//     video inputs. This app has the props, the slides and the media; the others are
-//     ProPresenter's, and are shown greyed, as the look has them in the file, and
+//     video inputs. This app has the messages, the props, the slides and the media;
+//     the others are ProPresenter's, and are shown greyed, as the look has them in the file, and
 //     cannot be changed here. Nothing a look says of them is lost.
 //   - "Presentation" is not a layer but the theme the screen's slides are dressed in as
 //     they are shown (ProPresenter's alternate theme): none, which is a circle with a
@@ -58,7 +58,7 @@ Rectangle {
     // changed; `kind` is what stands in a screen's cell: a switch, the theme, or a mask.
     readonly property var layers: [
         { key: "mask", label: "Masks", kind: "mask", ours: false },
-        { key: "messages", label: "Messages", kind: "switch", ours: false },
+        { key: "messages", label: "Messages", kind: "switch", ours: true },
         { key: "props", label: "Props", kind: "switch", ours: true },
         { key: "announcements", label: "Announcements", kind: "switch", ours: false },
         { key: "theme", label: "Presentation", kind: "theme", ours: true },
@@ -103,9 +103,9 @@ Rectangle {
         if (!say(Looks.setScreen(onLive ? Looks.live.id : picked, screenId, changes)))
             return
         const screen = screens.find(candidate => candidate.id === screenId)
-        const layerNames = { slide: "the slides", media: "the media", props: "the props" }
+        const layerNames = { slide: "the slides", media: "the media", props: "the props", messages: "the messages" }
         const done = []
-        for (const layer of ["slide", "media", "props"]) {
+        for (const layer of ["slide", "media", "props", "messages"]) {
             if (changes[layer] !== undefined)
                 done.push((changes[layer] ? "gets " : "no longer gets ") + layerNames[layer])
         }

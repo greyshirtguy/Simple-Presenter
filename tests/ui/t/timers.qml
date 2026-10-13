@@ -84,7 +84,7 @@ QtObject {
                 testInput.grab("1-default")
                 // ---- the tabs
                 const tabs = Lib.findAll(win.contentItem, item => item.chosen !== undefined && item.modelData !== undefined && item.modelData.id !== undefined)
-                check("there are five tabs", tabs.length === 5 && tabs.map(x => x.modelData.id).join() === "timers,props,stage,macros,audio" && tabs[0].chosen, tabs.map(x => x.modelData.id).join())
+                check("there are six tabs", tabs.length === 6 && tabs.map(x => x.modelData.id).join() === "timers,props,stage,macros,audio,messages" && tabs[0].chosen, tabs.map(x => x.modelData.id).join())
                 check("the one showing is blue", Qt.colorEqual(tabs[0].color, "#1e88e5") && !Qt.colorEqual(tabs[1].color, "#1e88e5"))
                 kept.tabs = tabs
                 click(centre(tabs[1]))

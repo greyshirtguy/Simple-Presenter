@@ -157,6 +157,7 @@ qt_add_qml_module(SimplePresenter
         qml/Slide.qml
         qml/SlideElement.qml
         qml/MediaContent.qml
+        qml/MessagesPanel.qml
         qml/NewPresentation.qml
         qml/NumberField.qml
         qml/ResizeGrips.qml
@@ -242,6 +243,12 @@ qt_add_qml_module(SimplePresenter
         src/searchindex.cpp
         src/clearfile.h
         src/clearfile.cpp
+        src/messagefile.h
+        src/messagefile.cpp
+        src/messages.h
+        src/messages.cpp
+        src/messagetext.h
+        src/messagetext.cpp
         src/cleargroups.h
         src/cleargroups.cpp
         src/labelfile.h

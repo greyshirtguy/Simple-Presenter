@@ -1,14 +1,15 @@
 import QtQuick
 
-// What an audience screen shows: the media layer, the slide layer over it and the props
-// over both, on black.
+// What an audience screen shows: the media layer, the slide layer over it, the props
+// over both and the messages over everything, on black.
 //
 // Layers are what make a presenter more than a slide show. A background video on the
 // media layer keeps playing while the slides over it change, and either layer can be
 // changed or cleared without touching the other. Each is a TransitionLayer, so each
 // makes its own transition; the slide layer is transparent wherever a slide has
 // nothing, and the media shows through. The props are not one thing shown in place of
-// another but any number at once, each coming and going by itself (see PropsLayer).
+// another but any number at once, each coming and going by itself (see PropsLayer); and
+// the messages are the same, over them.
 //
 // There is one of these for every audience screen, whatever the screen is sent out
 // through: in a window of its own (Output), or drawn where nobody sees it and sent over
@@ -38,6 +39,7 @@ Item {
     property bool slideOn: true
     property bool mediaOn: true
     property bool propsOn: true
+    property bool messagesOn: true
     property int lookFade: 0
     // What that transition is called, for the log
     property string transitionName: ""
@@ -49,6 +51,9 @@ Item {
     // takes to come or go, in milliseconds
     property alias props: propsLayer.props
     property alias propsDuration: propsLayer.duration
+    // The messages that are shown, the same: [{ id, slide }], each a message as a slide
+    // (see Messages.slideOf). They come and go as the props do, and as fast.
+    property var messages: []
     // A slide held back until the media that goes with it can be shown: see
     // showSlideWithMedia(). Undefined when none is; null is a slide layer to be cleared.
     property var heldSlide: undefined
@@ -146,5 +151,34 @@ Item {
         Behavior on opacity {
             NumberAnimation { duration: scene.lookFade }
         }
+    }
+
+    // The messages' layer, over everything. It is the props' layer again, a message
+    // being a slide laid over the rest as a prop is. It is made when the first message
+    // is shown, and kept from then on (the last message to go fades in it): a show in
+    // which no message is ever shown has nothing made for them.
+    Loader {
+        id: messagesLayer
+
+        property bool wanted: false
+
+        anchors.fill: parent
+        active: wanted
+        opacity: scene.messagesOn ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: scene.lookFade }
+        }
+
+        sourceComponent: PropsLayer {
+            props: scene.messages
+            duration: propsLayer.duration
+        }
+    }
+
+    onMessagesChanged: {
+        if (messages.length > 0)
+            messagesLayer.wanted = true
     }
 }

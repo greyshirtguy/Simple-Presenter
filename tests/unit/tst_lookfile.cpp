@@ -313,6 +313,26 @@ private slots:
         QVERIFY(!document.audience_looks(1).screen_looks(0).live_video_enabled());
     }
 
+    void theMessagesAreALayerALookSwitchesForAScreen()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        ScreenLook wanted = read(folder.path()).looks.at(1).screens.value("ROOM");
+        QVERIFY(wanted.messages);
+        wanted.messages = false;
+        QCOMPARE(setScreen(folder.path(), "LOOK-2", "ROOM", wanted), QString());
+        const Looks found = read(folder.path());
+        const ScreenLook now = found.looks.at(1).screens.value("ROOM");
+        QVERIFY(!now.messages && now.slide == wanted.slide && now.media == wanted.media && now.props == wanted.props);
+        // The other look still gives that screen the messages, and the switches for
+        // the layers this app has not are as they were
+        QVERIFY(found.looks.at(0).screens.value("ROOM").messages);
+        const rv::data::ProPresenterWorkspace document = fileOf(folder.path());
+        QVERIFY(!document.audience_looks(1).screen_looks(0).messages_layer_enabled());
+        QVERIFY(document.audience_looks(1).screen_looks(0).announcements_enabled());
+        QVERIFY(!document.audience_looks(1).screen_looks(0).live_video_enabled());
+    }
+
     void aThemeThatIsNotChangedIsLeftNamedAsItWas()
     {
         QTemporaryDir folder;

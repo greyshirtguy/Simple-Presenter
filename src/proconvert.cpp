@@ -599,6 +599,13 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("linkTimerHundredthsUnderMinute", video.timer_format().show_milliseconds_under_minute_only());
             map.insert("linkTimerPattern", QString::fromStdString(video.timer_format_string()));
             map.insert("linkVideoIgnoreLooping", video.ignore_looping_videos());
+        } else if (link.has_stage_message()) {
+            // What the stage is being told, and whether the box flashes when it is,
+            // with what colour for its fill
+            map.insert("linkKind", QStringLiteral("stageMessage"));
+            map.insert("linkFlash", link.stage_message().should_flash());
+            // (With no colour said, the red the boxes of ProPresenter's own layouts flash.)
+            map.insert("linkFlashColor", link.stage_message().has_flash_color() ? toColor(link.stage_message().flash_color()) : QColor(255, 45, 33));
         } else if (link.has_visibility_link()) {
             QVariantList conditions;
             for (int index = 0; index < link.visibility_link().conditions_size(); ++index) {
@@ -649,7 +656,7 @@ bool isLive(const QVariantMap &element)
 {
     const QString kind = element.value("linkKind").toString();
     return kind == QLatin1String("timer") || kind == QLatin1String("slideText") || kind == QLatin1String("clock")
-        || kind == QLatin1String("videoCountdown");
+        || kind == QLatin1String("videoCountdown") || kind == QLatin1String("stageMessage");
 }
 
 // The element a link or a visibility rule refers to: by id, or failing that by name,
@@ -1070,15 +1077,29 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
     QStringList texts;
     for (qsizetype i = 0; i < elements.size(); ++i) {
         QVariantMap element = elements.at(i).toMap();
-        bool visible = !element.value("hidden").toBool();
-        if (visible && element.value("visibilityRules").toBool()) {
+        const bool hidden = element.value("hidden").toBool();
+        bool visible = !hidden;
+        if (element.value("visibilityRules").toBool()) {
             // A rule about something this app does not track counts as met. One about a
             // timer does too, here: whether it is met changes while the slide is on
             // show, so what draws the slide asks the timers (see Slide.qml), and is
             // told by `visibilityTimed` that it has to and by each condition's `met`
             // how the conditions that are settled here came out.
+            //
+            // A rule that another element has text, where that element shows what the
+            // stage is being told, is the same: whether it has text changes while the
+            // slide is on show. Such a condition is marked `staged`, and what draws the
+            // slide asks the show. And an element with such a rule is not hidden by
+            // being `hidden` in the file. ProPresenter's own stage layouts have their
+            // box for the stage message hidden in the file, with the rule that it
+            // shows when it has text: so the file's `hidden` there is how the rule
+            // last came out, and not a wish that the box never show. (A GUESS, from two
+            // of the three such boxes in the layouts looked at being hidden and one
+            // not; an element with any other rule that is hidden in the file stays
+            // hidden, as it always has here.)
             int met = 0;
             bool timed = false;
+            bool staged = false;
             QVariantList conditions = element.value("visibilityConditions").toList();
             for (QVariant &entry : conditions) {
                 QVariantMap condition = entry.toMap();
@@ -1088,6 +1109,10 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
                                                         condition.value("elementName").toString());
                     const bool hasText = other >= 0 && !shown.at(other).plainText().trimmed().isEmpty();
                     holds = hasText == condition.value("hasText").toBool();
+                    if (other >= 0 && elements.at(other).toMap().value("linkKind").toString() == QLatin1String("stageMessage")) {
+                        condition.insert("staged", true);
+                        staged = true;
+                    }
                 } else if (condition.value("timed").toBool()) {
                     timed = true;
                 }
@@ -1097,17 +1122,21 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
                 entry = condition;
             }
             element.insert("visibilityConditions", conditions);
-            element.insert("visibilityTimed", timed);
-            switch (element.value("visibilityCriterion").toInt()) {
-            case DataLink::VisibilityLink::VISIBILITY_CRITERION_ANY:
-                visible = conditions.isEmpty() || met > 0;
-                break;
-            case DataLink::VisibilityLink::VISIBILITY_CRITERION_NONE:
-                visible = met == 0;
-                break;
-            default:
-                visible = met == conditions.size();
-                break;
+            element.insert("visibilityTimed", timed || staged);
+            if (staged)
+                element.insert("visibilityStaged", true);
+            if (!hidden || staged) {
+                switch (element.value("visibilityCriterion").toInt()) {
+                case DataLink::VisibilityLink::VISIBILITY_CRITERION_ANY:
+                    visible = conditions.isEmpty() || met > 0;
+                    break;
+                case DataLink::VisibilityLink::VISIBILITY_CRITERION_NONE:
+                    visible = met == 0;
+                    break;
+                default:
+                    visible = met == conditions.size();
+                    break;
+                }
             }
         }
         element.insert("displayText", QVariant::fromValue(shown.at(i)));
@@ -1328,7 +1357,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
     static const char *const linkKeys[] = {"linkKind", "linkElementId", "linkTransform", "linkTimerId", "linkTimerName",
                                            "linkTimerHours", "linkTimerMinutes", "linkTimerSeconds", "linkTimerHundredths",
                                            "linkSlideNext", "linkSlideSource", "linkSlideName", "linkSlidePreserve",
-                                           "linkClockDate", "linkClockTime", "linkClock24", "linkVideoIgnoreLooping"};
+                                           "linkClockDate", "linkClockTime", "linkClock24", "linkVideoIgnoreLooping",
+                                           "linkFlash", "linkFlashColor"};
     const bool linkChanges = std::any_of(std::begin(linkKeys), std::end(linkKeys),
                                          [&changes](const char *key) { return changes.contains(QLatin1String(key)); });
     if (linkChanges) {
@@ -1343,7 +1373,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                           : existing(&DataLink::has_timer_text) ? QStringLiteral("timer")
                           : existing(&DataLink::has_slide_text) ? QStringLiteral("slideText")
                           : existing(&DataLink::has_clock_text) ? QStringLiteral("clock")
-                          : existing(&DataLink::has_video_countdown) ? QStringLiteral("videoCountdown") : QStringLiteral("none");
+                          : existing(&DataLink::has_video_countdown) ? QStringLiteral("videoCountdown")
+                          : existing(&DataLink::has_stage_message) ? QStringLiteral("stageMessage") : QStringLiteral("none");
         const QString kind = changes.value("linkKind", was).toString();
         // The links of the other kinds go first, which may move the one that stays.
         removeLinks(slideElement, [&kind](const DataLink &link) {
@@ -1351,7 +1382,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                 || (link.has_timer_text() && kind != QLatin1String("timer"))
                 || (link.has_slide_text() && kind != QLatin1String("slideText"))
                 || (link.has_clock_text() && kind != QLatin1String("clock"))
-                || (link.has_video_countdown() && kind != QLatin1String("videoCountdown"));
+                || (link.has_video_countdown() && kind != QLatin1String("videoCountdown"))
+                || (link.has_stage_message() && kind != QLatin1String("stageMessage"));
         });
         const auto transform = [&changes] {
             return DataLink::AlternateElementText::TextTransformOption(qBound(0, changes.value("linkTransform").toInt(), 3));
@@ -1441,6 +1473,15 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
             // (As ProPresenter's own stage layout has one.)
             if (fresh)
                 video->set_timer_format_string("${timer}");
+        } else if (kind == QLatin1String("stageMessage")) {
+            // (A link to the stage message has nothing to say unless it flashes, and one
+            // that says nothing is still there: it is made by being asked for.)
+            DataLink *link = existing(&DataLink::has_stage_message);
+            DataLink::StageMessage *message = (link ? link : slideElement->add_data_links())->mutable_stage_message();
+            if (changes.contains("linkFlash"))
+                message->set_should_flash(changes.value("linkFlash").toBool());
+            if (changes.contains("linkFlashColor"))
+                setColor(message->mutable_flash_color(), changes.value("linkFlashColor").value<QColor>());
         }
     }
 

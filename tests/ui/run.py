@@ -1243,6 +1243,137 @@ def after_notes(workspace, test_dir):
     return lines
 
 
+# A workspace's messages as ProPresenter kept the one file of them that was looked at (the ids and the names apart,
+# which are made up): a message that shows a timer, in a slide of a theme, which goes when its timer has run out and
+# can be seen on the network; and one that has only just been made. The timer is one of the workspace's by its name,
+# with an id that is no timer's here; the theme is one of the workspace's by its name, with a slide that is none of
+# its slides by id or by name, so that it is found by its place.
+MESSAGES_FILE = """application_info {
+  platform: PLATFORM_MACOS
+  application: APPLICATION_PROPRESENTER
+  application_version {
+    major_version: 18
+  }
+}
+messages {
+  uuid {
+    string: "5D1DAC57-0000-4AD0-A096-CCCB37FF425B"
+  }
+  title: "Service Countdown"
+  visible_on_network: true
+  template {
+    name: "New Life Chapel"
+    slide_uuid {
+      string: "11FC4BA5-0000-4F7F-9286-B125F7EE3487"
+    }
+    slide_name: "Timer Overlay"
+    slide_index: 0
+  }
+  clear_type: CLEAR_TYPE_AFTER_TIMERS
+  message_text: "Starting in ${B4AFBF0E-0000-4F77-8831-CEA895044B8C}"
+  tokens {
+    uuid {
+      string: "B4AFBF0E-0000-4F77-8831-CEA895044B8C"
+    }
+    timer {
+      name: "Service Countdown"
+      timer_uuid {
+        string: "0E45D0AF-0000-4A31-BCFD-0F5A3358E225"
+      }
+    }
+  }
+  token_values {
+    token_id {
+      string: "B4AFBF0E-0000-4F77-8831-CEA895044B8C"
+    }
+    timer {
+      configuration {
+        countdown_to_time {
+          time_of_day: 36120
+        }
+      }
+      format {
+        minute: STYLE_SHORT
+        second: STYLE_LONG
+      }
+    }
+    token_name: "Timer to 10:02"
+  }
+}
+messages {
+  uuid {
+    string: "68F5B8E9-0000-4259-A990-D1863BC56C78"
+  }
+  title: "New Message"
+}
+"""
+
+
+def prepare_messages(workspace, test_dir):
+    """The workspace is given a file of messages as ProPresenter might have left one (MESSAGES_FILE). Nothing is
+    written but that one file, in the copy's Configuration."""
+    target = os.path.join(workspace, "Configuration", "Messages")
+    if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("the messages test would write outside its own folder: " + os.path.realpath(target))
+    with open(target, "wb") as out:
+        out.write(protoc("encode", "rv.data.MessageDocument", "messages.proto", MESSAGES_FILE.encode()))
+    shutil.copy(target, os.path.join(test_dir, "messages-before"))
+
+
+def after_messages(workspace, test_dir):
+    """What the messages left in their file, read with protoc and not by the app, set against the file the test was
+    given (prepare_messages); and the link to the stage message that the test made in the stage layouts' file, set
+    against the fixture's."""
+    import difflib
+
+    def decoded(path, message="rv.data.MessageDocument", proto="messages.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def blocks(text):
+        """Each message of a decoded file, by its title: its lines of the text."""
+        found = {}
+        for block in re.finditer(r"^messages \{\n.*?^\}\n", text, re.S | re.M):
+            found[re.search(r'^  title: "([^"]*)"', block.group(0), re.M).group(1)] = block.group(0)
+        return found
+
+    was = decoded(os.path.join(test_dir, "messages-before"))
+    now = decoded(os.path.join(workspace, "Configuration", "Messages"))
+    before, after = blocks(was), blocks(now)
+    made = after.get("Parent Wanted", "")
+    tokens = re.findall(r'tokens \{\n    uuid \{\n      string: "([^"]*)"\n    \}\n    (\w+) \{', made)
+    text = re.search(r'^  message_text: "(.*)"$', made, re.M)
+    lines = [
+        said(now.split("messages {")[0] == was.split("messages {")[0] and "application_info" in now,
+             "in the messages' file: what the file says of the program that wrote it is as it was"),
+        said(after.get("Service Countdown") == before.get("Service Countdown") and before.get("Service Countdown") is not None,
+             "in the messages' file: ProPresenter's own message, which was shown and never changed, is as it was, line for line"),
+        said("New Message" not in after and list(after) == ["Service Countdown", "Parent Wanted"],
+             "in the messages' file: the message that was removed is gone, and the one that was made is last", " | ".join(after)),
+        said(len(tokens) == 2 and [kind for _, kind in tokens] == ["text", "clock"] and text is not None
+             and text.group(1) == "Would ${%s} come to the  at ${%s}. ${%s}!" % (tokens[0][0], tokens[1][0], tokens[0][0]),
+             "in the messages' file: its text has each token standing in it as ${its id}, the one that was deleted gone",
+             (text.group(1) if text else "no text") + " / " + " ".join(kind for _, kind in tokens)),
+        said(made.count("token_values {") == 2 and 'value: "Kim Wu"' in made and 'token_name: "Name"' in made and "Row 12" not in made
+             and "date_type" not in made and "time_format: DATE_FORMATTER_STYLE_SHORT" in made,
+             "in the messages' file: what the name was last given is with it, what the deleted token was given is gone, and the clock is the time alone, the short way"),
+        said('template {\n    name: "New Life Chapel"' in made and "slide_uuid {" in made and "slide_name: " in made,
+             "in the messages' file: its theme is named as ProPresenter names one, by the theme's name and the slide's id and name"),
+        said("clear_type" not in made and "time_to_remove: 5" in made,
+             "in the messages' file: set to go by hand again, it says nothing of how it goes, and keeps the five seconds it had"),
+    ]
+    stage_was = decoded(os.path.join(FIXTURES, "workspaces", "Act", "Configuration", "Stage"), "rv.data.Stage.Document", "stage.proto")
+    stage_now = decoded(os.path.join(workspace, "Configuration", "Stage"), "rv.data.Stage.Document", "stage.proto")
+    out = [line[1:].strip() for line in difflib.unified_diff(stage_was.splitlines(), stage_now.splitlines(), lineterm="", n=0)
+           if line.startswith("-") and not line.startswith("---")]
+    put = "\n".join(line[1:] for line in difflib.unified_diff(stage_was.splitlines(), stage_now.splitlines(), lineterm="", n=0)
+                    if line.startswith("+") and not line.startswith("+++"))
+    lines.append(said(out == [] and put.count("stage_message {") == 1 and "flash_color {" in put and "should_flash" not in put,
+                      "in the stage layouts' file: the box that was made is linked to the stage message, with its colour and no flash, and nothing that was there is gone",
+                      "%d lines out, %d stage messages in" % (len(out), put.count("stage_message {"))))
+    return lines
+
+
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
             "monitors": monitors}
@@ -1265,6 +1396,7 @@ TESTS = {
     "sound": test("Demo"),
     "audio": test("Act", timeout=300, prepare=prepare_audio, after=after_audio),
     "notes": test("Act", timeout=300, prepare=prepare_notes, after=after_notes),
+    "messages": test("Act", timeout=300, prepare=prepare_messages, after=after_messages),
     "drop": test("Demo"),
     "simple": test("Demo"),
     "shapes": test("Shapes", SHELL, 120),

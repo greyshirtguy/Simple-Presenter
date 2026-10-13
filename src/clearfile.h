@@ -37,9 +37,9 @@
 //   videoInput     video inputs, which the file calls live video
 //
 // That is the order ProPresenter's own group has them in, and the order they are
-// offered in here. This app has five of them (the audio and the audio effects, which
-// are the two halves of its audio layer, the slide, the media and the props);
-// the others are ProPresenter's, are kept exactly as a group has them, and are not
+// offered in here. This app has six of them (the audio and the audio effects, which
+// are the two halves of its audio layer, the messages, the props, the slide and the
+// media); the others are ProPresenter's, are kept exactly as a group has them, and are not
 // changed here. A target that is none of the eight (clearing to the logo, say) is kept
 // too and is not listed.
 //

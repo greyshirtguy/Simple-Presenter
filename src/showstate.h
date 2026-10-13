@@ -11,10 +11,11 @@
 //
 // This is the show itself, with nothing of the app round it: no window, no file, no
 // log, no clock. It is a handful of plain values (which slide the show is at, what is
-// on the media layer, what audio is playing, which props are on, which layout the stage
-// has) and the things that can be done to them: a slide goes live, media is put on, a
-// piece of audio is played, a layer is cleared, a prop is turned over, a macro is run. Each of those changes the values and says, as a
-// list, what is then to happen outside: what the output is to be handed, which timer is
+// on the media layer, what audio is playing, which props are on, which messages are
+// shown, which layout the stage has and what it is being told) and the things that can
+// be done to them: a slide goes live, media is put on, a piece of audio is played, a
+// layer is cleared, a prop is turned over, a message is shown, a macro is run. Each of
+// those changes the values and says, as a list, what is then to happen outside: what the output is to be handed, which timer is
 // to be worked, what the log is to be told. Whoever owns one of these (the Show that
 // QML talks to, in show.h) carries that list out.
 //
@@ -44,6 +45,9 @@ struct Workspace
     // Its clear groups, { id, name, layers } each, the layers by the names
     // clearfile.h has for them ("slide", "media", "props" and ProPresenter's others)
     QVariantList clearGroups;
+    // Its messages, { id, name, seconds } each: `seconds` is how long one is shown
+    // before it goes by itself, 0 for one that stays until it is hidden
+    QVariantList messages;
 };
 
 // A slide as it is triggered: where it is, and what it brings.
@@ -77,6 +81,8 @@ struct Effect
         NoSounds,       // stop every sound effect
         Timer,          // work a timer as `action` says
         Look,           // make the saved look whose id is `text` the live one (see lookfile.h)
+        Message,        // the message whose id is `text` has been shown, or shown again: as it is now is how it is to look
+        MessageTime,    // the message whose id is `text` goes by itself in `seconds`; 0 for no such time (any it had is off)
         Note,           // tell the log `text`, under `topic`
         Problem,        // tell the log, and whoever is running the show, that `text` went wrong
     };
@@ -85,6 +91,7 @@ struct Effect
     QVariantMap action;
     QString topic;
     QString text;
+    double seconds = 0;
 };
 using Effects = QList<Effect>;
 
@@ -127,6 +134,17 @@ public:
 
     // The props that are on, by id, in the order they were turned on: the last is in front.
     QStringList props;
+
+    // The messages layer, which is over the props: the messages that are shown, by
+    // id, in the order they were shown, the last in front. What a message says and
+    // how it looks are not the show's business (see Messages, messages.h): only that
+    // it is shown.
+    QStringList messages;
+
+    // What the stage is being told: the stage message, "" for none. A text box linked
+    // to the stage message shows it, wherever the box is (a stage layout is where
+    // such a box is to be found).
+    QString stageMessage;
 
     // The saved look that was last made live, by id; "" for none. It is not what the
     // screens get: that is the live look, a look of its own which this one was copied
@@ -195,12 +213,13 @@ public:
     // The audio layer: the music and every sound effect; and the sound effects alone.
     Effects clearAudio();
     Effects clearAudioEffects();
+    Effects clearMessages();
     Effects clearAll();
     // Clears what a clear group clears, which is those of its layers there are here:
-    // the slide, the media, the props, the audio (the music and the sound effects) and
-    // the audio effects (the sound effects alone). The others it names are
-    // ProPresenter's, and nothing is done for them. A group the workspace has not
-    // clears nothing.
+    // the slide, the media, the props, the messages, the audio (the music and the
+    // sound effects) and the audio effects (the sound effects alone). The others it
+    // names are ProPresenter's, and nothing is done for them. A group the workspace
+    // has not clears nothing.
     Effects clearGroup(const QString &id, const Workspace &workspace);
 
     // Turns a prop on, in front of the props that are on already, or off if it is on.
@@ -211,6 +230,24 @@ public:
     // The workspace's props have changed: one that is no longer there is no longer on.
     // Says whether any went.
     bool dropMissingProps(const Workspace &workspace);
+
+    // Shows a message, in front of those that are shown already; or, with `on` false,
+    // hides it. A message that is shown and is shown again comes to the front, and
+    // the time it has before it goes by itself starts again: that is how a message
+    // whose words have been changed is shown as it now is. One the workspace has not
+    // is not shown.
+    Effects setMessage(const QString &id, bool on, const Workspace &workspace);
+    // Shows it if it is not shown, and hides it if it is.
+    Effects toggleMessage(const QString &id, const Workspace &workspace);
+    // A message's time is up: it goes, if it is still shown.
+    Effects messageTimeUp(const QString &id, const Workspace &workspace);
+    // The workspace's messages have changed: one that is no longer there is no longer
+    // shown. Says whether any went.
+    bool dropMissingMessages(const Workspace &workspace);
+
+    // Tells the stage something, or with no words stops telling it.
+    Effects showStageMessage(const QString &text);
+    Effects hideStageMessage();
 
     // Runs a macro by hand.
     Effects runMacro(const QString &id, const Workspace &workspace);
@@ -236,6 +273,9 @@ private:
     void clearSlide(Effects &effects);
     void clearMedia(Effects &effects);
     void clearProps(Effects &effects);
+    void clearMessages(Effects &effects);
+    void showMessage(const QVariantMap &message, Effects &effects);
+    void hideMessage(const QString &id, const QString &name, const QString &how, Effects &effects);
     void clearMusic(Effects &effects);
     void clearSounds(Effects &effects);
     void startAudio(const QVariantMap &audio, const QString &playlist, Effects &effects);
@@ -256,6 +296,8 @@ QVariantMap findMacro(const QString &id, const QString &name, const Workspace &w
 QVariantMap findLook(const QString &id, const QString &name, const Workspace &workspace);
 // A clear group by its id, or failing that by its name ("" for by id alone).
 QVariantMap findClearGroup(const QString &id, const QString &name, const Workspace &workspace);
+// A message by its id, or failing that by its name ("" for by id alone).
+QVariantMap findMessage(const QString &id, const QString &name, const Workspace &workspace);
 // The workspace's stage screens, { id, name } each: those it lists, or for a workspace
 // that lists none the one every workspace has, by the name it has here.
 QVariantList stageScreens(const Workspace &workspace);

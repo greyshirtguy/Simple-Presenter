@@ -24,7 +24,8 @@ import SimplePresenterApp
 //
 // The one thing not settled then is text that changes while the slide is on show, which
 // an element linked to a timer has, or to the clock, or to how long a video has left,
-// or to the words or the notes of the slide that is live: that is asked for here, as
+// or to what the stage is being told, or to the words or the notes of the slide that is
+// live, and that the text box of a message has: that is asked for here, as
 // `liveLinkText`, and drawn in the element's own style. It is drawn again only when the
 // words change, which for a timer is once a second while it runs, unless the element
 // shows the timer's hundredths: then it is thirty times a second where they can be
@@ -106,6 +107,16 @@ Item {
                 ? Clocks.videoText(source.linkTimerHours, source.linkTimerMinutes, source.linkTimerSeconds, source.linkTimerHundredths,
                                    source.linkTimerHundredthsUnderMinute, source.linkVideoIgnoreLooping, source.linkTimerPattern)
                 : ""
+        case "stageMessage":
+            // What the stage is being told, which is nothing until it is told
+            // something (see Show).
+            return Show.stageMessage
+        case "message":
+            // The words of a message of the messages' layer, as they are at the
+            // moment: they are worked out elsewhere, once for every screen, and
+            // reading the revision is what has this read them again when they have
+            // changed (see Messages).
+            return Messages.revision >= 0 ? Messages.words(source.linkMessageId) : ""
         default:
             return undefined
         }
@@ -176,9 +187,15 @@ Item {
     rotation: source.rotation
     opacity: source.opacity
 
+    // (A box linked to the stage message and set to flash has its flash colour for a
+    // fill, on and off, for two seconds after the stage is told something: see Show's
+    // stageFlash. It is asked here and where the plain box takes its colour, and of no
+    // element but one that has `linkFlash`, which only such a box has; so no other
+    // element is put to anything by it. Only a plain box flashes: one whose fill is a
+    // gradient or a picture, or whose shape is more than a rectangle, does not.)
     Loader {
         anchors.fill: parent
-        visible: element.boxFilled || element.source.strokeEnabled
+        visible: element.boxFilled || element.source.strokeEnabled || (element.source.linkFlash === true && Show.stageFlash)
         sourceComponent: element.plain ? plainBox : richShape
 
         layer.enabled: element.effects && element.source.shadowEnabled
@@ -191,7 +208,8 @@ Item {
         id: plainBox
 
         Rectangle {
-            color: element.boxFilled ? element.source.fillColor : "transparent"
+            color: element.source.linkFlash === true && Show.stageFlash ? element.source.linkFlashColor
+                 : element.boxFilled ? element.source.fillColor : "transparent"
             border.color: element.source.strokeColor
             border.width: element.source.strokeEnabled ? element.source.strokeWidth * element.unit : 0
         }

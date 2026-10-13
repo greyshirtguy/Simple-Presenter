@@ -71,6 +71,7 @@ Rectangle {
     function groupLive(group) {
         return (group.layers.indexOf("slide") >= 0 && !win.cleared) || (group.layers.indexOf("media") >= 0 && win.liveMedia !== null)
                || (group.layers.indexOf("props") >= 0 && win.liveProps.length > 0)
+               || (group.layers.indexOf("messages") >= 0 && win.liveMessages.length > 0)
                || (group.layers.indexOf("audio") >= 0 && win.audioLive)
                || (group.layers.indexOf("audioEffects") >= 0 && win.liveSounds.length > 0)
     }
@@ -90,20 +91,21 @@ Rectangle {
     component ClearButton: Rectangle {
         id: clearButton
 
-        // "slide", "media", "props" or "audio"
+        // "slide", "media", "props", "audio" or "messages"
         property string kind
         property bool live: false
         // The layer it clears, as an action's file numbers them, and what an action
         // that clears it is called
-        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4, "audio": 1 })[kind] ?? 5
+        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4, "audio": 1, "messages": 7 })[kind] ?? 5
         readonly property string title: ({ "slide": "Clear the Slide", "media": "Clear the Media", "props": "Clear the Props",
-                                           "audio": "Clear the Audio" })[kind] ?? ""
-        readonly property string picture: ({ "slide": "ClearPresentation", "media": "ClearMedia", "props": "ClearProps", "audio": "ClearAudio" })[kind] ?? "Clear"
+                                           "audio": "Clear the Audio", "messages": "Clear the Messages" })[kind] ?? ""
+        readonly property string picture: ({ "slide": "ClearPresentation", "media": "ClearMedia", "props": "ClearProps", "audio": "ClearAudio",
+                                             "messages": "ClearMessages" })[kind] ?? "Clear"
         readonly property color ink: live ? "#ececec" : "#6c6f75"
 
         signal clicked
 
-        width: (layerClears.width - 3 * layerClears.spacing) / 4
+        width: (layerClears.width - 4 * layerClears.spacing) / 5
         height: 30
         radius: 6
         color: !live ? "#2b2d31" : clearMouse.pressed ? "#e25555" : clearMouse.containsMouse ? "#d84343" : "#c62828"
@@ -282,6 +284,29 @@ Rectangle {
                 effects: false
             }
 
+            // The messages, over the props, as the output has them: made when the
+            // first is shown, and kept (see OutputScene).
+            Loader {
+                id: previewMessages
+
+                property bool wanted: sidePanel.win.shownMessages.length > 0
+
+                objectName: "previewMessages"
+                anchors.fill: parent
+                visible: sidePanel.win.previewLook.messages
+                active: false
+                onWantedChanged: {
+                    if (wanted)
+                        active = true
+                }
+
+                sourceComponent: PropsLayer {
+                    props: sidePanel.win.shownMessages
+                    duration: Math.round(Props.transitionDuration * 1000)
+                    effects: false
+                }
+            }
+
             // How loud what the app is playing is, on the left and on the right: two
             // bars up the preview's right edge, there only while something is sounding
             // (a piece of audio, a video with its sound) and for the moment after in
@@ -408,12 +433,16 @@ Rectangle {
         spacing: 4
 
         // The layers: the slide (F2), the media (F3), the props (F4), the audio (F5),
-        // which is the music and the sound effects of the audio bin.
+        // which is the music and the sound effects of the audio bin, and the messages
+        // (F6).
         //
-        // TO COME: a button here for each layer this app gains (messages,
-        // announcements, video inputs), which is also when that layer is to be switched
-        // on among the layers a clear group can be given (see `ours` in
-        // src/clearfile.cpp) and cleared by State::clearGroup (src/showstate.cpp).
+        // A GUESS: that F6 is ProPresenter's key for clearing the messages. Its keys
+        // for the first four are known; this one follows on from them.
+        //
+        // TO COME: a button here for each layer this app gains (announcements, video
+        // inputs), which is also when that layer is to be switched on among the layers
+        // a clear group can be given (see `ours` in src/clearfile.cpp) and cleared by
+        // State::clearGroup (src/showstate.cpp).
         Row {
             id: layerClears
 
@@ -446,6 +475,13 @@ Rectangle {
                 kind: "audio"
                 live: sidePanel.win.audioLive
                 onClicked: sidePanel.win.clearAudio()
+            }
+
+            ClearButton {
+                objectName: "clearMessages"
+                kind: "messages"
+                live: sidePanel.win.liveMessages.length > 0
+                onClicked: sidePanel.win.clearMessages()
             }
         }
 

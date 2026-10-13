@@ -116,6 +116,8 @@ Item {
             return "System Clock"
         case "videoCountdown":
             return "Video Countdown"
+        case "stageMessage":
+            return "Stage Message"
         case "other":
             return element.linkLabel
         default:
@@ -332,6 +334,7 @@ Item {
                                                          + (element.linkSlideNext ? "next" : "live")
                     : element.linkKind === "clock" ? "the system clock"
                     : element.linkKind === "videoCountdown" ? "how long a video has left"
+                    : element.linkKind === "stageMessage" ? "what the stage is being told"
                     : "a " + element.linkLabel.toLowerCase() + ", set up in ProPresenter")
                  + ", so it has no text of its own to edit. Its font and colour can still be changed.")
             return

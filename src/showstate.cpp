@@ -28,6 +28,16 @@ Effect plain(Effect::Kind kind)
     return effect;
 }
 
+// A message that is taken off has no time left to run: whatever was counting it is
+// told so.
+Effect noTime(const QString &id)
+{
+    Effect effect;
+    effect.kind = Effect::MessageTime;
+    effect.text = id;
+    return effect;
+}
+
 Effect withMedia(Effect::Kind kind, const QVariantMap &media)
 {
     Effect effect;
@@ -231,6 +241,97 @@ void State::clearProps(Effects &effects)
     props.clear();
 }
 
+void State::clearMessages(Effects &effects)
+{
+    if (messages.isEmpty())
+        return;
+    effects << note("clear", QStringLiteral("the messages, %1 of them").arg(messages.size()));
+    for (const QString &id : std::as_const(messages))
+        effects << noTime(id);
+    messages.clear();
+}
+
+void State::showMessage(const QVariantMap &message, Effects &effects)
+{
+    const QString id = message.value("id").toString();
+    const double seconds = qMax(0.0, message.value("seconds").toDouble());
+    const bool again = messages.contains(id);
+    messages.removeAll(id);
+    messages << id;
+    effects << note("message", quoted(message.value("name").toString()) + (again ? QStringLiteral(" shown again") : QStringLiteral(" shown"))
+                                   + (seconds > 0 ? QStringLiteral(", to go by itself after %1 seconds").arg(seconds) : QString())
+                                   + QStringLiteral("; %1 shown").arg(messages.size()));
+    Effect shown;
+    shown.kind = Effect::Message;
+    shown.text = id;
+    effects << shown;
+    Effect time;
+    time.kind = Effect::MessageTime;
+    time.text = id;
+    time.seconds = seconds;
+    effects << time;
+}
+
+void State::hideMessage(const QString &id, const QString &name, const QString &how, Effects &effects)
+{
+    if (!messages.contains(id))
+        return;
+    messages.removeAll(id);
+    effects << note("message", quoted(name) + how + QStringLiteral("; %1 shown").arg(messages.size()));
+    effects << noTime(id);
+}
+
+Effects State::setMessage(const QString &id, bool on, const Workspace &workspace)
+{
+    Effects effects;
+    const QVariantMap message = findMessage(id, QString(), workspace);
+    if (!on)
+        hideMessage(id, message.value("name").toString(), QStringLiteral(" hidden"), effects);
+    else if (!message.isEmpty())
+        showMessage(message, effects);
+    return effects;
+}
+
+Effects State::toggleMessage(const QString &id, const Workspace &workspace)
+{
+    return setMessage(id, !messages.contains(id), workspace);
+}
+
+Effects State::messageTimeUp(const QString &id, const Workspace &workspace)
+{
+    Effects effects;
+    hideMessage(id, findMessage(id, QString(), workspace).value("name").toString(), QStringLiteral(" gone by itself, its time being up"), effects);
+    return effects;
+}
+
+bool State::dropMissingMessages(const Workspace &workspace)
+{
+    const qsizetype before = messages.size();
+    messages.removeIf([&workspace](const QString &id) { return findMessage(id, QString(), workspace).isEmpty(); });
+    return messages.size() != before;
+}
+
+Effects State::showStageMessage(const QString &text)
+{
+    if (text.trimmed().isEmpty())
+        return hideStageMessage();
+    Effects effects;
+    // (How many characters, and not what it says: the log is not for what is said.)
+    effects << note("stage", QStringLiteral("a stage message shown, of %1 characters").arg(text.size()));
+    stageMessage = text;
+    return effects;
+}
+
+Effects State::hideStageMessage()
+{
+    Effects effects;
+    if (stageMessage.isEmpty())
+        return effects;
+    effects << note("stage", QStringLiteral("the stage message hidden"));
+    stageMessage.clear();
+    return effects;
+}
+
 void State::clearMusic(Effects &effects)
 {
     if (!hasMusic)
@@ -356,6 +457,13 @@ Effects State::clearAudioEffects()
     return effects;
 }
 
+Effects State::clearMessages()
+{
+    Effects effects;
+    clearMessages(effects);
+    return effects;
+}
+
 Effects State::clearAll()
 {
     Effects effects;
@@ -363,6 +471,7 @@ Effects State::clearAll()
     clearSlide(effects);
     clearMedia(effects);
     clearProps(effects);
+    clearMessages(effects);
     clearMusic(effects);
     clearSounds(effects);
     return effects;
@@ -378,9 +487,9 @@ Effects State::clearAll()
 // that a group can stop those and leave the music playing. A GUESS: whether
 // ProPresenter's own "audio" stops its sound effects too has not been seen.
 //
-// TO COME: a group names ProPresenter's other layers too (messages, announcements,
-// video inputs: see clearfile.h). As the show gains one of them, it is cleared here,
-// for a group that has it.
+// TO COME: a group names ProPresenter's other layers too (announcements, video
+// inputs: see clearfile.h). As the show gains one of them, it is cleared here, for a
+// group that has it.
 void State::clearGroup(const QVariantMap &group, Effects &effects)
 {
     const QStringList layers = group.value("layers").toStringList();
@@ -391,6 +500,8 @@ void State::clearGroup(const QVariantMap &group, Effects &effects)
         clearMedia(effects);
     if (layers.contains(QLatin1String("props")))
         clearProps(effects);
+    if (layers.contains(QLatin1String("messages")))
+        clearMessages(effects);
     if (layers.contains(QLatin1String("audio")))
         clearMusic(effects);
     if (layers.contains(QLatin1String("audio")) || layers.contains(QLatin1String("audioEffects")))
@@ -527,8 +638,11 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
             clearSlide(effects);
             clearMedia(effects);
             clearProps(effects);
+            clearMessages(effects);
             clearMusic(effects);
             clearSounds(effects);
+        } else if (layer == 7) {
+            clearMessages(effects);
         } else if (layer == 1) {
             // (The audio: the music and the sound effects. See clearGroup.)
             clearMusic(effects);
@@ -580,6 +694,13 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
             if (props.contains(id) == action.value("clear").toBool())
                 toggleProp(id, workspace, effects);
         }
+    } else if (kind == QLatin1String("message")) {
+        // (Shown with what its tokens were last given here. An action of ProPresenter's
+        // can carry what to give them, which is not read: see actions.cpp.)
+        const QVariantMap message = findMessage(action.value("messageId").toString(), action.value("messageName").toString(), workspace);
+        effects << note("action", title + (message.isEmpty() ? QStringLiteral(": there is no such message here") : QString()));
+        if (!message.isEmpty())
+            showMessage(message, effects);
     } else if (kind == QLatin1String("macro")) {
         const QVariantMap macro = findMacro(action.value("macroId").toString(), action.value("macroName").toString(), workspace);
         if (macro.isEmpty()) {
@@ -650,6 +771,19 @@ QVariantMap findMacro(const QString &id, const QString &name, const Workspace &w
                 return macro;
             byName = macro;
         }
+    }
+    return byName;
+}
+
+QVariantMap findMessage(const QString &id, const QString &name, const Workspace &workspace)
+{
+    QVariantMap byName;
+    for (const QVariant &entry : workspace.messages) {
+        const QVariantMap message = entry.toMap();
+        if (!id.isEmpty() && message.value("id").toString() == id)
+            return message;
+        if (byName.isEmpty() && !name.isEmpty() && message.value("name").toString() == name)
+            byName = message;
     }
     return byName;
 }

@@ -159,6 +159,11 @@ Window {
     property bool audioCrossfade: false
     property string audioDevice: ""
     property real audioSplit: 66
+    // What is in the box of the stage message (see StagePanel), and how high the list
+    // of messages is over what one of them is made of (see MessagesPanel): how each
+    // was left, kept with the app's settings.
+    property string stageMessageText: ""
+    property real messagesSplit: 62
 
     // The transitions there are to choose from, with what can be adjusted about each
     // (see TransitionCatalogue), the one chosen, and what has been chosen for its
@@ -464,6 +469,77 @@ Window {
         return liveProps.map(id => all.find(prop => prop.id === id)).filter(prop => prop !== undefined)
                         .map(prop => ({ id: prop.id, slide: prop.slide }))
     }
+    // The messages that are shown, by id, in the order they were shown: the last is in
+    // front. And the same as what the output is handed, [{ id, slide }], each a message
+    // as a slide in its theme (see Messages.slideOf).
+    //
+    // What is drawn of a message is what it was when it was shown: `messagesAsShown`
+    // has each as it was then, by id, taken when the show says a message has been
+    // shown (or shown again). So words typed into a message while it is on the screens
+    // are not on the screens until it is shown again.
+    readonly property var liveMessages: Array.from(Show.liveMessages)
+    property var messagesAsShown: ({})
+    readonly property var shownMessages: liveMessages.map(id => messagesAsShown[id]).filter(message => message !== undefined)
+                                                     .map(message => ({ id: message.id, slide: messageSlide(message) }))
+
+    // A message as a slide: the slide of its theme, with the message's words to come
+    // in its first text box. The theme is found by its name, which is all a message's
+    // file has of it (so the first of that name, whatever folder it is in), and the
+    // slide by its id, or failing that by its name, or by its place.
+    function messageSlide(message) {
+        let slide = null
+        const theme = message.theme === "" ? undefined : Themes.themes.find(candidate => candidate.name === message.theme)
+        if (theme) {
+            const found = theme.slides.find(candidate => candidate.id === message.themeSlide)
+                       ?? theme.slides.find(candidate => candidate.name === message.themeSlideName)
+                       ?? theme.slides[message.themeSlideIndex] ?? theme.slides[0]
+            if (found)
+                slide = found.slide
+        }
+        return Messages.slideOf(message.id, slide)
+    }
+
+    // The words a message is showing: its words, with what each of its tokens was
+    // given put in. A token that is the clock or a timer is asked for as it is at the
+    // moment, and reading the second and the tick is what has this asked again as
+    // they go on: only by a message that has such a token, and only while it is shown.
+    function messageWords(message) {
+        let words = ""
+        for (const piece of message.pieces) {
+            const token = piece.token ? message.tokens.find(candidate => candidate.id === piece.text) : undefined
+            if (!piece.token)
+                words += piece.text
+            else if (!token)
+                continue
+            else if (token.kind === "clock")
+                words += Clocks.second >= 0 ? Clocks.clockText(token.date, token.time, token.twentyFour, "${clock}") : ""
+            else if (token.kind === "timer")
+                words += Timers.tick >= 0 ? Timers.linkedText(token.timerId, token.name, token.hours, token.minutes, token.seconds,
+                                                              token.hundredths, token.hundredthsUnderMinute, "${timer}") : ""
+            else
+                words += token.value
+        }
+        return words
+    }
+
+    // Shows a message, or hides it if it is shown; and clears them all. (Whatever was
+    // being typed into a message is kept first: see MessagesPanel, which calls these.)
+    function toggleMessage(id) {
+        Show.toggleMessage(id)
+    }
+
+    function showMessage(id) {
+        Show.setMessage(id, true)
+    }
+
+    function hideMessage(id) {
+        Show.setMessage(id, false)
+    }
+
+    function clearMessages() {
+        Show.clearMessages()
+    }
+
     // The stage layout the stage screen has, by id, and the layout itself; "" and null
     // for the plain view the app has of its own.
     readonly property string stageLayoutId: Show.stageLayoutId
@@ -975,7 +1051,8 @@ Window {
             { header: "Add Action" },
             { label: "Timer…", glyph: "timer", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
             { label: "Clear", glyph: "clear", items: [{ header: "Clear" }, clear("Everything", 0, "Clear"), clear("The Slide", 5, "ClearPresentation"),
-                                                     clear("The Media", 2, "ClearMedia"), clear("The Props", 4, "ClearProps")] },
+                                                     clear("The Media", 2, "ClearMedia"), clear("The Props", 4, "ClearProps"),
+                                                     clear("The Messages", 7, "ClearMessages")] },
             { label: "Clear Group", glyph: "clear", disabled: ClearGroups.groups.length === 0, items: [{ header: "Clear Group" }].concat(
                 ClearGroups.groups.map(group => ({ label: group.name, run: () => add(clearGroupAction(group.id, group.name)) }))) },
             { label: "Stage…", glyph: "stage", run: () => actionDialog.openStage(target, null) },
@@ -2454,7 +2531,8 @@ Window {
         Screens.remember = remember
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
-                             Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path), ClearGroups.open(path)]) {
+                             Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path), ClearGroups.open(path),
+                             Messages.open(path)]) {
             if (error !== "")
                 report(error)
         }
@@ -2500,6 +2578,9 @@ Window {
         audioDevice = String(saved("audioDevice", ""))
         const split = Number(saved("audioSplit", audioSplit))
         audioSplit = isFinite(split) ? Math.max(36, split) : 66
+        stageMessageText = String(saved("stageMessage", ""))
+        const messagesHeight = Number(saved("messagesSplit", messagesSplit))
+        messagesSplit = isFinite(messagesHeight) ? Math.max(36, messagesHeight) : 62
         editorNotes = String(saved("editorNotes", false)) === "true"
         const notesHeight = Number(saved("editorNotesHeight", editorNotesHeight))
         editorNotesHeight = isFinite(notesHeight) ? Math.max(60, notesHeight) : 150
@@ -2768,6 +2849,8 @@ Window {
     onAudioCrossfadeChanged: save("audioCrossfade", audioCrossfade)
     onAudioDeviceChanged: save("audioDevice", audioDevice)
     onAudioSplitChanged: save("audioSplit", audioSplit)
+    onStageMessageTextChanged: save("stageMessage", stageMessageText)
+    onMessagesSplitChanged: save("messagesSplit", messagesSplit)
     // What each stage screen has, as last noted in the log
     property var notedLayouts: ({})
 
@@ -2960,6 +3043,7 @@ Window {
                     slideOn: audienceHost.look.slide
                     mediaOn: audienceHost.look.media
                     propsOn: audienceHost.look.props
+                    messagesOn: audienceHost.look.messages
                     lookFade: win.lookFade
                     shader: transitionCatalogue.shaderUrl(win.transition)
                     options: win.transitionUniforms.options
@@ -2969,6 +3053,7 @@ Window {
                     transitionName: win.transition.name
                     props: win.shownProps
                     propsDuration: Math.round(Props.transitionDuration * 1000)
+                    messages: win.shownMessages
                     keyTarget: keys
                     Component.onCompleted: win.sceneMade(audienceHost.modelData, this, true)
                     Component.onDestruction: win.sceneGone(audienceHost.modelData, this)
@@ -2995,6 +3080,7 @@ Window {
                         slideOn: audienceHost.look.slide
                         mediaOn: audienceHost.look.media
                         propsOn: audienceHost.look.props
+                        messagesOn: audienceHost.look.messages
                         lookFade: win.lookFade
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
@@ -3004,6 +3090,7 @@ Window {
                         transitionName: win.transition.name
                         props: win.shownProps
                         propsDuration: Math.round(Props.transitionDuration * 1000)
+                        messages: win.shownMessages
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, ndiScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, ndiScene)
                     }
@@ -3251,6 +3338,58 @@ Window {
         value: ClearGroups.groups.map(group => ({ id: group.id, name: group.name, layers: group.layers }))
     }
 
+    // (How long a message is shown is said here: only one that goes after a time has
+    // any, and ProPresenter's third way, when its timers have run out, is by hand here.)
+    Binding {
+        target: Show
+        property: "messages"
+        value: Messages.messages.map(message => ({ id: message.id, name: message.name, seconds: message.clear === 1 ? message.seconds : 0 }))
+    }
+
+    // A message that has been shown is taken as it is at that moment (see
+    // messagesAsShown), and one that is shown no longer is let go of.
+    Connections {
+        target: Show
+
+        function onMessageShown(id) {
+            const message = Messages.messages.find(candidate => candidate.id === id)
+            if (!message)
+                return
+            const kept = Object.assign({}, win.messagesAsShown)
+            kept[id] = message
+            win.messagesAsShown = kept
+        }
+
+        function onMessagesChanged() {
+            const gone = Object.keys(win.messagesAsShown).filter(id => !Show.liveMessages.includes(id))
+            if (gone.length === 0)
+                return
+            const kept = Object.assign({}, win.messagesAsShown)
+            for (const id of gone) {
+                delete kept[id]
+                Messages.forget(id)
+            }
+            win.messagesAsShown = kept
+        }
+    }
+
+    // The words of each message that is shown, worked out here once for every screen
+    // and handed to Messages, where the text box that draws them reads them. One of
+    // these is made for each message that is shown and for no other, so a clock in a
+    // message is only asked for while that message is on the screens.
+    Instantiator {
+        model: win.shownMessages.map(shown => shown.id)
+
+        delegate: QtObject {
+            required property string modelData
+            readonly property var message: win.messagesAsShown[modelData]
+            readonly property string words: message !== undefined ? win.messageWords(message) : ""
+
+            onWordsChanged: Messages.setWords(modelData, words)
+            Component.onCompleted: Messages.setWords(modelData, words)
+        }
+    }
+
     // Show mode and edit mode, whichever of the app's windows has the keyboard and
     // whatever in it
     Shortcut {
@@ -3396,6 +3535,9 @@ Window {
                 break
             case Qt.Key_F5:
                 win.clearAudio()
+                break
+            case Qt.Key_F6:
+                win.clearMessages()
                 break
             default:
                 return
@@ -3720,6 +3862,8 @@ Window {
                 win.clearProps()
             else if (event.key === Qt.Key_F5)
                 win.clearAudio()
+            else if (event.key === Qt.Key_F6)
+                win.clearMessages()
             else
                 return
             event.accepted = true

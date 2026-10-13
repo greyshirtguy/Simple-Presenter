@@ -36,17 +36,21 @@ Item {
         return element ?? spare.element
     }
 
-    // Whether an element shows now, for one with a rule about a timer: such a rule is
-    // met or not as the timer runs, so it is asked while the slide is on show, where
-    // every other rule was settled when the slide's map was made (`met`).
+    // Whether an element shows now, for one with a rule about a timer, or about an
+    // element that shows what the stage is being told (`staged`): such a rule is met or
+    // not as the timer runs, or as the stage is told something, so it is asked while
+    // the slide is on show, where every other rule was settled when the slide's map was
+    // made (`met`). (An element with a rule of the second kind is not hidden by being
+    // hidden in the file: see toSlideMap, src/proconvert.cpp.)
     function showsNow(element) {
-        if (element.hidden)
+        if (element.hidden && element.visibilityStaged !== true)
             return false
         const conditions = element.visibilityConditions
         let met = 0
         for (const condition of conditions) {
             if (condition.timed ? Timers.meets(condition.timerId, condition.timerName, condition.timerCriterion)
-                                : condition.met)
+                : condition.staged ? (Show.stageMessage !== "") === condition.hasText
+                : condition.met)
                 ++met
         }
         // All of them, any of them, or none of them, as the element has it
@@ -90,7 +94,8 @@ Item {
                 source: modelData
                 unit: root.u
                 effects: root.effects
-                // Reading the tick is what has a rule about a timer asked again.
+                // Reading the tick is what has a rule about a timer asked again. (And
+                // one about the stage message reads that, where it is asked.)
                 visible: modelData.visibilityTimed ? Timers.tick >= 0 && root.showsNow(modelData) : modelData.visible
             }
         }

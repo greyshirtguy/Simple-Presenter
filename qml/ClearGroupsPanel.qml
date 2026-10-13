@@ -10,13 +10,13 @@ import SimplePresenterApp
 // The groups are ProPresenter's (see src/clearfile.h, which says how the file keeps
 // them), and what is here is what a group has there:
 //
-//   - The layers are ProPresenter's eight, in its order. This app has five of them
+//   - The layers are ProPresenter's eight, in its order. This app has six of them
 //     (the audio and the audio effects, which are the whole of its audio layer and the
-//     sound effects alone, the props, the slide and the media); the others are shown
-//     greyed, as the group has them in the file, and cannot be changed here. Nothing a
-//     group says of them is lost.
+//     sound effects alone, the messages, the props, the slide and the media); the
+//     others are shown greyed, as the group has them in the file, and cannot be
+//     changed here. Nothing a group says of them is lost.
 //
-//     TO COME: as this app gains a layer (messages, announcements, video
+//     TO COME: as this app gains a layer (announcements, video
 //     inputs), it is switched on here by being marked as one of ours in
 //     src/clearfile.cpp, which is all this window goes by; the show is then to clear
 //     it (State::clearGroup in src/showstate.cpp), and it wants a clear button of its

@@ -105,7 +105,8 @@ QtObject {
                 check("a piece whose file is not on this computer is missing, and the others are found", audioFiles.map(a => a.missing).join() === "false,false,true,false,false"
                       && piece("Walk In").path === sounds + "/Walk In.wav", piece("Walk In").path)
                 check("nothing of the audio bin is made until its tab is come to", named("audioList") === null && named("audioPlaylistList") === null)
-                check("the show controls have a tab for it, the fifth", Lib.findAll(sidePanel, item => item.modelData !== undefined && item.modelData !== null && item.modelData.picture !== undefined && item.chosen !== undefined).length === 5)
+                const controlTabs = Lib.findAll(sidePanel, item => item.modelData !== undefined && item.modelData !== null && item.modelData.picture !== undefined && item.chosen !== undefined)
+                check("the show controls have a tab for it, the fifth", controlTabs.length === 6 && controlTabs[4].modelData.id === "audio", controlTabs.map(x => x.modelData.id).join())
                 sidePanel.showControlTab = "audio"
                 return 500
             },

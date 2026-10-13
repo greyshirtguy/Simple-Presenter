@@ -278,11 +278,27 @@ private slots:
         QTemporaryDir workspace;
         writeProPresenters(workspace.path());
         const quint64 was = fileItself(workspace.path());
-        QCOMPARE(ourLayers(), (QStringList {"audio", "audioEffects", "props", "slide", "media"}));
+        QCOMPARE(ourLayers(), (QStringList {"audio", "audioEffects", "messages", "props", "slide", "media"}));
         QCOMPARE(layers(), kEveryLayer);
-        for (const QString &layer : {QStringLiteral("messages"), QStringLiteral("announcements"), QStringLiteral("videoInput"), QStringLiteral("logo")})
+        for (const QString &layer : {QStringLiteral("announcements"), QStringLiteral("videoInput"), QStringLiteral("logo")})
             QVERIFY(!setLayer(workspace.path(), kOwn, layer, false).isEmpty());
         QCOMPARE(fileItself(workspace.path()), was);
+    }
+
+    void theMessagesCanBeTakenFromAGroupAndGivenBack()
+    {
+        QTemporaryDir workspace;
+        writeProPresenters(workspace.path());
+        const Document before = fileOf(workspace.path());
+        QString error;
+        QCOMPARE(setLayer(workspace.path(), kOwn, "messages", false), QString());
+        QCOMPARE(groups(workspace.path(), &error).first().layers,
+                 (QStringList {"audio", "audioEffects", "props", "announcements", "slide", "media", "videoInput"}));
+        // The second group, which never had them, is given them: and is otherwise as it was
+        QCOMPARE(setLayer(workspace.path(), kSecond, "messages", true), QString());
+        QVERIFY(groups(workspace.path(), &error).at(1).layers.contains("messages"));
+        QCOMPARE(setLayer(workspace.path(), kSecond, "messages", false), QString());
+        QCOMPARE(encoded(fileOf(workspace.path()).groups(1)), encoded(before.groups(1)));
     }
 
     void theTwoHalvesOfTheAudioCanBeChangedAndNothingElseIsWith()

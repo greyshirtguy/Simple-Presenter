@@ -177,6 +177,7 @@ QString layerWords(const Action::ClearType &clear, bool *done)
     case Clear::CLEAR_TARGET_LAYER_LOGO:
         return QStringLiteral("Clear to the logo");
     case Clear::CLEAR_TARGET_LAYER_MESSAGES:
+        *done = true;
         return QStringLiteral("Clear the messages");
     case Clear::CLEAR_TARGET_LAYER_AUDIO_EFFECTS:
         *done = true;
@@ -288,12 +289,23 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("groupName", text(group.parameter_name()));
         map.insert("picture", QStringLiteral("Clear"));
         map.insert("title", QStringLiteral("Clear the group %1").arg(quoted(text(group.parameter_name()))));
+    } else if (action.has_message()) {
+        // A message of the workspace's, to be shown: found by its id, or failing that
+        // by its name, when the action is run (see show::State).
+        //
+        // NOT READ: what the action says its tokens are to be given. ProPresenter lets
+        // an action carry words for a message's tokens (a name, say), and shows the
+        // message with those; here it is shown with what its tokens were last given in
+        // the messages' own panel.
+        const Identification &message = action.message().message_identificaton();
+        map.insert("kind", QStringLiteral("message"));
+        map.insert("messageId", text(message.parameter_uuid().string()));
+        map.insert("messageName", text(message.parameter_name()));
+        map.insert("picture", QStringLiteral("Message"));
+        map.insert("title", QStringLiteral("Show the message %1").arg(quoted(text(message.parameter_name()))));
     } else {
         const QString about = subject(action);
         map.insert("kind", QStringLiteral("other"));
-        // (Of the kinds not done here, ProPresenter's pack has a picture for a message.)
-        if (action.has_message())
-            map.insert("picture", QStringLiteral("Message"));
         map.insert("title", typeWords(action.type()) + (about.isEmpty() ? QString() : QStringLiteral(": ") + about));
         map.insert("done", false);
     }

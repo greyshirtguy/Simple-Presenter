@@ -180,10 +180,11 @@ QtObject {
                       layers.join() === "mask,messages,props,announcements,theme,slide,media,videoInput", layers.join())
                 check("with the screens across the top: a tick box for each layer this app has",
                       box("props", kept.room).available && box("slide", kept.stream).available && box("media", kept.room).checked === true
-                      && box("media", kept.stream).checked === false && box("slide", kept.stream).checked === true)
-                check("and ProPresenter's other layers shown as the look has them, greyed, not to be changed", box("messages", kept.room).available === false
+                      && box("media", kept.stream).checked === false && box("slide", kept.stream).checked === true
+                      && box("messages", kept.room).available && box("messages", kept.room).checked === Looks.liveOf(kept.room).messages)
+                check("and ProPresenter's other layers shown as the look has them, greyed, not to be changed", box("videoInput", kept.stream).available === false
                       && box("announcements", kept.stream).available === false && box("videoInput", kept.room).available === false
-                      && box("messages", kept.room).checked === Looks.liveOf(kept.room).messages)
+                      && box("announcements", kept.room).checked === Looks.liveOf(kept.room).announcements)
                 testInput.grab("2-looks-window")
                 kept.before = JSON.stringify(look("Lyrics L3rd").screens)
                 click(centre(box("props", kept.room)))
@@ -197,8 +198,22 @@ QtObject {
                       && Looks.live.origin === kept.lyrics)
                 check("the preview in the operator window shows what the screen it stands for is given: no props now",
                       named("previewProps").visible === false && named("previewSlide").visible === true)
+                click(centre(box("announcements", kept.room)))
+                check("a greyed layer does not answer to a click", Looks.liveOf(kept.room).announcements === true)
+                // The messages are a layer of this app's, and a look says which screens get them
                 click(centre(box("messages", kept.room)))
-                check("a greyed layer does not answer to a click", Looks.liveOf(kept.room).messages === true)
+                return 700
+            },
+            () => {
+                check("the messages switched off in the live look are off that screen at once, the other screen having them as its own line says",
+                      Looks.liveOf(kept.room).messages === false && output.messagesOn === false && scenes[kept.stream].messagesOn === Looks.liveOf(kept.stream).messages
+                      && named("previewMessages").visible === false,
+                      JSON.stringify([Looks.liveOf(kept.room).messages, output.messagesOn, scenes[kept.stream].messagesOn, named("previewMessages").visible]))
+                click(centre(box("messages", kept.room)))
+                return 700
+            },
+            () => {
+                check("and switched on again are back", Looks.liveOf(kept.room).messages === true && output.messagesOn === true && named("previewMessages").visible === true)
                 // The slides taken off the room's screen: off the screen itself, and off the preview
                 kept.litWithSlide = testInput.lit(false, 0, 0.12, 1, 0.88)
                 click(centre(box("slide", kept.room)))

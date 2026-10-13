@@ -67,10 +67,11 @@ its sound, and one thing gives way to the next through a [transition](#transitio
 there is an equivalent of every slide transition ProPresenter has, under the names it
 gives them, and eighteen more.
 
-**It has timers, props, stage layouts and macros,** on four tabs under the previews: a
-countdown that a slide can start, something to lay over the slides until it is
-cleared, what the people on the stage are shown, and a list of things to do at one
-click. A slide or a macro can carry [actions](#actions) that work them: start a timer,
+**It has timers, props, stage layouts, macros, an audio bin and messages,** on six
+tabs under the previews: a countdown that a slide can start, something to lay over
+the slides until it is cleared, what the people on the stage are shown, a list of
+things to do at one click, music and sound effects, and things to say over everything
+else, with a name or a room put in as they are shown. A slide or a macro can carry [actions](#actions) that work them: start a timer,
 clear a layer, give the stage another layout, put a prop on, run a macro, go over to
 another look.
 
@@ -126,7 +127,7 @@ a slide is up, and plays a 4K video under the words with most of the machine to 
 see [Built for modest hardware](#built-for-modest-hardware).
 
 **What it cannot do** is a longer list. ProPresenter does a great deal more than this:
-there are no announcements, no messages and no Bible here yet, among much else. See
+there are no announcements, no masks and no Bible here yet, among much else. See
 [TODO](#todo).
 
 ### Custom features
@@ -187,6 +188,15 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Messages, and the stage message.** ProPresenter's [messages](#messages) are a
+  sixth tab of the show controls: named things to say over everything else, each with
+  its words, **tokens** among them for what is only known when it is shown (a name, a
+  room, the time of day, a timer), a theme to be drawn in, and how it goes away, by
+  hand or after a time. They are shown on a layer of their own, over the props, with a
+  clear button of its own (F6); the clear groups and the looks have that layer too.
+  And the stage tab has the **stage message**: what is typed there is shown by every
+  text box linked to the stage message, which can flash as it comes
+  ([Stage layouts](#stage-layouts)).
 - **A chord dragged out of the strip.** In the [chord editor](#chords), each of the
   key's seven chords along the top of the sheet can be dragged down onto a word, on
   any slide, and let go there. A lit bubble shows where it would land; where there is
@@ -359,8 +369,12 @@ the top of this page.
       plays once with its sound.
 - [ ] **Show controls**: the timers, the props, the stage layouts and the macros are
       there, for as many stage screens as are wanted. Still to come: more of what a
-      stage layout can show (pictures of the slides and of the output, stage
-      messages); a prop's own transition and clearing itself after a time.
+      stage layout can show (pictures of the slides and of the output); a prop's own
+      transition and clearing itself after a time.
+- [ ] **Messages**: they are there (see [Messages](#messages)). Still to come: making
+      an action that shows one, and what such an action gives the message's tokens; a
+      message that goes when its timers have run out; setting how a timer in a message
+      is written; and messages seen on the network.
 - [ ] **Helping yourself with an AI**: the advice, and what an agent is told, are there
       ([Helping yourself, with an AI](#helping-yourself-with-an-ai)). Still to do, so
       that an agent or anyone else can check its own work: a workspace that can be
@@ -369,13 +383,14 @@ the top of this page.
       command that runs every check there is; and the checks run by themselves on every
       pull request.
 - [ ] **Clear groups**: they are there, for the layers this app has (the slide, the
-      media, the props, the audio and the audio effects). Still to come: the other
-      layers a group can name (messages, announcements, video inputs), each of which
+      media, the props, the messages, the audio and the audio effects). Still to come:
+      the other layers a group can name (announcements, video inputs), each of which
       also wants a clear button of its own when the layer comes; giving a group a
       picture of one's own; and putting the groups in another order by dragging.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
-      stage, props, macros, looks and audio, and those are run. Still to come: the rest
-      of ProPresenter's kinds (messages, communications, capture and more, which
+      stage, props, macros, looks and audio, and those are run; so is one that shows a
+      message, which cannot be made here yet. Still to come: the rest
+      of ProPresenter's kinds (communications, capture and more, which
       are kept in the files and shown, and not done), an action's delay, putting a
       slide's or a macro's actions in another order, and the clear layers the app
       does not have yet.
@@ -394,7 +409,6 @@ experiment.
 
 - [ ] **A simple help file**: the app's own features explained in one place, in the app
 - [ ] **Announcements**
-- [ ] **Messages**
 - [ ] **Masks**
 - [ ] **Video input**
 - [ ] **Clear to logo**
@@ -613,7 +627,7 @@ the previews and controls on the right and the media bin, and gives the slides t
 whole window.
 
 Nothing about the show changes with it. Slides are clicked as ever, the arrow keys step
-through them and from one presentation to the next, F1 to F4 are the clears, and media
+through them and from one presentation to the next, F1 to F6 are the clears, and media
 can still be dropped on a slide or between two. A line over the slides says which
 presentation this is.
 
@@ -731,9 +745,10 @@ nearly black: a great many videos fade in from black, and their first frame says
 nothing about which video it is.
 
 Under the previews are the **clears**, in two rows. The first is the layers: the slide
-(F2), the media (F3) and the props (F4), each red while there is something there for it
-to clear. The second is the workspace's [clear groups](#clear-groups), a button each,
-the first of which is what F1 clears: to begin with that is Clear All. Under those is
+(F2), the media (F3), the props (F4), the audio (F5) and the messages (F6), each red
+while there is something there for it to clear. The second is the workspace's
+[clear groups](#clear-groups), a button each, the first of which is what F1 clears: to
+begin with that is Clear All. Under those is
 the **transport**, for the video on the output: how far in it is and how much is left, a
 slider that can be dragged to move it, and buttons to go back to the start, to play or
 pause, and to skip fifteen seconds back or on.
@@ -911,6 +926,81 @@ shown as edited once the editor is left. Props come and go with a dissolve, over
 length of time ProPresenter has for it in the workspace (half a second where it says
 nothing). A workspace's props are ProPresenter's own, in `Configuration/Props`.
 
+## Messages
+
+A **message** is something to say on the screens over everything else: a parent wanted
+at the creche, a car with its lights on. Messages are the sixth tab of the show
+controls, the one with ProPresenter's paper plane on it. They are shown on a layer of
+their own, over the props, any number at once; and they are ProPresenter's own, kept
+in its file of them (`Configuration/Messages`).
+
+At the top of the tab are the workspace's messages, by name; under them, with a line
+between that is dragged to share out the height, what the one picked is made of; and at
+the bottom right the button that shows it and hides it. The `+` makes a message, with
+its name ready to be typed over. A right click on one shows or hides it, renames it or
+removes it.
+
+What a message is made of, from the top:
+
+- **Its words**, in a box. Among them can be **tokens**: places where something is put
+  in when the message is shown. A token is a small rounded label in the box, which is
+  moved over and deleted as one thing. The words are saved a moment after the typing
+  stops.
+- **The box that adds a token.** Its arrow has the tokens there are to pick from:
+  **Name**, **Room** and **Message**, which are given words by whoever shows the
+  message; and **System Clock** and **Timer** (which leads to the workspace's
+  [timers](#timers)), which need nothing typed and go on changing while the message is
+  shown. A name typed into the box, and Enter, makes a token of that name. A token goes
+  in where the caret is. One the message has already is used again, so that one typing
+  fills every place it stands in.
+- **A box for each token that is given words**, to type them in before the message is
+  shown. They are kept with the message.
+- **Theme**: the slide of a [theme](#themes) the message is drawn in, from the menu of
+  themes a slide's own menu has. The theme slide is shown as it is, with the message's
+  words in its first text box, in that box's font and colour. With no theme, the words
+  are white on a dark band across the foot of the screen.
+- **Hide**: how the message goes away. **Manually**, or **After Time**, which leads to
+  5, 10, 15, 20, 30, 45 or 60 seconds.
+
+**Show** puts the message on the screens, and the button then says **Hide**. What is
+on the screens is the message as it was when it was shown: words typed while it is
+shown are not there until it is shown again, and while the message is other than what
+is being shown the button says Show, which does that. Its time, if it has one, starts
+again then.
+
+The messages have a clear button of their own, the fifth of the layers', and **F6**. A
+[clear group](#clear-groups) that has the messages clears them, as Clear All does; an
+action on a slide or in a macro that clears the messages, or shows one, is done; and a
+[look](#looks) says which screens get the messages, as it does for the props.
+
+What is a guess, or not done:
+
+- ProPresenter's own pane was described, not looked at. The order of things in it and
+  what each is called are as described. That a token is used again where one of its
+  name is asked for twice, that a message which is shown is not changed by typing into
+  it, where the tab stands among the others, and that F6 is the key that clears the
+  messages, are guesses.
+- How a theme is used for a message is a guess: its first text box takes the words
+  (the first thing on the theme slide with words in it, which is how dressing a slide
+  in a theme takes a theme's text boxes; or, on a slide where nothing has words, the
+  first thing on it), and the rest of the theme slide is shown with it.
+- The file was learnt from its format and from one file of someone else's: no
+  workspace here had a message in it. Where this writes what that one file has no
+  example of (what a text token was given, a clock), it is a guess that ProPresenter
+  writes it so.
+- A timer in a message shows the timer as it stands. ProPresenter keeps a setting of
+  the timer with the token, and how its time is written: the first is kept and not
+  gone by (the timer is not set going), and the second is gone by and cannot be
+  changed here. A timer put in here is written in minutes and seconds.
+- A message set in ProPresenter to go when its timers have run out stays until it is
+  hidden.
+- An action that shows a message cannot be made here, only run; and what such an
+  action says the message's tokens are to be given is not read. The message is shown
+  with what they were last given here.
+- Whether a message can be seen on the network (ProPresenter's web notifications) is
+  kept as the file has it, and nothing is done about it.
+- The tab has little room in a small window, and what a message is made of scrolls.
+
 ## Clear groups
 
 A **clear group** is a named set of layers that are cleared together, at one click.
@@ -921,7 +1011,7 @@ shown that group too, and the file is not written until something is changed.
 
 Each group has a button, in a row of its own under the clears of the layers, in the
 order the groups are in. The buttons share the width between them, so the one group a
-workspace starts with has a button as wide as the four above it, with its picture and
+workspace starts with has a button as wide as the five above it, with its picture and
 its name; several have room for their pictures alone. A button is red while any of the
 group's layers has something on it, and a click clears them. **F1 clears the first
 group**, which is Clear All unless the list has been put in another order. A group's
@@ -934,8 +1024,8 @@ one picked has.
 
 - **The layers it clears.** ProPresenter's eight, in its order: audio, audio effects,
   messages, props, announcements, the slide, the media and video inputs. This app has
-  five of them (the audio, the audio effects, the props, the slide and the media), and
-  those are ticked and unticked. The audio is the whole of the [audio](#audio) layer,
+  six of them (the audio, the audio effects, the messages, the props, the slide and
+  the media), and those are ticked and unticked. The audio is the whole of the [audio](#audio) layer,
   its music and its sound effects; the audio effects are the sound effects alone, so
   that a group can stop those and leave the music playing. The others are greyed:
   they are shown as the group has them in the file, are kept exactly so, and cannot be
@@ -1011,8 +1101,12 @@ needs nothing more either. So can the **clear
 buttons** under the previews, each of which gives the slide the action that clears its
 layer, or its group; and those can be dropped on a macro as well.
 
-ProPresenter has many more kinds of action than these eight (messages,
-communications and so on). A slide or a macro that has one keeps it: it is shown as a
+An action that shows a [message](#messages), which a slide or a macro may have from
+ProPresenter, is run too: the message is shown, with what its tokens were last given
+here. One cannot be made here yet.
+
+ProPresenter has many more kinds of action than these (communications, capture and so
+on). A slide or a macro that has one keeps it: it is shown as a
 fainter icon, said for what it is, written back untouched and not done. An action for
 a timer, a prop, a macro, a layout, a look or a clear group that is not in the
 workspace does nothing, and the [log](#log) says so; so does one that plays a sound
@@ -1113,9 +1207,22 @@ and changed in the same [editor](#editing) as a slide. A text box of one can sho
   box's own font and colour, or the notes as they were written;
 - the time of a [timer](#timers);
 - the time of day, and the date;
-- how long the video that is playing has left.
+- how long the video that is playing has left;
+- what the stage is being told: the stage message.
 
 [Editing](#editing) has how each is set, under Linked text.
+
+Along the bottom of the tab is the **stage message**: a box to type in what the people
+on the stage are to be told, and a button that shows it and hides it. Enter in the box
+shows it too. Shown, it is what every text box linked to the stage message shows, on
+whichever layout has one; ProPresenter's own layouts have one, which is there only
+while a message is. Such a box can be set to **flash** when a message is shown: its
+fill is the colour chosen for that, on and off four times a second, for two seconds.
+Words typed while a message is shown wait to be shown, and the button says Show again
+for them. What is in the box is kept from one start of the app to the next; that a
+message is being shown is not. (Guesses at ProPresenter: that the box is one line and
+Enter shows it; the beat of the flash; and that a box which ProPresenter's file marks
+hidden, with a rule that it shows when it has text, is shown while a message is.)
 
 The `+` makes a layout to start from, with a box for each of the two slides, gives it
 to the first stage screen and opens it in the editor. The editor's own list of layouts has a `+`
@@ -1127,8 +1234,8 @@ and the next slide, including those that take only the text of the slide's eleme
 a given name (and nothing at all of a slide that has no element of that name, which is
 how ProPresenter has it and is made use of), and with a song's chords over them where a
 box has those switched on; a slide's notes; timers; the clock; the time left of a
-video; and boxes that show only while a timer is running, or has run out. What they
-have that is not shown yet (the stage message, pictures of the slides or of an output)
+video; the stage message; and boxes that show only while a timer is running, or has
+run out. What they have that is not shown yet (pictures of the slides or of an output)
 is left empty on the stage, and in the editor is marked with what it is; the links
 themselves are kept, so the layouts still work in ProPresenter.
 
@@ -1226,6 +1333,10 @@ choose between three ways of working. **Slides** is everything described here.
   - **Video Countdown** shows how long the video that is playing on the output has
     left, written a part at a time as a timer is, and nothing (`00:00`, say) while no
     video plays. A tick box has videos that loop left out.
+  - **Stage Message** shows what the stage is being told
+    ([Stage layouts](#stage-layouts)), and nothing until it is told something. A tick
+    box has the box flash when a message is shown, in the colour beside it: to begin
+    with, the red ProPresenter's own layouts flash.
 
   A linked box has a yellow outline in the editor, and in small yellow print at its
   foot what it is linked to. Some of this is a guess at ProPresenter, whose own menu
@@ -1676,8 +1787,8 @@ the top one first.
 
 | Row | What it is |
 | --- | --- |
-| Masks, Messages, Announcements, Video Input | ProPresenter's layers that this app has not yet. They are shown greyed, as the look has them in the file, cannot be changed here, and are kept as they are |
-| Props, Slide, Media | A tick box for each screen: whether that screen gets the layer |
+| Masks, Announcements, Video Input | ProPresenter's layers that this app has not yet. They are shown greyed, as the look has them in the file, cannot be changed here, and are kept as they are |
+| Messages, Props, Slide, Media | A tick box for each screen: whether that screen gets the layer |
 | Presentation | Not a layer but the **theme** that screen's slides are dressed in as they are shown: a circle with a line through it for none, or a theme slide, chosen from the same menu of themes a slide's own menu has |
 
 Picking a look in the list shows it, to be read and changed; it does not make it live.
@@ -1839,7 +1950,7 @@ NDI® is a registered trademark of Vizrt NDI AB.
 | Right, Space / Left | Next / previous slide |
 | Down / Up | Next / previous presentation |
 | F1 | Clear the first [clear group](#clear-groups), which to begin with is Clear All |
-| F2 / F3 / F4 / F5 | Clear the slide layer / media layer / props / audio |
+| F2 / F3 / F4 / F5 / F6 | Clear the slide layer / media layer / props / audio / messages |
 | ~, held for most of a second | [Simple View](#simple-view) on or off |
 | A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
 | A number, then Enter | Goes to the slide with that number |
@@ -1907,7 +2018,7 @@ In the editor:
 | Ctrl+Z / Ctrl+Shift+Z, Ctrl+Y | Undo / redo |
 | Shift while dragging | Move in a straight line; resize from a corner in proportion |
 | Ctrl while dragging | No snapping |
-| F1 / F2 / F3 / F4 / F5 | The clears, as when showing |
+| F1 / F2 / F3 / F4 / F5 / F6 | The clears, as when showing |
 
 The chord editor has keys of its own, which are listed with it: [Chords](#chords).
 
@@ -2150,8 +2261,8 @@ What gets it there:
 
 The app is a window, some screens and a folder. The folder is the workspace. The operator
 window is where the show is run from; an audience screen is what the audience sees, a media
-layer with a slide layer over it and the props over both, in a window, on a display or
-sent over the network ([Screens](#screens)); a stage screen is what the
+layer with a slide layer over it, the props over both and the messages over all three,
+in a window, on a display or sent over the network ([Screens](#screens)); a stage screen is what the
 people on stage see.
 
 The code is in two halves. The C++ in `src/` does files and pixels: it reads and writes
@@ -2364,8 +2475,8 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: forty scripts and over nineteen
-hundred checks. They run on a desktop of their own that shows nowhere, on copies of
+and look at what its windows then hold and show: forty-one scripts and about two
+thousand checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
 which a release does not have:
@@ -2401,6 +2512,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/groupedit.*` | Putting a slide, and those after it in its group, into another group, as ProPresenter does |
 | `src/labelfile.*`, `src/labels.*` | Slide labels: a slide's own, and the labels a workspace keeps ready, in ProPresenter's list of them |
 | `src/clearfile.*`, `src/cleargroups.*` | The workspace's clear groups, in ProPresenter's file of them: the layers each clears, its picture and tint, and adding to, changing and removing them |
+| `src/messagefile.*`, `src/messages.*` | The workspace's messages, in ProPresenter's file of them: a message's words and tokens, its theme and how it goes away, read and changed; a message as a slide in its theme; and the words one is showing |
+| `src/messagetext.*` | A message's words in a box they are typed in, each token a small label among them, and the pictures of those labels |
 | `src/decodingchoice.*`, `src/videodecoding.*` | Who decodes video, the graphics chip or the processor alone: the rule by which that is settled as the app starts, and what QML reads it by |
 | `src/decodingguard.*` | The guard on hardware video decoding: which computers have a graphics driver whose decoder is not to be tried (nouveau without its decoder's firmware) |
 | `src/cursors.*` | The pointer for turning an element in the editor, and whether Ctrl is held |
@@ -2464,7 +2577,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps the windows of the screens out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
-| `qml/PropsLayer.qml` | The props that are on, over the other layers |
+| `qml/PropsLayer.qml` | The props that are on, over the other layers; and, over those, the messages that are shown |
+| `qml/MessagesPanel.qml` | The messages, a tab of the show controls |
 | `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
 | `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions |

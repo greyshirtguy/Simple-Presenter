@@ -177,9 +177,9 @@ QtObject {
                 const tags = rows().map(row => row.modelData.name + (Lib.findAll(row, i => i.font !== undefined && i.visible && (i.text === "F1" || i.text === "hidden")).map(i => "/" + i.text).join("")))
                 check("its list has every group, the first marked as the one F1 clears and the one out of sight as hidden",
                       tags.join("|") === "Clear All/F1|Words|Out Of Sight/hidden|Own", tags.join("|"))
-                check("the layers are ProPresenter's eight in its order; the five this app has can be changed and the others are greyed, as the group has them",
-                      layersShown() === "+Audio +Audio Effects +Messages(grey) +Props +Announcements(grey) +Slide +Media +Video Input(grey)", layersShown())
-                const greyed = layerBox("messages")
+                check("the layers are ProPresenter's eight in its order; the six this app has can be changed and the others are greyed, as the group has them",
+                      layersShown() === "+Audio +Audio Effects +Messages +Props +Announcements(grey) +Slide +Media +Video Input(grey)", layersShown())
+                const greyed = layerBox("announcements")
                 const ours = layerBox("slide")
                 check("drawn so: a greyed one is fainter than one of ours", greyed.opacity < 0.6 && ours.opacity === 1 && strokes(ours).light >= 3)
                 check("its picture is the one called All, picked out among the thirty-two", Lib.findAll(named("clearPictures"), i => String(i.objectName).startsWith("clearPicture:")).length === 32
@@ -190,7 +190,7 @@ QtObject {
             },
             () => {
                 check("another group picked shows what that one has: its two layers, its bell, and its tint switched on, in its blue", named("clearGroupsTitle").text === "Words"
-                      && layersShown() === "-Audio -Audio Effects +Messages(grey) -Props -Announcements(grey) +Slide -Media -Video Input(grey)"
+                      && layersShown() === "-Audio -Audio Effects +Messages -Props -Announcements(grey) +Slide -Media -Video Input(grey)"
                       && named("clearPicture:20").chosen && named("clearTint").checked && named("clearTintColor").available
                       && like(String(named("clearTintColor").value), "#1e88e5", 2), layersShown() + " " + named("clearTintColor").value)
                 testInput.grab("3-second-group")
@@ -276,7 +276,7 @@ QtObject {
                 check("the + makes a group, last in the list, picked, with its name to be typed over", ClearGroups.groups.length === 5 && made.name === "Clear Group"
                       && named("clearGroupsTitle").text === "Clear Group" && box !== null && box.activeFocus && box.selectedText === "Clear Group", made.name)
                 check("it clears nothing yet, and its picture is the first digit no group has", made.layers.length === 0 && made.icon === 1 && made.picture === "1" && !made.tinted
-                      && layersShown() === "-Audio -Audio Effects -Messages(grey) -Props -Announcements(grey) -Slide -Media -Video Input(grey)", layersShown())
+                      && layersShown() === "-Audio -Audio Effects -Messages -Props -Announcements(grey) -Slide -Media -Video Input(grey)", layersShown())
                 testInput.type("Offering")
                 testInput.key(Qt.Key_Return)
                 return 500

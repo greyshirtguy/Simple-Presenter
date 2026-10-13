@@ -92,6 +92,15 @@ target_include_directories(tst_clearfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_clearfile PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME clearfile COMMAND tst_clearfile)
 
+qt_add_executable(tst_messagefile
+    tst_messagefile.cpp
+    ${PROJECT_SOURCE_DIR}/src/messagefile.h
+    ${PROJECT_SOURCE_DIR}/src/messagefile.cpp
+)
+target_include_directories(tst_messagefile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_messagefile PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME messagefile COMMAND tst_messagefile)
+
 qt_add_executable(tst_decodingchoice
     tst_decodingchoice.cpp
     ${PROJECT_SOURCE_DIR}/src/decodingchoice.h
