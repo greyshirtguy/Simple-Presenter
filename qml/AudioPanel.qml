@@ -17,7 +17,8 @@ import SimplePresenterApp
 //
 // At a piece's right is how it plays on from its end: it stops (a square), it goes
 // round (an arrow going round), or the next of the playlist follows it (an arrowhead
-// against a bar). A right click has those three, and Music and Sound Effect.
+// against a bar). A right click has those three, and Music and Sound Effect. The list
+// stays where it was scrolled to when a piece is changed so, moved, added or taken out.
 //
 // A piece can be dragged: onto a slide, which gives the slide an action that plays it;
 // onto the tab of the macros, which comes forward after a moment, and there onto a
@@ -59,6 +60,8 @@ Item {
     // leaves
     readonly property var pieces: win.audioFiles
     readonly property var shown: win.audioFilter.trim() === "" ? pieces : Search.narrowed(pieces, win.audioFilter)
+    // (The list is given them by hand, to stay where it is: see its show().)
+    onShownChanged: pieceList.show()
     // How high the playlists are, the pieces having the rest: what is asked for, kept
     // within what leaves both something
     readonly property real listHeight: Math.max(36, Math.min(win.audioSplit, height - 118))
@@ -292,7 +295,39 @@ Item {
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             spacing: 2
-            model: panel.shown
+
+            // Which playlist the rows are of, and what the box at the bottom narrowed it
+            // to: while that is the same, the list stays where it was scrolled to.
+            property string shownOf
+            property bool given: false
+            readonly property real rowHeight: 27
+
+            // Gives the list its rows. They are given here, and not by the list being
+            // told to follow `shown`, so that it can be put back where it was. A list
+            // that is given other rows starts again at its top, and the rows are other
+            // rows after every change to the playlist, which is read again whole: a
+            // piece far down the list that was made a sound effect, or set to go
+            // round, was out of sight the moment it was. So where the rows are still
+            // those of the same playlist, narrowed the same way, the list is put back
+            // where it was, or as near as it can be if it has got shorter. Another
+            // playlist, or other words in the box, starts at the top.
+            function show() {
+                const of = panel.win.audioPlaylistId + "\n" + panel.win.audioFilter.trim()
+                const scrolledTo = contentY
+                model = panel.shown
+                if (of === shownOf) {
+                    const all = count > 0 ? count * (rowHeight + spacing) - spacing : 0
+                    contentY = Math.max(0, Math.min(scrolledTo, all - height))
+                }
+                shownOf = of
+                given = true
+            }
+
+            // (Once, if it has not been told of the rows by then: they are not made twice.)
+            Component.onCompleted: {
+                if (!given)
+                    show()
+            }
 
             ScrollBar.vertical: ScrollBar {}
 
@@ -308,7 +343,7 @@ Item {
 
                 objectName: "audioRow"
                 width: pieceList.width
-                height: 27
+                height: pieceList.rowHeight
                 radius: 5
                 // What is playing is the orange of what is live everywhere else.
                 color: sounding ? "#7a4a17" : pieceMouse.containsMouse ? "#33353a" : "transparent"

@@ -9,7 +9,8 @@ import "lib.js" as Lib
 // sound effects over it and over each other; a piece followed by the next of its playlist, past one whose file is not
 // there; one that goes round; crossing one piece of music into the next; clearing, by the button, by F5 and by the
 // first clear group. The box that narrows the list, the fade's length dragged and typed, the line between the two
-// lists dragged. A row's menu: how it plays on, music or a sound effect. Sound files added, a playlist made. A piece
+// lists dragged. A row's menu: how it plays on, music or a sound effect. Sound files added, and that a long list
+// stays where it was scrolled to when a piece far down it is changed. A playlist made. A piece
 // dragged onto a slide, onto a macro by way of the macros' tab, and onto the bare list of the macros. The device
 // sound is played through, in the settings. What the files then hold is looked at when the test is over, by
 // after_audio in run.py.
@@ -396,6 +397,79 @@ QtObject {
                 check("files that are no sound files are turned away", catalog.addAudio(audioPlaylistId, ["file://" + sounds + "/notes.txt"]) !== "" && audioFiles.length === kept.before + 1)
                 check("and so the count says", named("audioCount").text === "6 items", named("audioCount").text)
 
+                // ---- The list stays where it is
+                const list = named("audioList")
+                kept.furthest = list.count * 29 - 2 - list.height
+                list.contentY = kept.furthest
+                return 300
+            },
+            () => {
+                const list = named("audioList")
+                const last = row("Extra Tune")
+                kept.scrolled = list.contentY
+                kept.lastAt = last.mapToItem(null, 0, 0).y
+                check("the pieces are more than the list has room for, and it is scrolled to its end", kept.furthest > 40 && Math.abs(kept.scrolled - kept.furthest) < 1
+                      && row("Walk In") !== null && list.contentY < kept.scrolled, kept.scrolled + " of " + kept.furthest)
+                list.contentY = kept.scrolled
+                return 300
+            },
+            () => {
+                click(centre(row("Extra Tune")), Qt.RightButton)
+                return 300
+            },
+            () => {
+                click(menuRow("Sound Effect"))
+                return 500
+            },
+            () => {
+                const list = named("audioList")
+                const last = list.itemAtIndex(list.count - 1)
+                check("a piece at the end of a long list, made a sound effect, is one", piece("Extra Tune").effect === true)
+                check("and the list has stayed where it was scrolled to, with that piece where it was", Math.abs(list.contentY - kept.scrolled) < 1 && last !== null && last.modelData.name === "Extra Tune"
+                      && Math.abs(last.mapToItem(null, 0, 0).y - kept.lastAt) < 1 && Lib.find(last, item => item.objectName === "audioRowType").kind === "sound",
+                      list.contentY + " from " + kept.scrolled + ", the row at " + (last ? last.mapToItem(null, 0, 0).y : "nowhere") + " from " + kept.lastAt)
+                testInput.grab("9-list-stays")
+                click(centre(last), Qt.RightButton)
+                return 300
+            },
+            () => {
+                click(menuRow("Loop"))
+                return 500
+            },
+            () => {
+                const list = named("audioList")
+                check("set to go round, the same", piece("Extra Tune").playback === "loop" && Math.abs(list.contentY - kept.scrolled) < 1, list.contentY + " from " + kept.scrolled)
+                click(centre(list.itemAtIndex(list.count - 1)), Qt.RightButton)
+                return 300
+            },
+            () => {
+                click(menuRow("Music"))
+                return 500
+            },
+            () => {
+                const list = named("audioList")
+                click(centre(list.itemAtIndex(list.count - 1)), Qt.RightButton)
+                return 300
+            },
+            () => {
+                click(menuRow("Next"))
+                return 500
+            },
+            () => {
+                const list = named("audioList")
+                check("and made music that the next follows again, the same", piece("Extra Tune").effect === false && piece("Extra Tune").playback === "next"
+                      && Math.abs(list.contentY - kept.scrolled) < 1, list.contentY + " from " + kept.scrolled)
+                // Words in the box are another list, which starts at its top
+                audioFilter = "tune"
+                return 300
+            },
+            () => {
+                const list = named("audioList")
+                check("narrowed by the box, the list starts at its top", list.contentY === 0 && list.count < 6, list.contentY + " with " + list.count)
+                audioFilter = ""
+                return 300
+            },
+            () => {
                 // ---- A playlist made, with the + under the tabs
                 click(centre(named("showControlAdd")))
                 return 300
