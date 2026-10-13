@@ -288,15 +288,17 @@ QtObject {
                 const last = gridView.itemAtIndex(document.slides.length - 1)
                 check("scrolled to the end, the last slides are clear of the controls", last !== null && bottomOf(last) <= topOf(controls()) + 2, last ? bottomOf(last).toFixed(0) + " vs " + topOf(controls()).toFixed(0) : "none")
                 testInput.grab("4-end-of-grid")
-                // ---- the arrangement drop-down, which is small and leaves the room to the slides
+                // ---- the button for the arrangements, which is small and leaves the room to the slides
+                arrangementsShown = false
                 openEntry(entry("Abandoned"))
                 return 500
             },
             () => {
-                const box = named("arrangementBox")
+                const box = named("arrangementToggle")
                 const gridView = named("slideGrid")
                 gridView.positionViewAtBeginning()
-                check("a presentation with arrangements has the drop-down for them, small", box !== null && box.visible && box.height <= 24 && box.width <= 160, box ? box.width + "x" + box.height : "none")
+                check("a presentation has the button for its arrangements, small, and says which it is viewed in", box !== null && box.visible && box.height <= 24 && box.width <= 32
+                      && named("gridArrangement").visible && named("gridArrangement").text === document.arrangement, box ? box.width + "x" + box.height : "none")
                 check("and its row is no taller than it needs to be", topOf(gridView) - grid.mapToItem(null, 0, 0).y <= 34, (topOf(gridView) - grid.mapToItem(null, 0, 0).y).toFixed(1))
                 testInput.grab("6-arrangement")
                 notice = ""
@@ -304,7 +306,7 @@ QtObject {
                 return 400
             },
             () => {
-                const box = named("arrangementBox")
+                const box = named("gridArrangement")
                 const gridView = named("slideGrid")
                 gridView.positionViewAtBeginning()
                 check("one without has the line over the slides all the same, with its name and no arrangement", document.arrangements.length === 0 && (box === null || !box.visible) && near(topOf(gridView) - grid.mapToItem(null, 0, 0).y, 30) && named("gridTitle").text === document.name,

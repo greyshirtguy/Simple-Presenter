@@ -51,6 +51,16 @@ struct ProDocument
     // empty means every group in stored order.
     QStringList arrangements;
     QString arrangement;
+    // What the arrangement editor over the slides shows (qml/ArrangementBar.qml). The
+    // presentation's groups in the order it stores them, which is Master, each
+    // { id, name, color, slides }: its own id in this presentation, its name ("" for a
+    // group with none), its colour as "#rrggbb" or "", and how many slides it has. And
+    // the arrangements in the file's order, each { id, name, groups }, where `groups`
+    // is the ids of the groups it goes through, one for each time a group comes up,
+    // exactly as the file has them: a place in that list is a place in the file's. (So
+    // an id that is no group's any more is in it too, though the slides leave it out.)
+    QVariantList groups;
+    QVariantList arrangementList;
     // Whether any slide has chords over its words, and the key they are written in
     // (see chords.h), "" if the file names none. `userKey` is the key the file says
     // they were last shown in, which is the original one if it names no other.
@@ -67,12 +77,31 @@ struct ProDocument
     static ProDocument load(const QString &path, const QString &workspace,
                             const std::optional<QString> &arrangement, QString *error);
     // Just the arrangement names and which is selected ("" for none). False if unreadable.
-    static bool arrangementsOf(const QString &path, QStringList *names, QString *selected);
+    // `ids`, if asked for, is the id of each, in step with the names.
+    static bool arrangementsOf(const QString &path, QStringList *names, QString *selected, QStringList *ids = nullptr);
     // Selects the named arrangement, or none for "", and writes the file back. Returns
     // an error message, empty on success.
     // The id of the arrangement of that name, or empty.
     static QString arrangementId(const QString &path, const QString &name);
     static QString setArrangement(const QString &path, const QString &name);
+    // Making and changing arrangements, as the arrangement editor over the slides does
+    // (arrangementedit.h has the rules, and what of them is a guess). An arrangement is
+    // named by its id. Each writes the file back, unless nothing is changed, and
+    // returns an error message, empty on success.
+    //
+    // A new one, of every group once in Master's order; and a copy of one. `*name` is
+    // the name it was given.
+    static QString addArrangement(const QString &path, QString *name);
+    static QString duplicateArrangement(const QString &path, const QString &id, QString *name);
+    static QString renameArrangement(const QString &path, const QString &id, const QString &name);
+    // Takes one out; if it was the one selected in the file, none is.
+    static QString removeArrangement(const QString &path, const QString &id);
+    // A group put into an arrangement at a landing (the place it goes before, or the
+    // number of places for after the last); the group at a place moved to a landing;
+    // and the group at a place taken out.
+    static QString insertArrangementGroup(const QString &path, const QString &id, const QString &groupId, int landing);
+    static QString moveArrangementGroup(const QString &path, const QString &id, int from, int landing);
+    static QString removeArrangementGroup(const QString &path, const QString &id, int place);
     // Makes the cue with this id trigger the given image or video file as its media, as
     // a background or a foreground (see workspace::MediaBehaviour), replacing the media
     // it triggered before if any, and writes the file back. The media is recorded

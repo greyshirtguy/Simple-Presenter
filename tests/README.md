@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are nineteen:
+So far there are twenty:
 
 | Test | What it tries |
 | --- | --- |
@@ -26,6 +26,7 @@ So far there are nineteen:
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
 | `tst_screenfile` | The list of a workspace's screens in ProPresenter's set-up file (`src/screenfile.h`): what a workspace with no file has, what adding, renaming and removing a screen write, and that the rest of a file ProPresenter wrote goes back as it came |
 | `tst_groupedit` | Putting slides into another group as ProPresenter does (`src/groupedit.h`): the whole group from its first slide, a split from a later one, what becomes of the arrangements, and that nothing else of the presentation is touched |
+| `tst_arrangementedit` | A presentation's arrangements (`src/arrangementedit.h`), on a presentation built as ProPresenter writes one: a new one of every group once in Master's order, a copy straight after what it is a copy of, a name made free with a number, renaming and the names that are refused, removing the one selected and another, a group put in at each kind of gap, every move of every place against the list worked the long way, one coming up of a group taken out; and after each, the groups, the slides and the other arrangements as they were to the byte |
 | `tst_labelfile` | Slide labels (`src/labelfile.h`): a label put on a slide's cue and taken off again, and the workspace's list of labels kept ready read, added to, changed and shortened with the rest of the file kept |
 | `tst_decodingchoice` | Who decodes video (`src/decodingchoice.h`): who has the say as the app starts (the command line, the setting of three values, the environment as it was found, the guard), what Qt's variable is then set to, and what is said of it |
 | `tst_decodingguard` | The guard on hardware video decoding (`src/decodingguard.h`), on folders made up to look like a system's: which graphics chip video would be decoded on, what of nouveau's firmware is looked for and where, and which computers are then held back |

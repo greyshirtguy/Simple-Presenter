@@ -94,14 +94,23 @@ QVariantMap toRow(const rv::data::PlaylistItem &item, workspace::FileFinder *fin
         row.insert("file", file);
         row.insert("missing", file.isEmpty());
 
-        // The row's arrangement is its own, by name where the presentation still has one
-        // of that name, so a stale choice falls back to every group.
+        // The row's arrangement is its own. The playlist names it by id and by name:
+        // it is found by its id, so that one renamed since is still the row's, and
+        // failing that by the name, where the presentation still has one of that
+        // name. A choice that is neither falls back to every group. (A GUESS, that
+        // ProPresenter goes by the id first too; until arrangements could be renamed
+        // here the name alone was gone by.)
         QString arrangement = QString::fromStdString(item.presentation().arrangement_name());
         QStringList arrangements;
+        QStringList arrangementIds;
         QString selectedInFile;
         if (!file.isEmpty())
-            ProDocument::arrangementsOf(file, &arrangements, &selectedInFile);
-        if (!arrangements.contains(arrangement))
+            ProDocument::arrangementsOf(file, &arrangements, &selectedInFile, &arrangementIds);
+        const int byId = item.presentation().has_arrangement()
+                             ? arrangementIds.indexOf(QString::fromStdString(item.presentation().arrangement().string())) : -1;
+        if (byId >= 0)
+            arrangement = arrangements.at(byId);
+        else if (!arrangements.contains(arrangement))
             arrangement.clear();
         row.insert("arrangement", arrangement);
         row.insert("arrangements", arrangements);

@@ -36,11 +36,27 @@ Item {
         grid.positionViewAtIndex(index, mode)
     }
 
-    // A thin header over the slides: the name of the presentation being viewed at its
-    // left, then whatever there is to tell the user, and the presentation's
-    // arrangement at its right
+    // A thin header over the slides. In its middle is the name of the presentation
+    // being viewed. At its left is the key a song's chords are shown in, for a song
+    // that has chords, and after that whatever there is to tell the user. At its right
+    // is the button that opens the arrangement editor under this line
+    // (ArrangementBar.qml), as ProPresenter has its Arrangements button in the
+    // presentation's header, with the arrangement being viewed named beside it if that
+    // is not Master. The line is as high as it was without the editor, and the
+    // editor's two rows are added to it while it is open.
     Item {
         id: gridHeader
+
+        // Whether the arrangement editor is open under the line. Not in Simple View,
+        // which is for running a show and has nothing to set things up with: the
+        // button is not there either (it would be under that view's own button, where
+        // the pane at the right is kept).
+        readonly property bool arranging: slides.win.arrangementsShown && slides.win.document !== null && !slides.win.simple
+
+        onArrangingChanged: {
+            if (arranging)
+                arrangementBar.wanted = true
+        }
 
         anchors.left: parent.left
         anchors.right: parent.right
@@ -48,46 +64,17 @@ Item {
         anchors.leftMargin: 16
         anchors.rightMargin: 16
         visible: slides.win.document !== null || slides.win.notice !== ""
-        height: visible ? 30 : 6
+        height: visible ? 30 + (arranging ? arrangementBar.height : 0) : 6
 
-        Text {
-            id: gridTitle
-
-            objectName: "gridTitle"
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            // Up to half of the header: the rest is for what there is to say
-            width: Math.min(implicitWidth, ((keyBox.visible ? keyLabel.x : arrangementLabel.x) - 16) * (slides.win.notice !== "" ? 0.5 : 1))
-            elide: Text.ElideRight
-            color: slides.win.textColor
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
-            text: slides.win.document ? slides.win.document.name : ""
-        }
-
-        Text {
-            objectName: "gridNotice"
-            anchors.left: gridTitle.right
-            anchors.leftMargin: gridTitle.text !== "" ? 14 : 0
-            anchors.right: keyBox.visible ? keyLabel.left : arrangementLabel.left
-            anchors.rightMargin: 16
-            anchors.verticalCenter: parent.verticalCenter
-            elide: Text.ElideRight
-            color: slides.win.noticeIsError ? "#ff6b6b" : slides.win.dimTextColor
-            font.pixelSize: 13
-            text: slides.win.notice
-        }
-
-        // The key a song's chords are shown in, where a stage screen shows them. It is
-        // there only for a presentation that has chords. Picking a key changes what is
-        // shown and nothing in the file: the chords stay written in the song's own key,
-        // and the pick lasts while the app is open.
+        // The key a song's chords are shown in, where a stage screen shows them: at the
+        // left of the line. It is there only for a presentation that has chords.
+        // Picking a key changes what is shown and nothing in the file: the chords stay
+        // written in the song's own key, and the pick lasts while the app is open.
         Text {
             id: keyLabel
 
-            anchors.right: keyBox.left
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            anchors.verticalCenter: keyBox.verticalCenter
             visible: keyBox.visible
             color: slides.win.dimTextColor
             font.pixelSize: 12
@@ -98,9 +85,9 @@ Item {
             id: keyBox
 
             objectName: "chordKeyPicker"
-            anchors.right: arrangementBox.visible ? arrangementLabel.left : parent.right
-            anchors.rightMargin: arrangementBox.visible ? 14 : 0
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: keyLabel.right
+            anchors.leftMargin: 8
+            y: 3
             width: 70
             height: 24
             font.pixelSize: 12
@@ -115,35 +102,127 @@ Item {
             onActivated: (index) => slides.win.setChordKey(slides.win.document, model[index])
         }
 
+        // The presentation's name, in the middle of the line: as wide as its words, up
+        // to what keeps it in the middle between what is at the line's two ends; and
+        // while there is something to tell the user, up to a third of the line, the
+        // rest being for that.
+        //
+        // In Simple View it is at the left, as it always was there: the middle of the
+        // top of the slides is where that view's own button is, which is wide, and
+        // over this line, for the first seconds of the view (SimpleViewToggle.qml).
         Text {
-            id: arrangementLabel
+            id: gridTitle
 
-            anchors.right: arrangementBox.left
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            visible: arrangementBox.visible
-            color: slides.win.dimTextColor
-            font.pixelSize: 12
-            text: "Arrangement"
+            // Where what is at the left ends, and where what is at the right begins
+            readonly property real clearFrom: keyBox.visible ? keyBox.x + keyBox.width + 16 : 0
+            readonly property real clearTo: (arrangementName.visible ? arrangementName.x : arrangementToggle.x) - 16
+            readonly property bool aside: slides.win.simple
+
+            objectName: "gridTitle"
+            x: aside ? clearFrom : Math.round((parent.width - width) / 2)
+            y: (30 - height) / 2
+            width: aside ? Math.min(implicitWidth, Math.max(40, (clearTo - clearFrom) * (slides.win.notice !== "" ? 0.5 : 1)))
+                         : Math.min(implicitWidth, Math.max(40, 2 * Math.min(parent.width / 2 - clearFrom, clearTo - parent.width / 2)),
+                                    slides.win.notice !== "" ? Math.max(40, parent.width * 0.34) : implicitWidth)
+            elide: Text.ElideRight
+            color: slides.win.textColor
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
+            text: slides.win.document ? slides.win.document.name : ""
         }
 
-        // "Master" is every group once, in the order the presentation stores them.
-        // The choice is saved in the presentation file, or for a playlist row in the
-        // playlist.
-        AppComboBox {
-            id: arrangementBox
+        // Whatever there is to tell the user: at the left, as far as the name; or,
+        // where the name is at the left (Simple View), after it
+        Text {
+            objectName: "gridNotice"
+            anchors.left: gridTitle.aside ? gridTitle.right : keyBox.visible ? keyBox.right : parent.left
+            anchors.leftMargin: gridTitle.aside ? (gridTitle.text !== "" ? 14 : 0) : keyBox.visible ? 14 : 0
+            anchors.right: !gridTitle.aside ? gridTitle.left : arrangementName.visible ? arrangementName.left : arrangementToggle.left
+            anchors.rightMargin: 16
+            anchors.verticalCenter: gridTitle.verticalCenter
+            elide: Text.ElideRight
+            color: slides.win.noticeIsError ? "#ff6b6b" : slides.win.dimTextColor
+            font.pixelSize: 13
+            text: slides.win.notice
+        }
 
-            objectName: "arrangementBox"
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: 160
-            height: 24
+        // The arrangement it is viewed in, where that is not Master: beside the
+        // Arrangements button, on its left and set against it, so that the button is
+        // always in the one place. (ProPresenter says it to the right of the title.)
+        Text {
+            id: arrangementName
+
+            objectName: "gridArrangement"
+            anchors.right: arrangementToggle.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: gridTitle.verticalCenter
+            width: Math.min(implicitWidth, 200, parent.width * 0.25)
+            visible: slides.win.document !== null && slides.win.document.arrangement !== ""
+            horizontalAlignment: Text.AlignRight
+            elide: Text.ElideRight
+            color: slides.win.dimTextColor
             font.pixelSize: 12
-            visible: slides.win.document !== null && slides.win.document.arrangements.length > 0
-            model: slides.win.document ? ["Master"].concat(slides.win.document.arrangements) : []
-            currentIndex: slides.win.document && slides.win.document.arrangement !== ""
-                          ? slides.win.document.arrangements.indexOf(slides.win.document.arrangement) + 1 : 0
-            onActivated: (index) => slides.win.setArrangement(slides.win.currentEntry(), index === 0 ? "" : model[index])
+            text: slides.win.document ? slides.win.document.arrangement : ""
+        }
+
+        // The Arrangements button: opens the arrangement editor under this line, and
+        // shuts it. ProPresenter's own picture for it; lit while the editor is open.
+        // It is there for every presentation, with arrangements or without: it is
+        // where one is made. (Before the editor there was a drop-down here, for a
+        // presentation that had arrangements, to pick one of them from: the picker is
+        // in the editor now, and a row's own menu in the lists picks one as before.)
+        Rectangle {
+            id: arrangementToggle
+
+            objectName: "arrangementToggle"
+            readonly property bool on: gridHeader.arranging
+
+            anchors.right: parent.right
+            y: 4
+            width: 30
+            height: 22
+            radius: 6
+            visible: slides.win.document !== null && !slides.win.simple
+            color: on ? "#4da3ff" : toggleMouse.pressed ? "#50535a" : toggleMouse.containsMouse ? "#45484e" : "#3a3c42"
+
+            ProIcon {
+                anchors.centerIn: parent
+                name: "Arrangements"
+                size: 24
+                ink: arrangementToggle.on ? "black" : "#e6e6e6"
+            }
+
+            MouseArea {
+                id: toggleMouse
+
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: {
+                    slides.win.takeFocus()
+                    slides.win.arrangementsShown = !slides.win.arrangementsShown
+                }
+            }
+        }
+
+        // The arrangement editor, under the line. It is made when it is first opened,
+        // and kept: nothing of it is made as the app starts unless it was left open.
+        Loader {
+            id: arrangementBar
+
+            property bool wanted: false
+
+            objectName: "arrangementBarLoader"
+            anchors.left: parent.left
+            anchors.right: parent.right
+            y: 30
+            height: item ? item.height : 0
+            active: wanted
+            visible: gridHeader.arranging
+            sourceComponent: ArrangementBar {
+                objectName: "arrangementBar"
+                win: slides.win
+            }
+            Component.onCompleted: wanted = gridHeader.arranging
         }
     }
 

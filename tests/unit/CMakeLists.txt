@@ -74,6 +74,15 @@ target_include_directories(tst_groupedit PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_groupedit PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME groupedit COMMAND tst_groupedit)
 
+qt_add_executable(tst_arrangementedit
+    tst_arrangementedit.cpp
+    ${PROJECT_SOURCE_DIR}/src/arrangementedit.h
+    ${PROJECT_SOURCE_DIR}/src/arrangementedit.cpp
+)
+target_include_directories(tst_arrangementedit PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_arrangementedit PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME arrangementedit COMMAND tst_arrangementedit)
+
 qt_add_executable(tst_labelfile
     tst_labelfile.cpp
     ${PROJECT_SOURCE_DIR}/src/labelfile.h

@@ -301,6 +301,8 @@ QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arr
         {"slides", document.slides},
         {"arrangements", document.arrangements},
         {"arrangement", document.arrangement},
+        {"groups", document.groups},
+        {"arrangementList", document.arrangementList},
         {"hasChords", document.hasChords},
         {"originalKey", document.originalKey},
         {"userKey", document.userKey},
@@ -364,6 +366,49 @@ QString Catalog::setArrangement(const QString &path, const QString &arrangement)
     if (error.isEmpty())
         rescan();
     return error;
+}
+
+// (The lists are read again after each of the four that change which arrangements a
+// presentation has or what they are called: every row of a list knows its
+// presentation's arrangements, for its menu. A change to what an arrangement goes
+// through is no list's concern.)
+QVariantMap Catalog::addArrangement(const QString &path)
+{
+    QString name;
+    const QString error = afterChange(ProDocument::addArrangement(path, &name));
+    return {{"name", error.isEmpty() ? name : QString()}, {"error", error}};
+}
+
+QVariantMap Catalog::duplicateArrangement(const QString &path, const QString &id)
+{
+    QString name;
+    const QString error = afterChange(ProDocument::duplicateArrangement(path, id, &name));
+    return {{"name", error.isEmpty() ? name : QString()}, {"error", error}};
+}
+
+QString Catalog::renameArrangement(const QString &path, const QString &id, const QString &name)
+{
+    return afterChange(ProDocument::renameArrangement(path, id, name));
+}
+
+QString Catalog::removeArrangement(const QString &path, const QString &id)
+{
+    return afterChange(ProDocument::removeArrangement(path, id));
+}
+
+QString Catalog::insertArrangementGroup(const QString &path, const QString &id, const QString &groupId, int landing)
+{
+    return ProDocument::insertArrangementGroup(path, id, groupId, landing);
+}
+
+QString Catalog::moveArrangementGroup(const QString &path, const QString &id, int from, int landing)
+{
+    return ProDocument::moveArrangementGroup(path, id, from, landing);
+}
+
+QString Catalog::removeArrangementGroup(const QString &path, const QString &id, int place)
+{
+    return ProDocument::removeArrangementGroup(path, id, place);
 }
 
 QString Catalog::setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath, bool foreground)

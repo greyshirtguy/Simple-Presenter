@@ -244,6 +244,7 @@ Window {
         // clear groups.)
         settingsOpen = false
         clearGroupsOpen = false
+        arrangementsOpen = false
         looksOpen = true
         looksPanel.open()
     }
@@ -268,9 +269,17 @@ Window {
     function openVideoSettings() {
         looksOpen = false
         clearGroupsOpen = false
+        arrangementsOpen = false
         settingsOpen = true
         settingsScreen.section = "video"
     }
+
+    // Whether the arrangement editor is open over the slides (see ArrangementBar.qml):
+    // this computer's own, and kept from one start of the app to the next. And
+    // whether the window that lists a presentation's arrangements is up (see
+    // ArrangementsPanel.qml), which is made when it is first wanted.
+    property bool arrangementsShown: false
+    property bool arrangementsOpen: false
 
     // Whether the window the clear groups are set up in is up (see ClearGroupsPanel).
     // It is made when it is first wanted, which in most sessions is never.
@@ -283,6 +292,7 @@ Window {
             return
         settingsOpen = false
         looksOpen = false
+        arrangementsOpen = false
         clearGroupsLoader.active = true
         clearGroupsOpen = true
         clearGroupsLoader.item.open(groupId)
@@ -892,6 +902,152 @@ Window {
         }
     }
 
+    // ---- Making and changing the arrangements of the presentation being viewed
+    // (ArrangementBar.qml over the slides, and ArrangementsPanel.qml). Each is saved in
+    // the presentation's file at once, by the catalog; src/arrangementedit.h has the
+    // rules, and what of them is a guess.
+
+    // The arrangement being viewed, as the presentation's list of them has it: null for
+    // Master.
+    function viewedArrangement() {
+        return document && document.arrangement !== ""
+               ? document.arrangementList.find(candidate => candidate.name === document.arrangement) ?? null : null
+    }
+
+    // Reads the presentation being viewed again after a change to its arrangements.
+    // `wasLive` is whether it was what is live before the change: an arrangement that
+    // has been renamed is no longer the one the live presentation is known by, and
+    // the show is to follow it all the same.
+    function rearranged(wasLive) {
+        notice = ""
+        const scrolledTo = grid.contentY
+        const reloaded = load(currentEntry())
+        if (wasLive && liveDocument) {
+            const index = Show.placeAfterReload(liveDocument.slides.map(slide => slide.id), liveIndex, reloaded.slides.map(slide => slide.id))
+            liveDocument = reloaded
+            Show.follow(cueAt(reloaded, liveKey, livePlaylistId, index >= 0 ? index : liveIndex))
+        }
+        document = reloaded
+        grid.contentY = scrolledTo
+    }
+
+    // A new arrangement, of every group once in Master's order, which is then the one
+    // viewed, so that it can be worked on at once.
+    function newArrangement() {
+        if (!document)
+            return ""
+        const made = catalog.addArrangement(document.path)
+        if (!report(made.error))
+            return ""
+        Log.note("edit", "an arrangement made for " + quoted(document.name) + ": " + quoted(made.name))
+        setArrangement(currentEntry(), made.name)
+        return made.name
+    }
+
+    function duplicateArrangement(id) {
+        if (!document)
+            return ""
+        const from = document.arrangementList.find(candidate => candidate.id === id)
+        const wasLive = viewingLive
+        const made = catalog.duplicateArrangement(document.path, id)
+        if (!report(made.error))
+            return ""
+        Log.note("edit", "the arrangement " + quoted(from ? from.name : "") + " of " + quoted(document.name) + " copied as " + quoted(made.name))
+        rearranged(wasLive)
+        return made.name
+    }
+
+    function renameArrangement(id, name) {
+        if (!document)
+            return
+        const from = document.arrangementList.find(candidate => candidate.id === id)
+        if (!from || name.trim() === "" || name.trim() === from.name)
+            return
+        const wasLive = viewingLive
+        if (!report(catalog.renameArrangement(document.path, id, name)))
+            return
+        Log.note("edit", "the arrangement " + quoted(from.name) + " of " + quoted(document.name) + " renamed " + quoted(name.trim()))
+        rearranged(wasLive)
+    }
+
+    // Takes an arrangement out of the presentation. Where it was the one viewed, the
+    // presentation is viewed as Master after.
+    function removeArrangement(id) {
+        if (!document)
+            return
+        const from = document.arrangementList.find(candidate => candidate.id === id)
+        const wasLive = viewingLive
+        if (!report(catalog.removeArrangement(document.path, id)))
+            return
+        Log.note("edit", "the arrangement " + quoted(from ? from.name : "") + " of " + quoted(document.name) + " removed")
+        rearranged(wasLive)
+    }
+
+    // A group put into the arrangement being viewed at a landing, the group at a place
+    // of it moved to a landing, and the group at a place taken out of it. (A landing is
+    // the place a thing goes before, or the number of places there are for after the
+    // last.) The log is told with the names, and not the place alone: which
+    // arrangement was changed, and how, is what is wanted after a service that ran in
+    // an order nobody expected.
+    function arrangementInsert(groupId, landing) {
+        const arrangement = viewedArrangement()
+        if (!arrangement)
+            return
+        const group = document.groups.find(candidate => candidate.id === groupId)
+        const wasLive = viewingLive
+        if (!report(catalog.insertArrangementGroup(document.path, arrangement.id, groupId, landing)))
+            return
+        Log.note("edit", "the arrangement " + quoted(arrangement.name) + " of " + quoted(document.name) + ": the group "
+                 + quoted(group ? group.name : "") + " put in at place " + (landing + 1))
+        rearranged(wasLive)
+    }
+
+    function arrangementMove(from, landing) {
+        const arrangement = viewedArrangement()
+        if (!arrangement)
+            return
+        // (Let go where it already is, there is nothing to write or to say.)
+        if (landing === from || landing === from + 1)
+            return
+        const group = document.groups.find(candidate => candidate.id === arrangement.groups[from])
+        const wasLive = viewingLive
+        if (!report(catalog.moveArrangementGroup(document.path, arrangement.id, from, landing)))
+            return
+        Log.note("edit", "the arrangement " + quoted(arrangement.name) + " of " + quoted(document.name) + ": the group "
+                 + quoted(group ? group.name : "") + " moved from place " + (from + 1) + " to place " + ((landing > from ? landing - 1 : landing) + 1))
+        rearranged(wasLive)
+    }
+
+    function arrangementTakeOut(place) {
+        const arrangement = viewedArrangement()
+        if (!arrangement)
+            return
+        const group = document.groups.find(candidate => candidate.id === arrangement.groups[place])
+        const wasLive = viewingLive
+        if (!report(catalog.removeArrangementGroup(document.path, arrangement.id, place)))
+            return
+        Log.note("edit", "the arrangement " + quoted(arrangement.name) + " of " + quoted(document.name) + ": the group "
+                 + quoted(group ? group.name : "") + " taken out of place " + (place + 1))
+        rearranged(wasLive)
+    }
+
+    // Opens the window that lists the arrangements of the presentation being viewed.
+    function openArrangements() {
+        if (editing || !document)
+            return
+        settingsOpen = false
+        looksOpen = false
+        clearGroupsOpen = false
+        arrangementsLoader.active = true
+        arrangementsOpen = true
+        arrangementsLoader.item.open()
+    }
+
+    function closeArrangements() {
+        arrangementsOpen = false
+        takeFocus()
+    }
+
     // Makes a slide of the presentation being viewed trigger a media file (by its
     // path), replacing any media it triggered before, or with "" stops it triggering
     // media. Saved in the presentation file.
@@ -1403,6 +1559,8 @@ Window {
             looksPanel.takeKeys()
         else if (clearGroupsOpen)
             clearGroupsLoader.item.takeKeys()
+        else if (arrangementsOpen)
+            arrangementsLoader.item.takeKeys()
         else if (editing)
             editScreen.takeFocus()
         else
@@ -2579,6 +2737,7 @@ Window {
         const split = Number(saved("audioSplit", audioSplit))
         audioSplit = isFinite(split) ? Math.max(36, split) : 66
         stageMessageText = String(saved("stageMessage", ""))
+        arrangementsShown = String(saved("arrangementsShown", false)) === "true"
         const messagesHeight = Number(saved("messagesSplit", messagesSplit))
         messagesSplit = isFinite(messagesHeight) ? Math.max(36, messagesHeight) : 62
         editorNotes = String(saved("editorNotes", false)) === "true"
@@ -2851,6 +3010,7 @@ Window {
     onAudioSplitChanged: save("audioSplit", audioSplit)
     onStageMessageTextChanged: save("stageMessage", stageMessageText)
     onMessagesSplitChanged: save("messagesSplit", messagesSplit)
+    onArrangementsShownChanged: save("arrangementsShown", arrangementsShown)
     // What each stage screen has, as last noted in the log
     property var notedLayouts: ({})
 
@@ -3927,6 +4087,25 @@ Window {
         sourceComponent: ClearGroupsPanel {
             win: clearGroupsLoader.operatorWindow
             onClosed: clearGroupsLoader.operatorWindow.closeClearGroups()
+        }
+    }
+
+    // The window that lists the arrangements of the presentation being viewed (see
+    // ArrangementsPanel.qml): made when it is first wanted.
+    Loader {
+        id: arrangementsLoader
+
+        readonly property var operatorWindow: win
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 20
+        active: false
+        visible: win.arrangementsOpen
+
+        sourceComponent: ArrangementsPanel {
+            win: arrangementsLoader.operatorWindow
+            onClosed: arrangementsLoader.operatorWindow.closeArrangements()
         }
     }
 

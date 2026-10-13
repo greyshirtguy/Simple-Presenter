@@ -207,6 +207,18 @@ public:
     // Selects the named arrangement in the presentation file, or none for "", and saves
     // the file. Returns an error message, empty on success.
     Q_INVOKABLE QString setArrangement(const QString &path, const QString &arrangement);
+    // Making and changing a presentation's arrangements, for the arrangement editor
+    // over the slides (see ProDocument, and arrangementedit.h for the rules). An
+    // arrangement is named by its `id`, as an opened presentation's `arrangementList`
+    // has it. The presentation file is saved; each returns an error message, empty on
+    // success, the two that make one as { name, error } with the name it was given.
+    Q_INVOKABLE QVariantMap addArrangement(const QString &path);
+    Q_INVOKABLE QVariantMap duplicateArrangement(const QString &path, const QString &id);
+    Q_INVOKABLE QString renameArrangement(const QString &path, const QString &id, const QString &name);
+    Q_INVOKABLE QString removeArrangement(const QString &path, const QString &id);
+    Q_INVOKABLE QString insertArrangementGroup(const QString &path, const QString &id, const QString &groupId, int landing);
+    Q_INVOKABLE QString moveArrangementGroup(const QString &path, const QString &id, int from, int landing);
+    Q_INVOKABLE QString removeArrangementGroup(const QString &path, const QString &id, int place);
     // Makes a slide (by its `id`) trigger the given media file, as a background or a
     // foreground, replacing any media it triggered before, and saves the presentation
     // file. Returns an error message, empty on success.

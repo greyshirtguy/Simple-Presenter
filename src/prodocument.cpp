@@ -1,6 +1,7 @@
 #include "prodocument.h"
 
 #include "chords.h"
+#include "arrangementedit.h"
 #include "groupedit.h"
 #include "labelfile.h"
 
@@ -102,6 +103,29 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                                                  : QString::fromStdString(presentation.name());
     for (const auto &candidate : presentation.arrangements())
         document.arrangements << QString::fromStdString(candidate.name());
+    // For the arrangement editor: the groups as Master has them, and each
+    // arrangement's own run of them.
+    for (const auto &group : presentation.cue_groups()) {
+        const rv::data::Color &color = group.group().color();
+        document.groups.append(QVariantMap{
+            {"id", QString::fromStdString(group.group().uuid().string())},
+            {"name", QString::fromStdString(group.group().name())},
+            {"color", group.group().has_color() && color.alpha() > 0 ? proconvert::toColor(color).name() : QString()},
+            {"slides", group.cue_identifiers_size()},
+        });
+    }
+    for (const auto &candidate : presentation.arrangements()) {
+        // (Every id it has, in the file's order, so that a place in this list is the
+        // same place in the file: one that is no group's any more is there too.)
+        QStringList ids;
+        for (const rv::data::UUID &id : candidate.group_identifiers())
+            ids << QString::fromStdString(id.string());
+        document.arrangementList.append(QVariantMap{
+            {"id", QString::fromStdString(candidate.uuid().string())},
+            {"name", QString::fromStdString(candidate.name())},
+            {"groups", ids},
+        });
+    }
     // The key. A file with no `music` block names none; one with a block and no key in
     // it means A flat, that being number 0, which the file format leaves unwritten.
     if (presentation.has_music()) {
@@ -261,7 +285,7 @@ QString ProDocument::setOriginalKey(const QString &path, const QString &key)
 // whenever anything in the workspace changes, so this is asked of every file over and
 // over. The answer is kept for as long as the file is the same file: same size, same
 // time of last change.
-bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QString *selected)
+bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QString *selected, QStringList *ids)
 {
     struct Known
     {
@@ -269,6 +293,7 @@ bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QStrin
         QDateTime changed;
         QStringList names;
         QString selected;
+        QStringList ids;
     };
     static QHash<QString, Known> known;
     static QMutex mutex;
@@ -280,6 +305,8 @@ bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QStrin
         if (found != known.constEnd() && found->size == file.size() && found->changed == file.lastModified()) {
             *names = found->names;
             *selected = found->selected;
+            if (ids)
+                *ids = found->ids;
             return true;
         }
     }
@@ -289,13 +316,18 @@ bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QStrin
     if (!readPresentation(path, &presentation, &error))
         return false;
     names->clear();
-    for (const auto &candidate : presentation.arrangements())
+    QStringList theirIds;
+    for (const auto &candidate : presentation.arrangements()) {
         names->append(QString::fromStdString(candidate.name()));
+        theirIds.append(QString::fromStdString(candidate.uuid().string()));
+    }
     const auto *chosen = selectedArrangement(presentation);
     *selected = chosen ? QString::fromStdString(chosen->name()) : QString();
+    if (ids)
+        *ids = theirIds;
 
     const QMutexLocker lock(&mutex);
-    known.insert(path, {file.size(), file.lastModified(), *names, *selected});
+    known.insert(path, {file.size(), file.lastModified(), *names, *selected, theirIds});
     return true;
 }
 
@@ -322,6 +354,98 @@ QString ProDocument::setArrangement(const QString &path, const QString &name)
     }
 
     return writePresentation(path, presentation);
+}
+
+namespace {
+
+// What went wrong with a change to an arrangement, in words; "" for nothing.
+QString said(arrangementedit::Outcome outcome, const QString &path, const QString &name = QString())
+{
+    using arrangementedit::Outcome;
+    const QString file = QFileInfo(path).fileName();
+    switch (outcome) {
+    case Outcome::NoSuchArrangement:
+        return QStringLiteral("%1 no longer has that arrangement").arg(file);
+    case Outcome::NoSuchGroup:
+        return QStringLiteral("%1 no longer has that group").arg(file);
+    case Outcome::NoSuchPlace:
+        return QStringLiteral("That arrangement of %1 is not as it was: it has no such place in it").arg(file);
+    case Outcome::NoName:
+        return QStringLiteral("An arrangement needs a name");
+    case Outcome::NameTaken:
+        return QStringLiteral("%1 has an arrangement named %2 already").arg(file, name.trimmed());
+    case Outcome::Done:
+    case Outcome::Unchanged:
+        break;
+    }
+    return {};
+}
+
+// Reads the presentation, makes a change to its arrangements, and writes it back if
+// the change was made.
+template <typename Change>
+QString changeArrangements(const QString &path, const QString &name, Change change)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    const arrangementedit::Outcome outcome = change(&presentation);
+    if (outcome != arrangementedit::Outcome::Done)
+        return said(outcome, path, name);
+    return writePresentation(path, presentation);
+}
+
+} // namespace
+
+QString ProDocument::addArrangement(const QString &path, QString *name)
+{
+    return changeArrangements(path, {}, [name](rv::data::Presentation *presentation) {
+        *name = arrangementedit::add(presentation, QStringLiteral("New Arrangement"), newUuid());
+        return arrangementedit::Outcome::Done;
+    });
+}
+
+QString ProDocument::duplicateArrangement(const QString &path, const QString &id, QString *name)
+{
+    return changeArrangements(path, {}, [&id, name](rv::data::Presentation *presentation) {
+        return arrangementedit::duplicate(presentation, id.toStdString(), newUuid(), name);
+    });
+}
+
+QString ProDocument::renameArrangement(const QString &path, const QString &id, const QString &name)
+{
+    return changeArrangements(path, name, [&id, &name](rv::data::Presentation *presentation) {
+        return arrangementedit::rename(presentation, id.toStdString(), name);
+    });
+}
+
+QString ProDocument::removeArrangement(const QString &path, const QString &id)
+{
+    return changeArrangements(path, {}, [&id](rv::data::Presentation *presentation) {
+        return arrangementedit::remove(presentation, id.toStdString());
+    });
+}
+
+QString ProDocument::insertArrangementGroup(const QString &path, const QString &id, const QString &groupId, int landing)
+{
+    return changeArrangements(path, {}, [&id, &groupId, landing](rv::data::Presentation *presentation) {
+        return arrangementedit::insertGroup(presentation, id.toStdString(), groupId.toStdString(), landing);
+    });
+}
+
+QString ProDocument::moveArrangementGroup(const QString &path, const QString &id, int from, int landing)
+{
+    return changeArrangements(path, {}, [&id, from, landing](rv::data::Presentation *presentation) {
+        return arrangementedit::moveGroup(presentation, id.toStdString(), from, landing);
+    });
+}
+
+QString ProDocument::removeArrangementGroup(const QString &path, const QString &id, int place)
+{
+    return changeArrangements(path, {}, [&id, place](rv::data::Presentation *presentation) {
+        return arrangementedit::removeGroup(presentation, id.toStdString(), place);
+    });
 }
 
 QString ProDocument::setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool foreground,

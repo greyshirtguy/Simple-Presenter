@@ -115,6 +115,8 @@ qt_add_qml_module(SimplePresenter
         qml/AudioPanel.qml
         qml/ActionIcon.qml
         qml/AppSlider.qml
+        qml/ArrangementBar.qml
+        qml/ArrangementsPanel.qml
         qml/Benchmark.qml
         qml/AppTextField.qml
         qml/AuxWindow.qml
@@ -229,6 +231,8 @@ qt_add_qml_module(SimplePresenter
         src/actions.cpp
         src/groupedit.h
         src/groupedit.cpp
+        src/arrangementedit.h
+        src/arrangementedit.cpp
         src/groupkeys.h
         src/groupkeys.cpp
         src/macros.h
@@ -301,6 +305,7 @@ qt_add_qml_module(SimplePresenter
 qt_add_resources(SimplePresenter "icons"
     PREFIX "/"
     FILES
+        icons/Arrangements.png
         icons/Clear.png
         icons/ClearAnnouncements.png
         icons/ClearAudio.png

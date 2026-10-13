@@ -1407,6 +1407,63 @@ def after_order(workspace, test_dir):
     ]
 
 
+def after_arrange(workspace, test_dir):
+    """Arrangements made and changed in the editor over the slides: what the song's file holds at each step, read
+    with protoc and not by the app. The test kept the file as it was given it (arrange-before), with the new
+    arrangement (arrange-new), with that arrangement changed (arrange-edited) and at the end (arrange-end)."""
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+
+    def decoded(name):
+        with open(os.path.join(frames, name), "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    def arrangements(text):
+        """Each arrangement of a decoded presentation, in the file's order: its name, its id, the ids of the groups
+        it goes through, and its lines of the text."""
+        found = []
+        for block in re.finditer(r"^arrangements \{\n.*?^\}\n", text, re.S | re.M):
+            lines = block.group(0)
+            found.append({"name": re.search(r'^  name: "([^"]*)"', lines, re.M).group(1),
+                          "id": re.search(r'^  uuid \{\s+string: "([^"]+)"', lines, re.M).group(1),
+                          "groups": re.findall(r'^  group_identifiers \{\s+string: "([^"]+)"', lines, re.M), "lines": lines})
+        return found
+
+    def groups(text):
+        """The ids of the presentation's groups, in the order it has them: Master."""
+        return [re.search(r'uuid \{\s+string: "([^"]+)"', block.group(0)).group(1) for block in re.finditer(r"^cue_groups \{\n.*?^\}\n", text, re.S | re.M)]
+
+    def selected(text):
+        found = re.search(r'^selected_arrangement \{\s+string: "([^"]+)"', text, re.M)
+        return found.group(1) if found else ""
+
+    def rest(text):
+        """A decoded presentation without its arrangements and which of them is selected."""
+        return re.sub(r"^(arrangements|selected_arrangement) \{\n.*?^\}\n", "", text, flags=re.S | re.M)
+
+    before, new, edited, end = (decoded(name) for name in ("arrange-before", "arrange-new", "arrange-edited", "arrange-end"))
+    was, made, changed, left = (arrangements(text) for text in (before, new, edited, end))
+    master = groups(before)
+    lines = [
+        said([a["name"] for a in made] == ["Default", "New Arrangement"] and made[1]["groups"] == master and len(master) == 7
+             and len(made[1]["id"]) == 36 and made[1]["id"] != made[0]["id"],
+             "in the song's file: the new arrangement is the last, with an id of its own, and goes through every group once in the order the file has them",
+             " ".join(a["name"] for a in made)),
+        said(selected(before) == was[0]["id"] and selected(new) == made[1]["id"],
+             "in the song's file: the new arrangement is the one selected, where ProPresenter's own was before"),
+        said(made[0]["lines"] == was[0]["lines"] and rest(new) == rest(before) and len(rest(before)) > 1000,
+             "in the song's file: ProPresenter's own arrangement, the groups, the slides and all the rest are as they were, line for line"),
+        said(len(changed) == 2 and changed[1]["groups"] == [master[1], master[0]] + master[2:] and changed[1]["id"] == made[1]["id"],
+             "in the song's file: after a group was taken out, put in at the end and moved to the front, the arrangement goes through the groups in that order",
+             "%d places" % (len(changed[1]["groups"]) if len(changed) == 2 else -1)),
+        said(len(changed) == 2 and changed[0]["lines"] == was[0]["lines"] and rest(edited) == rest(before),
+             "in the song's file: and nothing else was touched by that"),
+        said(len(left) == 1 and left[0]["lines"] == was[0]["lines"] and selected(end) == "" and rest(end) == rest(before),
+             "in the song's file: with the copy and the new arrangement removed, ProPresenter's own is there as it was, none is selected, and the rest is as it was",
+             " ".join(a["name"] for a in left) + " / selected " + (selected(end) or "none")),
+    ]
+    return lines
+
+
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
             "monitors": monitors}
@@ -1419,6 +1476,7 @@ TESTS = {
     "link": test("ProPresenter MR"),
     "rapid": test("Demo"),
     "chrome": test("Demo"),
+    "arrange": test("Demo", timeout=240, after=after_arrange),
     "switch": test("Demo", MEMORY, 60, also=("ProPresenter MR",)),
     "smoke": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0"}),
     "edit": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0", "SP_TEST_WIDTH": "1200", "SP_TEST_HEIGHT": "660"}),
