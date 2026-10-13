@@ -38,6 +38,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.92" date="2026-10-13">
+      <description>
+        <p>
+          The arrangement editor: a button over the slides opens two rows, the
+          presentation's groups and the arrangement being viewed, and a group is dragged
+          into the arrangement, along it, or taken out. Arrangements are made, copied,
+          renamed and removed. The presentation's name is in the middle of the line over
+          the slides.
+        </p>
+      </description>
+    </release>
     <release version="0.91" date="2026-10-13">
       <description>
         <p>
