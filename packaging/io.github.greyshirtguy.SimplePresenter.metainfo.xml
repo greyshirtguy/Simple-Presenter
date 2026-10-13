@@ -38,6 +38,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.91" date="2026-10-13">
+      <description>
+        <p>
+          Messages: named things to say over everything else, with tokens for a name, a
+          room, the time of day or a timer, a theme to be drawn in, and a layer and a clear
+          button of their own. The stage message, shown by the text boxes linked to it,
+          which can flash as it comes. In the editor, a row of the list of a slide's
+          elements is dragged up or down to change which element lies over which.
+        </p>
+      </description>
+    </release>
     <release version="0.90" date="2026-10-13">
       <description>
         <p>
