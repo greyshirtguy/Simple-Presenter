@@ -101,7 +101,7 @@ and the chord is one key away (1 to 7 are the chords of the song's key) or a let
 two typed, with the likely ones offered. Click the next place and carry on. More under
 [Chords](#chords).
 
-![The chord editor: the song as one sheet, its slides a grid of cards, each in a frame of its group's colour with the slide's number and the group's name on its foot, and the chords in small bubbles over the letters they belong to; over the grid the seven chords of the song's key on the keys 1 to 7, and in the toolbar the song's two keys and the switch between Slides, Chords and ChordPro; over one line a bubble in which a chord is being typed, with what it might be going to be offered above it; and on the line under it a bubble in outline where the pointer is, which is where a click would start the next chord](docs/chord-editor.png)
+![The chord editor, with the hymn Amazing Grace as one sheet: its slides a grid of cards, each in a frame of its group's colour with the slide's number and the group's name on its foot, and the chords in small bubbles over the letters they belong to; over the grid the seven chords of the song's key, G, numbered 1 to 7, and in the toolbar the song's two keys and the switch between Slides, Chords and ChordPro; the first verse has its chords, and the slide before it, which has no words, the chords of an intro; over a word of the second verse a bubble in which a chord is being typed, G and a slash, with the bass notes it might be going on to offered above it; and on the line under it a bubble in outline where the pointer is, which is where a click would start the next chord](docs/chord-editor.png)
 
 The same song can be worked on as ChordPro text, and a song can be brought in from a
 ChordPro file, chords and all.
@@ -187,6 +187,12 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **A chord dragged out of the strip.** In the [chord editor](#chords), each of the
+  key's seven chords along the top of the sheet can be dragged down onto a word, on
+  any slide, and let go there. A lit bubble shows where it would land; where there is
+  none, letting go puts nothing on. The keys 1 to 7 are still the quick way: this is
+  for the hand that reaches for the chord anyway. It came from the chord editor for
+  the Mac and Windows, which began as a copy of this one.
 - **Slide notes, and more for a text box to show.** A slide's notes are in the
   [editor](#editing), in a pane under the slide that a button at the bottom right puts
   up and away, and whose top edge is dragged to size it. They are formatted text, kept
@@ -1322,6 +1328,15 @@ What makes it quick:
 - **Most chords are one key.** The song's key is in the toolbar, and its seven chords
   are along the top of the sheet, numbered. Point at a letter and press **4**, and the
   key's fourth chord is there: in G, that is C. Most of most songs is those seven.
+- **Or one of the seven is dragged onto a word.** Each of them is a button, which puts
+  its chord on the spot when clicked; and it can be picked up and carried down to a
+  word, on any slide, which is slower than a key and is what a hand does unasked. Its
+  picture goes with the pointer, and over a word a lit bubble shows the chord where it
+  would land, in place of a chord that is there. That bubble is the whole of the
+  promise: let go between two slides, on a frame's foot or back on the strip, or press
+  Esc, and nothing is put on. Held near the bottom of the sheet, or its top, it scrolls
+  the sheet to slides that are out of sight. One can be picked up while another chord
+  is being typed, which is kept.
 - **Typing is helped along.** A letter from A to G opens a bubble to type the chord in.
   It takes only what could be a chord, and offers what it might be going to be: the
   chords the song already has, then the key's own, then the usual kinds on that note,
@@ -1380,6 +1395,7 @@ All of it, key by key:
 | Do this | And |
 | --- | --- |
 | 1 to 7 | The key's own chord on that note of its scale goes on the spot: in C, 1 is C, 4 is F, 6 is Am. The strip along the top shows them, and they can be clicked there |
+| Drag one of the strip's seven | Puts it on the word it is let go on, on any slide, where the lit bubble shows; with Shift held, on the start of the word. Let go anywhere else, or with Esc pressed, nothing happens |
 | A to G | Starts a chord by name. Only what could be a chord can be typed, and over it are the chords it might be going to be: the song's own first, then the key's, then the usual kinds |
 | Down, Up | Pick one of those; Right puts it in the box to go on from (for a bass note, say) |
 | Enter | Keeps the chord. Tab keeps it and moves the spot on to the next word. Esc throws it away |
@@ -2348,7 +2364,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: nearly forty scripts and about nineteen
+and look at what its windows then hold and show: forty scripts and over nineteen
 hundred checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
