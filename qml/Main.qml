@@ -442,6 +442,8 @@ Window {
     // the colour of a chord in each, "" for the one it comes with. They are this
     // app's, kept from one start to the next: nothing in any song's file says them.
     property real chordSheetZoom: 0.8
+    // How wide the reflow editor draws a slide, as it was left
+    property real reflowThumbnail: 220
     property real chordTextZoom: 1
     property string chordSheetColor: ""
     property string chordTextColor: ""
@@ -808,8 +810,26 @@ Window {
     }
 
     function editMode() {
-        if (!editing && document !== null && currentEntry() !== undefined)
+        if (reflowing)
+            editScreen.setMode("slides")
+        else if (!editing && document !== null && currentEntry() !== undefined)
             startEditing(currentEntry())
+    }
+
+    // The reflow editor (ReflowEditor.qml): the editor in another of its ways of
+    // working, for the presentation being viewed, or for the one the editor is on.
+    readonly property bool reflowing: editing && editScreen.mode === "reflow"
+    readonly property bool canReflow: editing ? editScreen.kind === "presentation"
+                                              : document !== null && currentEntry() !== undefined && openable(currentEntry())
+    function reflowMode() {
+        if (reflowing || !canReflow)
+            return
+        if (!editing)
+            startEditing(currentEntry())
+        if (editing && editScreen.kind === "presentation") {
+            editScreen.setMode("reflow")
+            Log.note("edit", "the reflow editor come to")
+        }
     }
 
     // ---- A slide asked for by its number, typed (src/slidenumber.h says how the whole
@@ -2744,6 +2764,8 @@ Window {
         const notesHeight = Number(saved("editorNotesHeight", editorNotesHeight))
         editorNotesHeight = isFinite(notesHeight) ? Math.max(60, notesHeight) : 150
         chordSheetZoom = chordZoom(saved("chordSheetZoom", chordSheetZoom), 0.8)
+        const reflowWidth = Number(saved("reflowThumbnail", reflowThumbnail))
+        reflowThumbnail = isFinite(reflowWidth) ? Math.max(120, Math.min(480, reflowWidth)) : 220
         chordTextZoom = chordZoom(saved("chordTextZoom", chordTextZoom), 1)
         chordSheetColor = chordColorKept(saved("chordSheetColor", ""))
         chordTextColor = chordColorKept(saved("chordTextColor", ""))
@@ -2913,6 +2935,7 @@ Window {
     onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
     onThumbnailWidthChanged: save("thumbnailWidth", thumbnailWidth)
     onChordSheetZoomChanged: save("chordSheetZoom", chordSheetZoom)
+    onReflowThumbnailChanged: save("reflowThumbnail", reflowThumbnail)
     onEditorNotesChanged: save("editorNotes", editorNotes)
     onEditorNotesHeightChanged: save("editorNotesHeight", editorNotesHeight)
     onChordTextZoomChanged: save("chordTextZoom", chordTextZoom)
@@ -3566,6 +3589,13 @@ Window {
         onActivated: win.editMode()
     }
 
+    Shortcut {
+        sequence: "Ctrl+R"
+        context: Qt.ApplicationShortcut
+        enabled: !win.settingsOpen
+        onActivated: win.reflowMode()
+    }
+
     // The settings, by the key that most apps have for theirs. It does what the
     // toolbar's button does, and like it is there in the editor too. (Not under the
     // notice of the guard on video decoding, which has its own way to them.)
@@ -3983,6 +4013,8 @@ Window {
         sheetChordColor: win.chordSheetColor
         textChordColor: win.chordTextColor
         onSheetZoomEdited: (zoom) => win.chordSheetZoom = win.chordZoom(zoom, 0.8)
+        reflowThumbnail: win.reflowThumbnail
+        onReflowThumbnailEdited: (width) => win.reflowThumbnail = Math.max(120, Math.min(480, width))
         onTextZoomEdited: (zoom) => win.chordTextZoom = win.chordZoom(zoom, 1)
         notesShown: win.editorNotes
         notesHeight: win.editorNotesHeight

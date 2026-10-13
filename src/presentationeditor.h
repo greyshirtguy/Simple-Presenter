@@ -186,6 +186,49 @@ public:
     // slide left with chords keeps what was made for them, and taking them off another
     // day leaves its text box with one stand-in, as any line of chords alone is left.)
     Q_INVOKABLE QString setChordsAlone(int row, const QString &element, int line, const QStringList &names, bool joined = false);
+    // ---- Reflow (see reflow.h for the rules of the words, and what of them is a
+    // guess; qml/ReflowEditor.qml is what works these)
+
+    // The presentation as the reflow editor's table has it: a row for each slide, in
+    // the order the presentation stores them, as { row, slideId, group, groupColor,
+    // groupStart, label, element, text, editable }. `text` is the words of the slide's
+    // text box, and `element` that box's id: the first text box of the slide that has
+    // words of its own (not another element's, a timer's or the live slide's), or, on
+    // a slide where none has, the first that has nothing in it. A slide with no text
+    // box of its own at all is a row too, with no element, that cannot be typed in,
+    // split or joined (`editable` false): a picture, say, or a slide of linked text.
+    //
+    // A slide with several text boxes that have words is a row for the first of them.
+    // The others are the slide's still, and go with it. (A GUESS at what is wanted,
+    // which the maintainer has since said will do: ProPresenter's reflow editor was not
+    // looked at for such a slide.)
+    Q_INVOKABLE QVariantList reflow() const;
+    // The words of a row typed over: what they now are. The words keep how they were
+    // set, and their chords, by the rules of reflow::retyped and of writeText. One
+    // step to undo, for the slide.
+    Q_INVOKABLE QString reflowType(int row, const QString &words);
+    // Splits a row's slide in two where the caret is in its words (see
+    // reflow::splitAt): the slide keeps what is before, and a new slide straight after
+    // it, in the same group, has what is after. Returns { error, row }, the row of the
+    // new slide.
+    //
+    // The new slide is the slide over again: its size and background, every element on
+    // it where it was and set as it was, so that the words that move to it look as
+    // they did. It has ids of its own throughout. What it does not take: the slide's
+    // label, its notes and its hotkey, which are the first slide's; and whatever else
+    // the slide's cue did when it was shown (media it started, a timer, a macro),
+    // which would otherwise be done twice. (GUESSES, all of that paragraph, when it was
+    // made. The maintainer has since said it is as wanted, and as ProPresenter does
+    // as far as they know.)
+    Q_INVOKABLE QVariantMap reflowSplit(int row, int caret);
+    // Joins a row's slide to the one before it: its words go after that one's, on a
+    // new line, with their chords, and the slide itself is taken out of the
+    // presentation and of its group. Returns { error, row, caret }: the row that has
+    // the words now, and where in them the joined words begin. Whatever else the
+    // slide had (other elements, a label, notes, things its cue did) goes with it,
+    // and comes back with it if the join is undone.
+    Q_INVOKABLE QVariantMap reflowJoin(int row);
+
     // Says what key the chords are written in. It changes no chord. The key
     // ProPresenter shows them in goes with it if nobody has chosen another: if the
     // presentation named no key, or its two keys were the same. Where they differed,
@@ -228,6 +271,9 @@ signals:
     void slideChanged(int row);
     // An undo or a redo changed the slide in this row.
     void restored(int row);
+    // The presentation has other slides than it had: one was split or two were joined
+    // in the reflow editor, or that was undone. Every row is to be read again.
+    void restructured();
 
 private:
     enum class Kind { Presentation, Props, Stage, Theme };
@@ -242,7 +288,12 @@ private:
     };
     // One change: the cue or layout it was made to, as it was before and after. Or,
     // with no row (-1), a change to the presentation's keys: `before` and `after` are
-    // then what musicState() gave.
+    // then what musicState() gave. Or, with kWhole for its row, a change to which
+    // slides the presentation has (one split, two joined): `before` and `after` are
+    // then the whole presentation, a change like that being in several places of it
+    // at once (its cues, a group's list of them).
+    static constexpr int kKeys = -1;
+    static constexpr int kWhole = -2;
     struct Step
     {
         int row;
@@ -254,6 +305,18 @@ private:
 
     void start(Kind kind, const QString &path, const QString &workspace, const QString &name);
     void finishOpening();
+    // Works out the rows of a presentation from its groups and cues.
+    void placeRows();
+    // The same again after the presentation's slides have changed, and every row
+    // described afresh.
+    void relist();
+    // Makes a change to which slides the presentation has, saves it, and keeps it as
+    // one step to undo. `apply` returns an error message, empty if it made the change.
+    template <typename Change>
+    QString restructure(Change apply);
+    // The id of the text box a row stands for in the reflow editor; "" if its slide
+    // has none.
+    QString reflowBox(int row) const;
     google::protobuf::Message *unitAt(int row);
     const google::protobuf::Message *unitAt(int row) const;
     rv::data::Slide *slideIn(int row);

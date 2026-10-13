@@ -35,7 +35,9 @@ import SimplePresenterApp
 //
 //   EditorModes is the switch, in the middle of the toolbar, between the editor's
 //   three ways of working on a presentation (`mode`, below); ChordSheet and
-//   ChordProEditor are the two that are for a song's chords.
+//   ChordProEditor are the two that are for a song's chords. ReflowEditor is a
+//   fourth way, the slides' words as a table, which the window's own toolbar leads
+//   to.
 //
 //   EditorCanvas draws the slide being worked on with the same SlideElement that draws
 //   the output, and lays over it what editing needs: the handles, the lines snapped
@@ -138,8 +140,15 @@ Rectangle {
     // sheet with its chords in bubbles (ChordSheet), and "chordpro", the same as
     // ChordPro text (ChordProEditor). They are for a presentation only: props, stage
     // layouts and themes have no chords.
+    //
+    // And a fourth, "reflow": the slides' words as a table, for moving them between
+    // slides (ReflowEditor). It is come to from the window's own toolbar and not from
+    // the switch of the other three, and has the whole of the editor to itself: the
+    // list of slides at the left gives way to it, the table being that list.
     property string mode: "slides"
     readonly property bool chordable: kind === "presentation"
+    // How wide the reflow editor draws a slide, as it was left
+    property real reflowThumbnail: 220
     // Whether what is being edited has notes: the slides of a presentation do, and
     // nothing else that is edited here (a prop, a stage layout and a theme's slide
     // have nowhere in their files for any). And whether their pane is up.
@@ -166,6 +175,8 @@ Rectangle {
         // (One of the key's chords, in the strip over the chord sheet)
         if (mode === "chords" && chordView.item && chordView.item.hint)
             return chordView.item.hint
+        if (slideBreak.hovered)
+            return slideBreak.hint
         for (const tools of [actions.children, songKeys.item ? songKeys.item.children : [], saving.item ? saving.item.children : []]) {
             for (let i = 0; i < tools.length; ++i) {
                 const tool = tools[i]
@@ -195,6 +206,7 @@ Rectangle {
     // A key that belongs to the operator window, not the editor, was pressed
     signal keyPassed(var event)
     signal sheetZoomEdited(real zoom)
+    signal reflowThumbnailEdited(real width)
     signal textZoomEdited(real zoom)
     signal notesShownEdited(bool shown)
     signal notesHeightEdited(real height)
@@ -591,7 +603,15 @@ Rectangle {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: Math.max(200, Math.min(screen.sidebarWidth, 360))
+        // (Not there while the reflow editor is up, which has the slides as its rows:
+        // no width, so that what is set against it begins at the window's edge. The
+        // width goes by the way of working and not by `visible`: an item's `visible`
+        // is false for as long as anything it is in is out of sight, which the whole
+        // editor is until it is opened, and a width that went by it was nothing until
+        // then and the editor was laid out twice over as it opened, the slide drawn at
+        // one size and then at another. The benchmark showed 110 ms of that.)
+        visible: screen.mode !== "reflow"
+        width: screen.mode !== "reflow" ? Math.max(200, Math.min(screen.sidebarWidth, 360)) : 0
         color: "#2b2d31"
 
         PanelTitle {
@@ -1223,6 +1243,10 @@ Rectangle {
                 hint: "Undo (Ctrl+Z)"
                 available: editor.canUndo || canvas.typed
                 onClicked: {
+                    // (In the reflow editor what is being typed is saved first, and is
+                    // then the last thing done.)
+                    if (screen.mode === "reflow")
+                        screen.finish()
                     if (screen.mode === "slides")
                         canvas.undo()
                     else
@@ -1243,6 +1267,25 @@ Rectangle {
                     screen.takeFocus()
                 }
             }
+
+            // The reflow editor's one button: splits the slide where the caret is,
+            // as Ctrl+Enter does. (The name is ProPresenter's.)
+            AppButton {
+                id: slideBreak
+
+                objectName: "reflowBreak"
+                readonly property string hint: "Split the slide in two where the caret is (Ctrl+Enter)"
+
+                anchors.verticalCenter: parent.verticalCenter
+                visible: screen.mode === "reflow"
+                height: 28
+                font.pixelSize: 12
+                text: "Insert Slide Break"
+                onClicked: {
+                    if (chordView.item)
+                        chordView.item.splitHere()
+                }
+            }
         }
 
         // The song's two keys, where the chord editors are: the key its chords are
@@ -1258,7 +1301,7 @@ Rectangle {
             anchors.left: actions.right
             anchors.leftMargin: 16
             anchors.verticalCenter: parent.verticalCenter
-            active: screen.mode !== "slides" && screen.chordable
+            active: (screen.mode === "chords" || screen.mode === "chordpro") && screen.chordable
             visible: active
 
             sourceComponent: Row {
@@ -1338,7 +1381,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             x: Math.min(strip.width - width - 12, Math.max(leftEnd, Math.round((screen.width - left.width - width) / 2)))
             compact: strip.width < leftEnd + widest + 12
-            visible: screen.chordable
+            visible: screen.chordable && screen.mode !== "reflow"
             mode: screen.mode
             onPicked: (mode) => screen.setMode(mode)
         }
@@ -1442,6 +1485,7 @@ Rectangle {
                 : screen.carriedId !== "" ? "Let go between two rows to put it there: the top of the list is the front  ·  Let go off to one side of the list to leave it where it was"
                 : screen.mode === "chords" ? "1 to 7: the key's chords, or drag one down from the strip  ·  A to G: type one, and a click on the next place keeps it  ·  Drag moves a chord, with Ctrl copies it  ·  Delete removes  ·  Ctrl+C and Ctrl+V: a line's chords onto another"
                 : screen.mode === "chordpro" ? "[ opens a chord and closes it  ·  Backspace on a bracket removes the chord  ·  The words cannot be changed here"
+                : screen.mode === "reflow" ? (chordView.item ? chordView.item.hint : "")
                 : notes.item && notes.item.typing ? "Notes: select text to format part of it  ·  Ctrl+B, I, U  ·  Right click: font, size and colour  ·  Esc gives the keys back to the slide"
                 : canvas.editing ? "Select text to format part of it  ·  Esc or a click elsewhere finishes  ·  Ctrl+B, I, U"
                 : canvas.selected ? "Drag to move, handles to resize  ·  Shift: straight, or in proportion  ·  Ctrl: no snapping  ·  Arrows nudge  ·  Double-click or Enter edits the text"
@@ -1611,8 +1655,24 @@ Rectangle {
         anchors.top: strip.bottom
         anchors.bottom: hint.top
         active: screen.mode !== "slides" && screen.chordable
-        sourceComponent: screen.mode === "chords" ? chordSheet : chordPro
+        sourceComponent: screen.mode === "chords" ? chordSheet : screen.mode === "chordpro" ? chordPro : reflowView
         onLoaded: item.takeKeys()
+    }
+
+    Component {
+        id: reflowView
+
+        ReflowEditor {
+            objectName: "reflowEditor"
+            editor: screen.editor
+            groupColor: screen.groupColor
+            backdropFor: screen.backdropFor
+            row: canvas.row
+            thumbnail: screen.reflowThumbnail
+            onFailed: (error) => screen.report(error)
+            onRowPicked: (row) => screen.showRow(row)
+            onThumbnailEdited: (width) => screen.reflowThumbnailEdited(width)
+        }
     }
 
     Component {

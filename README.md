@@ -188,6 +188,12 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **The reflow editor.** The slides' words as a table, a row to a slide, for moving
+  the words between slides: Ctrl+Enter splits a slide in two where the caret is, the
+  new slide being the slide over again with those words in it, and Backspace at the
+  start of a slide's words joins it to the one before. The words keep their fonts,
+  sizes, colours and chords through it. It is the **Reflow** button in the toolbar,
+  after Edit, or Ctrl+R: see [Reflow](#reflow).
 - **The arrangement editor.** The line over the slides has ProPresenter's Arrangements
   button, which opens two thin rows under it: the presentation's groups as coloured
   labels, and the [arrangement](#arrangements) being viewed. A group is dragged down
@@ -429,7 +435,6 @@ experiment.
 - [ ] **Playback markers**
 - [ ] **Linked text: the colours of a timer**
 - [ ] **Timer markers** (an idea of my own)
-- [ ] **Reflow**
 - [ ] **Text formatter**
 - [ ] **Bible**, from an online source, as FreeShow has it
 - [ ] **CCLI**: a song's details edited, and the ways of showing them
@@ -1457,6 +1462,62 @@ Fonts are recorded by name, so text set in a font that is not installed here kee
 font unless another is chosen for it; the editor marks such a font as missing, and a
 substitute is used to draw it.
 
+## Reflow
+
+Getting a song's words spread well over its slides (two lines a slide, a verse to a
+slide) is most of the work of setting it up. The **reflow editor** is for that alone.
+It is the editor in another of its ways of working: the **Reflow** button in the
+toolbar, straight after Edit (a T over a wave), or **Ctrl+R**, brings it up on the
+presentation being viewed, from the show or from the editor proper; the button again
+goes back to the show, and Edit leads to the editor proper on the same presentation.
+
+At the left the slides' words are a table, a row to a slide, in the order the
+presentation has its slides: each row has its slide's number, its group's colour down
+its edge and the group's name where the group begins, and the words, which are typed in
+as a page is. At the right are the slides themselves, as they will be shown, the one
+whose row the caret is in ringed; the slider under them sets their size.
+
+- **Ctrl+Enter**, or **Insert Slide Break** over the table, splits the slide where the
+  caret is. What is after the caret goes to a new slide straight after, in the same
+  group. The new slide is the slide over again, the same text boxes and everything
+  else in the same places and set the same, with those words in it. The spaces or the
+  line break the caret was among go to neither slide.
+- **Backspace** at the very start of a slide's words joins the slide to the one before
+  it: its words go after that one's, on a new line. **Delete** at the very end of a
+  slide's words joins the next slide to it the same way. The slide that was joined is
+  taken out of the presentation, with whatever else it had.
+- **Enter** is a line break within the slide, and words are typed and corrected as
+  anywhere. What is typed is saved a moment after the typing stops, and the slides at
+  the right follow.
+- **Up** and **Down** go from the first and last line of a row to the row before and
+  after, and Tab to the next row. A click on a slide at the right puts the caret in
+  its row.
+- **Undo** (Ctrl+Z) takes back a split, a join or what was typed, a step at a time, and
+  Redo does it again.
+
+The words keep their fonts, sizes and colours through all of it, and a song's chords
+stay over their words, though none of that is shown or set here: the table is in one
+plain face that is easy to read. ProPresenter's reflow editor shows the words in their
+own fonts, and can set them; here that is left to the editor proper, and this is for
+reflowing.
+
+What a row is: the slide's first text box that has words of its own, or, on a slide
+whose boxes are all empty, the first of those. A slide with several text boxes that
+have words is a row for the first, and the others go with the slide as they are. A
+slide with no text box of its own (a picture, or text that is another element's or a
+timer's) is a row that says so and takes no typing.
+
+It is for presentations only: the props, the stage layouts and the themes are not
+reflowed.
+
+What was a guess when it was made, ProPresenter's own having been described and not
+looked at: what becomes of the spaces at a split; that joined words begin a new line;
+that the new slide of a split does not take the first slide's label, its notes, or
+whatever else its cue did when it was shown (media it started, a timer), which would
+otherwise be done twice; which text box a slide with several is a row for; and the keys
+that go from row to row. The maintainer, who knows ProPresenter, has since said that
+each is as wanted, and that the third is as ProPresenter does, as far as they know.
+
 ## Chords
 
 A song can have chords over its words, for a stage screen to show the band. They are
@@ -2038,6 +2099,7 @@ NDI® is a registered trademark of Vizrt NDI AB.
 | A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
 | A number, then Enter | Goes to the slide with that number |
 | Ctrl+E | Edit mode: the editor, for the presentation being viewed |
+| Ctrl+R | The [reflow editor](#reflow), for the presentation being viewed |
 | Ctrl+S | Show mode: out of the editor, whichever one is up |
 | Ctrl+F | [Search](#search) |
 | Ctrl+V | Show or hide the media bin |
@@ -2558,7 +2620,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: forty-three scripts and over two
+and look at what its windows then hold and show: forty-four scripts and over two
 thousand checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
@@ -2597,6 +2659,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/labelfile.*`, `src/labels.*` | Slide labels: a slide's own, and the labels a workspace keeps ready, in ProPresenter's list of them |
 | `src/clearfile.*`, `src/cleargroups.*` | The workspace's clear groups, in ProPresenter's file of them: the layers each clears, its picture and tint, and adding to, changing and removing them |
 | `src/messagefile.*`, `src/messages.*` | The workspace's messages, in ProPresenter's file of them: a message's words and tokens, its theme and how it goes away, read and changed; a message as a slide in its theme; and the words one is showing |
+| `src/reflow.*` | The reflow editor's rules for a slide's words: where a slide is split for a caret, a stretch of words taken with its look, two lots joined, words typed over, and where the chords go through each |
 | `src/elementorder.*` | Where an element lands when its row is dragged up or down the editor's list of a slide's elements: from a gap in the list, which has the front one first, to a place in the order drawn |
 | `src/messagetext.*` | A message's words in a box they are typed in, each token a small label among them, and the pictures of those labels |
 | `src/decodingchoice.*`, `src/videodecoding.*` | Who decodes video, the graphics chip or the processor alone: the rule by which that is settled as the app starts, and what QML reads it by |
@@ -2652,6 +2715,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/rtfstandins.*` | A line of chords with no words given more stand-in characters or fewer, where it stands in a text box's RTF |
 | `qml/ChordSheet.qml`, `qml/ChordProEditor.qml` | The two chord editors: the song as a sheet with its chords in bubbles, and as ChordPro text |
 | `qml/EditorModes.qml` | The switch between the editor's three ways of working, in the middle of its toolbar |
+| `qml/ReflowEditor.qml` | The reflow editor, a fourth way: the slides' words as a table that is typed in, split and joined, with the slides beside it |
 | `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |
 | `qml/ImportSong.qml` | The panel a ChordPro file is imported from |
 | `qml/NewPresentation.qml` | The panel a new presentation is named in |

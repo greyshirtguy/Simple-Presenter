@@ -157,13 +157,43 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         kind: "edit"
         label: "Edit"
-        on: toolbar.win.editing
+        on: toolbar.win.editing && !toolbar.win.reflowing
         opacity: toolbar.win.editing || (toolbar.win.document !== null && toolbar.win.currentEntry() !== undefined) ? 1 : 0.4
+        // (From the reflow editor it leads to the editor proper, on the same
+        // presentation; from the editor proper, back to the show.)
         onClicked: {
-            if (toolbar.win.editing)
+            if (toolbar.win.reflowing)
+                toolbar.win.editMode()
+            else if (toolbar.win.editing)
                 toolbar.win.stopEditing()
             else
                 toolbar.win.startEditing(toolbar.win.currentEntry())
+        }
+    }
+
+    // The reflow editor: the words of the presentation's slides as a table, for moving
+    // them between slides (see ReflowEditor.qml). It is the editor in another of its
+    // ways of working, so the button leads into it from the show and from the editor
+    // proper alike, and out of it to the show. For a presentation only: dimmed while
+    // there is none, and while the props, the stage layouts or a theme are edited.
+    ToolbarIcon {
+        id: reflowButton
+
+        objectName: "reflowButton"
+        readonly property bool available: toolbar.win.reflowing || toolbar.win.canReflow
+
+        anchors.left: editButton.right
+        anchors.leftMargin: 2
+        anchors.verticalCenter: parent.verticalCenter
+        kind: "reflow"
+        label: "Reflow"
+        on: toolbar.win.reflowing
+        opacity: available ? 1 : 0.4
+        onClicked: {
+            if (toolbar.win.reflowing)
+                toolbar.win.stopEditing()
+            else
+                toolbar.win.reflowMode()
         }
     }
 
@@ -171,7 +201,7 @@ Rectangle {
     // there, and otherwise in what room there is between the edit button and the buttons
     // on the right; where that is too little to say anything in, it is left out
     Text {
-        readonly property real from: editButton.x + editButton.width + 14
+        readonly property real from: reflowButton.x + reflowButton.width + 14
         readonly property real to: toolbarControls.x - 16
 
         x: Math.max(from, Math.min((parent.width - width) / 2, to - width))

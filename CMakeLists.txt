@@ -118,6 +118,7 @@ qt_add_qml_module(SimplePresenter
         qml/ArrangementBar.qml
         qml/ArrangementsPanel.qml
         qml/Benchmark.qml
+        qml/ReflowEditor.qml
         qml/AppTextField.qml
         qml/AuxWindow.qml
         qml/ClearGroupGlyph.qml
@@ -217,6 +218,8 @@ qt_add_qml_module(SimplePresenter
         src/presentationeditor.cpp
         src/elementorder.h
         src/elementorder.cpp
+        src/reflow.h
+        src/reflow.cpp
         src/richtextbridge.h
         src/richtextbridge.cpp
         src/strokedtext.h

@@ -1464,6 +1464,61 @@ def after_arrange(workspace, test_dir):
     return lines
 
 
+def after_reflow(workspace, test_dir):
+    """A slide split in two and slides joined in the reflow editor: what the presentation's file holds, read with
+    protoc and not by the app. The test kept the file with its one slide (reflow-before), after the first split
+    (reflow-split) and at the end (reflow-end). The words are the test's own."""
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+
+    def decoded(name):
+        with open(os.path.join(frames, name), "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    def cues(text):
+        """Each cue of a decoded presentation, in the file's order: its id, the ids of its elements, how many
+        actions it has, and its lines of the text."""
+        found = []
+        for block in re.finditer(r"^cues \{\n.*?^\}\n", text, re.S | re.M):
+            lines = block.group(0)
+            found.append({"id": re.search(r'^  uuid \{\s+string: "([^"]+)"', lines, re.M).group(1),
+                          "elements": re.findall(r'^ +elements \{\n +element \{\n +uuid \{\s+string: "([^"]+)"', lines, re.M),
+                          "actions": len(re.findall(r"^  actions \{$", lines, re.M)), "lines": lines})
+        return found
+
+    def grouped(text):
+        """The ids of the cues the presentation's groups list, in order."""
+        return [cue for block in re.finditer(r"^cue_groups \{\n.*?^\}\n", text, re.S | re.M)
+                for cue in re.findall(r'^  cue_identifiers \{\s+string: "([^"]+)"', block.group(0), re.M)]
+
+    def rest(text):
+        """A decoded presentation without its cues and its groups' lists of them."""
+        text = re.sub(r"^cues \{\n.*?^\}\n", "", text, flags=re.S | re.M)
+        return re.sub(r"^  cue_identifiers \{\n.*?^  \}\n", "", text, flags=re.S | re.M)
+
+    before, split, end = (decoded(name) for name in ("reflow-before", "reflow-split", "reflow-end"))
+    one, two, last = cues(before), cues(split), cues(end)
+    made = two[1] if len(two) == 2 else {"id": "", "elements": [], "actions": 0, "lines": ""}
+    return [
+        said(len(one) == 1 and len(two) == 2 and two[0]["id"] == one[0]["id"] and made["id"] != one[0]["id"] and len(made["id"]) == 36,
+             "in the presentation's file: a split made a second cue straight after the first, with an id of its own", "%d then %d cues" % (len(one), len(two))),
+        said(grouped(split) == [cue["id"] for cue in two] and grouped(before) == [one[0]["id"]],
+             "in the presentation's file: the group that had the slide lists the new one straight after it"),
+        said(len(made["elements"]) == len(one[0]["elements"]) == 2 and not set(made["elements"]) & set(one[0]["elements"])
+             and two[0]["elements"] == one[0]["elements"] and made["actions"] == 1,
+             "in the presentation's file: the new slide has the same elements, each with an id of its own, and its cue does nothing but show it",
+             "%d elements, %d actions" % (len(made["elements"]), made["actions"])),
+        said("Bright morning" in two[0]["lines"] and "over the hill" in two[0]["lines"] and "Quiet evening" not in two[0]["lines"]
+             and "Quiet evening" in made["lines"] and "under the stars" in made["lines"] and "Bright morning" not in made["lines"],
+             "in the presentation's file: each of the two slides has its own half of the words, and not the other's"),
+        said(rest(split) == rest(before) and rest(end) == rest(before) and len(rest(before)) > 100,
+             "in the presentation's file: nothing but the slides and the group's list of them is changed, by the split or by the end"),
+        said(len(last) == 2 and grouped(end) == [cue["id"] for cue in last] and last[0]["id"] == one[0]["id"]
+             and "morning" not in last[0]["lines"].split("Bright", 1)[-1][:40] and "Home" in last[1]["lines"] and "Quieter evening" in last[1]["lines"],
+             "in the presentation's file: after the joins and the last split there are two slides, the group lists both, and the words are where they were put",
+             "%d cues" % len(last)),
+    ]
+
+
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
             "monitors": monitors}
@@ -1477,6 +1532,7 @@ TESTS = {
     "rapid": test("Demo"),
     "chrome": test("Demo"),
     "arrange": test("Demo", timeout=240, after=after_arrange),
+    "reflow": test("Demo", timeout=240, after=after_reflow),
     "switch": test("Demo", MEMORY, 60, also=("ProPresenter MR",)),
     "smoke": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0"}),
     "edit": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0", "SP_TEST_WIDTH": "1200", "SP_TEST_HEIGHT": "660"}),

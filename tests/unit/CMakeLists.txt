@@ -137,6 +137,19 @@ target_include_directories(tst_elementorder PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_elementorder PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME elementorder COMMAND tst_elementorder)
 
+# (The rules are on styled text, whose colours are the GUI library's: nothing of a
+# window is made, and the fonts are never looked up.)
+qt_add_executable(tst_reflow
+    tst_reflow.cpp
+    ${PROJECT_SOURCE_DIR}/src/reflow.h
+    ${PROJECT_SOURCE_DIR}/src/reflow.cpp
+    ${PROJECT_SOURCE_DIR}/src/richtext.h
+    ${PROJECT_SOURCE_DIR}/src/chords.h
+)
+target_include_directories(tst_reflow PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_reflow PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+add_test(NAME reflow COMMAND tst_reflow)
+
 qt_add_executable(tst_slidenumber
     tst_slidenumber.cpp
     ${PROJECT_SOURCE_DIR}/src/slidenumber.h

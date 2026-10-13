@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are twenty:
+So far there are twenty-one:
 
 | Test | What it tries |
 | --- | --- |
@@ -32,6 +32,7 @@ So far there are twenty:
 | `tst_decodingguard` | The guard on hardware video decoding (`src/decodingguard.h`), on folders made up to look like a system's: which graphics chip video would be decoded on, what of nouveau's firmware is looked for and where, and which computers are then held back |
 | `tst_slidenumber` | A slide asked for by its number (`src/slidenumber.h`): what the digits typed so far make, what Backspace leaves of them, and which slide of a presentation a number is, or that none is |
 | `tst_elementorder` | Where an element dragged up or down the editor's list of a slide's elements lands (`src/elementorder.h`): the top of the list is the front and under its last row the back, a gap just over or just under the element changes nothing, and every element of a pile let go at every gap, against the list worked the long way |
+| `tst_reflow` | The reflow editor's rules for a slide's words (`src/reflow.h`), on texts made in the test: where a slide is split for a caret, with the spaces around it going to neither slide and a line of chords alone not taken for space; a stretch taken with its look, a break taken with a line on either side of it; two texts joined; words typed over, a line break typed, everything deleted; and the chords of a split slide, of two joined, and of a split joined again |
 | `tst_clearfile` | Clear groups (`src/clearfile.h`): the group a workspace with no file is taken to have, written as ProPresenter's own is; a file of ProPresenter's read; a layer taken out and put back where it was; a group made, renamed, moved and removed; its picture, its tint and whether its button is shown; and that the rest of the file, and what is not known of in it, is kept |
 | `tst_showstate` | The rules of the show (`src/showstate.h`): what a slide going live puts on the output and in what order, when the media it brings is started and when what is playing is left to, what a slide's actions do, what clearing leaves, what a clear group clears, how props stack and give way, what a macro does, where a step takes the show, how the show follows a presentation that is read again, and one that is renamed under it; and the audio layer: music one at a time, sound effects over it and each other, what follows a piece that has ended, and what clears which; the messages: several at once, one that goes by itself after its time, what clears them, and an action that shows one; and what the stage is told |
 | `tst_audiocue` | How a piece of audio plays (`src/audiocue.h`), on a row of the audio bin made as ProPresenter writes one: whether it stops, goes round or is followed by the next, whether it is music or a sound effect, how loud and how long; each of those changed, with a look at what else of the row is still as it was, to the byte; and what a new row is given |

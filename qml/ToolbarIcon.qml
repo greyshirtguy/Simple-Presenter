@@ -11,8 +11,9 @@ import QtQuick.Shapes
 //
 // The rest are this app's, for what ProPresenter's pack has no picture of: "bin" is a
 // window with its bottom pane filled when `on`; "settings" is a set of sliders; "edit"
-// is a pencil, orange when `on`; "show" is the triangle that means play, orange when
-// `on`; "search" is a magnifying glass; "themes" is one slide behind another; "expand"
+// is a pencil, orange when `on`; "reflow" is a letter T over a wave of two peaks (words,
+// and their flowing from slide to slide), orange when `on`; "show" is the triangle
+// that means play, orange when `on`; "search" is a magnifying glass; "themes" is one slide behind another; "expand"
 // is four corners turned outwards, the sign for filling the screen, orange when `on`.
 //
 // A caption is as wide as it needs to be, up to `captionWidth`, and the button with it:
@@ -120,6 +121,34 @@ Item {
                     path: [Qt.point(3, 12.5), Qt.point(4.2, 8.4), Qt.point(11.6, 1), Qt.point(15, 4.4),
                            Qt.point(7.6, 11.8), Qt.point(3, 12.5)]
                 }
+            }
+        }
+
+        // A T over a wave of two peaks
+        Shape {
+            anchors.fill: parent
+            visible: button.kind === "reflow"
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: button.on ? "#ff8a1f" : button.ink
+                strokeWidth: 1.6
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+
+                // The T: its bar, and its stem
+                startX: 4.5
+                startY: 1.2
+                PathLine { x: 13.5; y: 1.2 }
+                PathMove { x: 9; y: 1.2 }
+                PathLine { x: 9; y: 7.8 }
+                // The wave under it: up, down, up, down
+                PathMove { x: 1; y: 11.5 }
+                PathQuad { x: 5; y: 11.5; controlX: 3; controlY: 8.3 }
+                PathQuad { x: 9; y: 11.5; controlX: 7; controlY: 14.7 }
+                PathQuad { x: 13; y: 11.5; controlX: 11; controlY: 8.3 }
+                PathQuad { x: 17; y: 11.5; controlX: 15; controlY: 14.7 }
             }
         }
 
