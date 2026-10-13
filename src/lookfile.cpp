@@ -241,6 +241,7 @@ void change(rv::data::ProAudienceLook *look, const QString &screenId, const Scre
     screen->set_presentation_background_enabled(wanted.media);
     screen->set_props_layer_enabled(wanted.props);
     screen->set_messages_layer_enabled(wanted.messages);
+    screen->set_announcements_enabled(wanted.announcements);
     // The theme, if it is another than the line has: one that is the same is left as
     // the file has it, in whatever way the computer that wrote it named it.
     const QString had = screen->has_template_document_file_path() ? themePlace(named(screen->template_document_file_path())) : QString();

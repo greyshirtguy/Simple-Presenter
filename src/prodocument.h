@@ -67,6 +67,10 @@ struct ProDocument
     bool hasChords = false;
     QString originalKey;
     QString userKey;
+    // Where the presentation is sent when one of its slides is triggered: "" for the
+    // slide and media layers, as all are unless they say otherwise, or "announcements"
+    // for the announcements layer (ProPresenter's Destination, see setDestination()).
+    QString destination;
 
     // Reads a ProPresenter 7 .pro file. `arrangement` names the arrangement to follow,
     // "" (or a name the file does not have) being every group in stored order; without
@@ -78,7 +82,18 @@ struct ProDocument
                             const std::optional<QString> &arrangement, QString *error);
     // Just the arrangement names and which is selected ("" for none). False if unreadable.
     // `ids`, if asked for, is the id of each, in step with the names.
-    static bool arrangementsOf(const QString &path, QStringList *names, QString *selected, QStringList *ids = nullptr);
+    // `destination`, if asked for, is where the presentation is sent (see `destination`
+    // above), which every row of a list is told as well.
+    static bool arrangementsOf(const QString &path, QStringList *names, QString *selected, QStringList *ids = nullptr,
+                               QString *destination = nullptr);
+    // Records where the presentation is sent: "announcements", or "" for the slide and
+    // media layers (which, being what a file means when it says nothing, takes the
+    // field out of the file again). Writes the file back unless it says so already.
+    // Returns an error message, empty on success.
+    //
+    // ProPresenter records the same on every row of a playlist that is this
+    // presentation, which is PlaylistFile::setRowsDestination(); Catalog does both.
+    static QString setDestination(const QString &path, const QString &destination);
     // Selects the named arrangement, or none for "", and writes the file back. Returns
     // an error message, empty on success.
     // The id of the arrangement of that name, or empty.

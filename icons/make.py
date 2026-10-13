@@ -38,7 +38,7 @@ from PIL import Image
 # The pictures the app uses, by the name each has in the pack. Add a name here and run
 # this again to have another.
 NAMES = [
-    "Arrangements", "Clear", "ClearAnnouncements", "ClearAudio", "ClearMedia", "ClearMessages", "ClearPresentation", "ClearProps",
+    "Announcements", "Arrangements", "Clear", "ClearAnnouncements", "ClearAudio", "ClearMedia", "ClearMessages", "ClearPresentation", "ClearProps",
     "ClearVideoInput", "Countdown", "Looks", "Macro", "Message", "Prop", "Screens", "ScreensOn", "Stage",
     "Transport Pause", "Transport Play",
 ]

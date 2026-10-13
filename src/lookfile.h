@@ -32,12 +32,12 @@
 // id is none of the saved ones'.)
 //
 // ProPresenter has more layers than this app has. Each look's line for a screen is a
-// set of switches, of which four are gone by here: the slides ("presentation
-// foreground" in its file), the media ("presentation background"), the props and the
-// messages. The others (announcements, video inputs, a mask) are read, so that a look
-// can be shown whole, and are never changed here: they are left in the file as they were
-// found, and a look made here from nothing has them on, as ProPresenter's own new look
-// does.
+// set of switches, of which five are gone by here: the slides ("presentation
+// foreground" in its file), the media ("presentation background"), the props, the
+// messages and the announcements. The others (video inputs, a mask) are read, so that
+// a look can be shown whole, and are never changed here: they are left in the file as
+// they were found, and a look made here from nothing has them on, as ProPresenter's
+// own new look does.
 //
 // The live look is the workspace's, in ProPresenter's file with the rest, so that the
 // workspace opened in ProPresenter again shows what it was showing here. (Up to and
@@ -56,6 +56,7 @@ struct ScreenLook
     bool media = true;
     bool props = true;
     bool messages = true;
+    bool announcements = true;
     // The theme its slides are dressed in, as the theme's place under the workspace's
     // Themes folder ("Samples/Black Box"), and which of the theme's slides, by id; ""
     // for slides as they are
@@ -64,7 +65,6 @@ struct ScreenLook
     // ProPresenter's other layers, which this app has not yet: only read, to be shown
     // (greyed) where a look is shown whole. `mask` is the id of the mask the screen is
     // given, "" for none.
-    bool announcements = true;
     bool videoInput = true;
     QString mask;
 

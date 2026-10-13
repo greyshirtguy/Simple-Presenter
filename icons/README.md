@@ -2,10 +2,11 @@
 
 These are the pictures ProPresenter has for things this app has too: a look, the
 screens, the stage, a timer, a prop, a macro, a message, a presentation's
-arrangements, clearing each layer, and playing and pausing. The app shows them in the
-toolbar, on the buttons that clear a layer, on the tabs of the show controls, on the
-button over the slides that opens the arrangements, and wherever an action on a slide
-or in a macro is pictured. Someone who knows ProPresenter knows them at a glance, which
+arrangements, the announcements, clearing each layer, and playing and pausing. The app
+shows them in the toolbar, on the buttons that clear a layer, on the tabs of the show
+controls, on the button over the slides that opens the arrangements, beside a
+presentation that is sent to the announcements, and wherever an action on a slide or in
+a macro is pictured. Someone who knows ProPresenter knows them at a glance, which
 is the whole reason for using them instead of drawings of this app's own.
 
 Simple Presenter is not ProPresenter and has nothing to do with Renewed Vision. Where
@@ -21,7 +22,7 @@ The icon pack published with the Bitfocus Companion module for ProPresenter's AP
     IconPack.zip, in the root of that repository
 
 That repository is under the MIT licence, which is given whole at the foot of this
-page, as it asks. The pack has forty pictures; the nineteen here are the ones the app
+page, as it asks. The pack has forty pictures; the twenty here are the ones the app
 uses.
 
 ## How these files were made

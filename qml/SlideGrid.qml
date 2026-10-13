@@ -115,7 +115,7 @@ Item {
 
             // Where what is at the left ends, and where what is at the right begins
             readonly property real clearFrom: keyBox.visible ? keyBox.x + keyBox.width + 16 : 0
-            readonly property real clearTo: (arrangementName.visible ? arrangementName.x : arrangementToggle.x) - 16
+            readonly property real clearTo: (headerMarks.visible ? headerMarks.x : arrangementName.visible ? arrangementName.x : arrangementToggle.x) - 16
             readonly property bool aside: slides.win.simple
 
             objectName: "gridTitle"
@@ -137,13 +137,58 @@ Item {
             objectName: "gridNotice"
             anchors.left: gridTitle.aside ? gridTitle.right : keyBox.visible ? keyBox.right : parent.left
             anchors.leftMargin: gridTitle.aside ? (gridTitle.text !== "" ? 14 : 0) : keyBox.visible ? 14 : 0
-            anchors.right: !gridTitle.aside ? gridTitle.left : arrangementName.visible ? arrangementName.left : arrangementToggle.left
+            anchors.right: !gridTitle.aside ? gridTitle.left : headerMarks.visible ? headerMarks.left
+                                                           : arrangementName.visible ? arrangementName.left : arrangementToggle.left
             anchors.rightMargin: 16
             anchors.verticalCenter: gridTitle.verticalCenter
             elide: Text.ElideRight
             color: slides.win.noticeIsError ? "#ff6b6b" : slides.win.dimTextColor
             font.pixelSize: 13
             text: slides.win.notice
+        }
+
+        // The small buttons ProPresenter has over a presentation, which say a thing
+        // about the whole of it and open the menu that changes it. Here they are at
+        // the left of the arrangement's name.
+        Row {
+            id: headerMarks
+
+            anchors.right: arrangementName.visible ? arrangementName.left : arrangementToggle.left
+            anchors.rightMargin: 10
+            y: 4
+            spacing: 4
+            visible: slides.win.document !== null && !slides.win.simple
+
+            // The destination: where the presentation's slides go when they are
+            // triggered, the slide and media layers ("Presentation") or the
+            // announcements layer. ProPresenter's picture of the announcements, which
+            // is green for a presentation that is sent to them, as it is there.
+            Rectangle {
+                id: destinationButton
+
+                readonly property bool announces: slides.win.viewedGoesToAnnouncements
+
+                objectName: "destinationButton"
+                width: 26
+                height: 22
+                radius: 6
+                color: destinationMouse.pressed ? "#50535a" : destinationMouse.containsMouse ? "#45484e" : "transparent"
+
+                ProIcon {
+                    anchors.centerIn: parent
+                    name: "Announcements"
+                    size: 24
+                    ink: destinationButton.announces ? "#3ddc68" : "#8d9096"
+                }
+
+                MouseArea {
+                    id: destinationMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: slides.win.showDestinationMenu(destinationButton)
+                }
+            }
         }
 
         // The arrangement it is viewed in, where that is not Master: beside the
@@ -273,7 +318,10 @@ Item {
 
             required property var modelData
             required property int index
-            readonly property bool live: slides.win.viewingLive && slides.win.cueLive && slides.win.liveIndex === index
+            // The slide the show is at; or, in a presentation that is sent to the
+            // announcements, the slide the announcements are at
+            readonly property bool live: (slides.win.viewingLive && slides.win.cueLive && slides.win.liveIndex === index)
+                                         || (slides.win.viewingAnnouncements && Show.announcementLive && Show.announcementIndex === index)
             // The frame is the slide's group colour, and the label is drawn on it.
             readonly property color frame: slides.win.groupColor(modelData)
             readonly property bool lightFrame: 0.299 * frame.r + 0.587 * frame.g + 0.114 * frame.b > 0.6

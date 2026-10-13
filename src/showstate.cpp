@@ -79,11 +79,104 @@ bool State::at(const QString &key, const QString &playlistId) const
     return atSlide && this->key == key && this->playlistId == playlistId;
 }
 
+bool State::announcementAt(const QString &key, const QString &playlistId) const
+{
+    return announcement.atSlide && announcement.key == key && announcement.playlistId == playlistId;
+}
+
+namespace {
+
+// Whether media that is asked for is a background that is the one playing on a layer
+// already, and so is left to play on: see State::alreadyPlaying, which says when.
+bool playsOn(const QVariantMap &asked, bool has, const QVariantMap &playing)
+{
+    if (!has || playing.value("foreground").toBool() || asked.value("foreground").toBool() || asked.value("retriggers").toBool()
+        || asked.value("path") != playing.value("path"))
+        return false;
+    if (!asked.value("video").toBool())
+        return true;
+    // (The count and the time only matter for the way of playing that uses them.)
+    const int playback = asked.value("playback").toInt();
+    return playing.value("loops").toBool() && playback == playing.value("playback").toInt()
+        && (playback != 2 || asked.value("loopCount").toInt() == playing.value("loopCount").toInt())
+        && (playback != 3 || asked.value("loopSeconds").toDouble() == playing.value("loopSeconds").toDouble());
+}
+
+} // namespace
+
+// A slide of a presentation that is sent to the announcements goes live there: the
+// rules of goLive(), on the announcements layer's own slide and media. Its actions are
+// done as any slide's are, and do what they say: one that clears the slide clears the
+// slide layer, and not this.
+Effects State::goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Workspace &workspace)
+{
+    Effects effects;
+    const QVariantMap cueMedia = cue.slide.value("media").toMap();
+    const QString mediaName = cue.slide.value("mediaName").toString();
+    const bool brings = !withoutMedia && !cueMedia.isEmpty();
+    const QVariantList actions = cue.slide.value("actions").toList();
+    const QString label = cue.slide.value("label").toString();
+
+    announcement.atSlide = true;
+    announcement.key = cue.key;
+    announcement.playlistId = cue.playlistId;
+    announcement.presentation = cue.presentation;
+    announcement.index = cue.index;
+    announcement.count = cue.count;
+    announcement.slide = cue.slide;
+    announcement.next = cue.next;
+    announcement.cleared = false;
+    announcement.clearedByCue = false;
+
+    const bool playing = brings && playsOn(cueMedia, announcementHasMedia, announcementMedia);
+    QString said = QStringLiteral("to the announcements, slide %1 of %2 of %3").arg(cue.index + 1).arg(cue.count).arg(quoted(cue.presentation));
+    if (!label.isEmpty())
+        said += QStringLiteral(" (") + label + u')';
+    if (withoutMedia && !mediaName.isEmpty())
+        said += QStringLiteral("; without its media, as asked");
+    else if (brings)
+        said += playing ? QStringLiteral("; its ") + mediaWords(cueMedia) + QStringLiteral(" is playing there already")
+                        : QStringLiteral("; with its ") + mediaWords(cueMedia);
+    else if (!mediaName.isEmpty())
+        said += QStringLiteral("; its media ") + quoted(mediaName) + QStringLiteral(" was not found");
+    if (!actions.isEmpty())
+        said += QStringLiteral("; and has ") + actionsWord(actions.size());
+    effects << note("live", said);
+    if (!withoutMedia && cueMedia.isEmpty() && !mediaName.isEmpty())
+        effects << problem(QStringLiteral("The media %1 of slide %2 of %3 was not found in the workspace, so the slide is shown without it")
+                               .arg(quoted(mediaName)).arg(cue.index + 1).arg(quoted(cue.presentation)));
+
+    if (!brings) {
+        if (announcementHasMedia && announcementMedia.value("foreground").toBool()) {
+            // The foreground that was under the slide before goes with it: the layer
+            // is given the slide alone, which takes the media off.
+            announcementHasMedia = false;
+            announcementMedia.clear();
+            effects << withMedia(Effect::AnnouncementWithMedia, QVariantMap());
+        } else {
+            effects << plain(Effect::Announcement);
+        }
+    } else if (playing) {
+        effects << plain(Effect::AnnouncementOverMedia);
+    } else {
+        announcementHasMedia = true;
+        announcementMedia = cueMedia;
+        effects << withMedia(Effect::AnnouncementWithMedia, cueMedia);
+    }
+
+    m_runningAnnouncement = true;
+    runActions(actions, 0, workspace, effects);
+    m_runningAnnouncement = false;
+    return effects;
+}
+
 Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &workspace)
 {
     Effects effects;
     if (cue.index < 0 || cue.index >= cue.count)
         return effects;
+    if (cue.destination == QLatin1String("announcements"))
+        return goLiveAnnouncement(cue, withoutMedia, workspace);
     const QVariantMap cueMedia = cue.slide.value("media").toMap();
     const QString mediaName = cue.slide.value("mediaName").toString();
     const bool brings = !withoutMedia && !cueMedia.isEmpty();
@@ -146,8 +239,15 @@ Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &worksp
     return effects;
 }
 
-int State::stepTarget(const QString &key, const QString &playlistId, int delta) const
+int State::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements) const
 {
+    if (announcements) {
+        if (!announcementAt(key, playlistId))
+            return 0;
+        if (announcement.cleared && !announcement.clearedByCue)
+            return announcement.index;
+        return announcement.index + delta;
+    }
     if (!at(key, playlistId))
         return 0;
     if (cleared && !clearedByCue)
@@ -157,6 +257,16 @@ int State::stepTarget(const QString &key, const QString &playlistId, int delta) 
 
 void State::follow(const Cue &cue)
 {
+    if (cue.destination == QLatin1String("announcements")) {
+        if (!announcement.atSlide)
+            return;
+        announcement.presentation = cue.presentation;
+        announcement.index = cue.index;
+        announcement.count = cue.count;
+        announcement.slide = cue.slide;
+        announcement.next = cue.next;
+        return;
+    }
     if (!atSlide)
         return;
     presentation = cue.presentation;
@@ -170,6 +280,8 @@ void State::renamed(const QString &from, const QString &to)
 {
     if (playlistId.isEmpty() && key == from)
         key = to;
+    if (announcement.playlistId.isEmpty() && announcement.key == from)
+        announcement.key = to;
 }
 
 void State::leavePresentation()
@@ -183,20 +295,15 @@ void State::leavePresentation()
     slide.clear();
     next.clear();
     clearedByCue = false;
+    // (And the announcements are at none: what is on their layer stays there.)
+    const bool wasCleared = announcement.cleared;
+    announcement = Place();
+    announcement.cleared = wasCleared;
 }
 
 bool State::alreadyPlaying(const QVariantMap &asked) const
 {
-    if (!hasMedia || media.value("foreground").toBool() || asked.value("foreground").toBool() || asked.value("retriggers").toBool()
-        || asked.value("path") != media.value("path"))
-        return false;
-    if (!asked.value("video").toBool())
-        return true;
-    // (The count and the time only matter for the way of playing that uses them.)
-    const int playback = asked.value("playback").toInt();
-    return media.value("loops").toBool() && playback == media.value("playback").toInt()
-        && (playback != 2 || asked.value("loopCount").toInt() == media.value("loopCount").toInt())
-        && (playback != 3 || asked.value("loopSeconds").toDouble() == media.value("loopSeconds").toDouble());
+    return playsOn(asked, hasMedia, media);
 }
 
 Effects State::showMedia(const QVariantMap &asked, const QString &playlist)
@@ -231,6 +338,18 @@ void State::clearMedia(Effects &effects)
     media.clear();
     mediaPlaylistId.clear();
     effects << plain(Effect::NoMedia);
+}
+
+void State::clearAnnouncements(Effects &effects)
+{
+    if (announcement.cleared && !announcementHasMedia)
+        return;
+    effects << note("clear", QStringLiteral("the announcements") + (m_runningAnnouncement ? QStringLiteral(", by their own slide's action") : QString()));
+    announcement.clearedByCue = m_runningAnnouncement && !announcement.cleared;
+    announcement.cleared = true;
+    announcementHasMedia = false;
+    announcementMedia.clear();
+    effects << plain(Effect::NoAnnouncements);
 }
 
 void State::clearProps(Effects &effects)
@@ -435,6 +554,13 @@ Effects State::clearMedia()
     return effects;
 }
 
+Effects State::clearAnnouncements()
+{
+    Effects effects;
+    clearAnnouncements(effects);
+    return effects;
+}
+
 Effects State::clearProps()
 {
     Effects effects;
@@ -470,6 +596,7 @@ Effects State::clearAll()
     effects << note("clear", QStringLiteral("everything asked for"));
     clearSlide(effects);
     clearMedia(effects);
+    clearAnnouncements(effects);
     clearProps(effects);
     clearMessages(effects);
     clearMusic(effects);
@@ -487,9 +614,8 @@ Effects State::clearAll()
 // that a group can stop those and leave the music playing. A GUESS: whether
 // ProPresenter's own "audio" stops its sound effects too has not been seen.
 //
-// TO COME: a group names ProPresenter's other layers too (announcements, video
-// inputs: see clearfile.h). As the show gains one of them, it is cleared here, for a
-// group that has it.
+// TO COME: a group names one more of ProPresenter's layers (video inputs: see
+// clearfile.h). When the show gains it, it is cleared here, for a group that has it.
 void State::clearGroup(const QVariantMap &group, Effects &effects)
 {
     const QStringList layers = group.value("layers").toStringList();
@@ -498,6 +624,8 @@ void State::clearGroup(const QVariantMap &group, Effects &effects)
         clearSlide(effects);
     if (layers.contains(QLatin1String("media")))
         clearMedia(effects);
+    if (layers.contains(QLatin1String("announcements")))
+        clearAnnouncements(effects);
     if (layers.contains(QLatin1String("props")))
         clearProps(effects);
     if (layers.contains(QLatin1String("messages")))
@@ -633,10 +761,15 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
         if (!done)
             return;
         const int layer = action.value("layer").toInt();
-        if (layer == 0) {
+        if (action.value("announcements").toBool()) {
+            // (The announcements are not one of the file's layers but a destination:
+            // see actions.cpp.)
+            clearAnnouncements(effects);
+        } else if (layer == 0) {
             effects << note("clear", QStringLiteral("everything asked for"));
             clearSlide(effects);
             clearMedia(effects);
+            clearAnnouncements(effects);
             clearProps(effects);
             clearMessages(effects);
             clearMusic(effects);

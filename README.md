@@ -78,6 +78,11 @@ another look.
 |:---:|:---:|:---:|
 | <img src="docs/timers.png" width="240" alt="The timers tab: a countdown of five minutes with its settings open, and a second timer under it"> | <img src="docs/props.png" width="240" alt="The props tab: the default collection, with one prop in it"> | <img src="docs/stage-layouts.png" width="236" alt="The stage tab: the stage screen, with the layout it shows picked from a list and a button to edit it"> |
 
+**It runs a second presentation over the first.** A presentation can be sent to the
+[announcements](#announcements) layer instead of the slides', where it shows over
+whatever else is on: the notices before a service, a ticker along the foot of the
+screen.
+
 **It sends the show to as many screens as are needed.** A workspace can have up to
 sixteen [screens](#screens), for the audience and for the stage, each in a window, on
 one of the computer's displays, or on the network as an [NDI](#ndi) source.
@@ -126,7 +131,7 @@ a slide is up, and plays a 4K video under the words with most of the machine to 
 see [Built for modest hardware](#built-for-modest-hardware).
 
 **What it cannot do** is a longer list. ProPresenter does a great deal more than this:
-there are no announcements, no masks and no Bible here yet, among much else. See
+there are no masks, no video inputs and no Bible here yet, among much else. See
 [TODO](#todo).
 
 ### Custom features
@@ -187,6 +192,13 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **The announcements layer.** A presentation's menu has ProPresenter's
+  **Destination**: Presentation, or Announcements. One that is sent to the
+  [announcements](#announcements) goes to a layer of its own, its slides and its
+  media both, over the slides and under the props, while the show itself stays at the
+  slide it was at: a second presentation, running at the same time. The layer has its
+  own clear button (ProPresenter's megaphone), a look says which screens get it, and a
+  clear group can clear it.
 - **The reflow editor.** The slides' words as a table, a row to a slide, for moving
   the words between slides: Ctrl+Enter splits a slide in two where the caret is, the
   new slide being the slide over again with those words in it, and Backspace at the
@@ -399,17 +411,19 @@ the top of this page.
       command that runs every check there is; and the checks run by themselves on every
       pull request.
 - [ ] **Clear groups**: they are there, for the layers this app has (the slide, the
-      media, the props, the messages, the audio and the audio effects). Still to come:
-      the other layers a group can name (announcements, video inputs), each of which
+      media, the props, the messages, the announcements, the audio and the audio
+      effects). Still to come: the other layer a group can name (video inputs), which
       also wants a clear button of its own when the layer comes; giving a group a
       picture of one's own; and putting the groups in another order by dragging.
+- [ ] **Announcements**: they are there (see [Announcements](#announcements)). Still to
+      come: a key for their clear button; and a transition of their own.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
       stage, props, macros, looks and audio, and those are run; so is one that shows a
       message, which cannot be made here yet. Still to come: the rest
       of ProPresenter's kinds (communications, capture and more, which
       are kept in the files and shown, and not done), an action's delay, putting a
-      slide's or a macro's actions in another order, and the clear layers the app
-      does not have yet.
+      slide's or a macro's actions in another order, and the clear layer the app
+      does not have yet (video inputs).
 - [ ] **The audio bin**: it is there (see [Audio](#audio)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, how loud it
       is, and its own fades, which ProPresenter's inspector sets and which are kept
@@ -424,7 +438,6 @@ no promise that any of them will turn out to be possible this way: that is the
 experiment.
 
 - [ ] **A simple help file**: the app's own features explained in one place, in the app
-- [ ] **Announcements**
 - [ ] **Masks**
 - [ ] **Video input**
 - [ ] **Clear to logo**
@@ -1015,6 +1028,54 @@ What is a guess, or not done:
   kept as the file has it, and nothing is done about it.
 - The tab has little room in a small window, and what a message is made of scrolls.
 
+## Announcements
+
+The **announcements** are a layer of their own, over the slides and their media and
+under the props, for a second presentation that runs at the same time as the first:
+the notices that go round before a service while a countdown is up, a line along the
+foot of the screen during the songs. They are ProPresenter's, and work as its do.
+
+A presentation goes there by its **Destination**. A right click on a presentation, in
+a library or a playlist, has it: **Presentation**, which is where every presentation
+goes unless it says otherwise (the slide layer and the media layer), or
+**Announcements**. The same two are behind the small megaphone over the slides, at
+the left of the arrangement's name, which is grey for the one and green for the other,
+as ProPresenter's is; and in the lists a presentation that is sent to the
+announcements has the green megaphone for its icon.
+
+A slide of such a presentation, triggered, goes to the announcements layer, and so
+does the media it brings: the two are one layer there, the slide over its media, with
+the same rules the slide and media layers have between them (a background plays on
+under the slides that follow, a foreground goes with the next slide that brings none).
+The show itself is left where it was. Its slide stays on the slide layer under the
+announcement, its media plays on, and the arrow keys and the space bar step whichever
+presentation is being viewed: the announcements, if it is theirs. So two
+presentations are live at once, each marked in its own list of slides.
+
+The layer is cleared by its own button, the sixth of the clears of the layers, with
+ProPresenter's megaphone on it; by **Clear All**; by a [clear group](#clear-groups)
+that has the announcements among its layers; and by a slide or a macro with the
+[action](#actions) that clears them (Add Action, Clear, The Announcements, or the
+button dragged onto a slide). A [look](#looks) says which screens get the layer, and
+the operator's preview shows it as the first screen has it.
+
+The destination is the presentation's own, kept in its file; ProPresenter writes it on
+each row of a playlist that is that presentation as well, and so does this, on every
+such row at once.
+
+What is a guess, or not done:
+
+- Which of the two ProPresenter goes by where a playlist's row and the presentation's
+  file disagree is not known (where ProPresenter wrote both, they agreed). This app
+  goes by the file.
+- Changing a presentation's destination leaves what is on the output as it is: a
+  slide of it that is live stays on the layer it went to, and the next one triggered
+  goes to the new one. Whether ProPresenter does the same has not been looked at.
+- A look's theme is for the slides of the presentation layer, and is not put on the
+  announcements.
+- The announcements' clear button has no key: which key ProPresenter gives it is not
+  known here.
+
 ## Clear groups
 
 A **clear group** is a named set of layers that are cleared together, at one click.
@@ -1025,7 +1086,7 @@ shown that group too, and the file is not written until something is changed.
 
 Each group has a button, in a row of its own under the clears of the layers, in the
 order the groups are in. The buttons share the width between them, so the one group a
-workspace starts with has a button as wide as the five above it, with its picture and
+workspace starts with has a button as wide as the six above it, with its picture and
 its name; several have room for their pictures alone. A button is red while any of the
 group's layers has something on it, and a click clears them. **F1 clears the first
 group**, which is Clear All unless the list has been put in another order. A group's
@@ -1038,12 +1099,12 @@ one picked has.
 
 - **The layers it clears.** ProPresenter's eight, in its order: audio, audio effects,
   messages, props, announcements, the slide, the media and video inputs. This app has
-  six of them (the audio, the audio effects, the messages, the props, the slide and
-  the media), and those are ticked and unticked. The audio is the whole of the [audio](#audio) layer,
-  its music and its sound effects; the audio effects are the sound effects alone, so
-  that a group can stop those and leave the music playing. The others are greyed:
-  they are shown as the group has them in the file, are kept exactly so, and cannot be
-  changed here, there being nothing here yet for them to clear.
+  seven of them (all but the video inputs), and those are ticked and unticked. The
+  audio is the whole of the [audio](#audio) layer, its music and its sound effects;
+  the audio effects are the sound effects alone, so that a group can stop those and
+  leave the music playing. The video inputs are greyed: they are shown as the group
+  has them in the file, are kept exactly so, and cannot be changed here, there being
+  nothing here yet for them to clear.
 - **The picture** on its button, one of the thirty-two ProPresenter has to choose from.
   For the two that ProPresenter's icon pack has (the one called All, and the message)
   it is ProPresenter's own picture; the digits are digits; and the rest are this app's
@@ -1083,8 +1144,9 @@ is marked as the live one, and the arrow keys go on from it.)
 - **Timer**: start, stop or reset a [timer](#timers), or reset and start it, and
   optionally set it up anew first (as a countdown of so long, a countdown to a time of
   day, or an elapsed time).
-- **Clear**: everything, the slide, the media or the props. (And the audio, by
-  dragging its clear button onto the slide.)
+- **Clear**: everything, the slide, the media, the props, the messages or the
+  [announcements](#announcements). (And the audio, by dragging its clear button onto
+  the slide.)
 - **Clear Group**: clear one of the workspace's [clear groups](#clear-groups), which is
   to say those of its layers that there are here.
 - **Stage**: give each stage screen one of the workspace's [stage layouts](#stage-layouts),
@@ -1930,8 +1992,8 @@ the top one first.
 
 | Row | What it is |
 | --- | --- |
-| Masks, Announcements, Video Input | ProPresenter's layers that this app has not yet. They are shown greyed, as the look has them in the file, cannot be changed here, and are kept as they are |
-| Messages, Props, Slide, Media | A tick box for each screen: whether that screen gets the layer |
+| Masks, Video Input | ProPresenter's layers that this app has not yet. They are shown greyed, as the look has them in the file, cannot be changed here, and are kept as they are |
+| Messages, Props, Announcements, Slide, Media | A tick box for each screen: whether that screen gets the layer |
 | Presentation | Not a layer but the **theme** that screen's slides are dressed in as they are shown: a circle with a line through it for none, or a theme slide, chosen from the same menu of themes a slide's own menu has |
 
 Picking a look in the list shows it, to be read and changed; it does not make it live.
@@ -2619,11 +2681,11 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: forty-four scripts and over two
-thousand checks. They run on a desktop of their own that shows nowhere, on copies of
-workspaces, with settings of their own, so nothing of a run touches the real desktop,
-settings or workspaces. The app is built for them with a door the scripts come in by,
-which a release does not have:
+and look at what its windows then hold and show: forty-five scripts and over two
+thousand two hundred checks. They run on a desktop of their own that shows nowhere, on
+copies of workspaces, with settings of their own, so nothing of a run touches the real
+desktop, settings or workspaces. The app is built for them with a door the scripts come
+in by, which a release does not have:
 
 ```
 cmake -B build-tests -G Ninja -DSIMPLEPRESENTER_TEST_HOOK=ON
@@ -2667,7 +2729,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
 | `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |
 | `src/props.*`, `src/stagelayouts.*` | The workspace's props and their collections, and its stage layouts: their files, and adding to, renaming and removing them |
-| `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a piece of audio, a clear, a prop or a macro does |
+| `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a piece of audio, a clear, a prop or a macro does; and the announcements, which are at a slide of their own |
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
@@ -2727,6 +2789,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/windowlists.*` | Keeps the windows of the screens out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
 | `qml/PropsLayer.qml` | The props that are on, over the other layers; and, over those, the messages that are shown |
+| `qml/AnnouncementLayer.qml` | The announcements layer of a screen: a slide over media of its own |
 | `qml/MessagesPanel.qml` | The messages, a tab of the show controls |
 | `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
@@ -2756,8 +2819,9 @@ It uses, under their own licences:
   licence: everything in `shaders/gl-transitions`, where the licence text is. Each file
   credits its author, and says where it departs from the original.
 - The pictures in `icons/`, which are the ones ProPresenter has for a look, the
-  screens, the stage, a timer, a prop, a macro and clearing a layer: from the icon pack
-  of the [Companion module for ProPresenter](https://github.com/bitfocus/companion-module-renewedvision-propresenter-api),
+  screens, the stage, a timer, a prop, a macro, the announcements and clearing a layer:
+  from the icon pack of the
+  [Companion module for ProPresenter](https://github.com/bitfocus/companion-module-renewedvision-propresenter-api),
   whose repository is under the MIT licence. `icons/README.md` has that licence, and
   how the files here were made from the pack's.
 - Protocol Buffers, fontconfig, zlib and FFmpeg (through Qt Multimedia, and directly

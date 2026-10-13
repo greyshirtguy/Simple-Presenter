@@ -115,6 +115,7 @@ qt_add_qml_module(SimplePresenter
         qml/AudioPanel.qml
         qml/ActionIcon.qml
         qml/AppSlider.qml
+        qml/AnnouncementLayer.qml
         qml/ArrangementBar.qml
         qml/ArrangementsPanel.qml
         qml/Benchmark.qml
@@ -308,6 +309,7 @@ qt_add_qml_module(SimplePresenter
 qt_add_resources(SimplePresenter "icons"
     PREFIX "/"
     FILES
+        icons/Announcements.png
         icons/Arrangements.png
         icons/Clear.png
         icons/ClearAnnouncements.png

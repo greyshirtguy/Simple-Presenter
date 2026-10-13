@@ -93,6 +93,15 @@ struct PlaylistFile
     // Records which arrangement a playlist row uses, by id and name ("" and "" for none).
     static QString setItemArrangement(const QString &root, const QString &itemId,
                                       const QString &arrangementId, const QString &arrangementName);
+    // Records on every row, of any playlist, that is this presentation file where the
+    // presentation is sent: "announcements", or "" for the slide and media layers. A
+    // row that says so already is left, and with none to change nothing is written.
+    //
+    // ProPresenter keeps a presentation's destination in the presentation's own file
+    // and on each of its rows as well (in the workspaces looked at, a presentation
+    // sent to the announcements had it in both, on every row), so a change of it here
+    // is made in both (see Catalog::setDestination). This app reads the file's.
+    static QString setRowsDestination(const QString &root, const QString &file, const QString &destination);
     // The rows, of any playlist, that are this presentation file: their ids. Asked
     // before the file is renamed, while it is still there to be found.
     static QStringList rowsOf(const QString &root, const QString &file);

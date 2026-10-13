@@ -64,6 +64,10 @@ struct Cue
     // The slide, and the one after it (empty if it is the last)
     QVariantMap slide;
     QVariantMap next;
+    // Where the presentation is sent: "" for the slide layer and the media layer, which
+    // is where a presentation goes unless it says otherwise, or "announcements" for
+    // the announcements layer (see State::announcement)
+    QString destination;
 };
 
 // One thing to be done outside, as the outcome of a change.
@@ -76,6 +80,10 @@ struct Effect
         NoSlide,        // take the slide layer off
         Media,          // start `media` on the media layer
         NoMedia,        // take the media layer off
+        Announcement,          // show the slide the announcements are at on the announcements layer; the media there is left alone
+        AnnouncementOverMedia, // show it over the media that is playing on that layer, which plays on
+        AnnouncementWithMedia, // show it and start `media` under it, on that layer
+        NoAnnouncements,       // take the announcements layer off: its slide, and the media under it
         Audio,          // start the piece of audio `media` (music takes the place of the music that is playing)
         NoMusic,        // stop the music
         NoSounds,       // stop every sound effect
@@ -120,6 +128,34 @@ public:
     QVariantMap media;
     QString mediaPlaylistId;
 
+    // The announcements layer: a second presentation, shown at the same time as the
+    // one on the slide and media layers and over both. A presentation whose
+    // destination is the announcements goes here, slide and media alike: the two are
+    // one layer, the slide over the media, with a place in a presentation of its own
+    // (which slide the announcements are at) that the show's own place knows nothing
+    // of. So a set of notices can be up on the screens in the foyer while the
+    // service is run from the slides as ever.
+    //
+    // It goes by the rules the slide and media layers go by, on its own: a slide that
+    // brings no media leaves a background that is playing there and ends a foreground;
+    // a background that is asked for again plays on.
+    struct Place
+    {
+        bool atSlide = false;
+        QString key;
+        QString playlistId;
+        QString presentation;
+        int index = -1;
+        int count = 0;
+        QVariantMap slide;
+        QVariantMap next;
+        bool cleared = true;
+        bool clearedByCue = false;
+    };
+    Place announcement;
+    bool announcementHasMedia = false;
+    QVariantMap announcementMedia;
+
     // The audio layer. Music is one piece at a time: what is playing, as a row of the
     // audio bin (see playlistfile.h), and the playlist of the bin it was played from
     // ("" if a slide or a macro played it). Sound effects are any number at once, over
@@ -161,6 +197,9 @@ public:
     bool cueLive() const { return !cleared || clearedByCue; }
     // Whether the show is at a slide of this presentation.
     bool at(const QString &key, const QString &playlistId) const;
+    // The same two, for the announcements.
+    bool announcementLive() const { return !announcement.cleared || announcement.clearedByCue; }
+    bool announcementAt(const QString &key, const QString &playlistId) const;
 
     // A slide goes live: it is shown, with the media it brings, and then its actions
     // are done, in their order. With `withoutMedia`, the slide and its actions and not
@@ -170,7 +209,8 @@ public:
     // presentation `key` of `playlistId`: from a cleared output, back to the slide it
     // was at (unless that slide cleared itself, which it would only do again); from
     // another presentation, to its first slide.
-    int stepTarget(const QString &key, const QString &playlistId, int delta) const;
+    // With `announcements`, the same for the announcements: from where they are.
+    int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false) const;
     // The presentation the show is at was read again, or put in another order: this is
     // the slide it is at now. Nothing on the output changes.
     void follow(const Cue &cue);
@@ -209,6 +249,8 @@ public:
 
     Effects clearSlide();
     Effects clearMedia();
+    // The announcements layer: its slide and the media under it.
+    Effects clearAnnouncements();
     Effects clearProps();
     // The audio layer: the music and every sound effect; and the sound effects alone.
     Effects clearAudio();
@@ -216,10 +258,10 @@ public:
     Effects clearMessages();
     Effects clearAll();
     // Clears what a clear group clears, which is those of its layers there are here:
-    // the slide, the media, the props, the messages, the audio (the music and the
-    // sound effects) and the audio effects (the sound effects alone). The others it
-    // names are ProPresenter's, and nothing is done for them. A group the workspace
-    // has not clears nothing.
+    // the slide, the media, the announcements, the props, the messages, the audio
+    // (the music and the sound effects) and the audio effects (the sound effects
+    // alone). The other it names (video inputs) is ProPresenter's, and nothing is
+    // done for it. A group the workspace has not clears nothing.
     Effects clearGroup(const QString &id, const Workspace &workspace);
 
     // Turns a prop on, in front of the props that are on already, or off if it is on.
@@ -265,13 +307,17 @@ public:
     void adoptLook(const QString &id);
 
 private:
-    // While the actions of the slide going live are being done
+    // While the actions of the slide going live are being done; and of a slide going
+    // live on the announcements layer
     bool m_runningCue = false;
+    bool m_runningAnnouncement = false;
 
     void runActions(const QVariantList &actions, int depth, const Workspace &workspace, Effects &effects);
     void runAction(const QVariantMap &action, int depth, const Workspace &workspace, Effects &effects);
     void clearSlide(Effects &effects);
     void clearMedia(Effects &effects);
+    void clearAnnouncements(Effects &effects);
+    Effects goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Workspace &workspace);
     void clearProps(Effects &effects);
     void clearMessages(Effects &effects);
     void showMessage(const QVariantMap &message, Effects &effects);

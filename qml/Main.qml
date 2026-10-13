@@ -124,6 +124,12 @@ Window {
     // a time, as they go live), and the place in it of the slide on the slide layer.
     // They stay set while the layer is cleared, so stepping carries on from where it was.
     property var liveDocument: null
+    // The same for the announcements layer, which is at a slide of a presentation of
+    // its own (see show::State::announcement): the presentation, as it was read when
+    // a slide of it went there, and the slide that is on the layer, if one is.
+    property var announcementDocument: null
+    readonly property var announcementSlide: announcementDocument && !Show.announcementCleared && Show.announcementIndex >= 0
+                                             ? announcementDocument.slides[Show.announcementIndex] ?? null : null
     readonly property int liveIndex: Show.liveIndex
     // The row and playlist it went live from ("" for a library)
     readonly property string liveKey: Show.liveKey
@@ -560,6 +566,12 @@ Window {
     readonly property bool viewingLive: document !== null && liveDocument !== null
                                         && documentKey === liveKey && playlistId === livePlaylistId
                                         && document.arrangement === liveDocument.arrangement
+    // Whether the presentation being viewed is the one the announcements are in, and
+    // whether it is one that is sent to the announcements at all
+    readonly property bool viewingAnnouncements: document !== null && announcementDocument !== null
+                                                 && documentKey === Show.announcementKey && playlistId === Show.announcementPlaylistId
+                                                 && document.arrangement === announcementDocument.arrangement
+    readonly property bool viewedGoesToAnnouncements: document !== null && document.destination === "announcements"
     // The item the pop-up menu is open for, or null while it is shut
     readonly property var menuItem: menu.opened ? menu.opener : null
 
@@ -907,13 +919,21 @@ Window {
             return
         notice = ""
         const rearranged = entry.playlistItem ? catalog.openArranged(entry.file, name) : catalog.open(entry.file)
+        if (announcementDocument && Show.announcementKey === key && Show.announcementPlaylistId === playlistId && Show.announcementIndex >= 0) {
+            // (The announcements follow theirs the same way.)
+            const index = rearranged.slides.findIndex(s => s.id === announcementDocument.slides[Show.announcementIndex].id)
+            if (index >= 0) {
+                announcementDocument = rearranged
+                Show.follow(announcementCue(rearranged, index))
+            }
+        }
         if (liveDocument && liveKey === key && livePlaylistId === playlistId && liveIndex >= 0) {
             // Follow the live slide to its first place in the new order. If the new
             // arrangement leaves it out, the output keeps it and nothing is marked live.
             const index = rearranged.slides.findIndex(s => s.id === liveDocument.slides[liveIndex].id)
             if (index >= 0) {
                 liveDocument = rearranged
-                Show.follow(cueAt(rearranged, key, playlistId, index))
+                Show.follow(liveCue(rearranged, index))
             }
         }
         if (documentKey === key) {
@@ -945,8 +965,12 @@ Window {
         if (wasLive && liveDocument) {
             const index = Show.placeAfterReload(liveDocument.slides.map(slide => slide.id), liveIndex, reloaded.slides.map(slide => slide.id))
             liveDocument = reloaded
-            Show.follow(cueAt(reloaded, liveKey, livePlaylistId, index >= 0 ? index : liveIndex))
+            Show.follow(liveCue(reloaded, index >= 0 ? index : liveIndex))
         }
+        // (The announcements go by the row and the playlist alone, which a change to
+        // the arrangements leaves as they were.)
+        followAnnouncements(reloaded, document !== null && announcementDocument !== null && documentKey === Show.announcementKey
+                                      && playlistId === Show.announcementPlaylistId)
         document = reloaded
         grid.contentY = scrolledTo
     }
@@ -1219,6 +1243,8 @@ Window {
     function addActionItems(target) {
         const add = action => commitAction(target, action, "")
         const clear = (label, layer, picture) => ({ label: label, glyph: "clear", picture: picture, run: () => add({ kind: "clear", layer: layer }) })
+        const clearAnnouncements = { label: "The Announcements", glyph: "clear", picture: "ClearAnnouncements",
+                                     run: () => add({ kind: "clear", layer: 0, announcements: true }) }
         const props = Props.collections.filter(collection => collection.props.length > 0)
         // (Not the macro itself, for an action of a macro.)
         const macros = Macros.collections.map(collection => Object.assign({}, collection, {
@@ -1228,7 +1254,7 @@ Window {
             { label: "Timer…", glyph: "timer", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
             { label: "Clear", glyph: "clear", items: [{ header: "Clear" }, clear("Everything", 0, "Clear"), clear("The Slide", 5, "ClearPresentation"),
                                                      clear("The Media", 2, "ClearMedia"), clear("The Props", 4, "ClearProps"),
-                                                     clear("The Messages", 7, "ClearMessages")] },
+                                                     clear("The Messages", 7, "ClearMessages"), clearAnnouncements] },
             { label: "Clear Group", glyph: "clear", disabled: ClearGroups.groups.length === 0, items: [{ header: "Clear Group" }].concat(
                 ClearGroups.groups.map(group => ({ label: group.name, run: () => add(clearGroupAction(group.id, group.name)) }))) },
             { label: "Stage…", glyph: "stage", run: () => actionDialog.openStage(target, null) },
@@ -1345,7 +1371,7 @@ Window {
         else if (dropped.kind === "macro")
             commitAction(target, macroAction(dropped, { id: dropped.collectionId, name: dropped.collectionName }), "")
         else if (dropped.kind === "clear")
-            commitAction(target, { kind: "clear", layer: dropped.layer }, "")
+            commitAction(target, dropped.announcements ? { kind: "clear", layer: 0, announcements: true } : { kind: "clear", layer: dropped.layer }, "")
         else if (dropped.kind === "clearGroup")
             commitAction(target, clearGroupAction(dropped.id, dropped.groupName), "")
         else if (dropped.kind === "audio")
@@ -1393,10 +1419,22 @@ Window {
             // The show follows its slide to wherever it now is.
             const index = Show.placeAfterReload(liveDocument.slides.map(slide => slide.id), liveIndex, reloaded.slides.map(slide => slide.id))
             liveDocument = reloaded
-            Show.follow(cueAt(reloaded, liveKey, livePlaylistId, index >= 0 ? index : liveIndex))
+            Show.follow(liveCue(reloaded, index >= 0 ? index : liveIndex))
         }
+        followAnnouncements(reloaded, viewingAnnouncements)
         document = reloaded
         grid.contentY = scrolledTo
+    }
+
+    // The presentation being viewed has been read again, and is the one the
+    // announcements are in (`mine`): they follow their slide to wherever it now is.
+    function followAnnouncements(reloaded, mine) {
+        if (!mine || !announcementDocument)
+            return
+        const index = Show.placeAfterReload(announcementDocument.slides.map(slide => slide.id), Show.announcementIndex,
+                                            reloaded.slides.map(slide => slide.id))
+        announcementDocument = reloaded
+        Show.follow(announcementCue(reloaded, index >= 0 ? index : Show.announcementIndex))
     }
 
     // The media files in what is being dragged over the window, or has been dropped on
@@ -1838,7 +1876,13 @@ Window {
         if (liveDocument !== null && liveDocument.path === was) {
             const live = livePlaylistId !== "" ? catalog.openArranged(renamed.path, liveDocument.arrangement) : catalog.open(renamed.path)
             liveDocument = live
-            Show.follow(cueAt(live, liveKey, livePlaylistId, liveIndex))
+            Show.follow(liveCue(live, liveIndex))
+        }
+        if (announcementDocument !== null && announcementDocument.path === was) {
+            const theirs = Show.announcementPlaylistId !== "" ? catalog.openArranged(renamed.path, announcementDocument.arrangement)
+                                                              : catalog.open(renamed.path)
+            announcementDocument = theirs
+            Show.follow(announcementCue(theirs, Show.announcementIndex))
         }
         if (viewed && currentEntry())
             document = load(currentEntry())
@@ -1855,6 +1899,8 @@ Window {
         const place = documents.findIndex(d => d.path === entry.path)
         if (liveDocument !== null && liveDocument.path === file && !cleared)
             clearSlide()
+        if (announcementDocument !== null && announcementDocument.path === file)
+            clearAnnouncements()
         // (The lists are not followed while the catalog does it: see holdingLists.)
         holdingLists = true
         const deleted = catalog.deletePresentation(file)
@@ -1935,9 +1981,44 @@ Window {
         report(catalog.addToPlaylist(playlist, file))
     }
 
+    // Where a presentation is sent when one of its slides is triggered, which is
+    // ProPresenter's Destination: "announcements", or "" for the slide and media
+    // layers ("Presentation", as ProPresenter calls it). It is the presentation's own,
+    // kept in its file and on its rows in the playlists, so every row of it in every
+    // list goes by it.
+    //
+    // What is on the output is left as it is: a slide of it that is live stays on the
+    // layer it went to, and the next one triggered goes to the new one. (A GUESS, that
+    // ProPresenter leaves what is on the output too.)
+    function setDestination(entry, destination) {
+        if (!report(catalog.setDestination(entry.file, destination)))
+            return
+        notice = ""
+        Log.note("edit", "the presentation " + quoted(entry.name) + " is now sent to "
+                         + (destination === "announcements" ? "the announcements layer" : "the slide and media layers"))
+        if (document !== null && document.path === entry.file)
+            reloadDocument()
+    }
+
+    // The two there are to choose from, as rows of a menu, the one it has ticked.
+    function destinationItems(entry) {
+        return [
+            { header: "Destination" },
+            { label: "Presentation", current: (entry.destination ?? "") === "", run: () => setDestination(entry, "") },
+            { label: "Announcements", current: entry.destination === "announcements", run: () => setDestination(entry, "announcements") }
+        ]
+    }
+
+    // The same menu by itself, for the button over the slides.
+    function showDestinationMenu(item) {
+        const entry = currentEntry()
+        if (entry && openable(entry))
+            menu.show(destinationItems(entry), item)
+    }
+
     // Opens the menu for a row of the presentations list.
     function showPresentationMenu(entry, item) {
-        const items = []
+        let items = []
         if (openable(entry)) {
             items.push({ header: "Arrangement" })
             for (const name of [""].concat(entry.arrangements)) {
@@ -1947,6 +2028,7 @@ Window {
                     run: () => setArrangement(entry, name)
                 })
             }
+            items = items.concat(destinationItems(entry))
             const playlists = catalog.playlists.filter(p => !p.folder)
             if (playlists.length > 0)
                 items.push({ header: "Add to playlist" })
@@ -2190,6 +2272,9 @@ Window {
         const slide = document.slides[index]
         if (viewingLive && !cleared && liveIndex >= 0 && liveDocument.slides[liveIndex].id === slide.id)
             clearSlide()
+        // (The same for one that is on the announcements layer.)
+        if (viewingAnnouncements && Show.announcementLive && announcementSlide !== null && announcementSlide.id === slide.id)
+            clearAnnouncements()
         Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name) + " deleted" + (slide.label !== "" ? " (" + slide.label + ")" : ""))
         if (report(catalog.removeSlide(document.path, slide.id)))
             reloadDocument()
@@ -2501,6 +2586,14 @@ Window {
         return lastPlayed
     }
 
+    // The same for media started under a slide on the announcements layer, which is
+    // another playing, of its own; null where the slide goes there with none.
+    property var lastAnnouncementPlayed: null
+    function playingAnnouncement(media) {
+        lastAnnouncementPlayed = media.path !== undefined ? Object.assign({}, media, { playId: ++plays }) : null
+        return lastAnnouncementPlayed
+    }
+
     // A scene has been made: it is told what is live, which the others were told as it
     // happened.
     function sceneMade(id, scene) {
@@ -2511,6 +2604,8 @@ Window {
             scene.showMedia(lastPlayed)
         if (liveSlide)
             scene.showSlide(slideFor(id, liveSlide))
+        if (announcementSlide || lastAnnouncementPlayed !== null)
+            scene.showAnnouncement(announcementSlide, Show.WithMedia, lastAnnouncementPlayed)
     }
 
     function sceneGone(id, scene) {
@@ -2526,7 +2621,21 @@ Window {
     // and the slide itself with the one after it.
     function cueAt(presentation, key, playlist, index) {
         return { key: key, playlistId: playlist, presentation: presentation.name, index: index, count: presentation.slides.length,
-                 slide: presentation.slides[index] ?? ({}), next: presentation.slides[index + 1] ?? ({}) }
+                 slide: presentation.slides[index] ?? ({}), next: presentation.slides[index + 1] ?? ({}),
+                 destination: presentation.destination ?? "" }
+    }
+
+    // The same for a presentation that has been read again, to tell the show where
+    // the slide it is at now is (Show.follow): the place the show itself is at, and
+    // the place the announcements are at. Which of the two is said outright and not
+    // taken from the presentation, whose destination may have been changed since its
+    // slide went live: the slide is on the layer it went to.
+    function liveCue(presentation, index) {
+        return Object.assign(cueAt(presentation, liveKey, livePlaylistId, index), { destination: "" })
+    }
+
+    function announcementCue(presentation, index) {
+        return Object.assign(cueAt(presentation, Show.announcementKey, Show.announcementPlaylistId, index), { destination: "announcements" })
     }
 
     // Puts a slide of the presentation being viewed on the output: the slide, the media
@@ -2536,7 +2645,13 @@ Window {
     function goLive(index, withoutMedia) {
         if (!document || index < 0 || index >= document.slides.length)
             return
-        liveDocument = document
+        // A presentation that is sent to the announcements goes to their layer, and
+        // the show stays at the slide it was at (see show::State::announcement).
+        if (document.destination === "announcements") {
+            announcementDocument = document
+        } else {
+            liveDocument = document
+        }
         Show.goLive(cueAt(document, documentKey, playlistId, index), withoutMedia === true)
         grid.positionViewAtIndex(index, GridView.Contain)
     }
@@ -2643,11 +2758,16 @@ Window {
     // which would only clear itself again); from another presentation it starts at
     // the top.
     function step(delta) {
-        goLive(Show.stepTarget(documentKey, playlistId, delta))
+        goLive(Show.stepTarget(documentKey, playlistId, delta, viewedGoesToAnnouncements))
     }
 
     function clearSlide() {
         Show.clearSlide()
+    }
+
+    // The announcements layer: its slide, and the media under it.
+    function clearAnnouncements() {
+        Show.clearAnnouncements()
     }
 
     function clearMedia() {
@@ -2893,6 +3013,7 @@ Window {
         // Nothing is saved while the selections are in between the two workspaces.
         restored = false
         liveDocument = null
+        announcementDocument = null
         Show.leavePresentation()
         document = null
         documentKey = ""
@@ -3225,6 +3346,7 @@ Window {
                     leads: audienceHost.leads
                     slideOn: audienceHost.look.slide
                     mediaOn: audienceHost.look.media
+                    announcementsOn: audienceHost.look.announcements
                     propsOn: audienceHost.look.props
                     messagesOn: audienceHost.look.messages
                     lookFade: win.lookFade
@@ -3262,6 +3384,7 @@ Window {
                         leads: audienceHost.leads
                         slideOn: audienceHost.look.slide
                         mediaOn: audienceHost.look.media
+                        announcementsOn: audienceHost.look.announcements
                         propsOn: audienceHost.look.props
                         messagesOn: audienceHost.look.messages
                         lookFade: win.lookFade
@@ -3384,6 +3507,24 @@ Window {
         function onMediaCleared() {
             win.lastPlayed = null
             win.eachAudienceScene(scene => scene.showMedia(null))
+        }
+
+        // The announcements layer: the slide the announcements are at, on every screen
+        // (which of them show the layer is the live look's to say, in the scene). A
+        // look's theme is for the slides of the presentation layer, and is not put on
+        // these. (A GUESS: whether ProPresenter dresses the announcements in a look's
+        // theme has not been looked at.)
+        function onAnnouncementShown(showing, media) {
+            const slide = win.announcementDocument.slides[Show.announcementIndex]
+            const played = showing === Show.WithMedia ? win.playingAnnouncement(media) : null
+            win.eachAudienceScene(scene => scene.showAnnouncement(slide, showing, played))
+            sidePanel.showAnnouncement(slide, showing, played)
+        }
+
+        function onAnnouncementsCleared() {
+            win.lastAnnouncementPlayed = null
+            win.eachAudienceScene(scene => scene.clearAnnouncements())
+            sidePanel.clearAnnouncements()
         }
 
         // The audio layer is played by AudioLayer, which is told what the show says.

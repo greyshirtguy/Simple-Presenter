@@ -21,6 +21,7 @@ show::Cue cueFrom(const QVariantMap &map)
     cue.count = map.value("count").toInt();
     cue.slide = map.value("slide").toMap();
     cue.next = map.value("next").toMap();
+    cue.destination = map.value("destination").toString();
     return cue;
 }
 
@@ -51,6 +52,11 @@ void Show::change(const std::function<show::Effects()> &what)
     const bool words = slide || before.slide != m_state.slide || before.next != m_state.next;
     if (slide)
         emit slideChanged();
+    const show::State::Place &was = before.announcement;
+    const show::State::Place &now = m_state.announcement;
+    if (was.atSlide != now.atSlide || was.index != now.index || was.key != now.key || was.playlistId != now.playlistId
+        || was.cleared != now.cleared || was.clearedByCue != now.clearedByCue || before.announcementHasMedia != m_state.announcementHasMedia)
+        emit announcementChanged();
     if (before.hasMedia != m_state.hasMedia || before.media != m_state.media || before.mediaPlaylistId != m_state.mediaPlaylistId)
         emit mediaChanged();
     if (before.hasMusic != m_state.hasMusic || before.music != m_state.music || before.musicPlaylistId != m_state.musicPlaylistId
@@ -89,6 +95,18 @@ void Show::change(const std::function<show::Effects()> &what)
             break;
         case show::Effect::NoMedia:
             emit mediaCleared();
+            break;
+        case show::Effect::Announcement:
+            emit announcementShown(Alone, {});
+            break;
+        case show::Effect::AnnouncementOverMedia:
+            emit announcementShown(OverMedia, {});
+            break;
+        case show::Effect::AnnouncementWithMedia:
+            emit announcementShown(WithMedia, effect.media);
+            break;
+        case show::Effect::NoAnnouncements:
+            emit announcementsCleared();
             break;
         case show::Effect::Audio:
             emit audioStarted(effect.media);
@@ -216,9 +234,9 @@ void Show::goLive(const QVariantMap &cue, bool withoutMedia)
     change([&] { return m_state.goLive(cueFrom(cue), withoutMedia, m_workspace); });
 }
 
-int Show::stepTarget(const QString &key, const QString &playlistId, int delta) const
+int Show::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements) const
 {
-    return m_state.stepTarget(key, playlistId, delta);
+    return m_state.stepTarget(key, playlistId, delta, announcements);
 }
 
 void Show::follow(const QVariantMap &cue)
@@ -259,6 +277,11 @@ void Show::clearSlide()
 void Show::clearMedia()
 {
     change([&] { return m_state.clearMedia(); });
+}
+
+void Show::clearAnnouncements()
+{
+    change([&] { return m_state.clearAnnouncements(); });
 }
 
 void Show::clearProps()

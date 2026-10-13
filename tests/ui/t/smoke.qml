@@ -83,7 +83,11 @@ Item {
             () => {
                 click(centre(row("playlistList", p => p.name === "Sunday Morning")))
                 smokeCheck("a playlist opens", playlistId !== "" && selectedNode === playlistId && documents.some(d => d.kind === "header"), documents.length + " rows")
-                const first = documents.find(d => openable(d))
+                // (The first of its rows that goes to the slide and media layers and
+                // has slides enough to step through: one that ProPresenter has sent to
+                // the announcements goes to theirs, and what follows here is about the
+                // show's own slide.)
+                const first = documents.find(d => openable(d) && d.destination !== "announcements" && load(d).slides.length >= 4)
                 click(centre(row("presentationList", d => d.path === first.path)))
                 smokeCheck("a playlist row opens its presentation", documentKey === first.path && document.name === first.name)
             },

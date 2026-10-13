@@ -17,6 +17,7 @@ AuxWindow {
     property alias leads: scene.leads
     property alias slideOn: scene.slideOn
     property alias mediaOn: scene.mediaOn
+    property alias announcementsOn: scene.announcementsOn
     property alias propsOn: scene.propsOn
     property alias messagesOn: scene.messagesOn
     property alias lookFade: scene.lookFade
@@ -41,6 +42,14 @@ AuxWindow {
 
     function showSlideOverMedia(slide) {
         scene.showSlideOverMedia(slide)
+    }
+
+    function showAnnouncement(slide, showing, media) {
+        scene.showAnnouncement(slide, showing, media)
+    }
+
+    function clearAnnouncements() {
+        scene.clearAnnouncements()
     }
 
     objectName: "output"

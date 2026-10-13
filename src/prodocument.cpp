@@ -82,6 +82,13 @@ const rv::data::Presentation::Arrangement *selectedArrangement(const rv::data::P
     return nullptr;
 }
 
+// Where a presentation says it is sent, as a document has it: "" or "announcements".
+QString destinationOf(const rv::data::Presentation &presentation)
+{
+    return presentation.content_destination() == rv::data::Action::CONTENT_DESTINATION_ANNOUNCEMENTS ? QStringLiteral("announcements")
+                                                                                                    : QString();
+}
+
 } // namespace
 
 ProDocument ProDocument::load(const QString &path, const QString &workspace,
@@ -136,6 +143,7 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
         document.originalKey = name(presentation.music().original());
         document.userKey = presentation.music().has_user() ? name(presentation.music().user()) : document.originalKey;
     }
+    document.destination = destinationOf(presentation);
 
     // Which arrangement: the one asked for by name, or the one the document has selected.
     const rv::data::Presentation::Arrangement *chosen = nullptr;
@@ -285,7 +293,7 @@ QString ProDocument::setOriginalKey(const QString &path, const QString &key)
 // whenever anything in the workspace changes, so this is asked of every file over and
 // over. The answer is kept for as long as the file is the same file: same size, same
 // time of last change.
-bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QString *selected, QStringList *ids)
+bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QString *selected, QStringList *ids, QString *destination)
 {
     struct Known
     {
@@ -294,6 +302,7 @@ bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QStrin
         QStringList names;
         QString selected;
         QStringList ids;
+        QString destination;
     };
     static QHash<QString, Known> known;
     static QMutex mutex;
@@ -307,6 +316,8 @@ bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QStrin
             *selected = found->selected;
             if (ids)
                 *ids = found->ids;
+            if (destination)
+                *destination = found->destination;
             return true;
         }
     }
@@ -325,10 +336,28 @@ bool ProDocument::arrangementsOf(const QString &path, QStringList *names, QStrin
     *selected = chosen ? QString::fromStdString(chosen->name()) : QString();
     if (ids)
         *ids = theirIds;
+    const QString sentTo = destinationOf(presentation);
+    if (destination)
+        *destination = sentTo;
 
     const QMutexLocker lock(&mutex);
-    known.insert(path, {file.size(), file.lastModified(), *names, *selected, theirIds});
+    known.insert(path, {file.size(), file.lastModified(), *names, *selected, theirIds, sentTo});
     return true;
+}
+
+QString ProDocument::setDestination(const QString &path, const QString &destination)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    const auto wanted = destination == QLatin1String("announcements") ? rv::data::Action::CONTENT_DESTINATION_ANNOUNCEMENTS
+                                                                      : rv::data::Action::CONTENT_DESTINATION_GLOBAL;
+    // A file that says so already is left as it is, to the byte.
+    if (presentation.content_destination() == wanted)
+        return {};
+    presentation.set_content_destination(wanted);
+    return writePresentation(path, presentation);
 }
 
 QString ProDocument::setArrangement(const QString &path, const QString &name)

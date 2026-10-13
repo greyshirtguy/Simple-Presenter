@@ -99,6 +99,9 @@ ListView {
         readonly property bool editing: list.editingPath !== "" && modelData.path === list.editingPath
         readonly property real indent: list.baseIndent + (modelData.depth ?? 0) * 14
         readonly property bool hasIcon: (modelData.icon ?? "") !== ""
+        // A presentation that is sent to the announcements layer (see setDestination()
+        // in Main.qml)
+        readonly property bool announces: modelData.destination === "announcements"
         readonly property real textIndent: indent + (hasIcon ? rowIcon.width + 7 : 0)
 
         width: ListView.view.width
@@ -140,9 +143,21 @@ ListView {
 
             x: entry.indent
             anchors.verticalCenter: parent.verticalCenter
-            visible: entry.hasIcon
+            visible: entry.hasIcon && !entry.announces
             kind: entry.modelData.icon ?? ""
             opacity: entry.modelData.missing ? 0.4 : 1
+        }
+
+        // A presentation that is sent to the announcements has ProPresenter's picture
+        // of them in place of its icon, in green, which is how ProPresenter marks one
+        // (its button for the destination turns green).
+        ProIcon {
+            objectName: "rowAnnounces"
+            anchors.centerIn: rowIcon
+            visible: entry.announces
+            name: entry.announces ? "Announcements" : ""
+            size: 22
+            ink: "#3ddc68"
         }
 
         Text {

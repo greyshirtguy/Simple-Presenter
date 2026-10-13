@@ -1,7 +1,8 @@
 import QtQuick
 
-// What an audience screen shows: the media layer, the slide layer over it, the props
-// over both and the messages over everything, on black.
+// What an audience screen shows: the media layer, the slide layer over it, the
+// announcements over those, the props over all three and the messages over
+// everything, on black.
 //
 // Layers are what make a presenter more than a slide show. A background video on the
 // media layer keeps playing while the slides over it change, and either layer can be
@@ -38,6 +39,7 @@ Item {
     // or go when the look changes, in milliseconds.
     property bool slideOn: true
     property bool mediaOn: true
+    property bool announcementsOn: true
     property bool propsOn: true
     property bool messagesOn: true
     property int lookFade: 0
@@ -93,6 +95,26 @@ Item {
             showSlide(slide)
     }
 
+    // The announcements layer (see AnnouncementLayer): a slide of the presentation
+    // that is sent there, shown in one of the three ways a slide is (Show.Alone,
+    // Show.OverMedia or Show.WithMedia, `media` being what is started under it for the
+    // last, or null for none); and the layer taken off.
+    function showAnnouncement(slide, showing, media) {
+        announcementsLayer.wanted = true
+        const layer = announcementsLayer.item
+        if (showing === 2)
+            layer.showSlideWithMedia(slide, media)
+        else if (showing === 1)
+            layer.showSlideOverMedia(slide)
+        else
+            layer.showSlide(slide)
+    }
+
+    function clearAnnouncements() {
+        if (announcementsLayer.item)
+            announcementsLayer.item.clear()
+    }
+
     TransitionLayer {
         id: mediaLayer
 
@@ -139,6 +161,33 @@ Item {
         direction: scene.direction
         duration: scene.duration
         delegate: Slide {}
+    }
+
+    // The announcements, over the slides and under the props. Made when the first
+    // announcement is shown, and kept: a show that has none has nothing made for them.
+    Loader {
+        id: announcementsLayer
+
+        property bool wanted: false
+
+        anchors.fill: parent
+        active: wanted
+        opacity: scene.announcementsOn ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: scene.lookFade }
+        }
+
+        sourceComponent: AnnouncementLayer {
+            leads: scene.leads
+            transitionName: scene.transitionName
+            shader: scene.shader
+            options: scene.options
+            tint: scene.tint
+            direction: scene.direction
+            duration: scene.duration
+        }
     }
 
     PropsLayer {

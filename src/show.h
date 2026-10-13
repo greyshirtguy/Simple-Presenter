@@ -66,6 +66,16 @@ class Show : public QObject
     Q_PROPERTY(bool cleared READ cleared NOTIFY slideChanged)
     Q_PROPERTY(bool clearedByCue READ clearedByCue NOTIFY slideChanged)
     Q_PROPERTY(bool cueLive READ cueLive NOTIFY slideChanged)
+    // The announcements layer, which has a place in a presentation of its own (see
+    // show::State::announcement): the same things said of it. And whether there is
+    // anything on the layer, a slide or media: what its clear button goes by.
+    Q_PROPERTY(bool announcementAtSlide READ announcementAtSlide NOTIFY announcementChanged)
+    Q_PROPERTY(int announcementIndex READ announcementIndex NOTIFY announcementChanged)
+    Q_PROPERTY(QString announcementKey READ announcementKey NOTIFY announcementChanged)
+    Q_PROPERTY(QString announcementPlaylistId READ announcementPlaylistId NOTIFY announcementChanged)
+    Q_PROPERTY(bool announcementLive READ announcementLive NOTIFY announcementChanged)
+    Q_PROPERTY(bool announcementCleared READ announcementCleared NOTIFY announcementChanged)
+    Q_PROPERTY(bool announcementsOn READ announcementsOn NOTIFY announcementChanged)
     // What is on the media layer, as a map (see catalog.h), or null; and the media
     // playlist it was triggered from, "" if a slide triggered it.
     Q_PROPERTY(QVariant liveMedia READ liveMedia NOTIFY mediaChanged)
@@ -143,6 +153,13 @@ public:
     bool cleared() const { return m_state.cleared; }
     bool clearedByCue() const { return m_state.clearedByCue; }
     bool cueLive() const { return m_state.cueLive(); }
+    bool announcementAtSlide() const { return m_state.announcement.atSlide; }
+    int announcementIndex() const { return m_state.announcement.index; }
+    QString announcementKey() const { return m_state.announcement.key; }
+    QString announcementPlaylistId() const { return m_state.announcement.playlistId; }
+    bool announcementLive() const { return m_state.announcementLive(); }
+    bool announcementCleared() const { return m_state.announcement.cleared; }
+    bool announcementsOn() const { return !m_state.announcement.cleared || m_state.announcementHasMedia; }
     QVariant liveMedia() const;
     QString liveMediaPlaylistId() const { return m_state.mediaPlaylistId; }
     QVariant liveMusic() const;
@@ -188,7 +205,7 @@ public:
     Q_INVOKABLE void goLive(const QVariantMap &cue, bool withoutMedia = false);
     // Where a step of `delta` slides takes the show, for whoever is looking at that
     // presentation (see show::State::stepTarget).
-    Q_INVOKABLE int stepTarget(const QString &key, const QString &playlistId, int delta) const;
+    Q_INVOKABLE int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false) const;
     // The presentation the show is at was read again or put in another order: `cue` is
     // the slide it is at now. Nothing on the output changes.
     Q_INVOKABLE void follow(const QVariantMap &cue);
@@ -217,6 +234,7 @@ public:
 
     Q_INVOKABLE void clearSlide();
     Q_INVOKABLE void clearMedia();
+    Q_INVOKABLE void clearAnnouncements();
     Q_INVOKABLE void clearProps();
     // The audio layer, which is the music and the sound effects; and the sound
     // effects alone.
@@ -289,6 +307,7 @@ public:
 
 signals:
     void slideChanged();
+    void announcementChanged();
     void mediaChanged();
     void audioChanged();
     void propsChanged();
@@ -314,6 +333,12 @@ signals:
     void slideCleared();
     void mediaShown(const QVariantMap &media);
     void mediaCleared();
+    // The same for the announcements layer: the slide the announcements are at is to
+    // be shown there, `showing` a Showing and `media` what is to be started under it
+    // for WithMedia (nothing, where media that was there is to go and the slide stay);
+    // and the layer is to be taken off, slide and media.
+    void announcementShown(int showing, const QVariantMap &media);
+    void announcementsCleared();
     // A piece of audio is to be started (music in place of the music that is playing,
     // a sound effect over what is); the music is to stop; every sound effect is.
     void audioStarted(const QVariantMap &audio);

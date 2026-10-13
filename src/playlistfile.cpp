@@ -76,6 +76,7 @@ QVariantMap toRow(const rv::data::PlaylistItem &item, workspace::FileFinder *fin
         {"playlistItem", true},
         {"arrangement", QString()},
         {"arrangements", QStringList()},
+        {"destination", QString()},
         {"detail", QString()},
         {"color", QString()},
     };
@@ -104,8 +105,13 @@ QVariantMap toRow(const rv::data::PlaylistItem &item, workspace::FileFinder *fin
         QStringList arrangements;
         QStringList arrangementIds;
         QString selectedInFile;
+        // Where it is sent is what the presentation's own file says. (A GUESS at which
+        // of the two ProPresenter goes by, for the row says it too: see
+        // setRowsDestination() in the header. Where ProPresenter wrote them, they agree.)
+        QString destination;
         if (!file.isEmpty())
-            ProDocument::arrangementsOf(file, &arrangements, &selectedInFile, &arrangementIds);
+            ProDocument::arrangementsOf(file, &arrangements, &selectedInFile, &arrangementIds, &destination);
+        row.insert("destination", destination);
         const int byId = item.presentation().has_arrangement()
                              ? arrangementIds.indexOf(QString::fromStdString(item.presentation().arrangement().string())) : -1;
         if (byId >= 0)
@@ -555,6 +561,27 @@ QStringList PlaylistFile::rowsOf(const QString &root, const QString &file)
             ids.append(QString::fromStdString(item->uuid().string()));
     });
     return ids;
+}
+
+QString PlaylistFile::setRowsDestination(const QString &root, const QString &file, const QString &destination)
+{
+    rv::data::PlaylistDocument document;
+    QString error;
+    // (A workspace with no playlists has no rows to tell.)
+    if (!read(root, Presentations, &document, &error))
+        return error;
+    const auto wanted = destination == QLatin1String("announcements") ? rv::data::Action::CONTENT_DESTINATION_ANNOUNCEMENTS
+                                                                      : rv::data::Action::CONTENT_DESTINATION_GLOBAL;
+    workspace::FileFinder finder(root, QStringLiteral("Libraries"));
+    bool changed = false;
+    eachItem(document.mutable_root_node(), [&](rv::data::PlaylistItem *item) {
+        if (!item->has_presentation() || finder.find(item->presentation().document_path()) != file
+            || item->presentation().content_destination() == wanted)
+            return;
+        item->mutable_presentation()->set_content_destination(wanted);
+        changed = true;
+    });
+    return changed ? write(root, Presentations, document) : QString();
 }
 
 QString PlaylistFile::renameRows(const QString &root, const QStringList &ids, const QString &oldName, const QString &fileName)

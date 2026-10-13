@@ -110,6 +110,9 @@ public:
     // Records which arrangement of the presentation `file` a playlist row uses, "" for
     // none, and saves the playlists. Returns an error message, empty on success.
     Q_INVOKABLE QString setPlaylistItemArrangement(const QString &item, const QString &file, const QString &arrangement);
+    // Where a presentation is sent when a slide of it is triggered: "announcements",
+    // or "" for the slide and media layers. Returns an error message, empty on success.
+    Q_INVOKABLE QString setDestination(const QString &file, const QString &destination);
     // Changes to the playlists, each saved at once. They return an error message, empty
     // on success, except the two that create, which return { id, error }. A new playlist
     // or folder goes inside the folder `parent`, or at the top level for "". Removing

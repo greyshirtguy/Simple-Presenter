@@ -41,7 +41,7 @@ QtObject {
                 check("the workspace's macros are read, in their collection", Macros.collections.length === 1 && Macros.collections[0].name === "Default Collection"
                       && names.slice(0, 2).join("|") === "Singing|Stream & Stage Notes", names.join("|"))
                 const singing = Macros.find("", "Singing")
-                check("a macro is its actions, each said in words, and whether it is one done here", singing.actions.map(a => a.kind + (a.done ? "" : "-")).join(" ") === "stage look clear- clear clear"
+                check("a macro is its actions, each said in words, and whether it is one done here", singing.actions.map(a => a.kind + (a.done ? "" : "-")).join(" ") === "stage look clear clear clear"
                       && singing.actions[0].title === "Give the stage the layout “Singing”" && singing.actions[3].title === "Clear the props"
                       && singing.actions[1].title === "Go over to the look “Lyrics L3rd”", singing.actions.map(a => a.title).join(" | "))
                 check("ProPresenter's stage screens are known by name", Screens.stage.length === 2 && stageScreen().id === "E3A36D8C-E70D-45D8-A127-E7DAC6577CDC", JSON.stringify(StageLayouts.screens))
@@ -70,8 +70,9 @@ QtObject {
                 check("and the props are cleared, as the macro also says", liveProps.length === 0)
                 check("the slide itself is on the output", liveIndex === kept.macroSlide && !cleared)
                 const lines = testInput.readText(Log.path).split("\n")
-                check("the log says what was run, and what of it is not done here", lines.some(l => l.includes("Run the macro “Singing”, which has 5 actions"))
-                      && lines.some(l => l.includes("Go over to the look “Lyrics L3rd”") && !l.includes("not done here")) && lines.some(l => l.includes("Clear the announcements: not done here"))
+                check("the log says what was run, all of which is done here", lines.some(l => l.includes("Run the macro “Singing”, which has 5 actions"))
+                      && lines.some(l => l.includes("Go over to the look “Lyrics L3rd”") && !l.includes("not done here"))
+                      && lines.some(l => l.includes("Clear the announcements") && !l.includes("not done here"))
                       && lines.some(l => l.includes("Clear the audio") && !l.includes("not done here")))
                 // ---- adding actions: the menu
                 kept.target = slideWith(s => s.actions.length === 0 && s.mediaName === "")
@@ -97,7 +98,7 @@ QtObject {
             },
             () => {
                 const panes = Lib.findAll(menu.contentItem, i => i.px !== undefined && i.rows !== undefined)
-                check("clearing: the layers there are here, in a third menu", labels() === "[Clear], Everything, The Slide, The Media, The Props, The Messages" && panes.length === 3, labels())
+                check("clearing: the layers there are here, in a third menu", labels() === "[Clear], Everything, The Slide, The Media, The Props, The Messages, The Announcements" && panes.length === 3, labels())
                 check("every menu is inside the window", panes.every(p => p.x >= 0 && p.y >= 0 && p.x + p.width <= win.width && p.y + p.height <= win.height))
                 testInput.grab("0-menus")
                 // Back on another row of the second menu, the third shuts

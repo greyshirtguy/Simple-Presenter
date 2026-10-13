@@ -182,9 +182,11 @@ QtObject {
                       box("props", kept.room).available && box("slide", kept.stream).available && box("media", kept.room).checked === true
                       && box("media", kept.stream).checked === false && box("slide", kept.stream).checked === true
                       && box("messages", kept.room).available && box("messages", kept.room).checked === Looks.liveOf(kept.room).messages)
-                check("and ProPresenter's other layers shown as the look has them, greyed, not to be changed", box("videoInput", kept.stream).available === false
-                      && box("announcements", kept.stream).available === false && box("videoInput", kept.room).available === false
-                      && box("announcements", kept.room).checked === Looks.liveOf(kept.room).announcements)
+                check("and the layer of ProPresenter's that this app has not, shown as the look has it, greyed, not to be changed",
+                      box("videoInput", kept.stream).available === false && box("videoInput", kept.room).available === false
+                      && box("videoInput", kept.room).checked === Looks.liveOf(kept.room).videoInput)
+                check("the announcements are a layer of this app's, to be switched like the others", box("announcements", kept.stream).available === true
+                      && box("announcements", kept.room).available === true && box("announcements", kept.room).checked === Looks.liveOf(kept.room).announcements)
                 testInput.grab("2-looks-window")
                 kept.before = JSON.stringify(look("Lyrics L3rd").screens)
                 click(centre(box("props", kept.room)))
@@ -198,8 +200,14 @@ QtObject {
                       && Looks.live.origin === kept.lyrics)
                 check("the preview in the operator window shows what the screen it stands for is given: no props now",
                       named("previewProps").visible === false && named("previewSlide").visible === true)
+                kept.videoInput = Looks.liveOf(kept.room).videoInput
+                click(centre(box("videoInput", kept.room)))
+                check("a greyed layer does not answer to a click", Looks.liveOf(kept.room).videoInput === kept.videoInput)
+                // The announcements are a layer of this app's too: off for the room, and on again
                 click(centre(box("announcements", kept.room)))
-                check("a greyed layer does not answer to a click", Looks.liveOf(kept.room).announcements === true)
+                check("a click keeps the announcements from a screen", Looks.liveOf(kept.room).announcements === false && output.announcementsOn === false)
+                click(centre(box("announcements", kept.room)))
+                check("and another gives them back", Looks.liveOf(kept.room).announcements === true && output.announcementsOn === true)
                 // The messages are a layer of this app's, and a look says which screens get them
                 click(centre(box("messages", kept.room)))
                 return 700

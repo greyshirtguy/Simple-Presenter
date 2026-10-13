@@ -233,6 +233,8 @@ QString Looks::setScreen(const QString &id, const QString &screenId, const QVari
         wanted.props = changes.value("props").toBool();
     if (changes.contains("messages"))
         wanted.messages = changes.value("messages").toBool();
+    if (changes.contains("announcements"))
+        wanted.announcements = changes.value("announcements").toBool();
     if (changes.contains("theme")) {
         wanted.theme = changes.value("theme").toString();
         wanted.themeSlide = wanted.theme.isEmpty() ? QString() : changes.value("themeSlide").toString();

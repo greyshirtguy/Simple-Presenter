@@ -154,8 +154,10 @@ QString layerWords(const Action::ClearType &clear, bool *done)
 {
     using Clear = Action::ClearType;
     *done = false;
-    if (clear.content_destination() == Action::CONTENT_DESTINATION_ANNOUNCEMENTS)
+    if (clear.content_destination() == Action::CONTENT_DESTINATION_ANNOUNCEMENTS) {
+        *done = true;
         return QStringLiteral("Clear the announcements");
+    }
     switch (clear.target_layer()) {
     case Clear::CLEAR_TARGET_LAYER_ALL:
         *done = true;
@@ -206,6 +208,10 @@ QVariantMap describe(const rv::data::Action &action)
         bool done = false;
         map.insert("kind", QStringLiteral("clear"));
         map.insert("layer", int(action.clear().target_layer()));
+        // (The announcements are not one of the file's layers to clear but a
+        // "destination" a clear is sent to: said beside the layer, and gone by first.)
+        if (action.clear().content_destination() == Action::CONTENT_DESTINATION_ANNOUNCEMENTS)
+            map.insert("announcements", true);
         map.insert("picture", clearPicture(action.clear()));
         map.insert("title", layerWords(action.clear(), &done));
         map.insert("done", done);
@@ -324,6 +330,12 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
     } else if (kind == QLatin1String("clear")) {
         action->set_type(Action::ACTION_TYPE_CLEAR);
         action->mutable_clear()->set_target_layer(Action::ClearType::ClearTargetLayer(qBound(0, wanted.value("layer").toInt(), 8)));
+        // The announcements: every layer, of that destination, which is how the
+        // workspace's own clear groups name them (see clearfile.cpp).
+        if (wanted.value("announcements").toBool()) {
+            action->mutable_clear()->set_target_layer(Action::ClearType::CLEAR_TARGET_LAYER_ALL);
+            action->mutable_clear()->set_content_destination(Action::CONTENT_DESTINATION_ANNOUNCEMENTS);
+        }
     } else if (kind == QLatin1String("clearGroup")) {
         // As ProPresenter writes one (seen in a presentation of its own): the group by
         // the id it has in the workspace's list of clear groups, and its name.

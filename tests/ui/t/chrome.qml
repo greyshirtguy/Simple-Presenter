@@ -94,16 +94,17 @@ QtObject {
                 const inPane = texts(sidePanel)
                 check("the previews have no titles", !inPane.some(x => x.toLowerCase() === "output" || x.toLowerCase() === "stage") && !inPane.some(x => x.toLowerCase() === "timers"),
                       inPane.join(" | "))
-                const clears = ["clearSlide", "clearMedia", "clearProps", "clearAudio", "clearMessages"].map(name => named(name))
-                check("there are five clear buttons for the layers, across the whole width", clears.every(c => c !== null) && near(clears[0].width, clears[1].width)
+                const clears = ["clearSlide", "clearMedia", "clearProps", "clearAudio", "clearMessages", "clearAnnouncements"].map(name => named(name))
+                check("there are six clear buttons for the layers, across the whole width", clears.every(c => c !== null) && near(clears[0].width, clears[1].width)
                       && near(clears[1].width, clears[2].width) && near(clears[2].width, clears[3].width) && near(clears[3].width, clears[4].width)
-                      && near(clears[0].mapToItem(sidePanel, 0, 0).x, 12) && near(clears[4].mapToItem(sidePanel, clears[4].width, 0).x, sidePanel.width - 12),
+                      && near(clears[4].width, clears[5].width)
+                      && near(clears[0].mapToItem(sidePanel, 0, 0).x, 12) && near(clears[5].mapToItem(sidePanel, clears[5].width, 0).x, sidePanel.width - 12),
                       clears.map(c => c ? c.width.toFixed(1) : "none").join(", ") + " in " + sidePanel.width)
                 const pictureOf = (item) => { const found = Lib.find(item, i => i.inkName !== undefined && i.name !== undefined && i.name !== "" && i.visible === true); return found ? found.name : "none" }
                 check("with pictures on them and no words: ProPresenter's own, of clearing each layer", clears.every(c => texts(c).length === 0)
-                      && clears.map(pictureOf).join() === "ClearPresentation,ClearMedia,ClearProps,ClearAudio,ClearMessages", clears.map(pictureOf).join())
+                      && clears.map(pictureOf).join() === "ClearPresentation,ClearMedia,ClearProps,ClearAudio,ClearMessages,ClearAnnouncements", clears.map(pictureOf).join())
                 const groups = Lib.findAll(sidePanel, i => i.objectName === "clearGroup")
-                check("and under them the button of the workspace's clear group, as wide as the five together, with ProPresenter's picture of clearing and its name",
+                check("and under them the button of the workspace's clear group, as wide as the six together, with ProPresenter's picture of clearing and its name",
                       groups.length === 1 && near(groups[0].mapToItem(sidePanel, 0, 0).x, 12) && near(groups[0].mapToItem(sidePanel, groups[0].width, 0).x, sidePanel.width - 12)
                       && groups[0].mapToItem(sidePanel, 0, 0).y > clears[0].mapToItem(sidePanel, 0, clears[0].height).y && pictureOf(groups[0]) === "Clear"
                       && texts(groups[0]).join() === "Clear All", groups.length + " of them: " + (groups.length ? pictureOf(groups[0]) + " " + texts(groups[0]).join() : ""))

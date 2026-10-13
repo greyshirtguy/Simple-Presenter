@@ -333,6 +333,26 @@ private slots:
         QVERIFY(!document.audience_looks(1).screen_looks(0).live_video_enabled());
     }
 
+    void theAnnouncementsAreALayerALookSwitchesForAScreen()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        ScreenLook wanted = read(folder.path()).looks.at(1).screens.value("STREAM");
+        QVERIFY(wanted.announcements);
+        wanted.announcements = false;
+        QCOMPARE(setScreen(folder.path(), "LOOK-2", "STREAM", wanted), QString());
+        const Looks found = read(folder.path());
+        const ScreenLook now = found.looks.at(1).screens.value("STREAM");
+        QVERIFY(!now.announcements && now.messages && now.slide == wanted.slide && now.media == wanted.media && now.props == wanted.props);
+        // The same look's other screen, and the other look, still get them.
+        QVERIFY(found.looks.at(1).screens.value("ROOM").announcements);
+        QVERIFY(found.looks.at(0).screens.value("STREAM").announcements);
+        const rv::data::ProPresenterWorkspace document = fileOf(folder.path());
+        QVERIFY(!document.audience_looks(1).screen_looks(1).announcements_enabled());
+        QVERIFY(document.audience_looks(1).screen_looks(1).messages_layer_enabled());
+        QVERIFY(!document.audience_looks(1).screen_looks(1).live_video_enabled());
+    }
+
     void aThemeThatIsNotChangedIsLeftNamedAsItWas()
     {
         QTemporaryDir folder;

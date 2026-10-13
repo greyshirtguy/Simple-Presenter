@@ -38,6 +38,24 @@ Rectangle {
     // Whether something in the show controls is being renamed in place, and so has the
     // keyboard
     readonly property bool renaming: showControl.renaming
+
+    // The announcements in the preview: what a screen's scene is told, the preview is
+    // told too (see showAnnouncement() and clearAnnouncements() in OutputScene.qml).
+    function showAnnouncement(slide, showing, media) {
+        previewAnnouncements.active = true
+        const layer = previewAnnouncements.item
+        if (showing === 2)
+            layer.showSlideWithMedia(slide, media)
+        else if (showing === 1)
+            layer.showSlideOverMedia(slide)
+        else
+            layer.showSlide(slide)
+    }
+
+    function clearAnnouncements() {
+        if (previewAnnouncements.item)
+            previewAnnouncements.item.clear()
+    }
     // The clear groups that have a button: all but those the workspace keeps out of
     // sight (see ClearGroups)
     readonly property var shownGroups: ClearGroups.groups.filter(group => !group.hidden)
@@ -72,6 +90,7 @@ Rectangle {
         return (group.layers.indexOf("slide") >= 0 && !win.cleared) || (group.layers.indexOf("media") >= 0 && win.liveMedia !== null)
                || (group.layers.indexOf("props") >= 0 && win.liveProps.length > 0)
                || (group.layers.indexOf("messages") >= 0 && win.liveMessages.length > 0)
+               || (group.layers.indexOf("announcements") >= 0 && Show.announcementsOn)
                || (group.layers.indexOf("audio") >= 0 && win.audioLive)
                || (group.layers.indexOf("audioEffects") >= 0 && win.liveSounds.length > 0)
     }
@@ -91,21 +110,24 @@ Rectangle {
     component ClearButton: Rectangle {
         id: clearButton
 
-        // "slide", "media", "props", "audio" or "messages"
+        // "slide", "media", "props", "audio", "messages" or "announcements"
         property string kind
         property bool live: false
         // The layer it clears, as an action's file numbers them, and what an action
-        // that clears it is called
-        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4, "audio": 1, "messages": 7 })[kind] ?? 5
+        // that clears it is called. (The announcements are not one of the file's
+        // layers but a destination that everything is cleared of: 0, and said beside
+        // it. See clearfile.h.)
+        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4, "audio": 1, "messages": 7, "announcements": 0 })[kind] ?? 5
         readonly property string title: ({ "slide": "Clear the Slide", "media": "Clear the Media", "props": "Clear the Props",
-                                           "audio": "Clear the Audio", "messages": "Clear the Messages" })[kind] ?? ""
+                                           "audio": "Clear the Audio", "messages": "Clear the Messages",
+                                           "announcements": "Clear the Announcements" })[kind] ?? ""
         readonly property string picture: ({ "slide": "ClearPresentation", "media": "ClearMedia", "props": "ClearProps", "audio": "ClearAudio",
-                                             "messages": "ClearMessages" })[kind] ?? "Clear"
+                                             "messages": "ClearMessages", "announcements": "ClearAnnouncements" })[kind] ?? "Clear"
         readonly property color ink: live ? "#ececec" : "#6c6f75"
 
         signal clicked
 
-        width: (layerClears.width - 4 * layerClears.spacing) / 5
+        width: (layerClears.width - 5 * layerClears.spacing) / 6
         height: 30
         radius: 6
         color: !live ? "#2b2d31" : clearMouse.pressed ? "#e25555" : clearMouse.containsMouse ? "#d84343" : "#c62828"
@@ -126,7 +148,8 @@ Rectangle {
 
             anchors.fill: parent
             win: sidePanel.win
-            payload: ({ kind: "clear", id: "", layer: clearButton.clears, name: clearButton.title, picture: clearButton.picture })
+            payload: ({ kind: "clear", id: "", layer: clearButton.clears, announcements: clearButton.kind === "announcements",
+                        name: clearButton.title, picture: clearButton.picture })
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: (mouse) => {
@@ -145,7 +168,7 @@ Rectangle {
     // for it (a row of several has room for the pictures alone).
     //
     // The buttons of the groups share the width of the row between them, so that one
-    // group, which is what a workspace starts with, has a button as wide as the three
+    // group, which is what a workspace starts with, has a button as wide as the row
     // of the layers above it.
     component ClearGroupButton: Rectangle {
         id: groupButton
@@ -273,6 +296,22 @@ Rectangle {
                 visible: sidePanel.win.previewLook.slide
                 slide: sidePanel.win.previewSlide
                 effects: false
+            }
+
+            // The announcements, over the slide and under the props, as the output
+            // has them: their layer again, fed the frames of a video that the output
+            // plays (it does not lead), and told what the screens are told. Made when
+            // the first announcement is shown, and kept.
+            Loader {
+                id: previewAnnouncements
+
+                objectName: "previewAnnouncements"
+                anchors.fill: parent
+                visible: sidePanel.win.previewLook.announcements !== false
+                active: false
+                sourceComponent: AnnouncementLayer {
+                    leads: false
+                }
             }
 
             PropsLayer {
@@ -433,15 +472,16 @@ Rectangle {
         spacing: 4
 
         // The layers: the slide (F2), the media (F3), the props (F4), the audio (F5),
-        // which is the music and the sound effects of the audio bin, and the messages
-        // (F6).
+        // which is the music and the sound effects of the audio bin, the messages (F6),
+        // and the announcements, which have no key here.
         //
         // A GUESS: that F6 is ProPresenter's key for clearing the messages. Its keys
-        // for the first four are known; this one follows on from them.
+        // for the first four are known; this one follows on from them. Which key it
+        // has for the announcements is not known, so they are given none.
         //
-        // TO COME: a button here for each layer this app gains (announcements, video
-        // inputs), which is also when that layer is to be switched on among the layers
-        // a clear group can be given (see `ours` in src/clearfile.cpp) and cleared by
+        // TO COME: a button here for the layer this app has not yet (video inputs),
+        // which is also when that layer is to be switched on among the layers a clear
+        // group can be given (see `ours` in src/clearfile.cpp) and cleared by
         // State::clearGroup (src/showstate.cpp).
         Row {
             id: layerClears
@@ -482,6 +522,15 @@ Rectangle {
                 kind: "messages"
                 live: sidePanel.win.liveMessages.length > 0
                 onClicked: sidePanel.win.clearMessages()
+            }
+
+            // The announcements: ProPresenter's megaphone. Red while their layer has
+            // anything on it, a slide or media.
+            ClearButton {
+                objectName: "clearAnnouncements"
+                kind: "announcements"
+                live: Show.announcementsOn
+                onClicked: sidePanel.win.clearAnnouncements()
             }
         }
 

@@ -1309,6 +1309,228 @@ messages {
 """
 
 
+# A presentation of slides that are each one block of a colour and nothing else: no words, no background, so that what
+# is under a slide shows around its block. Written as ProPresenter's own text of a presentation; nobody's but the tests'.
+BLOCK_CUE = """cues {
+  uuid {
+    string: "%(cue)s"
+  }
+  completion_action_type: COMPLETION_ACTION_TYPE_LAST
+  hot_key {
+  }
+  actions {
+    uuid {
+      string: "%(action)s"
+    }
+    isEnabled: true
+    type: ACTION_TYPE_PRESENTATION_SLIDE
+    slide {
+      presentation {
+        base_slide {
+          elements {
+            element {
+              uuid {
+                string: "%(element)s"
+              }
+              name: "Block"
+              bounds {
+                origin {
+                  x: %(x)d
+                  y: %(y)d
+                }
+                size {
+                  width: 660
+                  height: 340
+                }
+              }
+              opacity: 1
+              path {
+                closed: true
+                points {
+                  point {
+                  }
+                  q0 {
+                  }
+                  q1 {
+                  }
+                }
+                points {
+                  point {
+                    x: 1
+                  }
+                  q0 {
+                    x: 1
+                  }
+                  q1 {
+                    x: 1
+                  }
+                }
+                points {
+                  point {
+                    x: 1
+                    y: 1
+                  }
+                  q0 {
+                    x: 1
+                    y: 1
+                  }
+                  q1 {
+                    x: 1
+                    y: 1
+                  }
+                }
+                points {
+                  point {
+                    y: 1
+                  }
+                  q0 {
+                    y: 1
+                  }
+                  q1 {
+                    y: 1
+                  }
+                }
+                shape {
+                  type: TYPE_RECTANGLE
+                }
+              }
+              fill {
+                enable: true
+                color {
+                  red: %(red)d
+                  green: %(green)d
+                  blue: %(blue)d
+                  alpha: 1
+                }
+              }
+              stroke {
+                width: 1
+                color {
+                  alpha: 1
+                }
+              }
+              shadow {
+                color {
+                }
+              }
+              feather {
+              }
+            }
+            info: 3
+          }
+          size {
+            width: 1920
+            height: 1080
+          }
+          uuid {
+            string: "%(slide)s"
+          }
+        }
+      }
+    }
+  }
+  isEnabled: true
+}
+"""
+
+
+def blocks_presentation(name, colours, x, y):
+    """The text of a presentation called `name` with a slide for each of `colours` (red, green and blue, each 0 or 1):
+    a block of that colour 660 by 340 at (x, y) of a slide of 1920 by 1080, in one group."""
+    def new():
+        return str(uuid.uuid4()).upper()
+
+    cues, ids = [], []
+    for red, green, blue in colours:
+        ids.append(new())
+        cues.append(BLOCK_CUE % {"cue": ids[-1], "action": new(), "element": new(), "slide": new(), "x": x, "y": y,
+                                 "red": red, "green": green, "blue": blue})
+    group = ('cue_groups {\n  group {\n    uuid {\n      string: "%s"\n    }\n    name: "Blocks"\n    hotKey {\n    }\n  }\n' % new()
+             + "".join('  cue_identifiers {\n    string: "%s"\n  }\n' % i for i in ids) + "}\n")
+    return ('application_info {\n  platform: PLATFORM_MACOS\n  application: APPLICATION_PROPRESENTER\n}\n'
+            'uuid {\n  string: "%s"\n}\nname: "%s"\n' % (new(), name) + "".join(cues) + group)
+
+
+def prepare_announce(workspace, test_dir):
+    """Two presentations of the test's own in the copy's library, each of three slides that are a block of colour:
+    "Notices", whose blocks are in the top right quarter (red, green, blue), and "Plain", whose blocks are in the
+    bottom left (yellow, cyan, white). And a picture of one colour beside the test's own files, to be the media
+    under a notice. Nothing is written outside the test's folder, and nothing under the copy's Media."""
+    library = os.path.join(workspace, "Libraries", "Demo")
+    made = {"Notices.pro": blocks_presentation("Notices", [(1, 0, 0), (0, 1, 0), (0, 0, 1)], 1160, 100),
+            "Plain.pro": blocks_presentation("Plain", [(1, 1, 0), (0, 1, 1), (1, 1, 1)], 100, 640)}
+    for name, text in made.items():
+        target = os.path.join(library, name)
+        if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("the announcements test would write outside its own folder: " + os.path.realpath(target))
+        with open(target, "wb") as out:
+            out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+    shutil.copy(os.path.join(library, "Notices.pro"), os.path.join(test_dir, "announce-before"))
+    with open(os.path.join(test_dir, "magenta.png"), "wb") as out:
+        out.write(tiny_png((255, 0, 255), 64))
+
+
+def after_announce(workspace, test_dir):
+    """Where a presentation is sent, and an action that clears the announcements: what the files hold, read with protoc
+    and not by the app. The test kept the notices' file as it was given it (announce-before, by prepare_announce), sent
+    to the announcements (announce-set) and sent back (announce-back); and the playlists' file with the notices in a
+    playlist twice, before they were sent anywhere (announce-playlists)."""
+    import difflib
+
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+
+    def raw(path):
+        with open(path, "rb") as source:
+            return source.read()
+
+    def decoded(data, message="rv.data.Presentation", proto="presentation.proto"):
+        return protoc("decode", message, proto, data).decode()
+
+    def rows(text):
+        """Each presentation row of a decoded playlists file: the name of its file, and its lines of the text."""
+        found = []
+        for block in re.finditer(r"^( +)presentation \{\n.*?^\1\}\n", text, re.S | re.M):
+            lines = block.group(0)
+            path = re.search(r'absolute_string: "([^"]*)"', lines)
+            found.append((os.path.basename(path.group(1)) if path else "", lines))
+        return found
+
+    before, sent, back = (raw(os.path.join(test_dir, "announce-before")), raw(os.path.join(frames, "announce-set")),
+                          raw(os.path.join(frames, "announce-back")))
+    was, now = decoded(before).split("\n"), decoded(sent).split("\n")
+    added = [line for line in now if line not in was]
+    lists_was = decoded(raw(os.path.join(frames, "announce-playlists")), "rv.data.PlaylistDocument", "propresenter.proto")
+    lists_now = decoded(raw(os.path.join(workspace, "Playlists", "Library")), "rv.data.PlaylistDocument", "propresenter.proto")
+    def marked(text):
+        return sorted(name for name, lines in rows(text) if "content_destination: CONTENT_DESTINATION_ANNOUNCEMENTS" in lines)
+
+    # (The fixture's own playlists may have rows that are sent to the announcements already.)
+    ours_was = [lines for name, lines in rows(lists_was) if name in ("Notices.pro", "Plain.pro")]
+    changed = [line[0] + line[1:].strip() for line in difflib.ndiff(lists_was.split("\n"), lists_now.split("\n")) if line[:1] in "+-"]
+    newly = list(marked(lists_now))
+    for name in marked(lists_was):
+        newly.remove(name)
+    plain = decoded(raw(os.path.join(workspace, "Libraries", "Demo", "Plain.pro")))
+    clears = re.findall(r"^    clear \{\n.*?^    \}\n", plain, re.S | re.M)
+    return [
+        said(added == ["content_destination: CONTENT_DESTINATION_ANNOUNCEMENTS"] and len(now) == len(was) + 1 and len(was) > 200,
+             "in the notices' file: sent to the announcements, it says so in one line more, and every other line is as it was",
+             "; ".join(added)),
+        said(back == before, "in the notices' file: sent back to the presentation layers, it is the file it was, byte for byte"),
+        said(len(ours_was) == 3 and not any("content_destination" in lines for lines in ours_was),
+             "in the playlists' file, before: the test's three rows, none of which says where it is sent"),
+        said(newly == ["Notices.pro", "Notices.pro"] and len(rows(lists_now)) == len(rows(lists_was)),
+             "in the playlists' file: both rows that are the notices say they are sent to the announcements, and no other row is changed",
+             ", ".join(newly)),
+        said(changed == ["+content_destination: CONTENT_DESTINATION_ANNOUNCEMENTS"] * 2 and len(lists_was) > 1000,
+             "in the playlists' file: and nothing else of it was changed: two lines more, and no line gone or altered", "; ".join(changed)),
+        # (Every layer is what a clear means that names none, so the file has no line for it.)
+        said(len(clears) == 1 and "target_layer" not in clears[0] and "content_destination: CONTENT_DESTINATION_ANNOUNCEMENTS" in clears[0],
+             "in the other presentation's file: the action that clears the announcements is ProPresenter's: every layer, of the announcements",
+             " ".join(clears[0].split()) if clears else "no clear"),
+    ]
+
+
 def prepare_messages(workspace, test_dir):
     """The workspace is given a file of messages as ProPresenter might have left one (MESSAGES_FILE). Nothing is
     written but that one file, in the copy's Configuration."""
@@ -1533,6 +1755,7 @@ TESTS = {
     "chrome": test("Demo"),
     "arrange": test("Demo", timeout=240, after=after_arrange),
     "reflow": test("Demo", timeout=240, after=after_reflow),
+    "announce": test("Demo", timeout=240, prepare=prepare_announce, after=after_announce),
     "switch": test("Demo", MEMORY, 60, also=("ProPresenter MR",)),
     "smoke": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0"}),
     "edit": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0", "SP_TEST_WIDTH": "1200", "SP_TEST_HEIGHT": "660"}),

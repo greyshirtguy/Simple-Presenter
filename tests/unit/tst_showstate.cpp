@@ -95,6 +95,8 @@ struct Presentation
     QString playlistId;
     QString name = "Song";
     QVariantList slides;
+    // Where it is sent: "" or "announcements"
+    QString destination;
 
     Cue cue(int index) const
     {
@@ -106,9 +108,23 @@ struct Presentation
         cue.count = int(slides.size());
         cue.slide = slides.value(index).toMap();
         cue.next = slides.value(index + 1).toMap();
+        cue.destination = destination;
         return cue;
     }
 };
+
+// A presentation that is sent to the announcements: notices, of plain slides unless it
+// is given others.
+Presentation notices(int count = 3)
+{
+    Presentation made;
+    made.key = "notices.pro";
+    made.name = "Notices";
+    made.destination = "announcements";
+    for (int i = 0; i < count; ++i)
+        made.slides << slide(QStringLiteral("n%1").arg(i));
+    return made;
+}
 
 Presentation plainSong(int count = 4)
 {
@@ -172,8 +188,9 @@ QString times(const Effects &effects)
 // The kinds of what was to happen outside, in order, the log left out: "slide nomedia".
 QString outside(const Effects &effects)
 {
-    static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia", "audio", "nomusic", "nosounds",
-                                  "timer", "look", "message", "messagetime", "note", "problem"};
+    static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia",
+                                  "announcement", "announcementovermedia", "announcementwithmedia", "noannouncements",
+                                  "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -465,6 +482,185 @@ private slots:
         // It is still at the slide, for stepping.
         QCOMPARE(show.index, 0);
         QVERIFY(show.atSlide);
+    }
+
+    // ---- the announcements layer
+
+    void aPresentationSentToTheAnnouncementsGoesThereAndTheShowStaysWhereItWas()
+    {
+        State show;
+        show.goLive(plainSong().cue(1), false, workspace());
+        const Effects effects = show.goLive(notices().cue(0), false, workspace());
+        QCOMPARE(outside(effects), "announcement");
+        QVERIFY(noted(effects, "to the announcements, slide 1 of 3 of \"Notices\""));
+        // The show is at the slide it was at, which is still on its layer.
+        QVERIFY(show.at("song.pro", "") && show.index == 1 && !show.cleared && show.cueLive());
+        // And the announcements are at theirs.
+        QVERIFY(show.announcementAt("notices.pro", "") && show.announcement.index == 0 && show.announcement.count == 3);
+        QVERIFY(!show.announcement.cleared && show.announcementLive());
+        QCOMPARE(show.announcement.slide.value("id").toString(), "n0");
+        QCOMPARE(show.announcement.next.value("id").toString(), "n1");
+        // A slide of the song after that leaves the announcements where they are.
+        QCOMPARE(outside(show.goLive(plainSong().cue(2), false, workspace())), "slide");
+        QVERIFY(show.index == 2 && show.announcement.index == 0 && !show.announcement.cleared);
+    }
+
+    void theAnnouncementsHaveMediaOfTheirOwnUnderTheirSlide()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", video("waves.mp4"))};
+        Presentation board = notices(0);
+        board.slides = {slide("n0", video("loop.mp4")), slide("n1", video("loop.mp4")), slide("n2"), slide("n3", video("sting.mp4", true, 0)),
+                        slide("n4")};
+        QCOMPARE(outside(show.goLive(song.cue(0), false, workspace())), "slidewithmedia");
+        // Their first slide starts its video under it, on their layer: the show's own plays on.
+        Effects effects = show.goLive(board.cue(0), false, workspace());
+        QCOMPARE(outside(effects), "announcementwithmedia");
+        QCOMPARE(effects.last().media.value("name").toString(), "loop.mp4");
+        QVERIFY(show.announcementHasMedia && show.announcementMedia.value("name") == "loop.mp4");
+        QVERIFY(show.hasMedia && show.media.value("name") == "waves.mp4");
+        // The same background asked for again is left to play.
+        QCOMPARE(outside(show.goLive(board.cue(1), false, workspace())), "announcementovermedia");
+        // A slide that brings none leaves a background playing under it.
+        QCOMPARE(outside(show.goLive(board.cue(2), false, workspace())), "announcement");
+        QVERIFY(show.announcementHasMedia);
+        // A foreground takes its place, and is ended by the next slide that brings none:
+        // the layer is given that slide with no media under it.
+        QCOMPARE(outside(show.goLive(board.cue(3), false, workspace())), "announcementwithmedia");
+        QVERIFY(show.announcementMedia.value("foreground").toBool());
+        effects = show.goLive(board.cue(4), false, workspace());
+        QCOMPARE(outside(effects), "announcementwithmedia");
+        QVERIFY(effects.last().media.isEmpty() && !show.announcementHasMedia);
+        // None of which touched what the show itself has on.
+        QVERIFY(show.hasMedia && show.media.value("name") == "waves.mp4" && show.index == 0 && !show.cleared);
+        // And media triggered by itself goes to the media layer, not theirs.
+        QCOMPARE(outside(show.showMedia(video("other.mp4"), "")), "media");
+        QVERIFY(!show.announcementHasMedia);
+    }
+
+    void withoutItsMediaAnAnnouncementSlideIsShownAlone()
+    {
+        State show;
+        Presentation board = notices(0);
+        board.slides = {slide("n0", video("loop.mp4"))};
+        const Effects effects = show.goLive(board.cue(0), true, workspace());
+        QCOMPARE(outside(effects), "announcement");
+        QVERIFY(!show.announcementHasMedia && noted(effects, "without its media, as asked"));
+    }
+
+    void clearingTheAnnouncementsTakesTheirSlideAndTheirMediaAndNothingElse()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", video("waves.mp4"))};
+        Presentation board = notices(0);
+        board.slides = {slide("n0", video("loop.mp4")), slide("n1")};
+        show.goLive(song.cue(0), false, workspace());
+        show.goLive(board.cue(0), false, workspace());
+        show.toggleProp("p1", workspace());
+        const Effects effects = show.clearAnnouncements();
+        QCOMPARE(outside(effects), "noannouncements");
+        QVERIFY(noted(effects, "the announcements"));
+        QVERIFY(show.announcement.cleared && !show.announcement.clearedByCue && !show.announcementLive() && !show.announcementHasMedia);
+        // They are still at their slide, for stepping; and the rest of the show is as it was.
+        QVERIFY(show.announcement.atSlide && show.announcement.index == 0);
+        QVERIFY(!show.cleared && show.hasMedia && show.props.size() == 1);
+        // Cleared again, there is nothing to clear.
+        QCOMPARE(outside(show.clearAnnouncements()), "");
+        // And the other clears leave them: the slide, the media and the props cleared, they stay.
+        show.goLive(board.cue(1), false, workspace());
+        show.clearSlide();
+        show.clearMedia();
+        show.clearProps();
+        QVERIFY(!show.announcement.cleared && show.announcementLive());
+    }
+
+    void mediaLeftOnTheAnnouncementsWithNoSlideIsStillSomethingToClear()
+    {
+        // A slide of theirs that clears nothing but was shown with media, then their
+        // layer cleared and media left: there is none, the layer goes whole. But a
+        // layer with media and a cleared slide cannot come about any other way than
+        // by its being asked for, so this holds the one rule: either is enough.
+        State show;
+        Presentation board = notices(0);
+        board.slides = {slide("n0", video("loop.mp4"))};
+        show.goLive(board.cue(0), false, workspace());
+        QCOMPARE(outside(show.clearAnnouncements()), "noannouncements");
+        QVERIFY(!show.announcementHasMedia && show.announcement.cleared);
+    }
+
+    void clearingEverythingAndAGroupThatHasThemClearTheAnnouncements()
+    {
+        State show;
+        show.goLive(plainSong().cue(0), false, workspace());
+        show.goLive(notices().cue(1), false, workspace());
+        QCOMPARE(outside(show.clearAll()), "noslide noannouncements");
+        QVERIFY(show.cleared && show.announcement.cleared);
+        // The group of every layer does the same; one that has not the announcements leaves them.
+        show.goLive(plainSong().cue(0), false, workspace());
+        show.goLive(notices().cue(1), false, workspace());
+        QCOMPARE(outside(show.clearGroup("extras", workspace())), "");
+        QVERIFY(!show.announcement.cleared);
+        QCOMPARE(outside(show.clearGroup("all", workspace())), "noslide noannouncements");
+        QVERIFY(show.announcement.cleared && show.announcement.index == 1);
+    }
+
+    void aClearActionCanNameTheAnnouncements()
+    {
+        // As actions.cpp describes one: every layer, of the announcements' destination.
+        const QVariantMap clearThem {{"kind", "clear"}, {"title", "Clear the announcements"}, {"done", true}, {"layer", 0}, {"announcements", true}};
+        State show;
+        Presentation song;
+        song.slides = {slide("a"), slide("b", {}, {clearThem})};
+        show.goLive(song.cue(0), false, workspace());
+        show.goLive(notices().cue(0), false, workspace());
+        // On a slide of the song: the announcements go, and the song's slide is shown.
+        QCOMPARE(outside(show.goLive(song.cue(1), false, workspace())), "slide noannouncements");
+        QVERIFY(!show.cleared && show.announcement.cleared && !show.announcement.clearedByCue);
+        // On a slide of theirs: that slide takes itself off, and is still the one they are at.
+        Presentation board = notices(0);
+        board.slides = {slide("n0"), slide("n1", {}, {clearThem})};
+        QCOMPARE(outside(show.goLive(board.cue(1), false, workspace())), "announcement noannouncements");
+        QVERIFY(show.announcement.cleared && show.announcement.clearedByCue && show.announcementLive() && show.announcement.index == 1);
+        // An action of theirs that clears the slide clears the show's slide, as it says, and not theirs.
+        board.slides = {slide("n0", {}, {clearAction(5)})};
+        QCOMPARE(outside(show.goLive(board.cue(0), false, workspace())), "announcement noslide");
+        QVERIFY(show.cleared && !show.clearedByCue && !show.announcement.cleared);
+    }
+
+    void theAnnouncementsAreSteppedFromWhereTheyAre()
+    {
+        State show;
+        show.goLive(plainSong().cue(2), false, workspace());
+        show.goLive(notices().cue(0), false, workspace());
+        QCOMPARE(show.stepTarget("notices.pro", "", 1, true), 1);
+        QCOMPARE(show.stepTarget("notices.pro", "", -1, true), -1);
+        // Another presentation looked at as announcements starts at its top.
+        QCOMPARE(show.stepTarget("other.pro", "", 1, true), 0);
+        // Cleared, a step brings back the slide they were at.
+        show.clearAnnouncements();
+        QCOMPARE(show.stepTarget("notices.pro", "", 1, true), 0);
+        // And the show's own steps go from the show's own slide throughout.
+        QCOMPARE(show.stepTarget("song.pro", "", 1), 3);
+        QCOMPARE(show.stepTarget("notices.pro", "", 1), 0);
+    }
+
+    void theAnnouncementsFollowTheirPresentationWhenItIsReadAgain()
+    {
+        State show;
+        show.goLive(plainSong().cue(1), false, workspace());
+        show.goLive(notices().cue(0), false, workspace());
+        Presentation longer = notices(5);
+        show.follow(longer.cue(2));
+        QVERIFY(show.announcement.index == 2 && show.announcement.count == 5 && show.announcement.slide.value("id") == "n2");
+        // The show's own place is not theirs to move, nor theirs the show's.
+        QVERIFY(show.index == 1 && show.count == 4);
+        show.follow(plainSong(6).cue(3));
+        QVERIFY(show.index == 3 && show.count == 6 && show.announcement.index == 2);
+        // A library's file renamed: whichever is at it goes by the new name.
+        show.renamed("notices.pro", "foyer.pro");
+        QVERIFY(show.announcementAt("foyer.pro", "") && show.at("song.pro", ""));
     }
 
     // ---- clear groups

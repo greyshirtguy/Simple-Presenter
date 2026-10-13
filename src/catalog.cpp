@@ -155,7 +155,8 @@ QVariantList Catalog::listDocuments(const QString &library) const
     for (const QFileInfo &file : sortedEntries(library, {QStringLiteral("*.pro")}, QDir::Files)) {
         QStringList arrangements;
         QString arrangement;
-        ProDocument::arrangementsOf(file.absoluteFilePath(), &arrangements, &arrangement);
+        QString destination;
+        ProDocument::arrangementsOf(file.absoluteFilePath(), &arrangements, &arrangement, nullptr, &destination);
         documents.append(QVariantMap {
             {"path", file.absoluteFilePath()},
             {"name", file.completeBaseName()},
@@ -166,6 +167,7 @@ QVariantList Catalog::listDocuments(const QString &library) const
             {"playlistItem", false},
             {"arrangement", arrangement},
             {"arrangements", arrangements},
+            {"destination", destination},
             {"detail", arrangement.isEmpty() ? QString() : u'[' + arrangement + u']'},
             {"color", QString()},
         });
@@ -306,6 +308,7 @@ QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arr
         {"hasChords", document.hasChords},
         {"originalKey", document.originalKey},
         {"userKey", document.userKey},
+        {"destination", document.destination},
         {"error", error},
     };
 }
@@ -316,6 +319,18 @@ QString Catalog::setPlaylistItemArrangement(const QString &item, const QString &
     if (!arrangement.isEmpty() && id.isEmpty())
         return QStringLiteral("%1 has no arrangement named %2").arg(QFileInfo(file).fileName(), arrangement);
     return afterChange(PlaylistFile::setItemArrangement(m_root, item, id, arrangement));
+}
+
+// In the presentation's own file, and on every row of a playlist that is that
+// presentation, as ProPresenter has it (see PlaylistFile::setRowsDestination).
+QString Catalog::setDestination(const QString &file, const QString &destination)
+{
+    QString error = ProDocument::setDestination(file, destination);
+    if (error.isEmpty())
+        error = PlaylistFile::setRowsDestination(m_root, file, destination);
+    // (Read again whichever way it went: the file may have been changed and the rows not.)
+    rescan();
+    return error;
 }
 
 // Shows a successful change at once, without waiting for the folder watcher.
