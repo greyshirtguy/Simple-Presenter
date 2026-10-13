@@ -270,6 +270,10 @@ qt_add_qml_module(SimplePresenter
         src/videodecoding.cpp
         src/lookfile.h
         src/lookfile.cpp
+        src/maskfile.h
+        src/maskfile.cpp
+        src/masks.h
+        src/masks.cpp
         src/looks.h
         src/looks.cpp
         src/themes.h

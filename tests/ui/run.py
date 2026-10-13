@@ -1547,6 +1547,58 @@ def after_advance(workspace, test_dir):
     ]
 
 
+def prepare_masks(workspace, test_dir):
+    """The two presentations of blocks the announcements test has (prepare_announce), one of them kept as it was given
+    (masks-plain-before), for the label a slide of it is given in the editor's list."""
+    prepare_announce(workspace, test_dir)
+    shutil.copy(os.path.join(workspace, "Libraries", "Demo", "Plain.pro"), os.path.join(test_dir, "masks-plain-before"))
+
+
+def after_masks(workspace, test_dir):
+    """Masks, and a slide's label typed in the editor's list: what the files hold, read with protoc and not by the app.
+    The workspace had no set-up file; the test kept it as it was with a mask made, drawn on, named and given to the
+    screen (masks-given), and at the end the mask has been removed again and another is left."""
+    import difflib
+
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+
+    def decoded(path, message="rv.data.ProPresenterWorkspace", proto="proworkspace.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def masks(text):
+        return re.findall(r"^masks \{\n.*?^\}\n", text, re.S | re.M)
+
+    given = decoded(os.path.join(frames, "masks-given"))
+    end = decoded(os.path.join(workspace, "Configuration", "Workspace"))
+    made = masks(given)
+    first = made[0] if made else ""
+    slide_id = re.search(r'^    uuid \{\n      string: "([^"]+)"', first, re.M)
+    names = [re.search(r'^  name: "([^"]*)"', mask, re.M).group(1) for mask in made]
+    plain_was = decoded(os.path.join(test_dir, "masks-plain-before"), "rv.data.Presentation", "presentation.proto")
+    plain_now = decoded(os.path.join(workspace, "Libraries", "Demo", "Plain.pro"), "rv.data.Presentation", "presentation.proto")
+    changed = [line[0] + line[1:].strip() for line in difflib.ndiff(plain_was.split("\n"), plain_now.split("\n")) if line[:1] in "+-"]
+    return [
+        said(names == ["Left Edge", "Mask"] and first.startswith("masks {\n  base_slide {\n") and slide_id is not None and len(slide_id.group(1)) == 36,
+             "in the workspace's set-up file: the masks are ProPresenter's, each a slide with an id and a name, in the order they were made",
+             ", ".join(names)),
+        # (Black is a colour of nothing but its alpha, in a file that leaves out what is nought.)
+        said(len(re.findall(r"^      element \{", first, re.M)) == 1 and "type: TYPE_RECTANGLE" in first
+             and re.search(r"fill \{\n\s+color \{\n\s+alpha: 1\n\s+\}\n\s+enable: true\n", first) is not None,
+             "in the workspace's set-up file: the first has the one shape drawn on it, filled with black"),
+        said(slide_id is not None and len(re.findall(r'mask_uuid \{\s+string: "%s"' % slide_id.group(1), given)) == 1 and given.count("mask_uuid") == 1,
+             "in the workspace's set-up file: the live look's line for the screen names the mask by the id of its slide, and nothing else names one"),
+        said([re.search(r'^  name: "([^"]*)"', mask, re.M).group(1) for mask in masks(end)] == ["Mask"] and "mask_uuid" not in end,
+             "in the workspace's set-up file, at the end: the mask that was removed is gone, the other is there, and no look gives a screen a mask"),
+        said(slide_id is not None and re.sub(r"^masks \{\n.*?^\}\n", "", given, flags=re.S | re.M)
+             .replace('    mask_uuid {\n      string: "%s"\n    }\n' % slide_id.group(1), "") == re.sub(r"^masks \{\n.*?^\}\n", "", end, flags=re.S | re.M)
+             and "live_audience_look {" in end,
+             "in the workspace's set-up file: and the rest of the file, the live look in it, is line for line what it was but for that"),
+        said(changed == ['+label {', '+text: "Welcome"', '+}'],
+             "in the presentation's file: the slide renamed in the editor's list has its label, and nothing else is changed", "; ".join(changed)),
+    ]
+
+
 def after_announce(workspace, test_dir):
     """Where a presentation is sent, and an action that clears the announcements: what the files hold, read with protoc
     and not by the app. The test kept the notices' file as it was given it (announce-before, by prepare_announce), sent
@@ -1834,6 +1886,7 @@ TESTS = {
     "reflow": test("Demo", timeout=240, after=after_reflow),
     "announce": test("Demo", timeout=240, prepare=prepare_announce, after=after_announce),
     "advance": test("Demo", timeout=300, prepare=prepare_advance, after=after_advance),
+    "masks": test("Demo", timeout=300, prepare=prepare_masks, after=after_masks),
     "switch": test("Demo", MEMORY, 60, also=("ProPresenter MR",)),
     "smoke": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0"}),
     "edit": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0", "SP_TEST_WIDTH": "1200", "SP_TEST_HEIGHT": "660"}),

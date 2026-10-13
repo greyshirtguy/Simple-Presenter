@@ -38,9 +38,10 @@ class Looks : public QObject
     //   { id, name, transition, screens: { <screen id>: <line> } }
     // where a line is { slide, media, props, messages, announcements } for the layers
     // this app has, each on or off; { theme, themeSlide } for the theme the screen's
-    // slides are dressed in; and { videoInput, mask } for ProPresenter's others, which
-    // are only shown. A screen a look has nothing for gets everything, with no theme
-    // (see of()).
+    // slides are dressed in and { mask } for the mask it is given, by id ("" for
+    // none); and { videoInput } for ProPresenter's other layer, which is only shown. A
+    // screen a look has nothing for gets everything, with no theme and no mask (see
+    // of()).
     Q_PROPERTY(QVariantList looks READ looks NOTIFY changed)
     // The live look, which is what the screens get: the same, with
     //   origin   the id of the saved look it was made from, if that is still there
@@ -81,9 +82,9 @@ public:
     Q_INVOKABLE QVariantMap add(const QString &name, const QStringList &screenIds, const QString &copyOf = QString());
     Q_INVOKABLE QString rename(const QString &id, const QString &name);
     Q_INVOKABLE QString remove(const QString &id);
-    // Any of slide, media, props, messages, announcements, theme and themeSlide, for
-    // a look's line for a screen: a saved look's, or with the live look's id the live
-    // look's, which the screens then show at once.
+    // Any of slide, media, props, messages, announcements, theme and themeSlide, and
+    // mask, for a look's line for a screen: a saved look's, or with the live look's
+    // id the live look's, which the screens then show at once.
     Q_INVOKABLE QString setScreen(const QString &id, const QString &screenId, const QVariantMap &changes);
 
 signals:

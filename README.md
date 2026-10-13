@@ -90,12 +90,13 @@ sixteen [screens](#screens), for the audience and for the stage, each in a windo
 one of the computer's displays, or on the network as an [NDI](#ndi) source.
 [Looks](#looks) say which layers each audience screen gets, so that the room has the
 words over the video while a stream has the words alone, and ProPresenter's
-[themes](#themes) dress the slides, for good or on one screen only.
+[themes](#themes) dress the slides, for good or on one screen only. A screen can be
+given a [mask](#masks), which covers the parts of it that nothing should be shown on.
 
 **Yes, it has an editor, and it edits ProPresenter's files.** Text boxes, shapes and
 pictures are added to a slide, moved, sized, turned and styled; words are edited where
-they stand; slides are added, copied and deleted. Props, stage layouts and themes are
-edited in it too. Every change is saved as it is made, can be undone, and touches
+they stand; slides are added, copied and deleted. Props, stage layouts, themes and
+masks are edited in it too. Every change is saved as it is made, can be undone, and touches
 nothing in the file but what was changed. More under [Editing](#editing).
 
 ![The editor: the presentation's slides down the left, with the elements of the one being worked on listed under them; that slide in the middle, a text box on it picked and showing its handles; and on the right the panel of what can be set for the box, which is its name, position, size and opacity, its fill, stroke and shadow, and the rules for when it shows](docs/editor.png)
@@ -133,7 +134,7 @@ a slide is up, and plays a 4K video under the words with most of the machine to 
 see [Built for modest hardware](#built-for-modest-hardware).
 
 **What it cannot do** is a longer list. ProPresenter does a great deal more than this:
-there are no masks, no video inputs and no Bible here yet, among much else. See
+there are no video inputs, no network API and no Bible here yet, among much else. See
 [TODO](#todo).
 
 ### Custom features
@@ -194,6 +195,16 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Masks.** A [mask](#masks) is a slide laid over everything else a screen shows, to
+  cover the parts of it nothing should be shown on. They are made and drawn in the
+  editor, which lists them at its left as it lists slides, and a screen is given one
+  in the Looks window, where ProPresenter has it: the Masks row there is a menu of the
+  workspace's masks, with **Add New Mask** and **Edit Masks…**. No clear takes a mask
+  off: it is the screen's, not the show's.
+- **A name typed where it stands, in the editor's list.** A click on the name under a
+  mask, a prop, a stage layout or a theme's slide in the list at the left of the
+  editor renames it there. The same click under a slide of a presentation gives the
+  slide its label, and **Rename** is in the menu of each.
 - **Go To Next timers and the Slide Show.** A slide's menu has **Go To Next Timer…**:
   after so many seconds the next slide is triggered by itself, or with **Loop to
   Beginning** the first. And a presentation has ProPresenter's **Slide Show**, a small
@@ -431,6 +442,9 @@ the top of this page.
       Still to come: a slide that goes on when its video ends; the other things
       ProPresenter lets a slide lead to (a random slide, a named one); and something
       on the slide that shows the time running down.
+- [ ] **Masks**: they are there (see [Masks](#masks)). Still to come: a mask of
+      another size than 1920 by 1080, to match the screen it is for; copying one; and
+      a look's fade for a mask that comes or goes.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
       stage, props, macros, looks and audio, and those are run; so is one that shows a
       message, which cannot be made here yet. Still to come: the rest
@@ -452,7 +466,6 @@ no promise that any of them will turn out to be possible this way: that is the
 experiment.
 
 - [ ] **A simple help file**: the app's own features explained in one place, in the app
-- [ ] **Masks**
 - [ ] **Video input**
 - [ ] **Clear to logo**
 - [ ] **Communication devices**: MIDI, RossTalk, custom HTTP requests
@@ -1461,9 +1474,16 @@ being worked on, the one in front first. In the middle is the slide. On the righ
 the properties of the element that is picked, in two parts, as ProPresenter has them:
 **Shape** and **Text**.
 
-The same editor works on the workspace's [props](#props), [stage layouts](#stage-layouts)
-and [themes](#themes), which are slides too: the list on the left is then of those, and
-has a `+` to add one and a right-click menu to rename, copy or remove one.
+The same editor works on the workspace's [props](#props), [stage layouts](#stage-layouts),
+[themes](#themes) and [masks](#masks), which are slides too: the list on the left is
+then of those, and has a `+` to add one and a right-click menu to rename, copy or
+remove one.
+
+A click on the name under one of them in that list renames it where it stands (Enter
+keeps the name typed, Esc gives it up). Under a slide of a presentation the same click
+is for the slide's **label**, which is what stands there: typed, it is the slide's
+label, in the colour the label had, and typing nothing takes the words away. **Rename**
+in a slide's right-click menu does the same, and it is undone like any other change.
 
 With a presentation in the editor, three buttons at the right of the editor's toolbar
 choose between three ways of working. **Slides** is everything described here.
@@ -2060,8 +2080,9 @@ the top one first.
 
 | Row | What it is |
 | --- | --- |
-| Masks, Video Input | ProPresenter's layers that this app has not yet. They are shown greyed, as the look has them in the file, cannot be changed here, and are kept as they are |
+| Masks | Not a tick box but which [mask](#masks) the screen is given: a circle with a line through it for none, or the mask's name. A click gives the masks to choose from, and the way to the editor they are made in |
 | Messages, Props, Announcements, Slide, Media | A tick box for each screen: whether that screen gets the layer |
+| Video Input | ProPresenter's layer that this app has not yet. It is shown greyed, as the look has it in the file, cannot be changed here, and is kept as it is |
 | Presentation | Not a layer but the **theme** that screen's slides are dressed in as they are shown: a circle with a line through it for none, or a theme slide, chosen from the same menu of themes a slide's own menu has |
 
 Picking a look in the list shows it, to be read and changed; it does not make it live.
@@ -2084,6 +2105,48 @@ The looks, and the live look with them, are the workspace's, the ones ProPresent
 for it, and are read from and written to its file of how the workspace is set up
 (`Configuration/Workspace`), with the screens. So a workspace opened here shows what it
 was showing in ProPresenter, and one taken back there shows what it was showing here.
+
+## Masks
+
+A **mask** is a slide laid over everything else an audience screen shows: the top
+layer of all, over the messages. Whatever is drawn on it covers what is under it, and
+where it has nothing the output shows through. A mask of black shapes round the edges
+gives a screen another outline; one black box keeps a projector off a doorway.
+
+Masks are made, and a screen is given one, in the [Looks](#looks) window, as in
+ProPresenter. The **Masks** row there has, for each screen, the mask the look gives
+it, and a click on it has the menu: **None**, the workspace's masks by name, **Add New
+Mask** and **Edit Masks…**. Choosing one for the live look puts it on that screen at
+once; a saved look keeps its own choice, for when it is made live. The operator's
+preview has the mask of the first screen over it, as that screen has.
+
+**Add New Mask** and **Edit Masks…** bring up the [editor](#editing) on the masks,
+which are edited as slides are: the list at the left is of the masks, each with its
+name under it, and the `+` over it makes another. A shape added to a mask starts
+black, and a mask is drawn on grey there so that what is black on it can be seen.
+A click on the name under a mask renames it, as **Rename** in its right-click menu
+does; **Remove…** takes the mask away, and with it every look's giving of it to a
+screen.
+
+There is no clear button for a mask and no clear takes one off, Clear All included:
+it is part of how a screen is set up, not of the show.
+
+Masks are ProPresenter's, kept where it keeps them, in the workspace's set-up file
+(`Configuration/Workspace`) with the screens and the looks.
+
+What is a guess, or not done. No workspace this was made with had a mask in it, so
+more of this than usual is read from the file's format and not seen in a file:
+
+- That a look names a mask by the id of the mask's slide, which is the only id a mask
+  has.
+- That what is drawn on a mask covers the output in the colour it is drawn in.
+  ProPresenter's own words are that the layer "is used to mask parts of the
+  presentation, creating a custom shape or transparent areas".
+- What a new mask is given: a slide of 1920 by 1080 with nothing on it. ProPresenter
+  lets a mask's size be set, to match its screen; that is not here yet.
+- That removing a mask takes it out of the looks, and that a new shape on one is
+  black.
+- A mask comes and goes at once, not over the look's time as the layers do.
 
 ## Themes
 
@@ -2739,8 +2802,8 @@ There are two kinds, and both are in `tests/` ([tests/README.md](tests/README.md
 the whole of it).
 
 **Unit tests** try the parts of the app that are plain rules, by themselves, with no
-window and no workspace: the rules of the show (`src/showstate.*`), chords, the screens
-and the looks in ProPresenter's file, how a piece of audio plays and how loud it is,
+window and no workspace: the rules of the show (`src/showstate.*`), chords, the screens,
+the looks and the masks in ProPresenter's file, how a piece of audio plays and how loud it is,
 search, how a date and a time are written, and the matching of themes. They are
 built with the app and take a few milliseconds:
 
@@ -2749,7 +2812,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: forty-six scripts and over two
+and look at what its windows then hold and show: forty-seven scripts and over two
 thousand three hundred checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -2801,7 +2864,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
-| `src/lookfile.*`, `src/looks.*` | The workspace's looks, in ProPresenter's set-up file: the saved ones and the live look, which layers each audience screen gets, and in what theme |
+| `src/lookfile.*`, `src/looks.*` | The workspace's looks, in ProPresenter's set-up file: the saved ones and the live look, which layers each audience screen gets, in what theme, and under which mask |
+| `src/maskfile.*`, `src/masks.*` | The workspace's masks, in the same file: each a slide and a name, read, made, renamed and removed |
 | `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
 | `src/chords.*`, `src/chordsbridge.*` | Chords: what one is, changing key, the four notations, ChordPro text; and the same for QML to call |
 | `src/songimport.*` | A new presentation made of a ChordPro file |

@@ -1,8 +1,8 @@
 import QtQuick
 
 // What an audience screen shows: the media layer, the slide layer over it, the
-// announcements over those, the props over all three and the messages over
-// everything, on black.
+// announcements over those, the props over all three, the messages over them and the
+// screen's mask, if the look gives it one, over everything, on black.
 //
 // Layers are what make a presenter more than a slide show. A background video on the
 // media layer keeps playing while the slides over it change, and either layer can be
@@ -43,6 +43,9 @@ Item {
     property bool propsOn: true
     property bool messagesOn: true
     property int lookFade: 0
+    // The mask the live look gives this screen: its slide, to be laid over everything
+    // else, or null for none (see Masks)
+    property var mask: null
     // What that transition is called, for the log
     property string transitionName: ""
     // The QVideoSink of the video on the media layer, or null; lets a preview borrow its frames.
@@ -229,5 +232,20 @@ Item {
     onMessagesChanged: {
         if (messages.length > 0)
             messagesLayer.wanted = true
+    }
+
+    // The mask: the top of everything. A slide like any other, which covers what is
+    // under it wherever something is drawn on it, and is there for as long as the look
+    // gives the screen one: it has no transition and nothing clears it. Made only for a
+    // screen that has one.
+    Loader {
+        id: maskLayer
+
+        anchors.fill: parent
+        active: scene.mask !== null
+
+        sourceComponent: Slide {
+            slide: scene.mask
+        }
     }
 }

@@ -2387,6 +2387,19 @@ Window {
         Log.note("edit", "the editor opened on the stage layouts, layout " + (editScreen.canvas.row + 1) + " of " + editScreen.editor.count)
     }
 
+    // The editor on the workspace's masks, at the one with the given id (or the
+    // first): a mask is a slide, and is edited as one. It is come to from the Looks
+    // window, where a screen is given its mask, as in ProPresenter.
+    function startEditingMasks(id) {
+        if (editing || !report(editScreen.openMasks(Masks.path, catalog.workspacePath, id)))
+            return
+        notice = ""
+        editing = true
+        editScreen.takeFocus()
+        Log.note("edit", "the editor opened on the masks, " + (editScreen.editor.count > 0 ? "mask " + (editScreen.canvas.row + 1) + " of " + editScreen.editor.count
+                                                                                              : "of which there are none"))
+    }
+
     // The editor on a theme, at one of its slides (or its first): the same editor that
     // edits a presentation's slides, since a theme's slides are slides.
     function startEditingTheme(place, slideId) {
@@ -2422,6 +2435,11 @@ Window {
         }
         if (kind === "stage") {
             report(StageLayouts.reload())
+            return
+        }
+        if (kind === "masks") {
+            // A screen that is given one of them shows it as it now is.
+            report(Masks.reload())
             return
         }
         if (kind === "theme") {
@@ -2549,6 +2567,17 @@ Window {
     readonly property var previewLook: audienceIds.length > 0 && Looks.live !== undefined ? Looks.liveOf(audienceIds[0])
                                                                                           : ({ slide: true, media: true, props: true, theme: "" })
     readonly property var previewSlide: previewLook.theme === "" || audienceIds.length === 0 ? liveSlide : slideFor(audienceIds[0], liveSlide)
+    // The mask the live look gives that screen, as its slide; null for none
+    readonly property var previewMask: maskSlide(previewLook.mask)
+
+    // The slide of the mask of that id, which is what a screen given the mask lays
+    // over everything else it shows; null for no id, and for one no mask has.
+    function maskSlide(id) {
+        if (!id)
+            return null
+        const mask = Masks.masks.find(candidate => candidate.id === id)
+        return mask ? mask.slide : null
+    }
     // The media the scenes were last told to play, with the number that playing was
     // given (see MediaFeeds), or null: what a scene made later is told to show.
     property var lastPlayed: null
@@ -2913,7 +2942,7 @@ Window {
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
                              Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path), ClearGroups.open(path),
-                             Messages.open(path)]) {
+                             Messages.open(path), Masks.open(path)]) {
             if (error !== "")
                 report(error)
         }
@@ -3444,6 +3473,7 @@ Window {
                     props: win.shownProps
                     propsDuration: Math.round(Props.transitionDuration * 1000)
                     messages: win.shownMessages
+                    mask: win.maskSlide(audienceHost.look.mask)
                     keyTarget: keys
                     Component.onCompleted: win.sceneMade(audienceHost.modelData, this, true)
                     Component.onDestruction: win.sceneGone(audienceHost.modelData, this)
@@ -3482,6 +3512,7 @@ Window {
                         props: win.shownProps
                         propsDuration: Math.round(Props.transitionDuration * 1000)
                         messages: win.shownMessages
+                        mask: win.maskSlide(audienceHost.look.mask)
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, ndiScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, ndiScene)
                     }

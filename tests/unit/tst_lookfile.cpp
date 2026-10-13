@@ -353,6 +353,39 @@ private slots:
         QVERIFY(!document.audience_looks(1).screen_looks(1).live_video_enabled());
     }
 
+    void aScreenIsGivenAMaskAndHasItTakenAway()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        ScreenLook wanted = read(folder.path()).looks.at(0).screens.value("STREAM");
+        QVERIFY(wanted.mask.isEmpty());
+        const QByteArray before = bytesOf(folder.path());
+        // None asked for where there is none: nothing of the line changes.
+        QCOMPARE(setScreen(folder.path(), "LOOK-1", "STREAM", wanted), QString());
+        QCOMPARE(bytesOf(folder.path()), before);
+        wanted.mask = "MASK-SLIDE";
+        QCOMPARE(setScreen(folder.path(), "LOOK-1", "STREAM", wanted), QString());
+        Looks found = read(folder.path());
+        QCOMPARE(found.looks.at(0).screens.value("STREAM").mask, "MASK-SLIDE");
+        // The line's theme and switches are as they were, and no other line has a mask.
+        QCOMPARE(found.looks.at(0).screens.value("STREAM").theme, "New Life Chapel");
+        QVERIFY(!found.looks.at(0).screens.value("STREAM").media);
+        QVERIFY(found.looks.at(0).screens.value("ROOM").mask.isEmpty() && found.looks.at(1).screens.value("STREAM").mask.isEmpty());
+        QVERIFY(found.live.screens.value("STREAM").mask.isEmpty());
+        QCOMPARE(fileOf(folder.path()).audience_looks(0).screen_looks(1).mask_uuid().string(), "MASK-SLIDE");
+        // Taken away again, the file is what it was to the byte.
+        wanted.mask.clear();
+        QCOMPARE(setScreen(folder.path(), "LOOK-1", "STREAM", wanted), QString());
+        QVERIFY(!fileOf(folder.path()).audience_looks(0).screen_looks(1).has_mask_uuid());
+        QCOMPARE(bytesOf(folder.path()), before);
+        // The live look's line is given one the same way.
+        wanted.mask = "MASK-SLIDE";
+        QCOMPARE(setLiveScreen(folder.path(), "STREAM", wanted), QString());
+        found = read(folder.path());
+        QCOMPARE(found.live.screens.value("STREAM").mask, "MASK-SLIDE");
+        QVERIFY(found.looks.at(0).screens.value("STREAM").mask.isEmpty());
+    }
+
     void aThemeThatIsNotChangedIsLeftNamedAsItWas()
     {
         QTemporaryDir folder;

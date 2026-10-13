@@ -3,12 +3,15 @@
 #include "chords.h"
 
 #include "elementorder.h"
+#include "labelfile.h"
 #include "proconvert.h"
 #include "reflow.h"
 #include "richtext.h"
 #include "rtfstandins.h"
 #include "sessionlog.h"
 #include "workspacefiles.h"
+
+#include "proworkspace.pb.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -121,7 +124,8 @@ QString PresentationEditor::kind() const
 {
     return m_kind == Kind::Props ? QStringLiteral("props")
          : m_kind == Kind::Stage ? QStringLiteral("stage")
-         : m_kind == Kind::Theme ? QStringLiteral("theme") : QStringLiteral("presentation");
+         : m_kind == Kind::Theme ? QStringLiteral("theme")
+         : m_kind == Kind::Masks ? QStringLiteral("masks") : QStringLiteral("presentation");
 }
 
 // Opening goes in three steps: the file is read by whichever of the three is being
@@ -155,6 +159,8 @@ void PresentationEditor::start(Kind kind, const QString &path, const QString &wo
         m_stage.Clear();
     if (kind != Kind::Theme)
         m_theme.Clear();
+    if (kind != Kind::Masks)
+        m_masks.Clear();
 }
 
 void PresentationEditor::finishOpening()
@@ -311,6 +317,24 @@ QString PresentationEditor::openTheme(const QString &path, const QString &worksp
     return {};
 }
 
+// The masks are in the workspace's set-up file, with the screens and the looks (see
+// maskfile.h): each a slide and a name. Only they are taken from it.
+QString PresentationEditor::openMasks(const QString &path, const QString &workspace)
+{
+    rv::data::ProPresenterWorkspace file;
+    if (QFile::exists(path)) {
+        const QString error = workspace::readMessage(path, &file, QStringLiteral("the workspace's set-up"));
+        if (!error.isEmpty())
+            return error;
+    }
+    start(Kind::Masks, path, workspace, QStringLiteral("Masks"));
+    *m_masks.mutable_collection() = file.masks();
+    for (int i = 0; i < m_masks.collection_size(); ++i)
+        m_rows.append({i, QString(), QString(), false});
+    finishOpening();
+    return {};
+}
+
 void PresentationEditor::close()
 {
     beginResetModel();
@@ -318,6 +342,7 @@ void PresentationEditor::close()
     m_props.Clear();
     m_stage.Clear();
     m_theme.Clear();
+    m_masks.Clear();
     m_kind = Kind::Presentation;
     m_path.clear();
     m_name.clear();
@@ -352,6 +377,7 @@ int PresentationEditor::rowOf(const QString &slideId) const
         const int unit = m_rows.at(row).unit;
         const std::string &id = m_kind == Kind::Stage ? m_stage.layouts(unit).uuid().string()
                               : m_kind == Kind::Theme ? m_theme.slides(unit).base_slide().uuid().string()
+                              : m_kind == Kind::Masks ? m_masks.collection(unit).base_slide().uuid().string()
                               : m_kind == Kind::Props ? m_props.cues(unit).uuid().string()
                                                       : m_presentation.cues(unit).uuid().string();
         if (id == wanted)
@@ -371,6 +397,7 @@ google::protobuf::Message *PresentationEditor::unitAt(int row)
     case Kind::Props: return m_props.mutable_cues(unit);
     case Kind::Stage: return m_stage.mutable_layouts(unit);
     case Kind::Theme: return m_theme.mutable_slides(unit);
+    case Kind::Masks: return m_masks.mutable_collection(unit);
     default: return m_presentation.mutable_cues(unit);
     }
 }
@@ -389,6 +416,8 @@ rv::data::Slide *PresentationEditor::slideIn(int row)
         return m_stage.mutable_layouts(unit)->mutable_slide();
     if (m_kind == Kind::Theme)
         return m_theme.mutable_slides(unit)->mutable_base_slide();
+    if (m_kind == Kind::Masks)
+        return m_masks.mutable_collection(unit)->mutable_base_slide();
     // A change to the cue undone or redone may have altered its actions.
     rv::data::Cue *cue = m_kind == Kind::Props ? m_props.mutable_cues(unit) : m_presentation.mutable_cues(unit);
     const int action = slideAction(*cue, m_kind == Kind::Props);
@@ -405,6 +434,19 @@ QString PresentationEditor::write()
     case Kind::Props: return workspace::writeMessage(m_path, m_props, QStringLiteral("the props"));
     case Kind::Stage: return workspace::writeMessage(m_path, m_stage, QStringLiteral("the stage layouts"));
     case Kind::Theme: return workspace::writeMessage(m_path, m_theme, QStringLiteral("the theme"));
+    case Kind::Masks: {
+        // The file as it is now, which other parts of the app may have written since
+        // the masks were taken from it (a look made live, a screen set up), with the
+        // masks as they are here put into it and nothing else of it touched.
+        rv::data::ProPresenterWorkspace file;
+        if (QFile::exists(m_path)) {
+            const QString error = workspace::readMessage(m_path, &file, QStringLiteral("the workspace's set-up"));
+            if (!error.isEmpty())
+                return error;
+        }
+        *file.mutable_masks() = m_masks.collection();
+        return workspace::writeMessage(m_path, file, QStringLiteral("the workspace's set-up"));
+    }
     default: return proconvert::writePresentation(m_path, m_presentation);
     }
 }
@@ -417,6 +459,10 @@ QVariantMap PresentationEditor::describe(int row) const
         const rv::data::Stage::Layout &layout = m_stage.layouts(place.unit);
         slide = proconvert::toSlideMap(layout.slide(), QString::fromStdString(layout.name()));
         slide.insert("id", QString::fromStdString(layout.uuid().string()));
+    } else if (m_kind == Kind::Masks) {
+        const rv::data::ProMask &mask = m_masks.collection(place.unit);
+        slide = proconvert::toSlideMap(mask.base_slide(), QString::fromStdString(mask.name()));
+        slide.insert("id", QString::fromStdString(mask.base_slide().uuid().string()));
     } else if (m_kind == Kind::Theme) {
         const rv::data::Template::Slide &themed = m_theme.slides(place.unit);
         slide = proconvert::toSlideMap(themed.base_slide(), QString::fromStdString(themed.name()));
@@ -721,9 +767,31 @@ QVariantMap PresentationEditor::addShape(int row, const QString &shape)
         const rv::data::Slide::Element added = proconvert::makeShapeElement(*slide, shape);
         id = QString::fromStdString(added.element().uuid().string());
         *slide->add_elements() = added;
+        // A shape on a mask is there to cover what is under it, so it starts black
+        // and not the blue a shape starts with elsewhere. (A GUESS at what
+        // ProPresenter starts a mask's shape as.)
+        if (m_kind == Kind::Masks)
+            proconvert::applyChanges(slide, id, {{"fillColor", QColor(Qt::black)}});
         return QString();
     });
     return {{"id", error.isEmpty() ? id : QString()}, {"error", error}};
+}
+
+// The label of a presentation's slide: the words that stand under it in a list of the
+// slides. The colour the label has is kept, and no words takes the words away. (What
+// a prop, a layout, a theme's slide and a mask are called is not the editor's to
+// change: whatever keeps them renames them, and the editor opens the file again.)
+QString PresentationEditor::setLabel(int row, const QString &text)
+{
+    if (m_kind != Kind::Presentation || row < 0 || row >= m_rows.size())
+        return gone;
+    rv::data::Cue *cue = m_presentation.mutable_cues(m_rows.at(row).unit);
+    const labelfile::Label had = labelfile::of(*cue);
+    if (had.text == text)
+        return {};
+    return change(row, [&](rv::data::Slide *) {
+        return labelfile::set(cue, {text, had.color}) ? QString() : QStringLiteral("That is not a slide that can have a label");
+    });
 }
 
 QVariantMap PresentationEditor::addMedia(int row, const QUrl &file)

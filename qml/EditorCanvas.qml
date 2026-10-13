@@ -32,6 +32,8 @@ Item {
     property var slide: null
     // An image to show behind the slide, such as the media its cue triggers; "" for none
     property string backdrop
+    // What a slide with no background of its own is drawn on
+    property color pageColor: "black"
     property string selectedId
     // The element whose text is being edited in place, "" if none, and that text as it
     // is now, typed or not
@@ -718,7 +720,7 @@ Item {
         y: canvas.originY
         width: Math.round(canvas.slideWidth * canvas.u)
         height: Math.round(canvas.slideHeight * canvas.u)
-        color: canvas.slide && canvas.slide.drawsBackground ? canvas.slide.backgroundColor : "black"
+        color: canvas.slide && canvas.slide.drawsBackground ? canvas.slide.backgroundColor : canvas.pageColor
         clip: true
 
         Image {

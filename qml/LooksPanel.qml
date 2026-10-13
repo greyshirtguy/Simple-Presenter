@@ -29,10 +29,13 @@ import SimplePresenterApp
 //     showing. The saved look it came from has a green dot.
 //   - The layers are in the order they lie on a screen, the top one first: masks,
 //     messages, props, announcements, the presentation (its slides, then its media),
-//     video inputs. This app has the messages, the props, the announcements, the
-//     slides and the media; the others are ProPresenter's, and are shown greyed, as
-//     the look has them in the file, and cannot be changed here. Nothing a look says
-//     of them is lost.
+//     video inputs. This app has all but the last, which is ProPresenter's, and is
+//     shown greyed, as the look has it in the file, and cannot be changed here.
+//     Nothing a look says of it is lost.
+//   - "Masks" is not a switch but which mask the screen is given (see Masks): none,
+//     or one of the workspace's, by name, chosen from a menu that also has the way to
+//     the editor the masks are made in (Add New Mask, Edit Masks…), which is where
+//     ProPresenter has it.
 //   - "Presentation" is not a layer but the theme the screen's slides are dressed in as
 //     they are shown (ProPresenter's alternate theme): none, which is a circle with a
 //     line through it, or a theme slide, chosen from the same menu of themes a slide's
@@ -58,7 +61,7 @@ Rectangle {
     // The layers, the top one first. `ours` are the ones this app has, which can be
     // changed; `kind` is what stands in a screen's cell: a switch, the theme, or a mask.
     readonly property var layers: [
-        { key: "mask", label: "Masks", kind: "mask", ours: false },
+        { key: "mask", label: "Masks", kind: "mask", ours: true },
         { key: "messages", label: "Messages", kind: "switch", ours: true },
         { key: "props", label: "Props", kind: "switch", ours: true },
         { key: "announcements", label: "Announcements", kind: "switch", ours: true },
@@ -107,6 +110,8 @@ Rectangle {
         const layerNames = { slide: "the slides", media: "the media", props: "the props", messages: "the messages",
                              announcements: "the announcements" }
         const done = []
+        if (changes.mask !== undefined)
+            done.push(changes.mask === "" ? "is given no mask" : "is given the mask \"" + maskName(changes) + "\"")
         for (const layer of ["slide", "media", "props", "messages", "announcements"]) {
             if (changes[layer] !== undefined)
                 done.push((changes[layer] ? "gets " : "no longer gets ") + layerNames[layer])
@@ -184,6 +189,41 @@ Rectangle {
                       { header: "" }]
                      .concat(win.themePickItems((place, slideId) => set(screenId, { theme: place, themeSlide: slideId })).slice(1)),
                      item, 0, item.height + 2)
+    }
+
+    // The menu a screen's mask is chosen from: none, the workspace's masks, and the
+    // way to the editor they are made and changed in, which this window gives way to.
+    //
+    // (ProPresenter's has "Add New Mask" and "Edit Masks" in its menu of masks. A
+    // GUESS: the rest of how that menu is laid out.)
+    function showMaskMenu(screenId, item) {
+        const line = lineOf(screenId)
+        const items = [{ header: "Mask" },
+                       { label: "None", current: maskName(line) === "", run: () => set(screenId, { mask: "" }) }]
+        if (Masks.masks.length > 0)
+            items.push({ divider: true })
+        for (const mask of Masks.masks)
+            items.push({ label: mask.name, current: line.mask === mask.id, run: () => set(screenId, { mask: mask.id }) })
+        items.push({ divider: true })
+        items.push({ label: "Add New Mask", run: () => {
+            const made = Masks.add("")
+            if (!say(made.error))
+                return
+            win.closeLooks()
+            win.startEditingMasks(made.id)
+        } })
+        items.push({ label: "Edit Masks…", disabled: Masks.masks.length === 0, run: () => {
+            win.closeLooks()
+            win.startEditingMasks(line.mask)
+        } })
+        win.showMenu(items, item, 0, item.height + 2)
+    }
+
+    // The name of the mask a line gives its screen; "" for none, and for one the
+    // workspace has not any more
+    function maskName(line) {
+        const mask = line.mask ? Masks.masks.find(candidate => candidate.id === line.mask) : undefined
+        return mask ? mask.name : ""
     }
 
     // The name of the theme slide a line dresses its screen in, for under its picture
@@ -725,12 +765,48 @@ Rectangle {
                                         }
                                     }
 
-                                    // The mask, which is not drawn here: none, or that there is one
-                                    Nothing {
+                                    // The mask: none, or the mask the screen is given,
+                                    // by name; a click gives the masks to choose from.
+                                    // (Made for the cells of the masks' row alone: this
+                                    // window is made with the app, every cell of it.)
+                                    Loader {
                                         anchors.centerIn: parent
-                                        visible: layerRow.modelData.kind === "mask"
-                                        opacity: 0.45
-                                        ink: cell.line.mask !== "" ? "#c9cbd0" : "#8d9097"
+                                        width: parent.width - 12
+                                        height: parent.height - 6
+                                        active: layerRow.modelData.kind === "mask"
+
+                                        sourceComponent: Rectangle {
+                                            id: maskButton
+
+                                            readonly property string name: panel.maskName(cell.line)
+
+                                            objectName: "lookMask:" + cell.modelData.id
+                                            radius: 5
+                                            color: maskMouse.pressed ? "#50535a" : maskMouse.containsMouse ? "#3a3c42" : "transparent"
+
+                                            Nothing {
+                                                anchors.centerIn: parent
+                                                visible: maskButton.name === ""
+                                            }
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                width: Math.min(implicitWidth, maskButton.width - 10)
+                                                visible: maskButton.name !== ""
+                                                elide: Text.ElideRight
+                                                color: "#e6e6e6"
+                                                font.pixelSize: 11
+                                                text: maskButton.name
+                                            }
+
+                                            MouseArea {
+                                                id: maskMouse
+
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                onClicked: panel.showMaskMenu(cell.modelData.id, maskButton)
+                                            }
+                                        }
                                     }
 
                                     // The theme: none, or the theme slide, by name; a click
@@ -827,8 +903,8 @@ Rectangle {
                 wrapMode: Text.Wrap
                 color: "#6c6f75"
                 font.pixelSize: 11
-                text: "The layers are in the order they lie on a screen. The greyed ones are ProPresenter's, which this app has not yet: "
-                      + "what a look says of them is shown, and kept as it is."
+                text: "The layers are in the order they lie on a screen. The greyed one is ProPresenter's, which this app has not yet: "
+                      + "what a look says of it is shown, and kept as it is."
             }
         }
     }

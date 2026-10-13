@@ -346,6 +346,19 @@ Rectangle {
                 }
             }
 
+            // The mask the live look gives the screen the preview stands for, over
+            // everything, as the output has it (see OutputScene)
+            Loader {
+                objectName: "previewMask"
+                anchors.fill: parent
+                active: sidePanel.win.previewMask !== null
+
+                sourceComponent: Slide {
+                    slide: sidePanel.win.previewMask
+                    effects: false
+                }
+            }
+
             // How loud what the app is playing is, on the left and on the right: two
             // bars up the preview's right edge, there only while something is sounding
             // (a piece of audio, a video with its sound) and for the moment after in

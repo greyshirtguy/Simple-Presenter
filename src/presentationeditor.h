@@ -1,6 +1,7 @@
 #pragma once
 
 #include "presentation.pb.h"
+#include "proMask.pb.h"
 #include "propDocument.pb.h"
 #include "stage.pb.h"
 #include "template.pb.h"
@@ -34,13 +35,19 @@
 // or the layout's and its label the name. What differs is only where in the file a
 // row's slide is, and what is kept of the file to undo a change: the cue the slide is
 // in, or the layout.
+//
+// A theme's slides are edited so too (openTheme), and so are the workspace's masks
+// (openMasks), each of which is a slide and a name. The masks are a part of a file
+// that holds much else, the screens and the looks, which other parts of the app write
+// while the editor is up: so the editor holds the masks alone, and saving a change
+// reads that file as it then is and puts the masks into it, nothing else.
 class PresentationEditor : public QAbstractListModel
 {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(QString path READ path NOTIFY documentChanged)
     Q_PROPERTY(QString name READ name NOTIFY documentChanged)
-    // What is open: "presentation", "props" or "stage"
+    // What is open: "presentation", "props", "stage", "theme" or "masks"
     Q_PROPERTY(QString kind READ kind NOTIFY documentChanged)
     Q_PROPERTY(int count READ count NOTIFY documentChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
@@ -91,6 +98,9 @@ public:
     Q_INVOKABLE QString openStageLayouts(const QString &path, const QString &workspace);
     // A theme: `path` is its Theme file, and its slides are the rows.
     Q_INVOKABLE QString openTheme(const QString &path, const QString &workspace);
+    // The workspace's masks: `path` is the workspace's set-up file, and the masks are
+    // the rows. A workspace that has no such file yet has no masks, and opens so.
+    Q_INVOKABLE QString openMasks(const QString &path, const QString &workspace);
     Q_INVOKABLE void close();
 
     Q_INVOKABLE QVariantMap slideAt(int row) const;
@@ -120,6 +130,9 @@ public:
     // Adds a shape ("rectangle", "roundedRectangle", "ellipse" or "arrow"), or an
     // element filled with a picture or video file. Each returns { id, error }.
     Q_INVOKABLE QVariantMap addShape(int row, const QString &shape);
+    // Gives a presentation's slide a label of these words, or with none takes its
+    // words away; the label's colour is kept. One step to undo, like any change here.
+    Q_INVOKABLE QString setLabel(int row, const QString &text);
     Q_INVOKABLE QVariantMap addMedia(int row, const QUrl &file);
     // Adds a copy of an element, a little down and right of it. Returns { id, error }.
     Q_INVOKABLE QVariantMap duplicate(int row, const QString &element);
@@ -276,7 +289,7 @@ signals:
     void restructured();
 
 private:
-    enum class Kind { Presentation, Props, Stage, Theme };
+    enum class Kind { Presentation, Props, Stage, Theme, Masks };
     // Where a row's slide is: which cue of the presentation or of the props, or which
     // stage layout; and for a presentation's slide, its group.
     struct Row
@@ -358,6 +371,8 @@ private:
     rv::data::PropDocument m_props;
     rv::data::Stage::Document m_stage;
     rv::data::Template::Document m_theme;
+    // (The masks alone, out of the file they are in: see openMasks.)
+    rv::data::MaskCollection m_masks;
     QString m_path;
     QString m_name;
     QString m_workspace;

@@ -126,13 +126,15 @@ Rectangle {
             return -fastest * Math.min(1, Math.max(0.15, (edge - carriedAt.y) / edge))
         return 0
     }
-    // The prop or stage layout being renamed in the list on the left, by id; "" for none
+    // The row being renamed in the list on the left, by id; "" for none: a prop, a
+    // stage layout, a theme's slide or a mask, whose name it is, or a slide of a
+    // presentation, whose label it is
     property string renamingRow
     // The workspace folder what is open is in
     property string workspace
 
-    // What is open: "presentation", "props" or "stage"; and what a row of the list on
-    // the left is then called
+    // What is open: "presentation", "props", "stage", "theme" or "masks"; and what a
+    // row of the list on the left is then called
     readonly property string kind: editor.kind
     // Which of the editor's three ways of working is on. "slides" is the editor as
     // ProPresenter has it: a slide at a time, its elements moved and styled. The other
@@ -154,7 +156,8 @@ Rectangle {
     // have nowhere in their files for any). And whether their pane is up.
     readonly property bool notable: kind === "presentation" && mode === "slides"
     readonly property bool notesUp: notable && notesShown
-    readonly property string rowWord: kind === "props" ? "Prop" : kind === "stage" ? "Layout" : kind === "theme" ? "Theme Slide" : "Slide"
+    readonly property string rowWord: kind === "props" ? "Prop" : kind === "stage" ? "Layout" : kind === "theme" ? "Theme Slide"
+                                    : kind === "masks" ? "Mask" : "Slide"
     // For a theme: its place under the workspace's Themes folder (see Themes)
     readonly property string themePlace: kind === "theme" ? editor.path.replace(/^.*\/Themes\//, "").replace(/\/Theme$/, "") : ""
 
@@ -167,7 +170,7 @@ Rectangle {
     // What is being edited, by name: a presentation, or the workspace's props or stage
     // layouts
     readonly property string subject: kind === "props" ? "Props" : kind === "stage" ? "Stage Layouts" : kind === "theme" ? "Theme: " + themePlace.split("/").pop()
-                                    : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
+                                    : kind === "masks" ? "Masks" : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
     // What the toolbar button under the pointer does, in words, or ""
     readonly property string toolHint: {
         if (notesToggle.hovered)
@@ -232,6 +235,12 @@ Rectangle {
         return opened(editor.openTheme(path, workspace), workspace, id, row)
     }
 
+    // The workspace's masks, at the one with the given id: `path` is the workspace's
+    // set-up file, which they are a part of.
+    function openMasks(path, workspace, id, row) {
+        return opened(editor.openMasks(path, workspace), workspace, id, row)
+    }
+
     // What follows opening any of them: the row with the given id is shown, or failing
     // that the one at `row`, or the first.
     function opened(error, workspace, id, row) {
@@ -264,6 +273,7 @@ Rectangle {
         const reopened = kind === "props" ? openProps(editor.path, workspace, made !== "" ? made : shown, row)
                        : kind === "stage" ? openStage(editor.path, workspace, made !== "" ? made : shown, row)
                        : kind === "theme" ? openTheme(editor.path, workspace, made !== "" ? made : shown, row)
+                       : kind === "masks" ? openMasks(editor.path, workspace, made !== "" ? made : shown, row)
                        : opened(editor.open(editor.path, workspace), workspace, made !== "" ? made : shown, row)
         report(error !== "" ? error : reopened)
         takeFocus()
@@ -284,20 +294,37 @@ Rectangle {
             restructure(() => StageLayouts.add())
         } else if (kind === "theme") {
             restructure(() => Themes.addSlide(themePlace))
+        } else if (kind === "masks") {
+            restructure(() => Masks.add(""))
         } else {
             restructure(() => screen.insertSlide(editor.path, canvas.slide ? canvas.slide.id : ""))
         }
     }
 
-    // Ends a rename in the list on the left, with the name typed.
-    function renameRow(id, name) {
+    // Ends a rename in the list on the left, with the name typed (`given` is false
+    // for one that was given up with Esc).
+    //
+    // For a slide of a presentation the name is the slide's label, and typing none
+    // takes the label's words away. That is a change of the editor's own, undone like
+    // any other. What a prop, a layout, a theme's slide and a mask are called is
+    // changed by what keeps them, and none of those can be called nothing.
+    function renameRow(id, name, given) {
         const row = editor.rowOf(id)
         renamingRow = ""
-        if (row >= 0 && name !== "" && name !== editor.slideAt(row).label)
-            restructure(() => kind === "props" ? Props.rename(id, name) : kind === "theme" ? Themes.renameSlide(themePlace, id, name)
-                                                                              : StageLayouts.rename(id, name))
-        else
+        if (row < 0 || given === false || name === editor.slideAt(row).label) {
             takeFocus()
+            return
+        }
+        if (kind === "presentation") {
+            finish()
+            report(editor.setLabel(row, name))
+            takeFocus()
+        } else if (name !== "") {
+            restructure(() => kind === "props" ? Props.rename(id, name) : kind === "theme" ? Themes.renameSlide(themePlace, id, name)
+                              : kind === "masks" ? Masks.rename(id, name) : StageLayouts.rename(id, name))
+        } else {
+            takeFocus()
+        }
     }
 
     // The menu of a prop or a stage layout in the list on the left, at a point of the
@@ -310,6 +337,8 @@ Rectangle {
             const number = editor.rowOf(slide.id) + 1
             showMenu([
                 { header: "Slide " + number },
+                // Its label, typed where it stands under the slide
+                { label: "Rename", run: () => renamingRow = slide.id },
                 // A new slide, and a pasted one, go after this one, and are then the
                 // slide being worked on.
                 { label: "New Slide", run: () => restructure(() => screen.insertSlide(editor.path, slide.id)) },
@@ -322,6 +351,23 @@ Rectangle {
                     { note: "Slide " + number + " will be deleted. That cannot be undone, and neither can what was done before it." },
                     { label: "Delete", danger: true, run: () => restructure(() => screen.removeSlide(editor.path, slide.id)) },
                     { label: "Cancel", run: () => {} }
+                ], slideList, x, y) }
+            ], slideList, x, y)
+            return
+        }
+        if (kind === "masks") {
+            showMenu([
+                { header: slide.label !== "" ? slide.label : rowWord },
+                { label: "Rename", run: () => renamingRow = slide.id },
+                // A screen that a look gives the mask to has none after this, so the
+                // looks are read again with it gone from them.
+                { label: "Remove…", danger: true, run: () => showMenu([
+                    { note: "“" + slide.label + "” will be removed, and taken from every look that gives it to a screen. That cannot be undone." },
+                    { label: "Remove", danger: true, run: () => restructure(() => {
+                        const error = Masks.remove(slide.id)
+                        Looks.open(screen.workspace)
+                        return error
+                    }) }
                 ], slideList, x, y) }
             ], slideList, x, y)
             return
@@ -618,7 +664,8 @@ Rectangle {
             id: slidesTitle
 
             color: "#4da3ff"
-            text: screen.kind === "props" ? "Props" : screen.kind === "stage" ? "Stage Layouts" : screen.kind === "theme" ? "Theme Slides" : "Slides"
+            text: screen.kind === "props" ? "Props" : screen.kind === "stage" ? "Stage Layouts" : screen.kind === "theme" ? "Theme Slides"
+                : screen.kind === "masks" ? "Masks" : "Slides"
         }
 
         // Adds a slide, a prop or a stage layout: see addRow().
@@ -693,7 +740,8 @@ Rectangle {
                         y: 3
                         width: parent.width - 6
                         height: width * 9 / 16
-                        color: "black"
+                        // (A mask is drawn on grey: see the canvas's pageColor.)
+                        color: canvas.pageColor
 
                         Image {
                             anchors.fill: parent
@@ -738,6 +786,10 @@ Rectangle {
                         if (mouse.button === Qt.RightButton) {
                             const at = mapToItem(slideList, mouse.x, mouse.y)
                             screen.showRowMenu(cell.slide, at.x, at.y)
+                        } else if (mouse.y > frameRect.y + thumbnail.y + thumbnail.height) {
+                            // A click on the name under the picture is to rename it
+                            // (for a slide of a presentation, its label).
+                            screen.renamingRow = cell.slide.id
                         }
                     }
                     onDoubleClicked: (mouse) => {
@@ -746,7 +798,8 @@ Rectangle {
                     }
                 }
 
-                // Renaming a prop or a layout where its name is
+                // Renaming it where its name is: a prop's, a layout's, a theme slide's
+                // or a mask's name, or the label of a presentation's slide
                 AppTextField {
                     x: frameRect.x + 3
                     y: frameRect.y + frameRect.height - 23
@@ -774,9 +827,9 @@ Rectangle {
                     // and this row with it.
                     onEditingFinished: {
                         if (cell.renaming)
-                            screen.renameRow(cell.slide.id, text.trim())
+                            screen.renameRow(cell.slide.id, text.trim(), true)
                     }
-                    Keys.onEscapePressed: screen.renameRow(cell.slide.id, "")
+                    Keys.onEscapePressed: screen.renameRow(cell.slide.id, "", false)
                 }
             }
         }
@@ -790,6 +843,7 @@ Rectangle {
             color: "#9a9da3"
             font.pixelSize: 13
             text: screen.kind === "props" ? "No props. Add one with the + above."
+                : screen.kind === "masks" ? "No masks. Add one with the + above."
                                           : "No stage layouts. Add one with the + above."
         }
 
@@ -1423,6 +1477,9 @@ Rectangle {
         editor: editor
         bridge: bridge
         backdrop: slide ? screen.backdropFor(slide.id) : ""
+        // A mask is drawn on grey, not black: what it is made of is mostly black, and
+        // where it has nothing the output shows through.
+        pageColor: screen.kind === "masks" ? "#6b6e75" : "black"
         onFailed: (error) => screen.report(error)
         onTold: (message) => screen.tell(message)
         onMenuRequested: (x, y) => screen.showElementMenu(canvas, x, y)

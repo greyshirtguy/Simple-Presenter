@@ -109,7 +109,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("in the editor a slide's menu has New Slide, Copy and Paste", labels() === "[Slide 2], New Slide, Copy, Paste, Delete Slide…", labels())
+                check("in the editor a slide's menu has Rename, New Slide, Copy and Paste", labels() === "[Slide 2], Rename, New Slide, Copy, Paste, Delete Slide…", labels())
                 click(menuRow("New Slide"))
                 return 600
             },

@@ -242,6 +242,13 @@ void change(rv::data::ProAudienceLook *look, const QString &screenId, const Scre
     screen->set_props_layer_enabled(wanted.props);
     screen->set_messages_layer_enabled(wanted.messages);
     screen->set_announcements_enabled(wanted.announcements);
+    // The mask, by the id of its slide (see maskfile.h); none takes the line's away.
+    if (wanted.mask != QString::fromStdString(screen->mask_uuid().string())) {
+        if (wanted.mask.isEmpty())
+            screen->clear_mask_uuid();
+        else
+            screen->mutable_mask_uuid()->set_string(wanted.mask.toStdString());
+    }
     // The theme, if it is another than the line has: one that is the same is left as
     // the file has it, in whatever way the computer that wrote it named it.
     const QString had = screen->has_template_document_file_path() ? themePlace(named(screen->template_document_file_path())) : QString();

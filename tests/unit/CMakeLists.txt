@@ -47,6 +47,15 @@ target_include_directories(tst_lookfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_lookfile PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME lookfile COMMAND tst_lookfile)
 
+qt_add_executable(tst_maskfile
+    tst_maskfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/maskfile.h
+    ${PROJECT_SOURCE_DIR}/src/maskfile.cpp
+)
+target_include_directories(tst_maskfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_maskfile PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME maskfile COMMAND tst_maskfile)
+
 qt_add_executable(tst_thememath
     tst_thememath.cpp
     ${PROJECT_SOURCE_DIR}/src/thememath.h
