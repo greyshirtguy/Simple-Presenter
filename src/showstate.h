@@ -68,6 +68,10 @@ struct Cue
     // is where a presentation goes unless it says otherwise, or "announcements" for
     // the announcements layer (see State::announcement)
     QString destination;
+    // The presentation's Slide Show: the seconds each of its slides stays before the
+    // next is triggered, 0 for none (see State::advance). A slide's own Go To Next
+    // Timer is in its map, as "goToNext": {seconds, loop}.
+    double slideShow = 0;
 };
 
 // One thing to be done outside, as the outcome of a change.
@@ -84,6 +88,9 @@ struct Effect
         AnnouncementOverMedia, // show it over the media that is playing on that layer, which plays on
         AnnouncementWithMedia, // show it and start `media` under it, on that layer
         NoAnnouncements,       // take the announcements layer off: its slide, and the media under it
+        Advance,        // in `seconds`, go on from the slide that is live to the one it leads to (see State::advance);
+                        // `text` is "announcements" for the announcements' place, "" for the show's own
+        NoAdvance,      // the going on that was waiting there (`text` as above) is off
         Audio,          // start the piece of audio `media` (music takes the place of the music that is playing)
         NoMusic,        // stop the music
         NoSounds,       // stop every sound effect
@@ -133,8 +140,8 @@ public:
     // destination is the announcements goes here, slide and media alike: the two are
     // one layer, the slide over the media, with a place in a presentation of its own
     // (which slide the announcements are at) that the show's own place knows nothing
-    // of. So a set of notices can be up on the screens in the foyer while the
-    // service is run from the slides as ever.
+    // of. So a loop of notices can run on the screens in the foyer, stepping by
+    // itself, while the service is run from the slides as ever.
     //
     // It goes by the rules the slide and media layers go by, on its own: a slide that
     // brings no media leaves a background that is playing there and ends a foreground;
@@ -201,10 +208,51 @@ public:
     bool announcementLive() const { return !announcement.cleared || announcement.clearedByCue; }
     bool announcementAt(const QString &key, const QString &playlistId) const;
 
+    // Going on by itself: ProPresenter's Go To Next Timer, which a slide has, and its
+    // Slide Show, which a presentation has. A slide that goes live starts one, on the
+    // place it went live at (the show's own, or the announcements'), which are counted
+    // apart:
+    //
+    //  - a slide with a Go To Next Timer goes on to the next slide when its seconds
+    //    are up, or with "Loop to Beginning" to the first; from the last slide, a
+    //    timer without that has nowhere to go and is not started;
+    //  - any other slide of a presentation with a Slide Show goes on to the next when
+    //    the presentation's seconds are up, and from the last to the first. So a
+    //    slide's own timer wins over the presentation's, as it does in ProPresenter.
+    //
+    // Nothing starts but by a slide going live: a presentation given a Slide Show
+    // while one of its slides is on waits for the next slide to be triggered. What is
+    // waiting is off when its slide is cleared by whoever runs the show (not by the
+    // slide's own action: that slide is still the one the show is at), when another
+    // slide goes live there, and when its slide no longer asks for it.
+    //
+    // A time of nothing goes on at once. (That is how a file of ProPresenter's has a
+    // slide that only leads back to the first: "Loop to Beginning" after 0 seconds. A
+    // GUESS, from such files, that ProPresenter goes on at once too.) A presentation
+    // all of whose slides did that would never stop, so one that has gone the whole
+    // way round without any time passing is stopped, and said to be.
+    struct Advance
+    {
+        bool waiting = false;
+        double seconds = 0;
+        // To the first slide, wherever it is from; and, for the others, whether the
+        // last slide leads to the first
+        bool toFirst = false;
+        bool loops = false;
+        bool operator==(const Advance &other) const = default;
+    };
+    Advance advance;
+    Advance announcementAdvance;
+    // The time of the one that was waiting is up: where it goes, as a place in the
+    // presentation (-1 for nowhere, which is what there is if the presentation has
+    // been left or has lost the slide). It is not waiting any more.
+    int takeAdvance(bool announcements);
+
     // A slide goes live: it is shown, with the media it brings, and then its actions
     // are done, in their order. With `withoutMedia`, the slide and its actions and not
-    // the media (what a click with Alt held does, as in ProPresenter).
-    Effects goLive(const Cue &cue, bool withoutMedia, const Workspace &workspace);
+    // the media (what a click with Alt held does, as in ProPresenter). `byTimer` says
+    // that it went live by the going on above and not by anyone's hand.
+    Effects goLive(const Cue &cue, bool withoutMedia, const Workspace &workspace, bool byTimer = false);
     // Where a step of `delta` slides takes the show, for whoever is looking at the
     // presentation `key` of `playlistId`: from a cleared output, back to the slide it
     // was at (unless that slide cleared itself, which it would only do again); from
@@ -212,15 +260,16 @@ public:
     // With `announcements`, the same for the announcements: from where they are.
     int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false) const;
     // The presentation the show is at was read again, or put in another order: this is
-    // the slide it is at now. Nothing on the output changes.
-    void follow(const Cue &cue);
+    // the slide it is at now. Nothing on the output changes. (A going on that is
+    // waiting there is off if the slide no longer asks for one: see `advance`.)
+    Effects follow(const Cue &cue);
     // A presentation's file was given another name. A row of a library goes by its
     // file, so a show that is at that row is at the row `to` now, and goes on from the
     // slide it was at: nothing on the output changes. (A row of a playlist has an id of
     // its own, which a rename leaves as it was, and a show at one is not touched.)
     void renamed(const QString &from, const QString &to);
     // The show is at no presentation any more (the workspace was changed).
-    void leavePresentation();
+    Effects leavePresentation();
 
     // Puts media on the media layer; `playlist` is the media playlist it was picked
     // from, if it was.
@@ -311,13 +360,19 @@ private:
     // live on the announcements layer
     bool m_runningCue = false;
     bool m_runningAnnouncement = false;
+    // How many slides in a row have gone on with no time between, at each place
+    int m_run = 0;
+    int m_announcementRun = 0;
+
+    void arm(bool announcements, const Cue &cue, bool byTimer, Effects &effects);
+    void stopAdvance(bool announcements, Effects &effects);
 
     void runActions(const QVariantList &actions, int depth, const Workspace &workspace, Effects &effects);
     void runAction(const QVariantMap &action, int depth, const Workspace &workspace, Effects &effects);
     void clearSlide(Effects &effects);
     void clearMedia(Effects &effects);
     void clearAnnouncements(Effects &effects);
-    Effects goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Workspace &workspace);
+    Effects goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Workspace &workspace, bool byTimer);
     void clearProps(Effects &effects);
     void clearMessages(Effects &effects);
     void showMessage(const QVariantMap &message, Effects &effects);

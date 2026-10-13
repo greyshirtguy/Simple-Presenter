@@ -97,6 +97,8 @@ struct Presentation
     QVariantList slides;
     // Where it is sent: "" or "announcements"
     QString destination;
+    // Its Slide Show, in seconds; 0 for none
+    double slideShow = 0;
 
     Cue cue(int index) const
     {
@@ -109,9 +111,17 @@ struct Presentation
         cue.slide = slides.value(index).toMap();
         cue.next = slides.value(index + 1).toMap();
         cue.destination = destination;
+        cue.slideShow = slideShow;
         return cue;
     }
 };
+
+// A slide with a Go To Next Timer.
+QVariantMap timed(QVariantMap slide, double seconds, bool loop = false)
+{
+    slide.insert("goToNext", QVariantMap {{"seconds", seconds}, {"loop", loop}});
+    return slide;
+}
 
 // A presentation that is sent to the announcements: notices, of plain slides unless it
 // is given others.
@@ -190,7 +200,7 @@ QString outside(const Effects &effects)
 {
     static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia",
                                   "announcement", "announcementovermedia", "announcementwithmedia", "noannouncements",
-                                  "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem"};
+                                  "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -661,6 +671,216 @@ private slots:
         // A library's file renamed: whichever is at it goes by the new name.
         show.renamed("notices.pro", "foyer.pro");
         QVERIFY(show.announcementAt("foyer.pro", "") && show.at("song.pro", ""));
+    }
+
+    // ---- going on by itself: Go To Next Timers and the Slide Show
+
+    void aSlideWithAGoToNextTimerLeadsToTheNextWhenItsTimeIsUp()
+    {
+        State show;
+        Presentation song;
+        song.slides = {timed(slide("a"), 5), slide("b"), slide("c")};
+        const Effects effects = show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(outside(effects), "slide advance");
+        QCOMPARE(effects.last().seconds, 5.0);
+        QVERIFY(effects.last().text.isEmpty());
+        QVERIFY(noted(effects, "the show goes on to the next slide in 5 s, by the slide's Go To Next Timer"));
+        QVERIFY(show.advance.waiting && show.advance.seconds == 5.0 && !show.announcementAdvance.waiting);
+        // The time is up: the next slide, and nothing is waiting until that slide is live.
+        QCOMPARE(show.takeAdvance(false), 1);
+        QVERIFY(!show.advance.waiting);
+        QCOMPARE(show.takeAdvance(false), -1);
+        // The slide it led to has no timer: it stays.
+        QCOMPARE(outside(show.goLive(song.cue(1), false, workspace(), true)), "slide");
+        QVERIFY(!show.advance.waiting);
+    }
+
+    void loopToBeginningLeadsToTheFirstSlideFromWhereverItIs()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a"), timed(slide("b"), 3, true), timed(slide("c"), 2.5, true)};
+        Effects effects = show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(outside(effects), "slide advance");
+        QVERIFY(noted(effects, "on to the first slide in 3 s"));
+        QCOMPARE(show.takeAdvance(false), 0);
+        effects = show.goLive(song.cue(2), false, workspace());
+        QVERIFY(noted(effects, "in 2.5 s"));
+        QCOMPARE(show.takeAdvance(false), 0);
+    }
+
+    void aTimerOnTheLastSlideThatDoesNotLoopHasNowhereToGo()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a"), timed(slide("b"), 5)};
+        QCOMPARE(outside(show.goLive(song.cue(1), false, workspace())), "slide");
+        QVERIFY(!show.advance.waiting);
+    }
+
+    void aSlideShowLeadsEverySlideToTheNextAndTheLastToTheFirst()
+    {
+        State show;
+        Presentation song = plainSong(3);
+        song.slideShow = 10;
+        Effects effects = show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(outside(effects), "slide advance");
+        QCOMPARE(effects.last().seconds, 10.0);
+        QVERIFY(noted(effects, "on to the next slide in 10 s, by the presentation's Slide Show"));
+        QCOMPARE(show.takeAdvance(false), 2);
+        // That slide, live by the timer, starts the time again; and being the last leads to the first.
+        QCOMPARE(outside(show.goLive(song.cue(2), false, workspace(), true)), "slide advance");
+        QCOMPARE(show.takeAdvance(false), 0);
+        // A presentation without one leads nowhere.
+        QCOMPARE(outside(show.goLive(plainSong(3).cue(0), false, workspace())), "slide");
+    }
+
+    void aSlidesOwnTimerWinsOverThePresentationsSlideShow()
+    {
+        State show;
+        Presentation song;
+        song.slideShow = 10;
+        song.slides = {slide("a"), timed(slide("b"), 2), timed(slide("c"), 4)};
+        Effects effects = show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(effects.last().seconds, 2.0);
+        QVERIFY(noted(effects, "by the slide's Go To Next Timer"));
+        // The last slide's own timer does not loop, so it stays there: its own wins, even to stop at.
+        effects = show.goLive(song.cue(2), false, workspace());
+        QCOMPARE(outside(effects), "slide noadvance");
+        QVERIFY(!show.advance.waiting);
+        // And a slide with none of its own goes by the presentation's.
+        effects = show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(effects.last().seconds, 10.0);
+    }
+
+    void whatIsWaitingIsOffWhenAnotherSlideGoesLiveOrTheSlideIsCleared()
+    {
+        State show;
+        Presentation song;
+        song.slides = {timed(slide("a"), 5), slide("b"), slide("c")};
+        show.goLive(song.cue(0), false, workspace());
+        // Another slide, which has no timer
+        QCOMPARE(outside(show.goLive(song.cue(2), false, workspace())), "slide noadvance");
+        QVERIFY(!show.advance.waiting);
+        // The slide cleared
+        show.goLive(song.cue(0), false, workspace());
+        Effects effects = show.clearSlide();
+        QCOMPARE(outside(effects), "noadvance noslide");
+        QVERIFY(!show.advance.waiting && noted(effects, "no longer goes on by itself"));
+        // Everything cleared
+        show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(outside(show.clearAll()), "noadvance noslide");
+        // The media cleared, or the props: the slide still leads on.
+        show.goLive(song.cue(0), false, workspace());
+        show.clearMedia();
+        show.clearProps();
+        QVERIFY(show.advance.waiting);
+        // The workspace changed
+        QCOMPARE(outside(show.leavePresentation()), "noadvance");
+        QVERIFY(!show.advance.waiting);
+        QCOMPARE(show.takeAdvance(false), -1);
+    }
+
+    void aSlideThatTakesItselfOffStillLeadsOnAndIsStoppedByClearingIt()
+    {
+        State show;
+        Presentation song;
+        song.slides = {timed(slide("a", {}, {clearAction(5)}), 5), slide("b")};
+        // The slide's own action clears it: it is still the slide the show is at.
+        QCOMPARE(outside(show.goLive(song.cue(0), false, workspace())), "slide noslide advance");
+        QVERIFY(show.cleared && show.clearedByCue && show.advance.waiting);
+        // Cleared by hand, though nothing is on the layer, it leads nowhere.
+        QCOMPARE(outside(show.clearSlide()), "noadvance");
+        QVERIFY(!show.advance.waiting);
+    }
+
+    void theShowAndTheAnnouncementsGoOnApart()
+    {
+        State show;
+        Presentation song = plainSong(3);
+        song.slideShow = 10;
+        Presentation board = notices(3);
+        board.slideShow = 5;
+        show.goLive(song.cue(0), false, workspace());
+        const Effects effects = show.goLive(board.cue(2), false, workspace());
+        QCOMPARE(outside(effects), "announcement advance");
+        QCOMPARE(effects.last().text, "announcements");
+        QCOMPARE(effects.last().seconds, 5.0);
+        QVERIFY(noted(effects, "the announcements go on to the next slide in 5 s"));
+        QVERIFY(show.advance.waiting && show.advance.seconds == 10.0 && show.announcementAdvance.waiting && show.announcementAdvance.seconds == 5.0);
+        // Theirs is the last of three: round to the first. The show's is the first: on to the second.
+        QCOMPARE(show.takeAdvance(true), 0);
+        QVERIFY(show.advance.waiting);
+        QCOMPARE(show.takeAdvance(false), 1);
+        // Clearing the one leaves the other's waiting.
+        show.goLive(song.cue(0), false, workspace());
+        show.goLive(board.cue(0), false, workspace());
+        QCOMPARE(outside(show.clearAnnouncements()), "noadvance noannouncements");
+        QVERIFY(show.advance.waiting && !show.announcementAdvance.waiting);
+        show.goLive(board.cue(0), false, workspace());
+        QCOMPARE(outside(show.clearSlide()), "noadvance noslide");
+        QVERIFY(!show.advance.waiting && show.announcementAdvance.waiting);
+        // A slide of the song that clears the announcements stops theirs.
+        const QVariantMap clearThem {{"kind", "clear"}, {"title", "Clear the announcements"}, {"done", true}, {"layer", 0}, {"announcements", true}};
+        song.slides[1] = slide("b", {}, {clearThem});
+        QCOMPARE(outside(show.goLive(song.cue(1), false, workspace())), "slide noadvance noannouncements advance");
+        QVERIFY(show.advance.waiting && !show.announcementAdvance.waiting);
+    }
+
+    void aTimeOfNothingGoesOnAtOnceButNotRoundForEver()
+    {
+        State show;
+        Presentation song;
+        song.slides = {timed(slide("a"), 0), timed(slide("b"), 0), timed(slide("c"), 0, true)};
+        Effects effects = show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(outside(effects), "slide advance");
+        QCOMPARE(effects.last().seconds, 0.0);
+        QCOMPARE(show.takeAdvance(false), 1);
+        QCOMPARE(outside(show.goLive(song.cue(1), false, workspace(), true)), "slide advance");
+        QCOMPARE(show.takeAdvance(false), 2);
+        QCOMPARE(outside(show.goLive(song.cue(2), false, workspace(), true)), "slide advance");
+        QCOMPARE(show.takeAdvance(false), 0);
+        // All the way round with no time passing: it is stopped where it began, and said to be.
+        effects = show.goLive(song.cue(0), false, workspace(), true);
+        QCOMPARE(outside(effects), "slide problem");
+        QVERIFY(noted(effects, "would never stop") && !show.advance.waiting);
+        // Triggered by hand it goes round once more.
+        QCOMPARE(outside(show.goLive(song.cue(0), false, workspace())), "slide advance");
+        // A slide that takes time between makes it a loop like any other.
+        song.slides[1] = timed(slide("b"), 1);
+        for (int round = 0; round < 3; ++round) {
+            for (int i = 0; i < 3; ++i) {
+                QCOMPARE(outside(show.goLive(song.cue(i), false, workspace(), round + i > 0)), "slide advance");
+                QCOMPARE(show.takeAdvance(false), (i + 1) % 3);
+            }
+        }
+    }
+
+    void whatIsWaitingFollowsTheSlideWhenItsPresentationIsReadAgain()
+    {
+        State show;
+        Presentation song;
+        song.slides = {timed(slide("a"), 5), slide("b"), slide("c")};
+        show.goLive(song.cue(0), false, workspace());
+        // Read again with the timer still on the slide, wherever the slide now is: it runs on.
+        Presentation reordered;
+        reordered.slides = {slide("c"), timed(slide("a"), 8), slide("b")};
+        QCOMPARE(outside(show.follow(reordered.cue(1))), "");
+        QVERIFY(show.advance.waiting && show.advance.seconds == 5.0);
+        // When its time is up it leads on from where the slide is now.
+        QCOMPARE(show.takeAdvance(false), 2);
+        // Read again with the timer taken off: it is off.
+        show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(outside(show.follow(plainSong(3).cue(0))), "noadvance");
+        QVERIFY(!show.advance.waiting);
+        // And a timer or a Slide Show given while its slide is on starts nothing: a slide has to be triggered.
+        Presentation shown = plainSong(3);
+        shown.slideShow = 10;
+        QCOMPARE(outside(show.follow(shown.cue(0))), "");
+        QVERIFY(!show.advance.waiting);
+        QCOMPARE(outside(show.goLive(shown.cue(0), false, workspace())), "slide advance");
+        // The Slide Show taken off again while it is waiting: off.
+        QCOMPARE(outside(show.follow(plainSong(3).cue(0))), "noadvance");
     }
 
     // ---- clear groups

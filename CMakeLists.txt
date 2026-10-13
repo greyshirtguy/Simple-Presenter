@@ -116,6 +116,7 @@ qt_add_qml_module(SimplePresenter
         qml/ActionIcon.qml
         qml/AppSlider.qml
         qml/AnnouncementLayer.qml
+        qml/GoToNextPanel.qml
         qml/ArrangementBar.qml
         qml/ArrangementsPanel.qml
         qml/Benchmark.qml

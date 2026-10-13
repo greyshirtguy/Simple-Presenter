@@ -128,6 +128,12 @@ Window {
     // its own (see show::State::announcement): the presentation, as it was read when
     // a slide of it went there, and the slide that is on the layer, if one is.
     property var announcementDocument: null
+    // A newer reading of either, where the editor has changed the presentation while a
+    // slide of it was live: null, or the presentation as it now is. What is on the
+    // output is left as it is until a slide is next shown, so the newer one is taken
+    // up then, by a slide that goes live by its timer as by one that is clicked.
+    property var liveFresh: null
+    property var announcementFresh: null
     readonly property var announcementSlide: announcementDocument && !Show.announcementCleared && Show.announcementIndex >= 0
                                              ? announcementDocument.slides[Show.announcementIndex] ?? null : null
     readonly property int liveIndex: Show.liveIndex
@@ -2141,6 +2147,8 @@ Window {
             { label: "Remove Action", disabled: slide.actions.length === 0, items: [{ header: "Remove Action" }].concat(
                 slide.actions.map(action => ({ label: action.title, glyph: action.kind, picture: action.picture,
                                                run: () => removeAction(target, action) }))) },
+            // When it goes on to the next slide by itself: see editGoToNext
+            { label: "Go To Next Timer…", current: slide.goToNext !== undefined, run: () => editGoToNext(index) },
             // The look of the slide: see Themes
             { label: "Theme", disabled: Themes.themes.length === 0, items: () => themeMenuItems([slide.id]) },
             // What it is called: see labelMenuItems
@@ -2171,6 +2179,74 @@ Window {
                 { label: "Cancel", run: () => {} }
             ], item, x, y) }
         ], item, x, y)
+    }
+
+    // ---- Going on by itself: a slide's Go To Next Timer and a presentation's Slide
+    // Show, which are ProPresenter's (show::State::advance in src/showstate.h has what
+    // they do, and src/prodocument.h how the file says them). Both are kept in the
+    // presentation's file at once.
+
+    // A number of seconds as it is said: "5 s", "2.5 s"
+    function secondsWords(seconds) {
+        return Number(seconds.toFixed(2)) + " s"
+    }
+
+    // The panel the seconds are typed in, made now if it has not been wanted before
+    function timePanel() {
+        goToNextLoader.active = true
+        return goToNextLoader.item
+    }
+
+    // Puts up the panel for a slide's Go To Next Timer: the one it has, or one of five
+    // seconds to start from. (A GUESS at what ProPresenter starts a new one at.)
+    function editGoToNext(index) {
+        const slide = document.slides[index]
+        const has = slide.goToNext !== undefined
+        timePanel().show("Go To Next Timer", "Slide " + (index + 1) + " of “" + document.name + "”", has ? slide.goToNext.seconds : 5,
+                         has && slide.goToNext.loop, true, has, (seconds, loop) => setGoToNext(index, seconds, loop))
+    }
+
+    // Gives a slide of the presentation being viewed a Go To Next Timer, or with less
+    // than no seconds takes its timer off. It starts when the slide is next triggered.
+    function setGoToNext(index, seconds, loop) {
+        const slide = document.slides[index]
+        if (!report(catalog.setSlideGoToNext(document.path, slide.id, seconds >= 0, Math.max(0, seconds), loop)))
+            return
+        Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name)
+                 + (seconds < 0 ? " has no Go To Next Timer now"
+                                : " goes on to the " + (loop ? "first slide" : "next slide") + " after " + secondsWords(seconds)))
+        reloadDocument()
+    }
+
+    // The menu of the Slide Show button over the slides, as ProPresenter has it: None,
+    // four ready times, and Custom… for any other. (A GUESS: how its rows are worded.)
+    function showSlideShowMenu(item) {
+        if (!document)
+            return
+        const now = document.slideShow ?? 0
+        const ready = [5, 10, 15, 20]
+        const custom = now > 0 && ready.indexOf(now) < 0
+        const items = [
+            { header: "Slide Show" },
+            { label: "None", current: now === 0, run: () => setSlideShow(0) },
+            { divider: true }
+        ]
+        for (const seconds of ready)
+            items.push({ label: seconds + " Seconds", current: now === seconds, run: () => setSlideShow(seconds) })
+        items.push({ label: custom ? "Custom… (" + secondsWords(now) + ")" : "Custom…", current: custom,
+                     run: () => timePanel().show("Slide Show", "Each slide of “" + document.name + "” stays this long", now > 0 ? now : 5,
+                                                 false, false, false, (seconds) => setSlideShow(seconds)) })
+        menu.show(items, item)
+    }
+
+    // Gives the presentation being viewed a Slide Show of that many seconds a slide,
+    // or with none takes it off. It starts when a slide of it is next triggered.
+    function setSlideShow(seconds) {
+        if ((document.slideShow ?? 0) === seconds || !report(catalog.setSlideShow(document.path, seconds)))
+            return
+        Log.note("edit", "the presentation " + quoted(document.name)
+                 + (seconds > 0 ? " has a Slide Show of " + secondsWords(seconds) + " a slide" : " has no Slide Show now"))
+        reloadDocument()
     }
 
     // The menu a slide's label is given from, as ProPresenter has it: Edit…, which puts
@@ -2365,6 +2441,11 @@ Window {
             const scrolledTo = grid.contentY
             document = load(entry)
             grid.contentY = scrolledTo
+            // (And a slide of it that goes live by itself is to be the slide as edited.)
+            if (viewingLive)
+                liveFresh = document
+            if (viewingAnnouncements)
+                announcementFresh = document
         }
     }
 
@@ -2622,7 +2703,7 @@ Window {
     function cueAt(presentation, key, playlist, index) {
         return { key: key, playlistId: playlist, presentation: presentation.name, index: index, count: presentation.slides.length,
                  slide: presentation.slides[index] ?? ({}), next: presentation.slides[index + 1] ?? ({}),
-                 destination: presentation.destination ?? "" }
+                 destination: presentation.destination ?? "", slideShow: presentation.slideShow ?? 0 }
     }
 
     // The same for a presentation that has been read again, to tell the show where
@@ -2649,8 +2730,10 @@ Window {
         // the show stays at the slide it was at (see show::State::announcement).
         if (document.destination === "announcements") {
             announcementDocument = document
+            announcementFresh = null
         } else {
             liveDocument = document
+            liveFresh = null
         }
         Show.goLive(cueAt(document, documentKey, playlistId, index), withoutMedia === true)
         grid.positionViewAtIndex(index, GridView.Contain)
@@ -3014,6 +3097,8 @@ Window {
         restored = false
         liveDocument = null
         announcementDocument = null
+        liveFresh = null
+        announcementFresh = null
         Show.leavePresentation()
         document = null
         documentKey = ""
@@ -3519,6 +3604,27 @@ Window {
             const played = showing === Show.WithMedia ? win.playingAnnouncement(media) : null
             win.eachAudienceScene(scene => scene.showAnnouncement(slide, showing, played))
             sidePanel.showAnnouncement(slide, showing, played)
+        }
+
+        // A slide's Go To Next Timer, or its presentation's Slide Show, has run out:
+        // the slide it leads to goes live, on the layer its presentation is on,
+        // whatever is being viewed. (The show says which slide; the presentation is
+        // the one that was read when its slide went live, and followed since.)
+        function onAdvanceDue(announcements, index) {
+            // (As the editor left it, if it has been edited since its slide went live.)
+            if (announcements && win.announcementFresh) {
+                win.announcementDocument = win.announcementFresh
+                win.announcementFresh = null
+            } else if (!announcements && win.liveFresh) {
+                win.liveDocument = win.liveFresh
+                win.liveFresh = null
+            }
+            const presentation = announcements ? win.announcementDocument : win.liveDocument
+            if (!presentation || index < 0 || index >= presentation.slides.length)
+                return
+            Show.goLive(announcements ? win.announcementCue(presentation, index) : win.liveCue(presentation, index), false, true)
+            if (announcements ? win.viewingAnnouncements : win.viewingLive)
+                grid.positionViewAtIndex(index, GridView.Contain)
         }
 
         function onAnnouncementsCleared() {
@@ -4286,6 +4392,21 @@ Window {
     // settings screen too, which is where those are looked after). It is made when a
     // label is first to be edited, which in most sessions is never, and not with the
     // window: there are some thirty things in it.
+    // The seconds of a Go To Next Timer or of a Slide Show: made when one is first to
+    // be typed, as the label's panel is.
+    Loader {
+        id: goToNextLoader
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 30
+        active: false
+
+        sourceComponent: GoToNextPanel {
+            onClosed: win.takeFocus()
+        }
+    }
+
     Loader {
         id: slideLabelLoader
 

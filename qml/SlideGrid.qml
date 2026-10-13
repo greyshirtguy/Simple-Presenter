@@ -189,6 +189,52 @@ Item {
                     onClicked: slides.win.showDestinationMenu(destinationButton)
                 }
             }
+
+            // The Slide Show: the seconds each slide of the presentation stays before
+            // the next is triggered by itself, round and round, once one of them has
+            // been triggered. The button opens its menu, and for a presentation that
+            // has one is lit and says the seconds.
+            //
+            // (ProPresenter's pack has no picture of it: the arrow going round is the
+            // one this app has for a video that goes round.)
+            Rectangle {
+                id: slideShowButton
+
+                readonly property real seconds: slides.win.document ? (slides.win.document.slideShow ?? 0) : 0
+                readonly property bool on: seconds > 0
+
+                objectName: "slideShowButton"
+                width: on ? 24 + slideShowSeconds.implicitWidth : 22
+                height: 22
+                radius: 6
+                color: slideShowMouse.pressed ? "#50535a" : slideShowMouse.containsMouse ? "#45484e" : "transparent"
+
+                ActionGlyph {
+                    x: 5
+                    anchors.verticalCenter: parent.verticalCenter
+                    kind: "loop"
+                    ink: slideShowButton.on ? "#4da3ff" : "#8d9096"
+                }
+
+                Text {
+                    id: slideShowSeconds
+
+                    x: 20
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: slideShowButton.on
+                    color: "#4da3ff"
+                    font.pixelSize: 12
+                    text: slideShowButton.on ? Number(slideShowButton.seconds.toFixed(2)) + "s" : ""
+                }
+
+                MouseArea {
+                    id: slideShowMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: slides.win.showSlideShowMenu(slideShowButton)
+                }
+            }
         }
 
         // The arrangement it is viewed in, where that is not Master: beside the
@@ -489,6 +535,43 @@ Item {
                                         font.pixelSize: 10
                                         text: playbackIcon.words
                                     }
+                                }
+                            }
+                        }
+
+                        // Its Go To Next Timer, for a slide that has one: an arrowhead
+                        // against a bar for the next slide, or an arrow going round
+                        // for the first ("Loop to Beginning"), and the seconds. A
+                        // right click on it has the timer's panel.
+                        Loader {
+                            active: cell.modelData.goToNext !== undefined
+                            visible: active
+
+                            sourceComponent: ActionIcon {
+                                id: nextIcon
+
+                                objectName: "goToNextBadge"
+                                width: 21 + nextLabel.implicitWidth
+                                strength: slides.win.actionIconOpacity
+
+                                function open() {
+                                    slides.win.editGoToNext(cell.index)
+                                }
+
+                                ActionGlyph {
+                                    x: 3
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    kind: cell.modelData.goToNext.loop ? "loop" : "next"
+                                }
+
+                                Text {
+                                    id: nextLabel
+
+                                    x: 17
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: "#e3e5e9"
+                                    font.pixelSize: 10
+                                    text: Number(cell.modelData.goToNext.seconds.toFixed(2)) + "s"
                                 }
                             }
                         }

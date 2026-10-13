@@ -78,10 +78,12 @@ another look.
 |:---:|:---:|:---:|
 | <img src="docs/timers.png" width="240" alt="The timers tab: a countdown of five minutes with its settings open, and a second timer under it"> | <img src="docs/props.png" width="240" alt="The props tab: the default collection, with one prop in it"> | <img src="docs/stage-layouts.png" width="236" alt="The stage tab: the stage screen, with the layout it shows picked from a list and a button to edit it"> |
 
-**It runs a second presentation over the first.** A presentation can be sent to the
-[announcements](#announcements) layer instead of the slides', where it shows over
-whatever else is on: the notices before a service, a ticker along the foot of the
-screen.
+**It runs a second presentation over the first, and a presentation by itself.** A
+presentation can be sent to the [announcements](#announcements) layer instead of the
+slides', where it shows over whatever else is on: the notices before a service, a
+ticker along the foot of the screen. A slide can go on to the next after a time, and
+a whole presentation can go round as a slide show, which is how such a thing is left
+running: see [Go To Next timers and the Slide Show](#go-to-next-timers-and-the-slide-show).
 
 **It sends the show to as many screens as are needed.** A workspace can have up to
 sixteen [screens](#screens), for the audience and for the stage, each in a window, on
@@ -192,6 +194,13 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Go To Next timers and the Slide Show.** A slide's menu has **Go To Next Timer…**:
+  after so many seconds the next slide is triggered by itself, or with **Loop to
+  Beginning** the first. And a presentation has ProPresenter's **Slide Show**, a small
+  button over the slides at the left of the arrangement's name: every slide goes on
+  to the next after 5, 10, 15 or 20 seconds or a time of one's own, round and round.
+  A slide's own timer wins over it, and nothing starts until a slide is triggered.
+  See [Go To Next timers and the Slide Show](#go-to-next-timers-and-the-slide-show).
 - **The announcements layer.** A presentation's menu has ProPresenter's
   **Destination**: Presentation, or Announcements. One that is sent to the
   [announcements](#announcements) goes to a layer of its own, its slides and its
@@ -417,6 +426,11 @@ the top of this page.
       picture of one's own; and putting the groups in another order by dragging.
 - [ ] **Announcements**: they are there (see [Announcements](#announcements)). Still to
       come: a key for their clear button; and a transition of their own.
+- [ ] **Go To Next timers and the Slide Show**: they are there (see
+      [Go To Next timers and the Slide Show](#go-to-next-timers-and-the-slide-show)).
+      Still to come: a slide that goes on when its video ends; the other things
+      ProPresenter lets a slide lead to (a random slide, a named one); and something
+      on the slide that shows the time running down.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
       stage, props, macros, looks and audio, and those are run; so is one that shows a
       message, which cannot be made here yet. Still to come: the rest
@@ -1059,6 +1073,9 @@ that has the announcements among its layers; and by a slide or a macro with the
 button dragged onto a slide). A [look](#looks) says which screens get the layer, and
 the operator's preview shows it as the first screen has it.
 
+To leave a set of notices running by itself, give the presentation a Slide Show, or
+its slides Go To Next timers: the next section.
+
 The destination is the presentation's own, kept in its file; ProPresenter writes it on
 each row of a playlist that is that presentation as well, and so does this, on every
 such row at once.
@@ -1075,6 +1092,57 @@ What is a guess, or not done:
   announcements.
 - The announcements' clear button has no key: which key ProPresenter gives it is not
   known here.
+
+## Go To Next timers and the Slide Show
+
+Two things of ProPresenter's make a show go on by itself.
+
+A slide's **Go To Next Timer** is in its menu (a right click on a slide, **Go To Next
+Timer…**), which puts up a small panel: the number of seconds, and a tick box, **Loop
+to Beginning**. A slide that has one triggers the next slide when its seconds are up,
+or with the box ticked the first slide of the presentation. Its thumbnail then has a
+small badge with the seconds, an arrowhead against a bar for the next and an arrow
+going round for the first, and a right click on that badge opens the panel too, where
+**Remove Timer** takes it off again.
+
+A presentation's **Slide Show** gives every one of its slides the same time, without a
+timer on any of them: each goes on to the next, and the last to the first, round and
+round. It is the small button with the arrow going round over the slides, at the left
+of the arrangement's name, which opens ProPresenter's menu of them: **None**, 5, 10, 15
+or 20 seconds, and **Custom…** for any other time. With a Slide Show the button is lit
+and says the seconds.
+
+- **A slide's own timer wins.** In a presentation with a Slide Show, a slide that has a
+  Go To Next Timer goes by its own: a longer or a shorter stay, or, on the last slide
+  with no Loop to Beginning, a place to stop.
+- **A slide has to be triggered.** Neither starts anything by being set. The time
+  starts when a slide goes live, by a click, a key, an action or the timer before it.
+- **Clearing stops it.** Clear the slide (or the announcements, or everything) and the
+  show stays where it is. So does triggering another slide by hand, which starts that
+  slide's time instead.
+- **The show and the announcements each go on by their own time**, so a set of notices
+  can go round on the [announcements](#announcements) layer while the songs are
+  worked by hand under it.
+- **No seconds at all** is allowed for a slide's timer: it goes on at once, which is
+  how a slide is made that only leads back to the first. A presentation all of whose
+  slides did that would never stop, so one that has gone the whole way round without
+  any time passing is stopped, and the log says so.
+
+Both are kept in the presentation's file as ProPresenter keeps them, the timer as what
+the slide's cue does when it is done and the Slide Show as the presentation's time for
+it, so they are there in ProPresenter too, and ones made there work here.
+
+What is a guess, or not done:
+
+- That a timer of no seconds goes on at once in ProPresenter too is read from its
+  files, not seen.
+- A timer taken off leaves the cue as ProPresenter's files have a cue that has had
+  one, with its time still written in it and nothing to act on it; one that was put on
+  in the same run of the app and taken off again leaves the file exactly as it was.
+- The words of the Slide Show's menu, and the five seconds a new timer starts at, are
+  this app's.
+- ProPresenter's files can also send a slide on to a random slide or a named one, and
+  when a piece of media ends. Those are kept in the file and not acted on.
 
 ## Clear groups
 
@@ -2681,8 +2749,8 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: forty-five scripts and over two
-thousand two hundred checks. They run on a desktop of their own that shows nowhere, on
+and look at what its windows then hold and show: forty-six scripts and over two
+thousand three hundred checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
 in by, which a release does not have:
@@ -2729,7 +2797,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/actions.*` | What a slide's cue or a macro does besides: turns ProPresenter's actions into plain data and back |
 | `src/macros.*` | The workspace's macros and their collections: the file, and adding to, changing and removing them |
 | `src/props.*`, `src/stagelayouts.*` | The workspace's props and their collections, and its stage layouts: their files, and adding to, renaming and removing them |
-| `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a piece of audio, a clear, a prop or a macro does; and the announcements, which are at a slide of their own |
+| `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a piece of audio, a clear, a prop or a macro does; the announcements, which are at a slide of their own; and a slide going on to the next by itself |
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
 | `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
@@ -2790,6 +2858,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
 | `qml/PropsLayer.qml` | The props that are on, over the other layers; and, over those, the messages that are shown |
 | `qml/AnnouncementLayer.qml` | The announcements layer of a screen: a slide over media of its own |
+| `qml/GoToNextPanel.qml` | The panel the seconds of a Go To Next Timer, or of a Slide Show, are typed in |
 | `qml/MessagesPanel.qml` | The messages, a tab of the show controls |
 | `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |

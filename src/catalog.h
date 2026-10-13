@@ -230,6 +230,11 @@ public:
     // Makes the media a slide triggers a background or a foreground (see
     // workspace::MediaBehaviour), and saves the presentation file.
     Q_INVOKABLE QString setSlideMediaForeground(const QString &path, const QString &slideId, bool foreground);
+    // ProPresenter's Slide Show, which a presentation has (seconds, 0 for none), and
+    // Go To Next Timer, which a slide has: see ProDocument, and show::State::advance
+    // for what they do.
+    Q_INVOKABLE QString setSlideShow(const QString &path, double seconds);
+    Q_INVOKABLE QString setSlideGoToNext(const QString &path, const QString &slideId, bool on, double seconds, bool loop);
     // How the slide's video plays on from its end: 0 it stops, 1 it goes round, 2 it
     // plays `loopCount` times, 3 it goes round for `loopSeconds`.
     Q_INVOKABLE QString setSlideMediaPlayback(const QString &path, const QString &slideId, int playback, int loopCount, double loopSeconds);

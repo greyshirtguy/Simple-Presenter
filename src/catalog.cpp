@@ -309,6 +309,7 @@ QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arr
         {"originalKey", document.originalKey},
         {"userKey", document.userKey},
         {"destination", document.destination},
+        {"slideShow", document.slideShow},
         {"error", error},
     };
 }
@@ -429,6 +430,16 @@ QString Catalog::removeArrangementGroup(const QString &path, const QString &id, 
 QString Catalog::setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath, bool foreground)
 {
     return ProDocument::setCueMedia(path, slideId, mediaPath, foreground, m_root);
+}
+
+QString Catalog::setSlideShow(const QString &path, double seconds)
+{
+    return ProDocument::setSlideShow(path, seconds);
+}
+
+QString Catalog::setSlideGoToNext(const QString &path, const QString &slideId, bool on, double seconds, bool loop)
+{
+    return ProDocument::setCueGoToNext(path, slideId, on, seconds, loop);
 }
 
 QString Catalog::setSlideMediaForeground(const QString &path, const QString &slideId, bool foreground)

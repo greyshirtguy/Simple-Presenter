@@ -75,6 +75,13 @@ class Show : public QObject
     Q_PROPERTY(QString announcementPlaylistId READ announcementPlaylistId NOTIFY announcementChanged)
     Q_PROPERTY(bool announcementLive READ announcementLive NOTIFY announcementChanged)
     Q_PROPERTY(bool announcementCleared READ announcementCleared NOTIFY announcementChanged)
+    // Whether the show is to go on by itself from the slide it is at, by that slide's
+    // Go To Next Timer or its presentation's Slide Show, and after how many seconds
+    // from when the slide went live; and the same for the announcements
+    Q_PROPERTY(bool advanceWaiting READ advanceWaiting NOTIFY advanceChanged)
+    Q_PROPERTY(double advanceSeconds READ advanceSeconds NOTIFY advanceChanged)
+    Q_PROPERTY(bool announcementAdvanceWaiting READ announcementAdvanceWaiting NOTIFY advanceChanged)
+    Q_PROPERTY(double announcementAdvanceSeconds READ announcementAdvanceSeconds NOTIFY advanceChanged)
     Q_PROPERTY(bool announcementsOn READ announcementsOn NOTIFY announcementChanged)
     // What is on the media layer, as a map (see catalog.h), or null; and the media
     // playlist it was triggered from, "" if a slide triggered it.
@@ -159,6 +166,10 @@ public:
     QString announcementPlaylistId() const { return m_state.announcement.playlistId; }
     bool announcementLive() const { return m_state.announcementLive(); }
     bool announcementCleared() const { return m_state.announcement.cleared; }
+    bool advanceWaiting() const { return m_state.advance.waiting; }
+    double advanceSeconds() const { return m_state.advance.seconds; }
+    bool announcementAdvanceWaiting() const { return m_state.announcementAdvance.waiting; }
+    double announcementAdvanceSeconds() const { return m_state.announcementAdvance.seconds; }
     bool announcementsOn() const { return !m_state.announcement.cleared || m_state.announcementHasMedia; }
     QVariant liveMedia() const;
     QString liveMediaPlaylistId() const { return m_state.mediaPlaylistId; }
@@ -202,7 +213,8 @@ public:
     // are done, in their order. `cue` says which slide and what it is:
     // { key, playlistId, presentation, index, count, slide, next } (see show::Cue).
     // With `withoutMedia`, the slide and its actions and not its media.
-    Q_INVOKABLE void goLive(const QVariantMap &cue, bool withoutMedia = false);
+    // (`byTimer`: by a Go To Next Timer or a Slide Show running out, see advanceDue.)
+    Q_INVOKABLE void goLive(const QVariantMap &cue, bool withoutMedia = false, bool byTimer = false);
     // Where a step of `delta` slides takes the show, for whoever is looking at that
     // presentation (see show::State::stepTarget).
     Q_INVOKABLE int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false) const;
@@ -339,6 +351,11 @@ signals:
     // and the layer is to be taken off, slide and media.
     void announcementShown(int showing, const QVariantMap &media);
     void announcementsCleared();
+    void advanceChanged();
+    // The time is up of a slide that goes on by itself: the slide at `index` of the
+    // presentation the show is at (or, with `announcements`, the one the announcements
+    // are at) is to go live, which the window does, saying it is by the timer.
+    void advanceDue(bool announcements, int index);
     // A piece of audio is to be started (music in place of the music that is playing,
     // a sound effect over what is); the music is to stop; every sound effect is.
     void audioStarted(const QVariantMap &audio);
@@ -356,8 +373,13 @@ private:
     // Starts the flashing that follows a stage message being shown, or ends it
     void flashStage(bool start);
 
+    QTimer *advanceTimer(bool announcements);
+
     show::State m_state;
     show::Workspace m_workspace;
+    // What counts the time before the show, and the announcements, go on by themselves
+    QTimer *m_advance = nullptr;
+    QTimer *m_announcementAdvance = nullptr;
     // What counts the time of each message that is to go by itself, by the message's id
     QHash<QString, QTimer *> m_messageTimes;
     // The flashing: its beat, how many more times it is to change, and whether it is on

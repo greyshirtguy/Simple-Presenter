@@ -22,6 +22,7 @@ show::Cue cueFrom(const QVariantMap &map)
     cue.slide = map.value("slide").toMap();
     cue.next = map.value("next").toMap();
     cue.destination = map.value("destination").toString();
+    cue.slideShow = map.value("slideShow").toDouble();
     return cue;
 }
 
@@ -57,6 +58,8 @@ void Show::change(const std::function<show::Effects()> &what)
     if (was.atSlide != now.atSlide || was.index != now.index || was.key != now.key || was.playlistId != now.playlistId
         || was.cleared != now.cleared || was.clearedByCue != now.clearedByCue || before.announcementHasMedia != m_state.announcementHasMedia)
         emit announcementChanged();
+    if (before.advance != m_state.advance || before.announcementAdvance != m_state.announcementAdvance)
+        emit advanceChanged();
     if (before.hasMedia != m_state.hasMedia || before.media != m_state.media || before.mediaPlaylistId != m_state.mediaPlaylistId)
         emit mediaChanged();
     if (before.hasMusic != m_state.hasMusic || before.music != m_state.music || before.musicPlaylistId != m_state.musicPlaylistId
@@ -107,6 +110,13 @@ void Show::change(const std::function<show::Effects()> &what)
             break;
         case show::Effect::NoAnnouncements:
             emit announcementsCleared();
+            break;
+        case show::Effect::Advance:
+            // (From now: a timer that is counting already starts again.)
+            advanceTimer(!effect.text.isEmpty())->start(qMax(0, qRound(effect.seconds * 1000)));
+            break;
+        case show::Effect::NoAdvance:
+            advanceTimer(!effect.text.isEmpty())->stop();
             break;
         case show::Effect::Audio:
             emit audioStarted(effect.media);
@@ -229,9 +239,36 @@ void Show::adoptLook(const QString &id)
     });
 }
 
-void Show::goLive(const QVariantMap &cue, bool withoutMedia)
+void Show::goLive(const QVariantMap &cue, bool withoutMedia, bool byTimer)
 {
-    change([&] { return m_state.goLive(cueFrom(cue), withoutMedia, m_workspace); });
+    change([&] { return m_state.goLive(cueFrom(cue), withoutMedia, m_workspace, byTimer); });
+}
+
+// What counts the time a slide stays before the show goes on from it by itself (see
+// show::State::advance): one for the show's own place and one for the announcements',
+// each made when it is first wanted. When its time is up the state says where to, and
+// the window is asked to put that slide live: it has the presentation, as the show
+// has only the slide it is at.
+QTimer *Show::advanceTimer(bool announcements)
+{
+    QTimer *&timer = announcements ? m_announcementAdvance : m_advance;
+    if (!timer) {
+        timer = new QTimer(this);
+        timer->setSingleShot(true);
+        // (To the millisecond: a timer of a few seconds that Qt was left to round
+        // would be a twentieth out.)
+        timer->setTimerType(Qt::PreciseTimer);
+        connect(timer, &QTimer::timeout, this, [this, announcements] {
+            int target = -1;
+            change([&] {
+                target = m_state.takeAdvance(announcements);
+                return show::Effects();
+            });
+            if (target >= 0)
+                emit advanceDue(announcements, target);
+        });
+    }
+    return timer;
 }
 
 int Show::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements) const
@@ -241,7 +278,7 @@ int Show::stepTarget(const QString &key, const QString &playlistId, int delta, b
 
 void Show::follow(const QVariantMap &cue)
 {
-    change([&] { m_state.follow(cueFrom(cue)); return show::Effects(); });
+    change([&] { return m_state.follow(cueFrom(cue)); });
 }
 
 int Show::placeAfterReload(const QStringList &before, int index, const QStringList &after) const
@@ -256,7 +293,7 @@ void Show::renamed(const QString &from, const QString &to)
 
 void Show::leavePresentation()
 {
-    change([&] { m_state.leavePresentation(); return show::Effects(); });
+    change([&] { return m_state.leavePresentation(); });
 }
 
 void Show::showMedia(const QVariantMap &media, const QString &playlist)

@@ -71,6 +71,10 @@ struct ProDocument
     // slide and media layers, as all are unless they say otherwise, or "announcements"
     // for the announcements layer (ProPresenter's Destination, see setDestination()).
     QString destination;
+    // ProPresenter's Slide Show: the seconds each slide stays before the next is
+    // triggered, going round to the first after the last; 0 for none. (A slide with a
+    // Go To Next Timer of its own, which is in its map as "goToNext", goes by that.)
+    double slideShow = 0;
 
     // Reads a ProPresenter 7 .pro file. `arrangement` names the arrangement to follow,
     // "" (or a name the file does not have) being every group in stored order; without
@@ -94,6 +98,19 @@ struct ProDocument
     // ProPresenter records the same on every row of a playlist that is this
     // presentation, which is PlaylistFile::setRowsDestination(); Catalog does both.
     static QString setDestination(const QString &path, const QString &destination);
+    // The presentation's Slide Show, in seconds; 0 for none, which takes it out of the
+    // file. Writes the file back unless it says so already.
+    static QString setSlideShow(const QString &path, double seconds);
+    // A slide's Go To Next Timer: with `on`, after `seconds` the next slide is
+    // triggered, or with `loop` the first ("Loop to Beginning"); without, it has none.
+    //
+    // In the file it is what the slide's cue does when it is done: its target (the
+    // next cue, or the first), "after a time", and the time. Taken off, the cue is
+    // left as ProPresenter leaves one it has taken a timer off: no target, and done
+    // "last", with the time still there (a GUESS, from its files, where cues without
+    // a timer have times). But a timer put on in this run of the app and taken off
+    // again leaves the cue exactly as it was before, to the byte.
+    static QString setCueGoToNext(const QString &path, const QString &cueId, bool on, double seconds, bool loop);
     // Selects the named arrangement, or none for "", and writes the file back. Returns
     // an error message, empty on success.
     // The id of the arrangement of that name, or empty.

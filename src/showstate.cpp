@@ -28,6 +28,44 @@ Effect plain(Effect::Kind kind)
     return effect;
 }
 
+// A going on by itself to be started or stopped, at the show's own place or the
+// announcements' (see State::advance)
+Effect advanceEffect(Effect::Kind kind, bool announcements, double seconds = 0)
+{
+    Effect effect;
+    effect.kind = kind;
+    effect.text = announcements ? QStringLiteral("announcements") : QString();
+    effect.seconds = seconds;
+    return effect;
+}
+
+// What a slide asks for when it goes live: its own Go To Next Timer, or failing that
+// its presentation's Slide Show, or nothing.
+State::Advance advanceOf(const Cue &cue)
+{
+    State::Advance wanted;
+    const QVariantMap own = cue.slide.value("goToNext").toMap();
+    if (!own.isEmpty()) {
+        wanted.waiting = true;
+        wanted.seconds = qMax(0.0, own.value("seconds").toDouble());
+        wanted.toFirst = own.value("loop").toBool();
+        // From the last slide there is no next.
+        if (!wanted.toFirst && cue.index + 1 >= cue.count)
+            return {};
+    } else if (cue.slideShow > 0) {
+        wanted.waiting = true;
+        wanted.seconds = cue.slideShow;
+        wanted.loops = true;
+    }
+    return wanted;
+}
+
+// A number of seconds as it is said: "5 s", "2.5 s"
+QString secondsWords(double seconds)
+{
+    return QString::number(seconds, 'g', 4) + QStringLiteral(" s");
+}
+
 // A message that is taken off has no time left to run: whatever was counting it is
 // told so.
 Effect noTime(const QString &id)
@@ -104,11 +142,77 @@ bool playsOn(const QVariantMap &asked, bool has, const QVariantMap &playing)
 
 } // namespace
 
+// ---- going on by itself (see `advance` in the header)
+
+void State::arm(bool announcements, const Cue &cue, bool byTimer, Effects &effects)
+{
+    Advance &waiting = announcements ? announcementAdvance : advance;
+    int &run = announcements ? m_announcementRun : m_run;
+    Advance wanted = advanceOf(cue);
+    if (!byTimer)
+        run = 0;
+    if (wanted.waiting && wanted.seconds <= 0) {
+        // Round the whole presentation with no time passing: it would never stop.
+        if (++run > qMax(1, cue.count)) {
+            effects << problem(QStringLiteral("%1 goes from slide to slide with no time between and would never stop, so it has been "
+                                              "stopped at slide %2").arg(quoted(cue.presentation)).arg(cue.index + 1));
+            wanted = Advance();
+            run = 0;
+        }
+    } else {
+        run = 0;
+    }
+    if (wanted.waiting) {
+        waiting = wanted;
+        effects << note("next", QStringLiteral("%1 on to %2 in %3, by %4")
+                                    .arg(announcements ? QStringLiteral("the announcements go") : QStringLiteral("the show goes"),
+                                         wanted.toFirst ? QStringLiteral("the first slide") : QStringLiteral("the next slide"),
+                                         secondsWords(wanted.seconds),
+                                         wanted.loops ? QStringLiteral("the presentation's Slide Show")
+                                                      : QStringLiteral("the slide's Go To Next Timer")));
+        effects << advanceEffect(Effect::Advance, announcements, wanted.seconds);
+    } else if (waiting.waiting) {
+        waiting = Advance();
+        effects << advanceEffect(Effect::NoAdvance, announcements);
+    }
+}
+
+void State::stopAdvance(bool announcements, Effects &effects)
+{
+    Advance &waiting = announcements ? announcementAdvance : advance;
+    (announcements ? m_announcementRun : m_run) = 0;
+    if (!waiting.waiting)
+        return;
+    waiting = Advance();
+    effects << note("next", announcements ? QStringLiteral("the announcements no longer go on by themselves")
+                                          : QStringLiteral("the show no longer goes on by itself"));
+    effects << advanceEffect(Effect::NoAdvance, announcements);
+}
+
+int State::takeAdvance(bool announcements)
+{
+    Advance &waiting = announcements ? announcementAdvance : advance;
+    if (!waiting.waiting)
+        return -1;
+    const Advance was = waiting;
+    waiting = Advance();
+    const bool there = announcements ? announcement.atSlide : atSlide;
+    const int from = announcements ? announcement.index : index;
+    const int slides = announcements ? announcement.count : count;
+    if (!there || slides <= 0)
+        return -1;
+    if (was.toFirst)
+        return 0;
+    if (from + 1 < slides)
+        return from + 1;
+    return was.loops ? 0 : -1;
+}
+
 // A slide of a presentation that is sent to the announcements goes live there: the
 // rules of goLive(), on the announcements layer's own slide and media. Its actions are
 // done as any slide's are, and do what they say: one that clears the slide clears the
 // slide layer, and not this.
-Effects State::goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Workspace &workspace)
+Effects State::goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Workspace &workspace, bool byTimer)
 {
     Effects effects;
     const QVariantMap cueMedia = cue.slide.value("media").toMap();
@@ -167,16 +271,17 @@ Effects State::goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Works
     m_runningAnnouncement = true;
     runActions(actions, 0, workspace, effects);
     m_runningAnnouncement = false;
+    arm(true, cue, byTimer, effects);
     return effects;
 }
 
-Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &workspace)
+Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &workspace, bool byTimer)
 {
     Effects effects;
     if (cue.index < 0 || cue.index >= cue.count)
         return effects;
     if (cue.destination == QLatin1String("announcements"))
-        return goLiveAnnouncement(cue, withoutMedia, workspace);
+        return goLiveAnnouncement(cue, withoutMedia, workspace, byTimer);
     const QVariantMap cueMedia = cue.slide.value("media").toMap();
     const QString mediaName = cue.slide.value("mediaName").toString();
     const bool brings = !withoutMedia && !cueMedia.isEmpty();
@@ -236,6 +341,7 @@ Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &worksp
     m_runningCue = true;
     runActions(actions, 0, workspace, effects);
     m_runningCue = false;
+    arm(false, cue, byTimer, effects);
     return effects;
 }
 
@@ -255,25 +361,33 @@ int State::stepTarget(const QString &key, const QString &playlistId, int delta, 
     return index + delta;
 }
 
-void State::follow(const Cue &cue)
+Effects State::follow(const Cue &cue)
 {
-    if (cue.destination == QLatin1String("announcements")) {
+    Effects effects;
+    const bool announcements = cue.destination == QLatin1String("announcements");
+    if (announcements) {
         if (!announcement.atSlide)
-            return;
+            return effects;
         announcement.presentation = cue.presentation;
         announcement.index = cue.index;
         announcement.count = cue.count;
         announcement.slide = cue.slide;
         announcement.next = cue.next;
-        return;
+    } else {
+        if (!atSlide)
+            return effects;
+        presentation = cue.presentation;
+        index = cue.index;
+        count = cue.count;
+        slide = cue.slide;
+        next = cue.next;
     }
-    if (!atSlide)
-        return;
-    presentation = cue.presentation;
-    index = cue.index;
-    count = cue.count;
-    slide = cue.slide;
-    next = cue.next;
+    // A going on that is waiting is off if the slide, as it is now, asks for none: its
+    // timer was taken off, or its presentation's Slide Show was. One that is still
+    // asked for runs out as it was started, and nothing is started here.
+    if ((announcements ? announcementAdvance : advance).waiting && !advanceOf(cue).waiting)
+        stopAdvance(announcements, effects);
+    return effects;
 }
 
 void State::renamed(const QString &from, const QString &to)
@@ -284,8 +398,11 @@ void State::renamed(const QString &from, const QString &to)
         announcement.key = to;
 }
 
-void State::leavePresentation()
+Effects State::leavePresentation()
 {
+    Effects effects;
+    stopAdvance(false, effects);
+    stopAdvance(true, effects);
     atSlide = false;
     key.clear();
     playlistId.clear();
@@ -299,6 +416,7 @@ void State::leavePresentation()
     const bool wasCleared = announcement.cleared;
     announcement = Place();
     announcement.cleared = wasCleared;
+    return effects;
 }
 
 bool State::alreadyPlaying(const QVariantMap &asked) const
@@ -321,6 +439,9 @@ Effects State::showMedia(const QVariantMap &asked, const QString &playlist)
 
 void State::clearSlide(Effects &effects)
 {
+    // Cleared by anything but its own action, the slide no longer leads anywhere.
+    if (!m_runningCue)
+        stopAdvance(false, effects);
     if (cleared)
         return;
     effects << note("clear", QStringLiteral("the slide") + (m_runningCue ? QStringLiteral(", by its own action") : QString()));
@@ -342,6 +463,8 @@ void State::clearMedia(Effects &effects)
 
 void State::clearAnnouncements(Effects &effects)
 {
+    if (!m_runningAnnouncement)
+        stopAdvance(true, effects);
     if (announcement.cleared && !announcementHasMedia)
         return;
     effects << note("clear", QStringLiteral("the announcements") + (m_runningAnnouncement ? QStringLiteral(", by their own slide's action") : QString()));

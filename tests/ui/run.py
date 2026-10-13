@@ -1470,6 +1470,83 @@ def prepare_announce(workspace, test_dir):
         out.write(tiny_png((255, 0, 255), 64))
 
 
+def prepare_advance(workspace, test_dir):
+    """The two presentations of blocks the announcements test has (prepare_announce), and a third, "Timed", whose first
+    slide has a Go To Next Timer of three seconds as ProPresenter writes one: the cue's target is the next cue, after a
+    time. The test keeps copies of the files as they were given it."""
+    prepare_announce(workspace, test_dir)
+    library = os.path.join(workspace, "Libraries", "Demo")
+    text = blocks_presentation("Timed", [(1, 0, 1), (1, 1, 0)], 100, 100)
+    plain = "  completion_action_type: COMPLETION_ACTION_TYPE_LAST\n"
+    timed = ("  completion_target_type: COMPLETION_TARGET_TYPE_NEXT\n  completion_action_type: COMPLETION_ACTION_TYPE_AFTER_TIME\n"
+             "  completion_time: 3\n")
+    assert text.count(plain) == 2
+    text = text.replace(plain, timed, 1)
+    target = os.path.join(library, "Timed.pro")
+    if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("the test of going on would write outside its own folder: " + os.path.realpath(target))
+    with open(target, "wb") as out:
+        out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+    shutil.copy(target, os.path.join(test_dir, "advance-timed-before"))
+    shutil.copy(os.path.join(library, "Plain.pro"), os.path.join(test_dir, "advance-before"))
+
+
+def after_advance(workspace, test_dir):
+    """Go To Next Timers and a Slide Show: what the presentations' files hold, read with protoc and not by the app.
+    The test kept the file of blocks as it was given it (advance-before), with a timer of a second on its first
+    slide (advance-timer), with one of half a second that loops on its last as well (advance-loop), and with a Slide
+    Show and no timers (advance-show); and the file whose first slide came with a timer (advance-timed-before),
+    which the test took off."""
+    import difflib
+
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    def changed(was, now):
+        """The lines that are in one and not the other: "+" for one that is new, "-" for one that is gone."""
+        return [line[0] + line[1:].strip() for line in difflib.ndiff(was.split("\n"), now.split("\n")) if line[:1] in "+-"]
+
+    def cues(text):
+        return re.findall(r"^cues \{\n.*?^\}\n", text, re.S | re.M)
+
+    def done(cue):
+        """What a cue says of being done: its lines for that, in the file's order."""
+        return [line.strip() for line in cue.split("\n") if line.startswith("  completion_")]
+
+    before = decoded(os.path.join(test_dir, "advance-before"))
+    timer, loop, show = (decoded(os.path.join(frames, name)) for name in ("advance-timer", "advance-loop", "advance-show"))
+    timed_was = decoded(os.path.join(test_dir, "advance-timed-before"))
+    timed_now = decoded(os.path.join(workspace, "Libraries", "Demo", "Timed.pro"))
+    return [
+        said(done(cues(timer)[0]) == ["completion_target_type: COMPLETION_TARGET_TYPE_NEXT", "completion_action_type: COMPLETION_ACTION_TYPE_AFTER_TIME",
+                                      "completion_time: 1"]
+             and [done(cue) for cue in cues(timer)[1:]] == [["completion_action_type: COMPLETION_ACTION_TYPE_LAST"]] * 2,
+             "in the file: a Go To Next Timer is its cue's target, the next cue, after a time, as ProPresenter writes one; the other cues are as they were",
+             " / ".join(", ".join(done(cue)) for cue in cues(timer))),
+        said(sorted(changed(before, timer)) == sorted(["+completion_target_type: COMPLETION_TARGET_TYPE_NEXT", "+completion_time: 1",
+                                                       "-completion_action_type: COMPLETION_ACTION_TYPE_LAST",
+                                                       "+completion_action_type: COMPLETION_ACTION_TYPE_AFTER_TIME"]),
+             "in the file: and nothing else of it was changed by that", "; ".join(changed(before, timer))),
+        said(done(cues(loop)[2]) == ["completion_target_type: COMPLETION_TARGET_TYPE_FIRST", "completion_action_type: COMPLETION_ACTION_TYPE_AFTER_TIME",
+                                     "completion_time: 0.5"] and done(cues(loop)[0]) == done(cues(timer)[0]),
+             "in the file: with Loop to Beginning the target is the first cue", ", ".join(done(cues(loop)[2]))),
+        said(changed(before, show) == ["+slide_show_duration: 0.6"],
+             "in the file: a Slide Show is the presentation's time for it, and with the timers taken off again that is the only line that is not as it was",
+             "; ".join(changed(before, show))),
+        said(done(cues(timed_was)[0])[0] == "completion_target_type: COMPLETION_TARGET_TYPE_NEXT"
+             and done(cues(timed_now)[0]) == ["completion_action_type: COMPLETION_ACTION_TYPE_LAST", "completion_time: 3"],
+             "in the file: a timer that ProPresenter made, taken off, leaves its cue with no target and done last, the time still there",
+             ", ".join(done(cues(timed_now)[0]))),
+        said(sorted(changed(timed_was, timed_now)) == sorted(["-completion_target_type: COMPLETION_TARGET_TYPE_NEXT",
+                                                              "-completion_action_type: COMPLETION_ACTION_TYPE_AFTER_TIME",
+                                                              "+completion_action_type: COMPLETION_ACTION_TYPE_LAST"]),
+             "in the file: and nothing else of that file was changed", "; ".join(changed(timed_was, timed_now))),
+    ]
+
+
 def after_announce(workspace, test_dir):
     """Where a presentation is sent, and an action that clears the announcements: what the files hold, read with protoc
     and not by the app. The test kept the notices' file as it was given it (announce-before, by prepare_announce), sent
@@ -1756,6 +1833,7 @@ TESTS = {
     "arrange": test("Demo", timeout=240, after=after_arrange),
     "reflow": test("Demo", timeout=240, after=after_reflow),
     "announce": test("Demo", timeout=240, prepare=prepare_announce, after=after_announce),
+    "advance": test("Demo", timeout=300, prepare=prepare_advance, after=after_advance),
     "switch": test("Demo", MEMORY, 60, also=("ProPresenter MR",)),
     "smoke": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0"}),
     "edit": test("Demo", MEMORY, 120, {"SP_TEST_WINDOWS": "0", "SP_TEST_WIDTH": "1200", "SP_TEST_HEIGHT": "660"}),

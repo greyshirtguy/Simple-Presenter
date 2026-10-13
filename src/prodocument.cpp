@@ -82,6 +82,23 @@ const rv::data::Presentation::Arrangement *selectedArrangement(const rv::data::P
     return nullptr;
 }
 
+// A cue's Go To Next Timer as a slide's map has it, {seconds, loop}, or an empty map for
+// a cue with none: see setCueGoToNext() in the header for how the file says it. A cue
+// whose target is none has no timer, whatever time it has kept from one it had once.
+//
+// (The file has two more targets, a random cue and a named one, and another way of
+// being done, after an action. This app follows none of those: such a cue has no timer
+// here, and is left as it is.)
+QVariantMap goToNextOf(const rv::data::Cue &cue)
+{
+    using Cue = rv::data::Cue;
+    const bool first = cue.completion_target_type() == Cue::COMPLETION_TARGET_TYPE_FIRST;
+    if (cue.completion_action_type() != Cue::COMPLETION_ACTION_TYPE_AFTER_TIME
+        || (!first && cue.completion_target_type() != Cue::COMPLETION_TARGET_TYPE_NEXT))
+        return {};
+    return {{"seconds", cue.completion_time()}, {"loop", first}};
+}
+
 // Where a presentation says it is sent, as a document has it: "" or "announcements".
 QString destinationOf(const rv::data::Presentation &presentation)
 {
@@ -144,6 +161,7 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
         document.userKey = presentation.music().has_user() ? name(presentation.music().user()) : document.originalKey;
     }
     document.destination = destinationOf(presentation);
+    document.slideShow = presentation.has_slide_show_duration() ? presentation.slide_show_duration() : 0;
 
     // Which arrangement: the one asked for by name, or the one the document has selected.
     const rv::data::Presentation::Arrangement *chosen = nullptr;
@@ -226,9 +244,12 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
             first.insert("actions", others);
             slides.first() = first;
         }
+        const QVariantMap goToNext = goToNextOf(cue);
         for (QVariant &entry : slides) {
             QVariantMap slide = entry.toMap();
             slide.insert("id", id);
+            if (!goToNext.isEmpty())
+                slide.insert("goToNext", goToNext);
             entry = slide;
         }
         return slides;
@@ -519,6 +540,69 @@ QString ProDocument::setCueMedia(const QString &path, const QString &cueId, cons
     workspace::setMediaForeground(action, foreground);
 
     return writePresentation(path, presentation);
+}
+
+QString ProDocument::setSlideShow(const QString &path, double seconds)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    const double had = presentation.has_slide_show_duration() ? presentation.slide_show_duration() : 0;
+    if (seconds <= 0 ? !presentation.has_slide_show_duration() : had == seconds)
+        return {};
+    if (seconds > 0)
+        presentation.set_slide_show_duration(seconds);
+    else
+        presentation.clear_slide_show_duration();
+    return writePresentation(path, presentation);
+}
+
+QString ProDocument::setCueGoToNext(const QString &path, const QString &cueId, bool on, double seconds, bool loop)
+{
+    using Cue = rv::data::Cue;
+    // What a cue without a timer said of being done before this app first gave it one,
+    // in this run: so that a change of mind puts back exactly that.
+    struct Was
+    {
+        Cue::CompletionActionType action;
+        double time;
+    };
+    static QHash<QString, Was> before;
+    static QMutex mutex;
+
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+
+    for (Cue &cue : *presentation.mutable_cues()) {
+        if (QString::fromStdString(cue.uuid().string()) != cueId)
+            continue;
+        const QString key = path + u'\n' + cueId;
+        const QMutexLocker lock(&mutex);
+        if (on) {
+            if (goToNextOf(cue).isEmpty() && !before.contains(key))
+                before.insert(key, {cue.completion_action_type(), cue.completion_time()});
+            cue.set_completion_target_type(loop ? Cue::COMPLETION_TARGET_TYPE_FIRST : Cue::COMPLETION_TARGET_TYPE_NEXT);
+            cue.set_completion_action_type(Cue::COMPLETION_ACTION_TYPE_AFTER_TIME);
+            cue.set_completion_time(qMax(0.0, seconds));
+        } else {
+            if (goToNextOf(cue).isEmpty())
+                return {};
+            cue.set_completion_target_type(Cue::COMPLETION_TARGET_TYPE_NONE);
+            const auto was = before.constFind(key);
+            if (was != before.constEnd()) {
+                cue.set_completion_action_type(was->action);
+                cue.set_completion_time(was->time);
+                before.erase(was);
+            } else {
+                cue.set_completion_action_type(Cue::COMPLETION_ACTION_TYPE_LAST);
+            }
+        }
+        return writePresentation(path, presentation);
+    }
+    return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
 }
 
 QString ProDocument::setCueMediaForeground(const QString &path, const QString &cueId, bool foreground)
