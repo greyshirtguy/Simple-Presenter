@@ -113,6 +113,8 @@ public:
         for (const QChar c : text)
             key(c == u'\n' ? Qt::Key_Return : 0, 0, c == u'\n' ? QString() : QString(c));
     }
+    // The shape of the pointer over the operator window, as a Qt::CursorShape: what the window was last told to show
+    Q_INVOKABLE int pointerShape() { return int(window->cursor().shape()); }
     // The window behaves as if it had the keyboard, whatever other window was shown since.
     Q_INVOKABLE void focus()
     {

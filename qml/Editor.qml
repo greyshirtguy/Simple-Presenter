@@ -122,6 +122,9 @@ Rectangle {
     readonly property string toolHint: {
         if (notesToggle.hovered)
             return notesToggle.hint
+        // (One of the key's chords, in the strip over the chord sheet)
+        if (mode === "chords" && chordView.item && chordView.item.hint)
+            return chordView.item.hint
         for (const tools of [actions.children, songKeys.item ? songKeys.item.children : [], saving.item ? saving.item.children : []]) {
             for (let i = 0; i < tools.length; ++i) {
                 const tool = tools[i]
@@ -1230,7 +1233,7 @@ Rectangle {
             font.pixelSize: 12
             text: screen.notice !== "" ? screen.notice
                 : screen.toolHint !== "" ? screen.toolHint
-                : screen.mode === "chords" ? "1 to 7: the key's chords  ·  A to G: type one, and a click on the next place keeps it  ·  Drag moves a chord, with Ctrl copies it  ·  Delete removes  ·  Ctrl+C and Ctrl+V: a line's chords onto another"
+                : screen.mode === "chords" ? "1 to 7: the key's chords, or drag one down from the strip  ·  A to G: type one, and a click on the next place keeps it  ·  Drag moves a chord, with Ctrl copies it  ·  Delete removes  ·  Ctrl+C and Ctrl+V: a line's chords onto another"
                 : screen.mode === "chordpro" ? "[ opens a chord and closes it  ·  Backspace on a bracket removes the chord  ·  The words cannot be changed here"
                 : notes.item && notes.item.typing ? "Notes: select text to format part of it  ·  Ctrl+B, I, U  ·  Right click: font, size and colour  ·  Esc gives the keys back to the slide"
                 : canvas.editing ? "Select text to format part of it  ·  Esc or a click elsewhere finishes  ·  Ctrl+B, I, U"
