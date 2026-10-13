@@ -2,6 +2,7 @@
 
 #include "chords.h"
 
+#include "elementorder.h"
 #include "proconvert.h"
 #include "richtext.h"
 #include "rtfstandins.h"
@@ -770,6 +771,18 @@ QString PresentationEditor::move(int row, const QString &element, int index)
             slide->mutable_elements()->SwapElements(from, from - 1);
         return QString();
     });
+}
+
+QString PresentationEditor::place(int row, const QString &element, int landing)
+{
+    const rv::data::Slide *slide = slideIn(row);
+    if (!slide)
+        return gone;
+    const int from = indexOfElement(*slide, element);
+    if (from < 0)
+        return elementGone;
+    const int to = elementorder::placed(slide->elements_size(), from, landing);
+    return to < 0 ? QString() : move(row, element, to);
 }
 
 // Takes the last step off one list, puts its cue or layout (or the presentation's keys)

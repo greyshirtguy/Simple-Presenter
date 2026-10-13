@@ -8,6 +8,13 @@ import SimplePresenterApp
 // one first; in the middle is that slide, where elements are picked, moved, resized and
 // their text edited in place; on the right are the picked element's properties.
 //
+// The order of that list is the order the elements lie in on the slide, which is what
+// says which of two that overlap is seen. A row of it is dragged up or down to change
+// that, as a row of ProPresenter's list is (see carry(), below); the menu of an element
+// has the same a step at a time, and to the front or the back. How it looks while a row
+// is held (the line where it would land, its name with the pointer) is this app's own,
+// after its other lists, and not copied from ProPresenter's.
+//
 // Every change is saved to the presentation file as it is made, and can be undone.
 //
 // The same editor works on the workspace's props and on its stage layouts, which are
@@ -83,6 +90,40 @@ Rectangle {
     property bool noticeIsError: true
     // The element being renamed in the list, by id; "" for none
     property string renamingId
+    // An element whose row is being dragged up or down the list, by id, "" while none
+    // is; where the pointer has it, as a point of the list; and where it would land if
+    // it were let go: the row of the list it would be put before, or the number of rows
+    // for under the last, which is the back (see src/elementorder.h). -1 is nowhere:
+    // it is held off to one side of the list, and letting go there leaves it as it was.
+    //
+    // (None of this is in the rows themselves, and what is shown of it is not made
+    // until a row is dragged: the list's rows are all made again at every step of a
+    // property being dragged in the inspector, so a row is kept to what it must have.
+    // An opacity bound in each row for the one that is held cost those drags 2 ms a
+    // step on the benchmark's slide of seven elements.)
+    property string carriedId
+    property point carriedAt
+    property int landing: -1
+    // Which row of the list it is, and where the press that may become a drag was
+    property int carriedRow: -1
+    property point listPressedAt
+    // How high a row of that list is
+    readonly property real elementRowHeight: 32
+    // Which way the list is going under an element held near its top or its bottom, to
+    // bring the rows beyond into reach, and how fast, in points a second (downwards
+    // counted up); 0 where it is not held near either, or there is no further to go.
+    readonly property real carriedScroll: {
+        if (carriedId === "" || landing < 0)
+            return 0
+        const edge = 24
+        const fastest = 420
+        const furthest = Math.max(0, elementList.contentHeight - elementList.height)
+        if (carriedAt.y > elementList.height - edge && elementList.contentY < furthest)
+            return fastest * Math.min(1, Math.max(0.15, (carriedAt.y - (elementList.height - edge)) / edge))
+        if (carriedAt.y < edge && elementList.contentY > 0)
+            return -fastest * Math.min(1, Math.max(0.15, (edge - carriedAt.y) / edge))
+        return 0
+    }
     // The prop or stage layout being renamed in the list on the left, by id; "" for none
     property string renamingRow
     // The workspace folder what is open is in
@@ -411,10 +452,51 @@ Rectangle {
     // A press on an element's row in the list: picks it, and with the right button
     // opens its menu at that point of the list.
     function listPressed(id, menu, x, y) {
+        listPressedAt = Qt.point(x, y)
         canvas.pick(id)
         takeFocus()
         if (menu)
             showElementMenu(elementList, x, y)
+    }
+
+    // A row of the list has been moved with the button down, to this point of the list.
+    // Once that is a little way from where it was pressed the row is being dragged, as
+    // a row of the other lists is (see DragSource).
+    function listDragged(id, at) {
+        if (renamingId !== "")
+            return
+        if (carriedId !== "" || Math.abs(at.x - listPressedAt.x) + Math.abs(at.y - listPressedAt.y) > 10)
+            carry(id, at)
+    }
+
+    // An element's row is being dragged up or down the list: it is held at this point
+    // of the list, and would land in the gap between two rows that is nearest (over
+    // the upper half of a row is before that row, over the lower half after it). Held
+    // above the list it would be the front one, and below it the back one.
+    function carry(id, at) {
+        if (carriedId !== id)
+            carriedRow = canvas.elements.length - 1 - canvas.elements.findIndex(e => e.id === id)
+        carriedId = id
+        carriedAt = at
+        landing = at.x < 0 || at.x > elementList.width ? -1
+            : Math.max(0, Math.min(elementList.count, Math.round((elementList.contentY - elementList.originY + at.y) / elementRowHeight)))
+    }
+
+    // It has been let go: it goes where it would land, in the list and so in the order
+    // the elements are drawn in.
+    function dropCarried() {
+        const id = carriedId
+        const place = landing
+        letGo()
+        if (id !== "" && place >= 0)
+            canvas.place(id, place)
+    }
+
+    // Nothing is being dragged in the list any more, and nothing is moved.
+    function letGo() {
+        carriedId = ""
+        carriedRow = -1
+        landing = -1
     }
 
     // Ends a rename in the list, with the name typed.
@@ -715,6 +797,7 @@ Rectangle {
         ListView {
             id: elementList
 
+            objectName: "elementList"
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: elementsHeader.bottom
@@ -760,12 +843,22 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    // A row can be dragged up or down the list. The list would otherwise
+                    // take the drag for itself, to scroll by.
+                    preventStealing: true
                     // Picking can rebuild the list (it finishes any text being typed),
-                    // so the list, not this row, is what a menu is opened on.
+                    // so the list, not this row, is what a menu is opened on; and
+                    // nothing of this row is counted on after it.
                     onPressed: (mouse) => {
                         const at = mapToItem(elementList, mouse.x, mouse.y)
                         screen.listPressed(entry.modelData.id, mouse.button === Qt.RightButton, at.x, at.y)
                     }
+                    onPositionChanged: (mouse) => {
+                        if (pressedButtons & Qt.LeftButton)
+                            screen.listDragged(entry.modelData.id, mapToItem(elementList, mouse.x, mouse.y))
+                    }
+                    onReleased: screen.dropCarried()
+                    onCanceled: screen.letGo()
                     onDoubleClicked: (mouse) => {
                         if (mouse.button === Qt.LeftButton)
                             screen.renamingId = entry.modelData.id
@@ -868,6 +961,118 @@ Rectangle {
                     onClicked: {
                         canvas.pick(entry.modelData.id)
                         canvas.setProperties({ locked: !entry.modelData.locked }, false)
+                    }
+                }
+            }
+        }
+
+        // What is shown while a row of the list is being dragged, and what goes on then.
+        // It is made when a row is dragged and is gone when the row is let go: nothing
+        // of it is there while the editor is only being worked in. It is laid over the
+        // list and is no part of the rows, which are made again whenever the elements
+        // change.
+        Loader {
+            anchors.fill: parent
+            z: 50
+            active: screen.carriedId !== ""
+            // (It fills the pane, and goes by its own size for the pane's: in here the
+            // pane's name, `left`, is an item's own left edge.)
+            sourceComponent: Item {
+                id: held
+
+                // Over the list, and cut off at its edges as the rows are
+                Item {
+                    x: elementList.x
+                    y: elementList.y
+                    width: elementList.width
+                    height: elementList.height
+                    clip: true
+
+                    // The row being dragged is fainter where it was, until it is let
+                    // go: the pane's own colour, most of the way, over it.
+                    Rectangle {
+                        objectName: "elementHeld"
+                        y: screen.carriedRow * screen.elementRowHeight - (elementList.contentY - elementList.originY)
+                        width: parent.width
+                        height: screen.elementRowHeight
+                        color: "#2b2d31"
+                        opacity: 0.6
+                    }
+
+                    // Where it would land: a line in the gap between two rows, over
+                    // the first or under the last
+                    Rectangle {
+                        objectName: "elementLanding"
+                        x: 4
+                        y: Math.max(0, Math.min(parent.height - height,
+                               screen.landing * screen.elementRowHeight - (elementList.contentY - elementList.originY) - 1))
+                        width: parent.width - 8
+                        height: 2
+                        radius: 1
+                        visible: screen.landing >= 0
+                        color: "#ff8a1f"
+                    }
+                }
+
+                // The name of the element being dragged, which goes with the pointer, as
+                // what is dragged out of the other lists has (RowDrag)
+                Rectangle {
+                    objectName: "elementCarried"
+                    x: Math.max(4, Math.min(held.width - width - 4, elementList.x + screen.carriedAt.x + 12))
+                    y: elementList.y + screen.carriedAt.y + 8
+                    width: Math.min(held.width - 8, carriedName.implicitWidth + 20)
+                    height: 28
+                    radius: 6
+                    color: "#2b2d31"
+                    border.width: 1
+                    border.color: "#ff8a1f"
+                    opacity: 0.95
+
+                    Text {
+                        id: carriedName
+
+                        readonly property var element: canvas.elements.find(e => e.id === screen.carriedId) ?? null
+
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        elide: Text.ElideRight
+                        color: "#e6e6e6"
+                        font.pixelSize: 13
+                        text: !element ? "" : element.name !== "" ? element.name : element.words !== "" ? element.words
+                            : element.fillKind === "media" && element.fillMediaName !== "" ? element.fillMediaName : "(unnamed)"
+                    }
+                }
+
+                // Scrolls the list under a row held near its top or its bottom, at the
+                // speed carriedScroll says, by the time that has really passed; and
+                // where the row would land, the pointer not having moved, is worked out
+                // again each time. Nothing runs while no row is held there.
+                Timer {
+                    property real last: 0
+
+                    interval: 16
+                    repeat: true
+                    running: screen.carriedScroll !== 0
+                    onRunningChanged: last = Date.now()
+                    onTriggered: {
+                        const now = Date.now()
+                        const furthest = Math.max(0, elementList.contentHeight - elementList.height)
+                        elementList.contentY = Math.max(0, Math.min(furthest, elementList.contentY + screen.carriedScroll * Math.min(100, now - last) / 1000))
+                        last = now
+                        screen.carry(screen.carriedId, screen.carriedAt)
+                    }
+                }
+
+                // A change to the slide's elements while one is held (Delete, or Undo,
+                // from the keyboard) makes the list again, and the row that was held
+                // with it: so it is let go of, and nothing is moved.
+                Connections {
+                    target: canvas
+
+                    function onElementsChanged() {
+                        screen.letGo()
                     }
                 }
             }
@@ -1222,6 +1427,7 @@ Rectangle {
         Text {
             id: hintText
 
+            objectName: "editorHintText"
             anchors.left: parent.left
             anchors.right: saving.visible ? saving.left : subjectBelow.visible ? subjectBelow.left : notesToggle.visible ? notesToggle.left : parent.right
             anchors.leftMargin: 12
@@ -1233,6 +1439,7 @@ Rectangle {
             font.pixelSize: 12
             text: screen.notice !== "" ? screen.notice
                 : screen.toolHint !== "" ? screen.toolHint
+                : screen.carriedId !== "" ? "Let go between two rows to put it there: the top of the list is the front  ·  Let go off to one side of the list to leave it where it was"
                 : screen.mode === "chords" ? "1 to 7: the key's chords, or drag one down from the strip  ·  A to G: type one, and a click on the next place keeps it  ·  Drag moves a chord, with Ctrl copies it  ·  Delete removes  ·  Ctrl+C and Ctrl+V: a line's chords onto another"
                 : screen.mode === "chordpro" ? "[ opens a chord and closes it  ·  Backspace on a bracket removes the chord  ·  The words cannot be changed here"
                 : notes.item && notes.item.typing ? "Notes: select text to format part of it  ·  Ctrl+B, I, U  ·  Right click: font, size and colour  ·  Esc gives the keys back to the slide"

@@ -119,6 +119,15 @@ target_include_directories(tst_decodingguard PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_decodingguard PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME decodingguard COMMAND tst_decodingguard)
 
+qt_add_executable(tst_elementorder
+    tst_elementorder.cpp
+    ${PROJECT_SOURCE_DIR}/src/elementorder.h
+    ${PROJECT_SOURCE_DIR}/src/elementorder.cpp
+)
+target_include_directories(tst_elementorder PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_elementorder PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME elementorder COMMAND tst_elementorder)
+
 qt_add_executable(tst_slidenumber
     tst_slidenumber.cpp
     ${PROJECT_SOURCE_DIR}/src/slidenumber.h

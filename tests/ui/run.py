@@ -1374,6 +1374,39 @@ def after_messages(workspace, test_dir):
     return lines
 
 
+def after_order(workspace, test_dir):
+    """An element dragged to another place in the editor's list of a slide's elements: what the song's file holds
+    after, read with protoc and not by the app. The test kept the file as it was before the drag (order-before) and
+    after it (order-moved)."""
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+
+    def decoded(name):
+        with open(os.path.join(frames, name), "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    def elements(text):
+        """Every element of every slide of a decoded presentation, in the file's order: its lines of the text."""
+        return [block.group(0) for block in re.finditer(r"^( +)elements \{\n.*?^\1\}\n", text, re.S | re.M)]
+
+    def named(blocks):
+        """The names of the three the test made, in the order those blocks have them."""
+        return [name for block in blocks for name in re.findall(r'^ +name: "(Red|Green|Blue)"$', block, re.M)]
+
+    was, now = decoded("order-before"), decoded("order-moved")
+    before, after = elements(was), elements(now)
+    rest = lambda text: re.sub(r"^( +)elements \{\n.*?^\1\}\n", "", text, flags=re.S | re.M)
+    return [
+        said(named(before) == ["Red", "Green", "Blue"] and named(after) == ["Blue", "Red", "Green"],
+             "in the song's file: the element that was dragged under the other two is before them in the order drawn",
+             ",".join(named(before)) + " then " + ",".join(named(after))),
+        said(len(before) == len(after) and len(before) > 3 and sorted(before) == sorted(after) and before != after,
+             "in the song's file: every element of every slide is there as it was, line for line, and only the order is other",
+             "%d elements, %d as they were" % (len(before), len(set(before) & set(after)))),
+        said(rest(was) == rest(now) and len(rest(was)) > 200,
+             "in the song's file: nothing but the elements' order is changed"),
+    ]
+
+
 def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
             "monitors": monitors}
@@ -1400,6 +1433,7 @@ TESTS = {
     "drop": test("Demo"),
     "simple": test("Demo"),
     "shapes": test("Shapes", SHELL, 120),
+    "order": test("Shapes", SHELL, 120, after=after_order),
     "slides": test("Shapes", SHELL, 120),
     "keys": test("Shapes", SHELL, 120, {"SP_TEST_REMEMBER": "1"}, lambda w, d: prepare_keys(w, d, True), after_keys),
     "keys2": test("Shapes", SHELL, 60, {"SP_TEST_REMEMBER": "1"}, lambda w, d: prepare_keys(w, d, False), after_keys2),

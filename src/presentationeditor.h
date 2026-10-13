@@ -127,6 +127,11 @@ public:
     // Moves an element to another place in the order they are drawn in, 0 being the
     // back.
     Q_INVOKABLE QString move(int row, const QString &element, int index);
+    // Puts an element where it was let go in the editor's list of the slide's
+    // elements, which has the front one first: `landing` is the row of that list it
+    // goes before, or the number of rows for under the last (see elementorder.h). Let
+    // go where it already is, nothing is changed and no step to undo is left.
+    Q_INVOKABLE QString place(int row, const QString &element, int landing);
 
     // ---- Chords (see chords.h, and proconvert::readChords for how they are kept)
 

@@ -213,6 +213,8 @@ qt_add_qml_module(SimplePresenter
         src/framerelay.cpp
         src/presentationeditor.h
         src/presentationeditor.cpp
+        src/elementorder.h
+        src/elementorder.cpp
         src/richtextbridge.h
         src/richtextbridge.cpp
         src/strokedtext.h

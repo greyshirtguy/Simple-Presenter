@@ -225,6 +225,16 @@ Item {
         report(editor.move(row, selectedId, Math.max(0, Math.min(elements.length - 1, index + steps))))
     }
 
+    // Puts an element where it was let go in the list of the slide's elements
+    // (Editor.qml), which has the front one first: before the element at row `landing`
+    // of that list, or under the last, which is the back. Where that is in the order
+    // drawn is worked out by the editor (see src/elementorder.h); let go where it
+    // already is, nothing is changed.
+    function place(id, landing) {
+        finishText()
+        report(editor.place(row, id, landing))
+    }
+
     // Picks the element after the picked one, or before it, going round.
     function pickNext(delta) {
         if (elements.length === 0)

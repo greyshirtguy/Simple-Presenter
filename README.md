@@ -188,6 +188,10 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **The order of a slide's elements, by dragging.** In the [editor](#editing), a row of
+  the list of a slide's elements is dragged up or down to change which element lies
+  over which: the top of the list is the front. A line shows where it would land. The
+  right-click menu still has the same a step at a time.
 - **Messages, and the stage message.** ProPresenter's [messages](#messages) are a
   sixth tab of the show controls: named things to say over everything else, each with
   its words, **tokens** among them for what is only known when it is shown (a name, a
@@ -1269,6 +1273,15 @@ choose between three ways of working. **Slides** is everything described here.
   padlock in the list hide and lock an element, a double click there renames it, and a
   right click, there or on the slide, offers the rest: duplicate, delete, bring forward
   and send back.
+- **Which is in front.** Where elements overlap, the one higher in the list is the one
+  seen: the list is the pile, its top the front. A row of it is dragged up or down to
+  another place, and a line between two rows shows where it would land; let go there,
+  the element is at that place in the pile, on the slide and in the file. Held near the
+  top or the bottom of a list too long to see whole, it scrolls the list. Let go where
+  it was, or off to one side of the list, nothing is moved. The right-click menu's
+  **Bring to Front**, **Bring Forward**, **Send Backward** and **Send to Back** do the
+  same without dragging. (How it looks while a row is held is this app's own, after its
+  other lists.)
 - **Text.** Double-click an element to edit its text where it stands, drawn as it will
   be shown. Font, size, colour, bold, italic, underline, capitals, spacing and outline
   apply to the text that is selected, or to all of the text when none is.
@@ -2475,7 +2488,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: forty-one scripts and about two
+and look at what its windows then hold and show: forty-two scripts and over two
 thousand checks. They run on a desktop of their own that shows nowhere, on copies of
 workspaces, with settings of their own, so nothing of a run touches the real desktop,
 settings or workspaces. The app is built for them with a door the scripts come in by,
@@ -2513,6 +2526,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/labelfile.*`, `src/labels.*` | Slide labels: a slide's own, and the labels a workspace keeps ready, in ProPresenter's list of them |
 | `src/clearfile.*`, `src/cleargroups.*` | The workspace's clear groups, in ProPresenter's file of them: the layers each clears, its picture and tint, and adding to, changing and removing them |
 | `src/messagefile.*`, `src/messages.*` | The workspace's messages, in ProPresenter's file of them: a message's words and tokens, its theme and how it goes away, read and changed; a message as a slide in its theme; and the words one is showing |
+| `src/elementorder.*` | Where an element lands when its row is dragged up or down the editor's list of a slide's elements: from a gap in the list, which has the front one first, to a place in the order drawn |
 | `src/messagetext.*` | A message's words in a box they are typed in, each token a small label among them, and the pictures of those labels |
 | `src/decodingchoice.*`, `src/videodecoding.*` | Who decodes video, the graphics chip or the processor alone: the rule by which that is settled as the app starts, and what QML reads it by |
 | `src/decodingguard.*` | The guard on hardware video decoding: which computers have a graphics driver whose decoder is not to be tried (nouveau without its decoder's firmware) |
