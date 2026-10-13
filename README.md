@@ -1,7 +1,7 @@
 # Simple Presenter
 
-**A fun, in-progress, vibe coded presenter for Linux that works on ProPresenter's own
-files, a whole workspace of them at a time.**
+**A fun in-progress EXPERIMENT: A vibe coded "Proesenter" clone for Linux that works natively with ProPresenter's own
+files.  It can run a pro file, a full exported playlist - even an entire copied workspace.**
 
 Simple Presenter runs a show from a ProPresenter 7 folder as it is. Copy a whole
 ProPresenter workspace onto a Linux computer and it is all there, in a window that
