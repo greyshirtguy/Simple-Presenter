@@ -38,6 +38,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.90" date="2026-10-13">
+      <description>
+        <p>
+          The audio bin, with a clear for the audio and a meter of how loud it is in the
+          preview. A slide's notes, in a pane under the slide in the editor. What a text box
+          shows is picked from one menu, and a slide's notes, the system clock and a video
+          countdown are in it. In the chord editor, one of the key's chords can be dragged
+          out of the strip onto a word.
+        </p>
+      </description>
+    </release>
     <release version="0.89" date="2026-10-12">
       <description>
         <p>
