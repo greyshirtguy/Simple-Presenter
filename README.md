@@ -3,15 +3,14 @@
 **A fun in-progress EXPERIMENT: A vibe coded "Proesenter" clone for Linux that works natively with ProPresenter's own
 files.  It can run a pro file, a full exported playlist - even an entire copied workspace.**
 
-Simple Presenter runs a show from a ProPresenter 7 folder as it is. Copy a whole
+Simple Presenter on Linux runs a show from a ProPresenter 7 folder as it is. Copy a whole
 ProPresenter workspace onto a Linux computer and it is all there, in a window that
 anyone who has used ProPresenter will know their way around: the libraries and
 playlists, the slides, the media, the timers, props, stage layouts and macros. It reads
-ProPresenter's files and it writes them, so what is changed here opens there again.
+ProPresenter's files and allows you to edit them as well.
 
-It is one person's hobby, built by describing it to an AI model, and it is still being
-built. **It changes the files it opens, so always give it a copy of your ProPresenter
-folder, never your only one.**
+It is one person's quick experiment to explore "Vibe Coding", built by describing it to an AI model, and it is still being
+built. While this first experiment in Vibe coding has blown my mind - I should remind you that **It's not a good idea to use this live.**
 
 ![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and the Search, Themes, Show and Edit buttons at its left and the buttons for Simple View, the media bin, the look that is live, the output and stage screens and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; in the middle the name of the presentation over a grid of its slides, framed in their group colours, some marked with the hotkey that goes to them or with icons for the media and the macro they bring, and the live one ringed in orange, with the transition and the size of the thumbnails in a bar under them and the media bin under that; and down the right the output preview, with the words over a video that is playing, the stage preview with its countdown, the clear buttons, the transport for the video and the show controls, on their tab of macros, each macro with its coloured icon and small icons for its actions](docs/screenshot.png)
 
@@ -33,8 +32,8 @@ folder, never your only one.**
 >   never your only one.
 > - **It has nothing to do with Renewed Vision**, the makers of ProPresenter.
 >
-> You are very welcome to try it, read it, take it apart, fork it and borrow from it.
-> Just do not count on it.
+> You are very welcome to try it, read it and take it apart.
+> Just do not count on it for live use.
 
 **On this page:** [what it can do](#what-it-can-do) · [what's new](#whats-new) ·
 [what it cannot do yet](#todo) · [installing it](#installing) ·
