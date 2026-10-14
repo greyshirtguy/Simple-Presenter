@@ -24,8 +24,11 @@ Rectangle {
     // wherever the system sends sound
     property string audioDevice: ""
     property string chordTextColor: ""
-    readonly property color usualSheetChord: "#ffd9a8"
+    // And of the chord sheet's highlighted line, the same way
+    property string chordLineColor: ""
+    readonly property color usualSheetChord: "#ff8a1f"
     readonly property color usualTextChord: "#ffb45e"
+    readonly property color usualSheetLine: "#ff8a1f"
 
     // The hotkeys the workspace has for groups that are not in the list here, in words
     property string otherHotkeys: ""
@@ -46,6 +49,7 @@ Rectangle {
     signal chordSheetColorEdited(string color)
     signal audioDeviceEdited(string id)
     signal chordTextColorEdited(string color)
+    signal chordLineColorEdited(string color)
     signal simpleKeepsSidePanelEdited(bool keeps)
     // A label kept ready is to be made (index -1) or changed, in the panel a label is
     // made in; or taken out of the list
@@ -117,22 +121,24 @@ Rectangle {
         }
     }
 
-    // One editor's colour: its name, the swatch to choose it from, the way back
-    // to the usual one, and at the right what a chord then looks like.
+    // One editor's colour: its name, what it is the colour of where the name does not
+    // say, the swatch to choose it from, the way back to the usual one, and at the right
+    // what a chord (or a line) then looks like.
     component ChordColour: Item {
         id: colour
 
         property string title
+        property string says
         // The colour chosen, "" for the usual one, and what that is
-        property string chosen
         property color usual
+        property string chosen
         readonly property color shown: chosen !== "" ? chosen : usual
         default property alias sample: sampled.data
 
         signal edited(string color)
 
         width: parent.width
-        height: 78
+        height: Math.max(78, buttons.y + buttons.height)
 
         Text {
             id: colourTitle
@@ -143,8 +149,23 @@ Rectangle {
             text: colour.title
         }
 
-        Row {
+        Text {
+            id: colourSays
+
             anchors.top: colourTitle.bottom
+            anchors.topMargin: 4
+            width: parent.width - sampled.width - 40
+            visible: colour.says !== ""
+            wrapMode: Text.Wrap
+            color: "#9a9da3"
+            font.pixelSize: 13
+            text: colour.says
+        }
+
+        Row {
+            id: buttons
+
+            anchors.top: colourSays.visible ? colourSays.bottom : colourTitle.bottom
             anchors.topMargin: 12
             spacing: 10
 
@@ -1068,6 +1089,49 @@ Rectangle {
                     color: "#3a3c42"
                 }
 
+                // The highlighted line of the sheet: the line the person is at, whose
+                // words take this colour (ChordSheet.qml, `highlighted`)
+                ChordColour {
+                    id: lineColour
+
+                    title: "The highlighted line"
+                    says: "The line the pointer is on, on the chord sheet: where Ctrl+C copies from and Ctrl+V pastes to."
+                    chosen: screen.chordLineColor
+                    usual: screen.usualSheetLine
+                    onEdited: (color) => screen.chordLineColorEdited(color)
+
+                    // Two lines as the sheet draws them, the second the highlighted one
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 4
+                        color: "#222428"
+
+                        Column {
+                            x: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 4
+
+                            Text {
+                                color: "#e6e6e6"
+                                font.pixelSize: 17
+                                text: "Amazing grace"
+                            }
+
+                            Text {
+                                color: lineColour.shown
+                                font.pixelSize: 17
+                                text: "How sweet the sound"
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width - 14
+                    height: 1
+                    color: "#3a3c42"
+                }
+
                 ChordColour {
                     id: textColour
 
@@ -1111,10 +1175,9 @@ Rectangle {
                     wrapMode: Text.Wrap
                     color: "#9a9da3"
                     font.pixelSize: 13
-                    text: "These are only how chords look in the two chord editors. Nothing in a song's file says a colour: the stage shows "
-                        + "chords in the colour its layout gives them, and ProPresenter in its own."
+                    text: "These are only how a song looks in the two chord editors. Nothing in a song's file says any of them: the stage "
+                        + "shows chords in the colour its layout gives them, and ProPresenter in its own."
                 }
-        
             }
         }
 

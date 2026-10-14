@@ -82,6 +82,9 @@ Rectangle {
     property real textZoom: 1
     property string sheetChordColor: ""
     property string textChordColor: ""
+    // And of the words of the chord sheet's highlighted line ("" for the one it comes
+    // with)
+    property string sheetLineColor: ""
     // Whether the pane for a slide's notes is up under the slide, and how tall it is
     // asked to be: the window's to keep, as the zooms are (notesShownEdited,
     // notesHeightEdited say what was asked for here).
@@ -1741,7 +1744,8 @@ Rectangle {
             groupColor: screen.groupColor
             row: canvas.row
             zoom: screen.sheetZoom
-            chordColor: screen.sheetChordColor !== "" ? screen.sheetChordColor : "#ffd9a8"
+            chordColor: screen.sheetChordColor !== "" ? screen.sheetChordColor : "#ff8a1f"
+            lineColor: screen.sheetLineColor !== "" ? screen.sheetLineColor : "#ff8a1f"
             onFailed: (error) => screen.report(error)
             onTold: (message) => screen.tell(message)
             onRowPicked: (row) => screen.showRow(row)

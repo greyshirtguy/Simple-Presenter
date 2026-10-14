@@ -459,6 +459,9 @@ Window {
     property real chordTextZoom: 1
     property string chordSheetColor: ""
     property string chordTextColor: ""
+    // And the colour of the chord sheet's highlighted line ("" for the one it comes
+    // with): the same, the app's own.
+    property string chordLineColor: ""
     // Whether the editor has the pane for a slide's notes up under the slide, and how
     // tall that pane is: how the editor was left, kept with the app's settings.
     property bool editorNotes: false
@@ -3001,6 +3004,7 @@ Window {
         chordTextZoom = chordZoom(saved("chordTextZoom", chordTextZoom), 1)
         chordSheetColor = chordColorKept(saved("chordSheetColor", ""))
         chordTextColor = chordColorKept(saved("chordTextColor", ""))
+        chordLineColor = chordColorKept(saved("chordLineColor", ""))
         const decoding = String(saved("videoDecoding", "auto"))
         videoDecoding = ["processor", "hardware"].includes(decoding) ? decoding : "auto"
         decodingNoticeSeen = String(saved("decodingNoticeSeen", false)) === "true"
@@ -3176,6 +3180,7 @@ Window {
     onChordTextZoomChanged: save("chordTextZoom", chordTextZoom)
     onChordSheetColorChanged: save("chordSheetColor", chordSheetColor)
     onChordTextColorChanged: save("chordTextColor", chordTextColor)
+    onChordLineColorChanged: save("chordLineColor", chordLineColor)
     onMediaThumbnailWidthChanged: save("mediaThumbnailWidth", mediaThumbnailWidth)
     onSidePanelWidthChanged: save("sidePanelWidth", sidePanelWidth)
     onMediaBinHeightChanged: save("mediaBinHeight", mediaBinHeight)
@@ -4290,6 +4295,7 @@ Window {
         textZoom: win.chordTextZoom
         sheetChordColor: win.chordSheetColor
         textChordColor: win.chordTextColor
+        sheetLineColor: win.chordLineColor
         onSheetZoomEdited: (zoom) => win.chordSheetZoom = win.chordZoom(zoom, 0.8)
         reflowThumbnail: win.reflowThumbnail
         onReflowThumbnailEdited: (width) => win.reflowThumbnail = Math.max(120, Math.min(480, width))
@@ -4510,8 +4516,10 @@ Window {
         }
         chordSheetColor: win.chordSheetColor
         chordTextColor: win.chordTextColor
+        chordLineColor: win.chordLineColor
         onChordSheetColorEdited: (color) => win.chordSheetColor = win.chordColorKept(color)
         onChordTextColorEdited: (color) => win.chordTextColor = win.chordColorKept(color)
+        onChordLineColorEdited: (color) => win.chordLineColor = win.chordColorKept(color)
         simpleKeepsSidePanel: win.simpleKeepsSidePanel
         onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
         onLabelEdited: (index) => win.editLabelPreset(index)

@@ -1751,6 +1751,12 @@ What makes it quick:
   the bubble opens there: click, type, click, type, down the song. Enter keeps a chord
   too, and Tab keeps it and moves on to the next word. Only Esc throws one away. A
   bubble emptied and kept so, by Enter or a click, takes off the chord that was there.
+- **The line you are at is lit.** The words of the line the pointer is on are drawn
+  in orange, and so are those of the line a chord is being typed on, wherever the
+  pointer has gone. It is the line Ctrl+C copies from and Ctrl+V pastes to. Over the
+  bare sheet between the slides, or off the sheet, no line is lit; the arrow keys
+  light the spot's line again. A line of chords with no words has its rule lit
+  instead, twice as thick.
 - **Chords are things to pick up.** Drag one to another word, on any slide; hold Ctrl
   to leave a copy behind. A name that is no chord, which some files have ("N.C."), is
   picked up, copied and pasted like any other; only what is newly typed has to be a
@@ -1848,9 +1854,9 @@ is kept as a copy with the others the editor keeps, and for a few seconds the li
 offers **Undo**, which puts it back.
 
 **The colour of a chord** in each of the two editors can be chosen in the settings,
-under **Chords**, each with a way back to the colour it came with. They are only how
-the editors draw a chord. Nothing in a song's file says a colour: the stage shows
-chords in the colour its layout gives them.
+under **Chords**, and so can that of the sheet's lit line, each with a way back to the
+colour it came with. They are only how the editors draw a song. Nothing in a song's
+file says any of them: the stage shows chords in the colour its layout gives them.
 
 ### Importing a ChordPro file
 

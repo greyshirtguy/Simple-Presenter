@@ -58,6 +58,14 @@ import "chordlayout.js" as ChordLayout
 // the slide below it in the grid, not the next slide of the song (that one is beside
 // it, and Right goes there).
 //
+// The highlighted line. The line the person is at has its words drawn in a colour of its
+// own, the sheet's orange as it comes (a setting): the line a chord is being typed on;
+// else the spot's line, while the pointer is over a place of the sheet, or the keys
+// have moved the spot since it last moved, or a chord is carried there. It is the line
+// Ctrl+C copies from and Ctrl+V pastes to, which is why it is shown: without it the
+// spot, a small thing, was all that said which line that is. (The Mac editor's, its
+// pages' rule 53f, and so the same here; see `highlighted`.)
+//
 // Getting a chord on quickly, which is what this is for:
 //   - 1 to 7 put the key's own chord for that note of its scale on the spot (in C: 1 is
 //     C, 4 is F, 6 is Am). Most of most songs is those. The strip along the top shows
@@ -112,9 +120,15 @@ FocusScope {
     // The slide to have in view: its row in the editor. It is the one that is ringed.
     property int row: 0
     readonly property color accentColor: "#ff8a1f"
-    // The colour of a chord's name: the one it comes with, or the one chosen in the
-    // settings. Only how this app draws a chord: nothing in a song's file says a colour.
-    property color chordColor: "#ffd9a8"
+    // The colour of a chord's name: the one it comes with, the sheet's own orange, or
+    // the one chosen in the settings. Only how this app draws a chord: nothing in a
+    // song's file says a colour. (It came pale, "#ffd9a8", until the Mac and Windows
+    // editors made theirs orange on 2026-10-14, the maintainer's: "lets make the
+    // default chord color orange now".)
+    property color chordColor: accentColor
+    // The colour of the words of the highlighted line (see `highlighted`): the sheet's
+    // orange as it comes, or the one chosen in the settings.
+    property color lineColor: accentColor
     // The key the chords are in. A song that names none is taken to be in C, which is
     // only what the keys 1 to 7 give until the key is set.
     readonly property string key: editor.key !== "" ? editor.key : "C"
@@ -151,6 +165,24 @@ FocusScope {
     // it is a chord's stand-in (every other character) or, past the last, a new one.
     property int spotRow: -1
     property int spotAt: 0
+    // Whether the person is at the sheet just now: the pointer has moved over a place of
+    // a line, or the keys have moved the spot or acted on it since the pointer last
+    // moved. Over the bare sheet between the slides, or out of the sheet, the spot is
+    // only where it was left, and nobody is at it. (The Mac and Windows editors' rule
+    // 53c, where it also says when their line of hints speaks of the spot.)
+    property bool attending: false
+    // The highlighted line: the row whose words are drawn in `lineColor`, as the line
+    // the person is at. The line a chord is being typed on, wherever the pointer has
+    // gone since; else the spot's line, while a chord is carried to it (one of the
+    // sheet's own lands at the spot wherever it is let go; one from the strip only
+    // where the lit bubble shows it would) or the person is at the sheet; else none,
+    // -1. It is the line Ctrl+C copies from and Ctrl+V pastes to, which is why it is
+    // shown. (The Mac editor's, 2026-10-13, from the maintainer: "we need to highlight
+    // the hovered/active line of text - let's make the text highlight by changing
+    // color - default orange (a new setting)". Their pages' rule 53f.)
+    readonly property int highlighted: typing ? typingRow
+        : dragged !== null ? (carrying && !carriedOver ? -1 : spotRow)
+        : attending ? spotRow : -1
     // The bubble for typing a chord is open, and the place the chord being typed belongs
     // to. That place is not the spot: the spot goes on following the pointer while a
     // chord is typed, so that the next place can be pointed at before this chord is
@@ -769,6 +801,8 @@ FocusScope {
         const over = carriedOver
         dragged = null
         carriedOver = false
+        // (Let go on a place, the hand is at that place of the sheet.)
+        attending = over
         if (carried && over)
             put(spotRow, spotAt, carried.name)
     }
@@ -887,17 +921,23 @@ FocusScope {
             event.accepted = true
             return
         }
+        // (The keys that move the spot or act on it are the person at the sheet, as the
+        // pointer over it is: all but those that undo and zoom.)
+        let atSpot = true
         if (control && event.key === Qt.Key_C) {
             copy(shift)
         } else if (control && event.key === Qt.Key_V) {
             paste()
         } else if (control && event.key === Qt.Key_Z) {
             report(shift ? editor.redo() : editor.undo())
+            atSpot = false
         } else if (control && event.key === Qt.Key_Y) {
             report(editor.redo())
+            atSpot = false
         } else if (control) {
             if (!zoomKey(event))
                 return
+            atSpot = false
         } else if (event.key === Qt.Key_Left) {
             step(-1, shift)
         } else if (event.key === Qt.Key_Right) {
@@ -917,6 +957,8 @@ FocusScope {
         } else {
             return
         }
+        if (atSpot)
+            attending = true
         event.accepted = true
     }
 
@@ -1485,12 +1527,28 @@ FocusScope {
 
         // A click on the bare sheet takes the keys back from wherever they were, and
         // keeps the chord that was being typed. Between the cards is bare sheet, and a
-        // frame and its foot are bare sheet too.
+        // frame and its foot are bare sheet too, and so is a line that can take no
+        // chord. The pointer moved over it is not at the sheet (see `attending`).
         MouseArea {
             width: flick.contentWidth
             height: flick.contentHeight
+            hoverEnabled: true
+            onPositionChanged: (mouse) => {
+                if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged)
+                    sheet.attending = false
+            }
             onPressed: sheet.takeKeys()
             onClicked: sheet.settle()
+        }
+
+        // Nor is the pointer that has left the sheet: for the strip over it, or anything
+        // else in the window, or out of it. (A handler, which is told whether the
+        // pointer is over the sheet whatever under it has taken the pointer's moves.)
+        HoverHandler {
+            onHoveredChanged: {
+                if (!hovered)
+                    sheet.attending = false
+            }
         }
 
         // A frame for each slide, in its group's colour, with the card laid on it and
@@ -1589,6 +1647,8 @@ FocusScope {
                     readonly property var placed: at.placed ?? sheet.nowhere.placed
                     readonly property real chordTop: at.lead + Math.round(2 * sheet.times)
                     readonly property real wordsTop: chordTop + sheet.bubbleHeight + sheet.tailHeight
+                    // The highlighted line: its words in a colour of their own
+                    readonly property bool lit: index === sheet.highlighted
 
                     // Where a place on the line is, from the item's left edge
                     function xOf(place) {
@@ -1610,20 +1670,22 @@ FocusScope {
                     Text {
                         x: sheet.gutter
                         y: line.wordsTop
-                        color: "#e6e6e6"
+                        color: line.lit ? sheet.lineColor : "#e6e6e6"
                         font: wordMetrics.font
                         // A line of chords alone has nothing to read: a rule stands
                         // where its words would be.
                         text: line.isLine && !line.modelData.alone ? line.words : ""
                     }
 
+                    // (Highlighted, it is the rule that takes the colour, twice as
+                    // thick, or there would be nothing to show which line is meant.)
                     Rectangle {
                         visible: line.isLine && line.modelData.alone
                         x: sheet.gutter
-                        y: line.wordsTop + Math.round(wordMetrics.height / 2)
+                        y: line.wordsTop + Math.round(wordMetrics.height / 2) - Math.floor((height - 1) / 2)
                         width: Math.max(1, line.width - 2 * sheet.gutter)
-                        height: 1
-                        color: "#3a3c42"
+                        height: line.lit ? Math.max(2, Math.round(2 * sheet.times)) : 1
+                        color: line.lit ? sheet.lineColor : "#3a3c42"
                     }
 
                     // Following the pointer, and a click to type a chord there. It is
@@ -1636,12 +1698,15 @@ FocusScope {
                         enabled: sheet.usable(line.index)
                         hoverEnabled: true
                         onPositionChanged: (mouse) => {
-                            if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged)
+                            if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged) {
                                 sheet.setSpot(line.index, line.placeAt(mouse.x, (mouse.modifiers & Qt.ShiftModifier) === 0))
+                                sheet.attending = true
+                            }
                         }
                         onPressed: (mouse) => {
                             sheet.takeKeys()
                             sheet.setSpot(line.index, line.placeAt(mouse.x, (mouse.modifiers & Qt.ShiftModifier) === 0))
+                            sheet.attending = true
                         }
                         onClicked: (mouse) => sheet.pick(line.index, line.placeAt(mouse.x, (mouse.modifiers & Qt.ShiftModifier) === 0))
                     }
@@ -1714,13 +1779,16 @@ FocusScope {
                                 onPressed: (mouse) => {
                                     sheet.takeKeys()
                                     sheet.setSpot(line.index, bubble.modelData.at)
+                                    sheet.attending = true
                                     pressedAt = Qt.point(mouse.x, mouse.y)
                                     moved = false
                                 }
                                 onPositionChanged: (mouse) => {
                                     if (!pressed) {
-                                        if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged)
+                                        if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged) {
                                             sheet.setSpot(line.index, bubble.modelData.at)
+                                            sheet.attending = true
+                                        }
                                         return
                                     }
                                     // A chord is not carried off while another is being
