@@ -1899,11 +1899,11 @@ song's key. The same **+** has **New Presentation…** and **New Library**.
   has its range go with the words: one that ended with the line or went on past it
   still does, and one over all the words is over all of them still. That is what a
   text system does when characters are typed after others, and what ProPresenter is
-  taken to do. In this the app is not as the other two editors, which leave such
-  ranges as they are. It matters in real songs: of 164 text boxes with a line of
-  chords alone in the libraries looked at, 96 say of all their words that they are in
-  capitals, and with a chord taken off, that range left alone would end past the
-  last of the words.
+  taken to do. The other two editors have done the same since 2026-10-13; until then
+  they left such ranges as they were. It matters in real songs: of 164 text boxes
+  with a line of chords alone in the libraries looked at, 96 say of all their words
+  that they are in capitals, and with a chord taken off, that range left alone would
+  end past the last of the words.
 - The first chords of a slide with no words are still written with this app's own
   writer, in the font the text box keeps for what is typed into it. The other two
   editors take the opening of a neighbouring text box's RTF instead.
