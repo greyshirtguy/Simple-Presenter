@@ -71,6 +71,8 @@ qt_add_executable(tst_chords
     ${PROJECT_SOURCE_DIR}/src/chords.cpp
 )
 target_include_directories(tst_chords PRIVATE ${PROJECT_SOURCE_DIR}/src)
+# (Sharps and flats drawn as signs are held to cases kept in tests/unit/data.)
+target_compile_definitions(tst_chords PRIVATE VECTORS="${CMAKE_CURRENT_SOURCE_DIR}/data")
 target_link_libraries(tst_chords PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME chords COMMAND tst_chords)
 

@@ -31,6 +31,9 @@ public:
     // Whether it is a chord as it stands: it starts with a note.
     Q_INVOKABLE bool isChord(const QString &typed) const;
     Q_INVOKABLE QString tidied(const QString &typed) const;
+    // A chord's name as the chord sheet draws it, with ♯ and ♭; and the other way
+    Q_INVOKABLE QString withSigns(const QString &name) const;
+    Q_INVOKABLE QString withoutSigns(const QString &text) const;
     Q_INVOKABLE QStringList diatonic(const QString &key) const;
     Q_INVOKABLE QStringList completions(const QString &typed, const QString &key, const QStringList &used) const;
     Q_INVOKABLE QString shown(const QString &chord, const QString &originalKey, const QString &key, int notation) const;

@@ -6,12 +6,17 @@ import QtQuick.Controls.Basic
 ComboBox {
     id: control
 
+    // How each string is shown, where that is not as it is: a function from the
+    // string to what is drawn (the keys of the chord editors, with ♯ and ♭). Only
+    // drawn: what is picked is the string itself.
+    property var shownAs: null
+
     focusPolicy: Qt.NoFocus
     font.pixelSize: 14
 
     contentItem: Text {
         leftPadding: 12
-        text: control.displayText
+        text: control.shownAs ? control.shownAs(control.displayText) : control.displayText
         font: control.font
         color: "#e6e6e6"
         verticalAlignment: Text.AlignVCenter
@@ -35,7 +40,7 @@ ComboBox {
         highlighted: control.highlightedIndex === index
 
         contentItem: Text {
-            text: option.modelData
+            text: control.shownAs ? control.shownAs(option.modelData) : option.modelData
             font: control.font
             color: "#e6e6e6"
             verticalAlignment: Text.AlignVCenter

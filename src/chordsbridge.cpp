@@ -47,6 +47,16 @@ QString Chords::tidied(const QString &typed) const
     return chords::tidied(typed);
 }
 
+QString Chords::withSigns(const QString &name) const
+{
+    return chords::withSigns(name);
+}
+
+QString Chords::withoutSigns(const QString &text) const
+{
+    return chords::withoutSigns(text);
+}
+
 QStringList Chords::diatonic(const QString &key) const
 {
     return chords::diatonic(key);

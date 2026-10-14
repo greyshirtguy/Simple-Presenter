@@ -24,8 +24,10 @@ Rectangle {
     // wherever the system sends sound
     property string audioDevice: ""
     property string chordTextColor: ""
-    // And of the chord sheet's highlighted line, the same way
+    // And of the chord sheet's highlighted line, the same way; and whether the sheet
+    // draws sharps and flats as ♯ and ♭
     property string chordLineColor: ""
+    property bool chordSigns: true
     readonly property color usualSheetChord: "#ff8a1f"
     readonly property color usualTextChord: "#ffb45e"
     readonly property color usualSheetLine: "#ff8a1f"
@@ -50,6 +52,7 @@ Rectangle {
     signal audioDeviceEdited(string id)
     signal chordTextColorEdited(string color)
     signal chordLineColorEdited(string color)
+    signal chordSignsEdited(bool on)
     signal simpleKeepsSidePanelEdited(bool keeps)
     // A label kept ready is to be made (index -1) or changed, in the panel a label is
     // made in; or taken out of the list
@@ -1164,6 +1167,84 @@ Rectangle {
                                     font.pixelSize: 14
                                     font.bold: modelData.chord
                                     text: modelData.text
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width - 14
+                    height: 1
+                    color: "#3a3c42"
+                }
+
+                // Sharps and flats drawn as the signs on the chord sheet (and in the
+                // song's two keys over it), with three chords as it then draws them
+                Item {
+                    width: parent.width
+                    height: 70
+
+                    Column {
+                        width: parent.width - signsSample.width - 40
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 6
+
+                        AppCheck {
+                            objectName: "chordSigns"
+                            checked: screen.chordSigns
+                            text: "Show sharps and flats as ♯ and ♭"
+                            onToggled: (checked) => screen.chordSignsEdited(checked)
+                        }
+
+                        Text {
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            color: "#9a9da3"
+                            font.pixelSize: 13
+                            text: "On the chord sheet. Songs are saved with # and b either way."
+                        }
+                    }
+
+                    Rectangle {
+                        id: signsSample
+
+                        objectName: "chordSignsSample"
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 200
+                        height: 44
+                        radius: 4
+                        color: "#222428"
+
+                        Row {
+                            x: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 8
+
+                            Repeater {
+                                model: ["Bbm7", "F#", "Eb/G"]
+
+                                Rectangle {
+                                    required property string modelData
+
+                                    width: signedName.implicitWidth + 14
+                                    height: 22
+                                    radius: 6
+                                    color: "#34363c"
+                                    border.width: 1
+                                    border.color: "#5c5f66"
+
+                                    Text {
+                                        id: signedName
+
+                                        anchors.centerIn: parent
+                                        color: sheetColour.shown
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                        text: screen.chordSigns ? Chords.withSigns(parent.modelData) : parent.modelData
+                                    }
                                 }
                             }
                         }

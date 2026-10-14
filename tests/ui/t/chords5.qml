@@ -3,14 +3,16 @@ import SimplePresenterApp
 import "lib.js" as Lib
 
 // What the chord sheet took from the Mac and Windows chord editors on 2026-10-14 (chords.qml to chords4.qml have the
-// rest of it): an empty box that is kept taking the chord off, and the highlighted line; and the setting for the
-// second. The empty box: Enter, a click on another place and a click on the bare sheet take the chord off, as one
-// step to undo; Esc does not; and where there was no chord nothing is asked. The highlighted line: the words of the
-// line the pointer is on are drawn in a colour of their own, and the rule of a line of chords alone in it and twice
-// as thick; over a chord's bubble it is still that line; over the bare sheet between the slides, over the strip, it
-// is none; the keys moving the spot make the spot's line it; the line a chord is being typed on is it wherever the
-// pointer goes; a chord carried from the strip makes it the line it would land on, and none between slides. What is
-// looked at is what is drawn, wherever the thing is one that is drawn.
+// rest of it): an empty box that is kept taking the chord off, the highlighted line, and sharps and flats drawn as ♯
+// and ♭; and the settings for the last two. The empty box: Enter, a click on another place and a click on the bare
+// sheet take the chord off, as one step to undo; Esc does not; and where there was no chord nothing is asked. The
+// highlighted line: the words of the line the pointer is on are drawn in a colour of their own, and the rule of a line
+// of chords alone in it and twice as thick; over a chord's bubble it is still that line; over the bare sheet between
+// the slides, over the strip, it is none; the keys moving the spot make the spot's line it; the line a chord is being
+// typed on is it wherever the pointer goes; a chord carried from the strip makes it the line it would land on, and none
+// between slides. The signs: in the bubbles, the box a chord is typed in (as it is typed, the caret where it was), what
+// is offered, the strip and the song's two keys, but never in the file, what is copied or the ChordPro text; and none
+// of it with the setting off. What is looked at is what is drawn, wherever the thing is one that is drawn.
 QtObject {
     id: t
 
@@ -344,6 +346,146 @@ QtObject {
             },
             () => {
                 check("the highlighted line's colour put back is the sheet's orange", String(sheet().lineColor) === "#ff8a1f")
+                // ---- Sharps and flats: typed, drawn, and kept as # and b
+                check("as it comes, sharps and flats are drawn as signs", sheet().signs === true && chordSigns === true)
+                const p = over(kept.h, kept.place)
+                testInput.mouse(1, p.x - 2, p.y)
+                testInput.mouse(1, p.x, p.y)
+                return 200
+            },
+            () => {
+                check("(the spot is on the word that has no chord)", sheet().spotRow === kept.h && sheet().spotAt === kept.place, sheet().spotAt)
+                testInput.key(Qt.Key_F, 0, "F")
+                return 300
+            },
+            () => {
+                testInput.type("#")
+                return 200
+            },
+            () => {
+                check("the box shows a sharp as the sign as soon as it is typed, the caret at its end", field().text === "F♯" && field().cursorPosition === 2, field().text)
+                testInput.type("m7")
+                return 200
+            },
+            () => {
+                const offered = Lib.find(named("chordEntry"), item => item.picked !== undefined && item.label !== undefined && item.label.indexOf("♯") >= 0)
+                check("what is offered is drawn with the signs too", offered !== null, offered ? offered.label : "none")
+                testInput.key(Qt.Key_Return)
+                return 400
+            },
+            () => {
+                check("kept, the chord is written with # in the song and the file", sheet().chordAt(kept.h, kept.place) === "F#m7"
+                      && chordsOnDisk(herald).indexOf((sheet().rows[kept.h].start + kept.place) + ":F#m7") >= 0, chordsOnDisk(herald))
+                check("and its bubble draws it with the sign", drawnAt(kept.h, kept.place) === "F♯m7", drawnAt(kept.h, kept.place))
+                const bubble = named("chord:" + kept.h + ":" + kept.place)
+                check("(a bubble as wide as the name it draws)", Math.abs(bubble.width - sheet().bubbleMetrics.advanceWidth("F#m7")) < 1, bubble.width)
+                testInput.grab("3-signs")
+                // A flat before a digit comes as the digit is typed
+                click(over(kept.g, 6))
+                return 300
+            },
+            () => {
+                kept.gAt = sheet().typingAt
+                // (The box was opened on what is there: typed over.)
+                testInput.key(Qt.Key_A, Qt.ControlModifier)
+                testInput.type("C7b")
+                return 200
+            },
+            () => {
+                check("a b with no digit after it is left a b", field().text === "C7b", field().text)
+                testInput.type("9")
+                return 200
+            },
+            () => {
+                check("and is drawn as the sign once the digit comes, the caret where it was", field().text === "C7♭9" && field().cursorPosition === 4, field().text + " " + field().cursorPosition)
+                testInput.key(Qt.Key_Return)
+                return 400
+            },
+            () => {
+                // (The file counts along the whole text box, the sheet along the line.)
+                check("kept as C7b9", sheet().chordAt(kept.g, kept.gAt) === "C7b9" && chordsOnDisk(glory).indexOf((sheet().rows[kept.g].start + kept.gAt) + ":C7b9") >= 0
+                      && drawnAt(kept.g, kept.gAt) === "C7♭9", chordsOnDisk(glory))
+                // A sign typed by hand
+                click(over(kept.p, 6))
+                return 300
+            },
+            () => {
+                kept.pAt = sheet().typingAt
+                testInput.key(Qt.Key_A, Qt.ControlModifier)
+                testInput.type("E♭")
+                return 200
+            },
+            () => {
+                check("a flat typed as the sign is taken for a b", field().text === "E♭", field().text)
+                testInput.key(Qt.Key_Return)
+                return 400
+            },
+            () => {
+                check("and kept as one", sheet().chordAt(kept.p, kept.pAt) === "Eb" && chordsOnDisk(peace).indexOf((sheet().rows[kept.p].start + kept.pAt) + ":Eb") >= 0,
+                      chordsOnDisk(peace))
+                // Copied and pasted: what is copied is the name
+                const p = over(kept.h, 0)
+                testInput.mouse(1, p.x + 2, p.y)
+                testInput.mouse(1, p.x, p.y)
+                testInput.key(Qt.Key_C, Qt.ControlModifier)
+                return 200
+            },
+            () => {
+                check("what is copied keeps # and b", JSON.stringify(sheet().copied).indexOf("F#m7") >= 0 && JSON.stringify(sheet().copied).indexOf("♯") < 0)
+                // The ChordPro text
+                clickThere(named("chordProMode"))
+                return 800
+            },
+            () => {
+                const area = Lib.find(named("chordProEditor"), item => item.textDocument !== undefined && item.text !== undefined && item.text.indexOf("[") >= 0)
+                check("the ChordPro text has the chords as they are written, with # and b", area !== null && area.text.indexOf("[F#m7]") >= 0 && area.text.indexOf("[C7b9]") >= 0
+                      && area.text.indexOf("♯") < 0 && area.text.indexOf("♭") < 0)
+                clickThere(named("chordsMode"))
+                return 900
+            },
+            () => {
+                // The strip and the song's keys, in a key with a flat
+                editScreen.pickKey("Bb", false)
+                return 400
+            },
+            () => {
+                const keyBox = named("chordKeyBox")
+                check("in B flat, the strip's chords are drawn with the sign", sheet().inKey[0] === "Bb" && button(1).label === "B♭" && button(4).label === "E♭", button(1).label + " " + button(4).label)
+                check("and so is the song's key over the sheet", keyBox.contentItem.text === "B♭" && keyBox.currentText === "Bb", keyBox.contentItem.text)
+                const b = centre(button(4))
+                testInput.mouse(1, b.x, b.y)
+                return 300
+            },
+            () => {
+                check("and what a button of the strip says of itself", sheet().hint.indexOf("Puts E♭ on the spot.") === 0, sheet().hint)
+                testInput.grab("4-signs-in-the-strip")
+                // The setting off: as it was before there were signs
+                chordSigns = false
+                return 400
+            },
+            () => {
+                const keyBox = named("chordKeyBox")
+                check("with the setting off, the bubbles, the strip and the key are drawn with # and b", drawnAt(kept.h, kept.place) === "F#m7" && drawnAt(kept.g, kept.gAt) === "C7b9"
+                      && button(1).label === "Bb" && keyBox.contentItem.text === "Bb", drawnAt(kept.h, kept.place) + " " + button(1).label + " " + keyBox.contentItem.text)
+                const bubble = named("chord:" + kept.h + ":" + kept.place)
+                check("(and the bubbles are measured again, to the name as it is now drawn)", Math.abs(bubble.width - sheet().bubbleMetrics.advanceWidth("F#m7")) < 1, bubble.width)
+                click(over(kept.h, kept.place))
+                return 300
+            },
+            () => {
+                check("and the box a chord is typed in as well", sheet().typing && field().text === "F#m7", field().text)
+                testInput.key(Qt.Key_Escape)
+                chordSigns = true
+                return 300
+            },
+            () => {
+                check("(on again)", drawnAt(kept.h, kept.place) === "F♯m7" && button(1).label === "B♭")
+                // Back to where it all started: the key, the three chords
+                check("(undone)", editScreen.editor.undo() === "" && editScreen.editor.undo() === "" && editScreen.editor.undo() === "" && editScreen.editor.undo() === ""
+                      && sameSong(), editScreen.editor.key)
+                return 400
+            },
+            () => {
                 // ---- The settings: the highlighted line's colour
                 stopEditing()
                 return 600
@@ -376,6 +518,25 @@ QtObject {
             },
             () => {
                 check("Usual Colour puts the line's colour back", chordLineColor === "" && !named("usualColour:The highlighted line").enabled, chordLineColor)
+                // ---- The settings: the switch for the signs
+                const signs = named("chordSigns")
+                check("the settings for chords have the switch for sharps and flats, on as it comes", signs !== null && signs.visible && signs.checked
+                      && signs.text === "Show sharps and flats as ♯ and ♭")
+                const sample = named("chordSignsSample")
+                const shown = sample ? Lib.findAll(sample, item => item.text !== undefined && item.font !== undefined).map(item => item.text).join(" ") : ""
+                check("with chords beside it drawn as the sheet then draws them", shown === "B♭m7 F♯ E♭/G", shown)
+                click(centre(signs))
+                return 300
+            },
+            () => {
+                const sample = named("chordSignsSample")
+                const shown = Lib.findAll(sample, item => item.text !== undefined && item.font !== undefined).map(item => item.text).join(" ")
+                check("the switch turns the signs off, the sample with them", chordSigns === false && shown === "Bbm7 F# Eb/G", chordSigns + " " + shown)
+                click(centre(named("chordSigns")))
+                return 300
+            },
+            () => {
+                check("(and on again)", chordSigns === true)
                 // ---- Done
                 kept.settings.section = "groups"
                 settingsOpen = false

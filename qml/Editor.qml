@@ -83,8 +83,9 @@ Rectangle {
     property string sheetChordColor: ""
     property string textChordColor: ""
     // And of the words of the chord sheet's highlighted line ("" for the one it comes
-    // with)
+    // with), and whether the sheet and the song's keys draw sharps and flats as ♯ and ♭
     property string sheetLineColor: ""
+    property bool chordSigns: true
     // Whether the pane for a slide's notes is up under the slide, and how tall it is
     // asked to be: the window's to keep, as the zooms are (notesShownEdited,
     // notesHeightEdited say what was asked for here).
@@ -1382,6 +1383,9 @@ Rectangle {
                     width: 82
                     height: 28
                     font.pixelSize: 13
+                    // With ♯ and ♭, as the chord sheet draws a chord, while that is on
+                    // (the Mac and Windows editors' rule 12): only drawn.
+                    shownAs: screen.chordSigns ? (key) => Chords.withSigns(key) : null
                     // Every usual key, with the song's own before them if it is not one of
                     // them; and for a song that names none, "None".
                     model: editor.key === "" ? ["None"].concat(screen.usualKeys)
@@ -1411,6 +1415,7 @@ Rectangle {
                     width: 82
                     height: 28
                     font.pixelSize: 13
+                    shownAs: screen.chordSigns ? (key) => Chords.withSigns(key) : null
                     enabled: editor.key !== ""
                     opacity: enabled ? 1 : 0.45
                     model: editor.shownKey === "" ? ["None"].concat(screen.usualKeys)
@@ -1746,6 +1751,7 @@ Rectangle {
             zoom: screen.sheetZoom
             chordColor: screen.sheetChordColor !== "" ? screen.sheetChordColor : "#ff8a1f"
             lineColor: screen.sheetLineColor !== "" ? screen.sheetLineColor : "#ff8a1f"
+            signs: screen.chordSigns
             onFailed: (error) => screen.report(error)
             onTold: (message) => screen.tell(message)
             onRowPicked: (row) => screen.showRow(row)

@@ -460,8 +460,10 @@ Window {
     property string chordSheetColor: ""
     property string chordTextColor: ""
     // And the colour of the chord sheet's highlighted line ("" for the one it comes
-    // with): the same, the app's own.
+    // with), and whether the chord sheet draws sharps and flats as ♯ and ♭ (on as it
+    // comes): the same, the app's own.
     property string chordLineColor: ""
+    property bool chordSigns: true
     // Whether the editor has the pane for a slide's notes up under the slide, and how
     // tall that pane is: how the editor was left, kept with the app's settings.
     property bool editorNotes: false
@@ -3005,6 +3007,7 @@ Window {
         chordSheetColor = chordColorKept(saved("chordSheetColor", ""))
         chordTextColor = chordColorKept(saved("chordTextColor", ""))
         chordLineColor = chordColorKept(saved("chordLineColor", ""))
+        chordSigns = String(saved("chordSigns", true)) !== "false"
         const decoding = String(saved("videoDecoding", "auto"))
         videoDecoding = ["processor", "hardware"].includes(decoding) ? decoding : "auto"
         decodingNoticeSeen = String(saved("decodingNoticeSeen", false)) === "true"
@@ -3181,6 +3184,7 @@ Window {
     onChordSheetColorChanged: save("chordSheetColor", chordSheetColor)
     onChordTextColorChanged: save("chordTextColor", chordTextColor)
     onChordLineColorChanged: save("chordLineColor", chordLineColor)
+    onChordSignsChanged: save("chordSigns", chordSigns)
     onMediaThumbnailWidthChanged: save("mediaThumbnailWidth", mediaThumbnailWidth)
     onSidePanelWidthChanged: save("sidePanelWidth", sidePanelWidth)
     onMediaBinHeightChanged: save("mediaBinHeight", mediaBinHeight)
@@ -4296,6 +4300,7 @@ Window {
         sheetChordColor: win.chordSheetColor
         textChordColor: win.chordTextColor
         sheetLineColor: win.chordLineColor
+        chordSigns: win.chordSigns
         onSheetZoomEdited: (zoom) => win.chordSheetZoom = win.chordZoom(zoom, 0.8)
         reflowThumbnail: win.reflowThumbnail
         onReflowThumbnailEdited: (width) => win.reflowThumbnail = Math.max(120, Math.min(480, width))
@@ -4517,9 +4522,11 @@ Window {
         chordSheetColor: win.chordSheetColor
         chordTextColor: win.chordTextColor
         chordLineColor: win.chordLineColor
+        chordSigns: win.chordSigns
         onChordSheetColorEdited: (color) => win.chordSheetColor = win.chordColorKept(color)
         onChordTextColorEdited: (color) => win.chordTextColor = win.chordColorKept(color)
         onChordLineColorEdited: (color) => win.chordLineColor = win.chordColorKept(color)
+        onChordSignsEdited: (on) => win.chordSigns = on
         simpleKeepsSidePanel: win.simpleKeepsSidePanel
         onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
         onLabelEdited: (index) => win.editLabelPreset(index)

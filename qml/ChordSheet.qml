@@ -66,6 +66,10 @@ import "chordlayout.js" as ChordLayout
 // spot, a small thing, was all that said which line that is. (The Mac editor's, its
 // pages' rule 53f, and so the same here; see `highlighted`.)
 //
+// Sharps and flats are drawn as the signs, ♯ and ♭, wherever a chord's name is drawn:
+// F♯m7, B♭, C7♭9 (see drawn()). Only drawn: the song's file, what is copied and carried,
+// and the ChordPro text keep "#" and "b". A setting turns it off.
+//
 // Getting a chord on quickly, which is what this is for:
 //   - 1 to 7 put the key's own chord for that note of its scale on the spot (in C: 1 is
 //     C, 4 is F, 6 is Am). Most of most songs is those. The strip along the top shows
@@ -129,6 +133,10 @@ FocusScope {
     // The colour of the words of the highlighted line (see `highlighted`): the sheet's
     // orange as it comes, or the one chosen in the settings.
     property color lineColor: accentColor
+    // Whether sharps and flats are drawn as ♯ and ♭ (see drawn()). A setting, on as it
+    // comes: off, the sheet is as it was before there were signs, the box a chord is
+    // typed in too.
+    property bool signs: true
     // The key the chords are in. A song that names none is taken to be in C, which is
     // only what the keys 1 to 7 give until the key is set.
     readonly property string key: editor.key !== "" ? editor.key : "C"
@@ -228,7 +236,7 @@ FocusScope {
     // words, for whoever shows such things (the line along the bottom of the editor)
     property int pointedChord: -1
     readonly property string hint: pointedChord >= 0 && pointedChord < inKey.length && dragged === null
-        ? "Puts " + inKey[pointedChord] + " on the spot. The key " + (pointedChord + 1) + " does the same. Or drag it onto a word."
+        ? "Puts " + drawn(inKey[pointedChord]) + " on the spot. The key " + (pointedChord + 1) + " does the same. Or drag it onto a word."
         : ""
     // What was copied: { lines: [ [{ word, offset, name }] or { alone: [names] } ] }.
     // It is the sheet's own, and is not put where the system keeps what was copied for
@@ -347,6 +355,25 @@ FocusScope {
             all.pop()
         }
         return all
+    }
+
+    // A chord's name as it is drawn: with ♯ and ♭ for the sharps and flats that are
+    // clearly so (chords::withSigns has which, and why), while `signs` is on. ONLY
+    // drawn: what is put in the song, copied or carried is the name itself, and
+    // everything here works on that. A song has a few names used over and over, and
+    // every bubble is measured as well as drawn, so each name is asked of the rules
+    // once and kept.
+    property var signed: ({})
+
+    function drawn(name) {
+        if (!signs)
+            return name
+        let shown = signed[name]
+        if (shown === undefined) {
+            shown = Chords.withSigns(name)
+            signed[name] = shown
+        }
+        return shown
     }
 
     // ---- Where a chord can go
@@ -1207,6 +1234,8 @@ FocusScope {
     }
 
     onZoomChanged: resize(zoom)
+    // (A name is as wide as it is drawn, signs and all: every line is measured again.)
+    onSignsChanged: resize(times)
     onRowChanged: {
         // The slide picked in the list at the side comes into view.
         const cell = picking ? undefined : cells.find(cell => cell.row === row)
@@ -1260,9 +1289,9 @@ FocusScope {
         font.pixelSize: 12
     }
 
-    // A chord's bubble is its name and a margin either side: what a chord is as wide
-    // as, for keeping two apart.
-    readonly property var bubbleMetrics: ({ advanceWidth: (name) => chordMetrics.advanceWidth(name) + 2 * sheet.bubblePad })
+    // A chord's bubble is its name as it is drawn and a margin either side: what a chord
+    // is as wide as, for keeping two apart.
+    readonly property var bubbleMetrics: ({ advanceWidth: (name) => chordMetrics.advanceWidth(sheet.drawn(name)) + 2 * sheet.bubblePad })
     readonly property real bubbleHeight: Math.round(chordMetrics.height + 6 * times)
     readonly property real tailHeight: Math.round(6 * times)
     // A line of words with its row of chords over it
@@ -1413,7 +1442,7 @@ FocusScope {
                         objectName: "keyChord" + (index + 1)
                         anchors.verticalCenter: parent.verticalCenter
                         caption: String(index + 1)
-                        label: modelData
+                        label: sheet.drawn(modelData)
                         carries: true
                         // On the spot; or, while a chord is being typed, in place of what
                         // is typed, where it was being typed.
@@ -1753,7 +1782,7 @@ FocusScope {
                                     anchors.centerIn: parent
                                     color: sheet.chordColor
                                     font: chordMetrics.font
-                                    text: bubble.modelData.name
+                                    text: sheet.drawn(bubble.modelData.name)
                                 }
                             }
 
@@ -1840,7 +1869,7 @@ FocusScope {
             visible: item !== null && !underTyping && (sheet.carrying ? sheet.carriedOver : free || sheet.dragged !== null)
             x: item ? item.x + item.xOf(sheet.spotAt) : 0
             y: item ? item.y + item.chordTop : 0
-            width: Math.max(26 * sheet.times, sheet.dragged ? chordMetrics.advanceWidth(sheet.dragged.name) + 2 * sheet.bubblePad : 0)
+            width: Math.max(26 * sheet.times, sheet.dragged ? chordMetrics.advanceWidth(sheet.drawn(sheet.dragged.name)) + 2 * sheet.bubblePad : 0)
             height: sheet.bubbleHeight + sheet.tailHeight
 
             Rectangle {
@@ -1856,7 +1885,7 @@ FocusScope {
                     anchors.centerIn: parent
                     color: sheet.dragged ? sheet.chordColor : sheet.accentColor
                     font: chordMetrics.font
-                    text: sheet.dragged ? sheet.dragged.name : "+"
+                    text: sheet.dragged ? sheet.drawn(sheet.dragged.name) : "+"
                 }
             }
 
@@ -1883,23 +1912,32 @@ FocusScope {
             // been typed in it (see keyInTheBox).
             property string begun
             property int pick: -1
-            readonly property var offered: sheet.typing ? Chords.completions(field.text, sheet.key, sheet.used).slice(0, 14) : []
+            readonly property var offered: sheet.typing ? Chords.completions(read(field.text), sheet.key, sheet.used).slice(0, 14) : []
+
+            // What the box holds, as a chord's name is written: with "#" and "b" for the
+            // ♯ and ♭ it shows (rule 30a of the Mac and Windows editors' pages). Every
+            // rule of typing works on that, as it did before there were signs. (A ♯ or ♭
+            // typed by hand is so taken for "#" or "b" too.)
+            function read(text) {
+                return sheet.signs ? Chords.withoutSigns(text) : text
+            }
 
             function begin(text, selected) {
-                last = text
-                begun = text
-                field.text = text
+                const shown = sheet.drawn(text)
+                last = shown
+                begun = shown
+                field.text = shown
                 pick = -1
                 field.forceActiveFocus()
                 if (selected)
                     field.selectAll()
                 else
-                    field.cursorPosition = text.length
+                    field.cursorPosition = shown.length
             }
 
             // What Enter takes: the one picked from the list, or what is typed
             function taken() {
-                return pick >= 0 && pick < offered.length ? offered[pick] : Chords.tidied(field.text)
+                return pick >= 0 && pick < offered.length ? offered[pick] : Chords.tidied(read(field.text))
             }
 
             objectName: "chordEntry"
@@ -1937,18 +1975,21 @@ FocusScope {
                 font.bold: true
                 maximumLength: 16
                 // Only what could be a chord gets in, and its notes are made capitals
-                // as they are typed.
+                // as they are typed. It is shown with its signs as it is typed: F# is
+                // F♯ as soon as the # is, and C7b is C7♭9 once the 9 is. (A sign is as
+                // long as what it stands for, so the caret stays where it was.)
                 onTextEdited: {
-                    const tidy = Chords.tidied(text)
+                    const tidy = Chords.tidied(entry.read(text))
                     if (!Chords.couldBecome(tidy)) {
                         const at = Math.max(0, cursorPosition - 1)
                         text = entry.last
                         cursorPosition = Math.min(at, text.length)
                         return
                     }
-                    if (tidy !== text) {
+                    const shown = sheet.drawn(tidy)
+                    if (shown !== text) {
                         const at = cursorPosition
-                        text = tidy
+                        text = shown
                         cursorPosition = Math.min(at, text.length)
                     }
                     entry.last = text
@@ -1966,7 +2007,7 @@ FocusScope {
                     } else if (event.key === Qt.Key_Tab) {
                         // The first offered, if nothing is picked and nothing typed is
                         // a chord yet
-                        if (entry.pick < 0 && !Chords.isChord(text) && entry.offered.length > 0)
+                        if (entry.pick < 0 && !Chords.isChord(entry.read(text)) && entry.offered.length > 0)
                             entry.pick = 0
                         sheet.finishTyping(entry.taken(), true)
                     } else if (event.key === Qt.Key_Backtab) {
@@ -1977,7 +2018,7 @@ FocusScope {
                     } else if (event.key === Qt.Key_Up) {
                         entry.pick = entry.offered.length > 0 ? (entry.pick + entry.offered.length - 1 + (entry.pick < 0 ? 1 : 0)) % entry.offered.length : -1
                     } else if (event.key === Qt.Key_Right && entry.pick >= 0 && cursorPosition === text.length) {
-                        text = entry.offered[entry.pick]
+                        text = sheet.drawn(entry.offered[entry.pick])
                         entry.last = text
                         entry.pick = -1
                     } else if ((event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) && text === "") {
@@ -2009,7 +2050,7 @@ FocusScope {
                         required property string modelData
                         required property int index
 
-                        label: modelData
+                        label: sheet.drawn(modelData)
                         picked: index === entry.pick
                         onClicked: sheet.finishTyping(modelData, false)
                     }
@@ -2053,7 +2094,7 @@ FocusScope {
         visible: sheet.carrying
         picture: true
         caption: sheet.carriedCaption
-        label: sheet.dragged ? sheet.dragged.name : ""
+        label: sheet.dragged ? sheet.drawn(sheet.dragged.name) : ""
         x: sheet.carriedAt.x - sheet.carriedHold.x
         y: sheet.carriedAt.y - sheet.carriedHold.y
         opacity: 0.6

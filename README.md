@@ -1757,6 +1757,11 @@ What makes it quick:
   bare sheet between the slides, or off the sheet, no line is lit; the arrow keys
   light the spot's line again. A line of chords with no words has its rule lit
   instead, twice as thick.
+- **Sharps and flats are drawn as ♯ and ♭**: F♯m7, B♭, C7♭9, E♭/G, in the bubbles,
+  the strip, what is offered and the bubble a chord is typed in (where F# becomes F♯
+  as the # is typed), and in the song's two keys. Only those that are clearly a sharp
+  or a flat: the root's and the bass's, and one before a digit. It is only how they
+  are drawn: the song's file, what is copied and the ChordPro text keep `#` and `b`.
 - **Chords are things to pick up.** Drag one to another word, on any slide; hold Ctrl
   to leave a copy behind. A name that is no chord, which some files have ("N.C."), is
   picked up, copied and pasted like any other; only what is newly typed has to be a
@@ -1855,8 +1860,10 @@ offers **Undo**, which puts it back.
 
 **The colour of a chord** in each of the two editors can be chosen in the settings,
 under **Chords**, and so can that of the sheet's lit line, each with a way back to the
-colour it came with. They are only how the editors draw a song. Nothing in a song's
-file says any of them: the stage shows chords in the colour its layout gives them.
+colour it came with; and the same section has the switch for drawing sharps and flats
+as signs, on as it comes. They are only how the editors draw a song. Nothing in a
+song's file says any of them: the stage shows chords in the colour its layout gives
+them, with `#` and `b`.
 
 ### Importing a ChordPro file
 
