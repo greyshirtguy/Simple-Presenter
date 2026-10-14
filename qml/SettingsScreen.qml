@@ -1227,9 +1227,11 @@ Rectangle {
                     font.pixelSize: 14
                     text: "<b>This is a personal experiment, not a product.</b><br><br>"
                         + "Simple Presenter is one person's hobby project, and it is vibe coded: it was built by "
-                        + "describing it to an AI model, which wrote the code. Nobody supports it, nothing about "
-                        + "it is promised, and it comes with no warranty of any kind. Use it at your own risk, "
-                        + "and give it a copy of your ProPresenter folder, never your only one."
+                        + "describing it to an AI model, which wrote the code. It is shared as an example of what "
+                        + "vibe coding can do in the hands of a hobby programmer, and is not a product for use. "
+                        + "Nobody supports it, nothing about it is promised, and it comes with no warranty of any "
+                        + "kind: anything done with it is at your own risk. If you run it, give it a copy of your "
+                        + "ProPresenter folder, never your only one."
                 }
             }
 

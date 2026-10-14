@@ -226,7 +226,8 @@ QtObject {
                 const what = named("whatThisIs")
                 check("and, in a box that cannot be missed, that this is an experiment and not a product", what !== null && what.visible && what.height > 60
                       && texts.some(x => x.startsWith("<b>This is a personal experiment, not a product.</b>") && x.includes("vibe coded") && x.includes("Nobody supports it")
-                                         && x.includes("no warranty of any kind") && x.includes("never your only one")), what ? what.height : "none")
+                                         && x.includes("not a product for use") && x.includes("no warranty of any kind") && x.includes("never your only one")),
+                      what ? what.height : "none")
                 check("that it is free software, and nothing to do with ProPresenter's makers", texts.some(x => x.includes("under the MIT licence")
                       && x.includes("nothing to do with Renewed Vision")))
                 check("and what this run's log is called and where it is", texts.some(x => x.includes("This run's log is “" + Log.path.substring(Log.path.lastIndexOf("/") + 1) + "”, in " + Log.folder + ".")

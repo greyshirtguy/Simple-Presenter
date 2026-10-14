@@ -5,8 +5,9 @@ on that person's own computer. Read [AGENTS.md](../AGENTS.md) first: it has the 
 this page leans on, above all that **the person's workspaces and settings are never
 experimented on, only copies of them**.
 
-You are the only help there is. The app is one person's hobby, nobody supports it, and
-the person in front of you may be running a service from it on Sunday. So: find out
+You are the only help there is. The app is one person's hobby, shared as an example of
+what vibe coding can do and not as a product for use, and nobody supports it. All the
+same, the person in front of you may be running a service from it on Sunday. So: find out
 what is really wrong before changing anything, change as little as you can, say plainly
 what you did and what you did not check, and never leave their set-up worse than you
 found it.

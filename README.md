@@ -9,7 +9,7 @@ anyone who has used ProPresenter will know their way around: the libraries and
 playlists, the slides, the media, the timers, props, stage layouts and macros. It reads
 ProPresenter's files and allows you to edit them as well.
 
-This is one person's quick experiment in "vibe coding": it was built entirely by describing it to an AI model. The model never took ProPresenter itself apart (though AI can do that scarily well too): it works from my [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto) descriptions of the file formats and from the files ProPresenter writes. While this first experiment in vibe coding has blown my mind - I should remind you that **It's not a good idea to use this live.**
+This is one person's quick experiment in "vibe coding": it was built entirely by describing it to an AI model. The model never took ProPresenter itself apart (though AI can do that scarily well too): it works from my [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto) descriptions of the file formats and from the files ProPresenter writes. While this first experiment in vibe coding has blown my mind, I am sharing it as an example of what vibe coding can do in the hands of a hobby programmer: **it is not a product for use.**
 
 ![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and the Search, Themes, Show, Edit and Reflow buttons at its left and the buttons for Simple View, the media bin, the look that is live, the output and stage screens and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; in the middle a line with the key the chords are shown in, the name of the presentation, the megaphone that says whether it goes to the announcements, the Slide Show button and the arrangement, over a grid of its slides, framed in their group colours, some marked with the hotkey that goes to them or with icons for the media and the macro they bring, and the live one ringed in orange, with the transition and the size of the thumbnails in a bar under them and the media bin under that; and down the right the output preview, with the words over a video that is playing, the stage preview with the words and their chords, the next slide's words and its clocks, the six clear buttons, the transport for the video and the show controls, on their tab of macros, each macro with its coloured icon and small icons for its actions](docs/screenshot.png)
 
@@ -24,15 +24,15 @@ This is one person's quick experiment in "vibe coding": it was built entirely by
 >
 > - **Nobody supports it.** There is no one to answer questions, fix bugs or add
 >   features, and no promise that anything here works, or will go on working.
-> - **It comes with no warranty** of any kind. Using it is at your own risk, and in
->   front of a room full of people most of all.
+> - **It comes with no warranty** of any kind. It is not made to be relied on, and
+>   anything done with it is at your own risk.
 > - **It has been tried on one laptop**, with one person's ProPresenter files.
-> - **It changes the files it opens.** Give it a copy of your ProPresenter folder,
->   never your only one.
+> - **It changes the files it opens.** If you run it to see what it does, give it a
+>   copy of your ProPresenter folder, never your only one.
 > - **It has nothing to do with Renewed Vision**, the makers of ProPresenter.
 >
-> You are very welcome to try it, read it and take it apart.
-> Just do not count on it for live use.
+> I am sharing it as an example of what vibe coding can do in the hands of a hobby
+> programmer. It is not a product for use.
 
 **On this page:** [what it can do](#what-it-can-do) · [what's new](#whats-new) ·
 [what it cannot do yet](#todo) · [installing it](#installing) ·
@@ -42,8 +42,8 @@ This is one person's quick experiment in "vibe coding": it was built entirely by
 
 ## What it can do
 
-Run a service from a ProPresenter folder, on Linux, on a modest computer. At more
-length:
+It can run a show from a ProPresenter folder, on Linux, on a modest computer: that is
+how far the experiment has got. At more length:
 
 **It works on a ProPresenter workspace as it is.** Copy the folder ProPresenter keeps
 everything in onto the Linux computer and pick it in the app. Nothing is converted and
@@ -486,7 +486,9 @@ experiment.
 ## Installing
 
 Being packaged does not make it a product. The note at the top of this page holds for
-the package as much as for the code: it is an experiment, passed on as it is.
+the package as much as for the code: it is an experiment, shared as an example of what
+vibe coding can do and passed on as it is, not something made for use. The package is
+for seeing it run without building it first.
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download

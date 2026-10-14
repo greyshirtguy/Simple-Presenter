@@ -12,7 +12,9 @@ you are **changing** the app: this file is the brief.
 
 Simple Presenter is a presenter for Linux (Qt 6, C++20, QML) that runs a show from a
 ProPresenter 7 folder as it is, reading and writing ProPresenter's own files. It is one
-person's hobby, written entirely by describing it to an AI model. Nobody supports it.
+person's hobby, written entirely by describing it to an AI model, and is shared as an
+example of what that can do in the hands of a hobby programmer: it is not a product
+for use, and nobody supports it.
 `README.md` says what it does, part by part, and then how it is made; `src/main.cpp`
 opens with a tour of the code; every source file starts by saying what it is for and
 why it is the way it is. Read the header of a file before changing the file.
@@ -94,8 +96,8 @@ what you checked; do not say "the tests pass" and mean a part of them.
 - No new dependency without the maintainer agreeing to it first. NDI's library and its
   SDK are never added to the repository or to a package (`third_party/ndi/include` holds
   the few headers its licence allows).
-- Words the user reads say plainly what a thing does. They never promise help, and
-  never call the app a product.
+- Words the user reads say plainly what a thing does. They never promise help, never
+  call the app a product, and never say or suggest that it is fit to be relied on.
 - A thing ProPresenter has a picture for is shown with ProPresenter's picture, not a
   new drawing: `icons/README.md` has what there is, where it is from and how to add
   one. Only what the pack has no picture for is drawn here.
@@ -131,6 +133,8 @@ the next version" for the person: build it for them from source instead.
 
 ## Things you will be asked about
 
+- **Whether it can be relied on**: no, and say so. It is shared as an example of what
+  vibe coding can do, not as a product for use, however well it seems to be working.
 - **It is not ProPresenter**, and has nothing to do with Renewed Vision. Much that
   ProPresenter does is not here: `README.md` has the list under TODO.
 - **Where things are kept**: workspaces and logs under `~/Documents/SimplePresenter/`;
