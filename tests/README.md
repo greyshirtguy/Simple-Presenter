@@ -122,7 +122,7 @@ What the folder holds:
 | `workspaces/ProPresenter MR` | Presentations, timers, props, stage layouts and playlists as ProPresenter itself wrote them |
 | `workspaces/Act` | The same presentations with ProPresenter's macros, groups, its own account of the workspace (screens and looks) and its themes |
 | `workspaces/Shapes` | One presentation and two pictures, for the editor |
-| `songs/` | Two songs with chords, as Multitracks and ProPresenter wrote them, which the four `chords` tests copy into their workspaces |
+| `songs/` | Two songs with chords, as Multitracks and ProPresenter wrote them, which the five `chords` tests copy into their workspaces |
 | `made/` | Small videos and pictures made for the tests: one keyframe in twenty seconds, dark until nine seconds in, VP9, HEVC, one with sound |
 
 **A trap in them: a playlist's row can lead out of the test.** A row of a playlist says

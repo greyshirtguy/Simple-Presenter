@@ -1749,7 +1749,8 @@ What makes it quick:
 - **Nothing has to be pressed to say a chord is done.** While one is being typed the
   spot goes on following the pointer. Click the next place, and the chord is kept and
   the bubble opens there: click, type, click, type, down the song. Enter keeps a chord
-  too, and Tab keeps it and moves on to the next word. Only Esc throws one away.
+  too, and Tab keeps it and moves on to the next word. Only Esc throws one away. A
+  bubble emptied and kept so, by Enter or a click, takes off the chord that was there.
 - **Chords are things to pick up.** Drag one to another word, on any slide; hold Ctrl
   to leave a copy behind. A name that is no chord, which some files have ("N.C."), is
   picked up, copied and pasted like any other; only what is newly typed has to be a
@@ -1803,7 +1804,7 @@ All of it, key by key:
 | Drag one of the strip's seven | Puts it on the word it is let go on, on any slide, where the lit bubble shows; with Shift held, on the start of the word. Let go anywhere else, or with Esc pressed, nothing happens |
 | A to G | Starts a chord by name. Only what could be a chord can be typed, and over it are the chords it might be going to be: the song's own first, then the key's, then the usual kinds |
 | Down, Up | Pick one of those; Right puts it in the box to go on from (for a bass note, say) |
-| Enter | Keeps the chord. Tab keeps it and moves the spot on to the next word. Esc throws it away |
+| Enter | Keeps the chord. Tab keeps it and moves the spot on to the next word. Esc throws it away. A bubble emptied and kept takes off the chord that was there |
 | Click | On a place: type a chord there, or change the one that is there. While a chord is being typed, a click on another place keeps it and starts on the next; a click anywhere else on the sheet keeps it too |
 | Drag a chord | Moves it to another word, on any slide. With Ctrl held it is copied |
 | Delete | Takes off the chord at the spot |

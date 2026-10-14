@@ -1925,6 +1925,7 @@ TESTS = {
     "chords2": test("ProPresenter MR", timeout=240, prepare=prepare_chords),
     "chords3": test("ProPresenter MR", timeout=240, prepare=prepare_chords, after=after_chords3),
     "chords4": test("ProPresenter MR", timeout=240, prepare=prepare_chords),
+    "chords5": test("ProPresenter MR", timeout=240, prepare=prepare_chords),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)

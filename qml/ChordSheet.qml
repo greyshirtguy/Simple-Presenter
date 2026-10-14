@@ -72,7 +72,8 @@ import "chordlayout.js" as ChordLayout
 //     to be: the song's own first, then the key's, then the usual kinds on that note
 //     (chords::completions). Down and Up pick one, Enter takes it, Tab takes it and
 //     moves on to the next word, a click takes it; Right puts the picked one in the
-//     box to be gone on with (for a bass note, say).
+//     box to be gone on with (for a bass note, say). A box emptied and kept takes off
+//     the chord that was there; Esc alone leaves it.
 //   - A click on the spot, or Enter, opens the same bubble on what is there.
 //   - While a chord is being typed the spot goes on following the pointer, and a click
 //     on another place keeps what was typed and opens the bubble there. So a run of
@@ -675,12 +676,23 @@ FocusScope {
     // Ends the typing. With a name, that chord goes on the place it was being typed
     // for; with none, nothing is changed (Esc). `onward` then moves the spot on from
     // that place to the next word (Tab), wherever the pointer has been meanwhile.
+    //
+    // With a name that is empty, the box was kept with nothing in it (by Enter, by a
+    // click on another place or on the bare sheet), and that is taken at its word: no
+    // chord is to be there, and the one that is goes. Where there is none, nothing is
+    // asked of the song. (The maintainer's, 2026-10-13, for the Mac editor and so for
+    // all three, their pages' rule 35a: "clicking and editing and deleting the chord
+    // text and pressing enter or clicking on the next insertion point should delete".
+    // Until then a kept empty box changed nothing, and the chord whose name had been
+    // cleared came back.)
     function finishTyping(name, onward) {
         const row = typingRow
         const at = typingAt
         typing = false
         takeKeys()
-        if (name !== undefined && name !== "")
+        if (name === "")
+            take(row, at)
+        else if (name !== undefined)
             put(row, at, name)
         if (onward) {
             setSpot(row, at)
