@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QColor>
+#include <QHash>
 #include <QObject>
 #include <QQuickTextDocument>
 #include <QStringList>
@@ -52,6 +53,38 @@ public:
     // artist, key, sections: [{ name, lines }] (how many lines each), chords (how
     // many), error }.
     Q_INVOKABLE QVariantMap describeFile(const QString &path) const;
+};
+
+// The line of hints under the chord sheet (sheethints.h) as QML can ask for it:
+// `SheetHints`. hints() answers what to say, as plain maps ({ lead, keys, says,
+// needed }), for what is going on; fit() how many of them go into a width, one under
+// another or not and at what size, and how tall the line then is, the words measured
+// in the font the line draws them in (the app's own, as every Text of QML has it,
+// at the sizes sheethints.h gives) and each measurement kept; `sizes` the sizes and
+// rooms the line is drawn with, so that it is drawn as it was fitted.
+class SheetHints : public QObject
+{
+    Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
+
+    Q_PROPERTY(QVariantMap sizes READ sizes CONSTANT)
+
+public:
+    using QObject::QObject;
+
+    QVariantMap sizes() const;
+    // `doing`: "nothing", "typing", "carrying", "onChord" or "onPlace";
+    // `pasteLines` 0 when nothing has been copied
+    Q_INVOKABLE QVariantList hints(const QString &doing, bool onChord, bool empty, bool fromStrip, bool ctrl, int pasteLines, bool replaces,
+                                   bool overStrip) const;
+    // { count, stacked, size, height } for the line's whole width
+    Q_INVOKABLE QVariantMap fit(const QVariantList &hints, double width) const;
+
+private:
+    double measured(const QString &words, int pixels, bool onAKey) const;
+
+    mutable QHash<QString, double> m_widths;
 };
 
 // Colours ChordPro text as it is typed (ChordProEditor.qml): chords in the app's orange,

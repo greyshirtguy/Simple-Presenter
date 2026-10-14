@@ -70,6 +70,14 @@ import "chordlayout.js" as ChordLayout
 // F♯m7, B♭, C7♭9 (see drawn()). Only drawn: the song's file, what is copied and carried,
 // and the ChordPro text keep "#" and "b". A setting turns it off.
 //
+// The line of hints. Under the sheet, a blue line says what the keys and the mouse do
+// just now, where the spot is: on a chord, that Delete takes it off and 1 to 7 change
+// it; while one is typed, what Enter, Tab and Esc do; with Ctrl held, how a line's
+// chords are copied onto another, which nothing on the sheet shows. src/sheethints.h
+// has what is said when, and why; qml/HintLine.qml draws it; here is what is going on
+// (`hintsNow`). The line along the bottom of the editor, under it, says how much there
+// is of the song (`howMuch`), and for a few seconds what was just done.
+//
 // Getting a chord on quickly, which is what this is for:
 //   - 1 to 7 put the key's own chord for that note of its scale on the spot (in C: 1 is
 //     C, 4 is F, 6 is Am). Most of most songs is those. The strip along the top shows
@@ -191,6 +199,31 @@ FocusScope {
     readonly property int highlighted: typing ? typingRow
         : dragged !== null ? (carrying && !carriedOver ? -1 : spotRow)
         : attending ? spotRow : -1
+    // Whether Ctrl is held: at the sheet it brings up, on the line of hints, the copying
+    // of a line's chords, being the key for shortcuts here as Command is on the Mac (the
+    // maintainer's, 2026-10-14: "it be shown when user holds ctrl key on linux"). It is
+    // told by the key itself, to whichever has the keyboard, the sheet or the box a chord
+    // is typed in; and, so that a key let go while something else had the keyboard does
+    // not leave it held, by every move of the pointer over the sheet, and by the app
+    // being left.
+    property bool ctrlHeld: false
+    // Whether the pointer is over the key's chords in the strip, which is not the sheet
+    readonly property bool overStrip: stripHover.hovered
+    // What the line of hints says (src/sheethints.h): from what is going on, for
+    // SheetHints. (A new list is made for every place the spot goes to, and the line
+    // changes nothing while it says what it said: see HintLine.qml.)
+    readonly property var hintsNow: {
+        const doing = typing ? "typing" : dragged !== null ? "carrying" : !attending || !usable(spotRow) ? "nothing"
+                    : chordAt(spotRow, spotAt) === "" ? "onPlace" : "onChord"
+        return SheetHints.hints(doing, typing && chordAt(typingRow, typingAt) !== "", typing && field.text === "", carrying, ctrlHeld,
+                                copied ? copied.lines.length : 0, ctrlHeld && pasteWouldReplace(), overStrip)
+    }
+    // How much there is of the song, for the line along the bottom of the editor, under
+    // the line of hints: "7 slides, 40 chords."
+    readonly property string howMuch: {
+        const chords = blocks.reduce((sum, block) => sum + block.chords.length, 0)
+        return (editor.count === 1 ? "1 slide" : editor.count + " slides") + ", " + (chords === 1 ? "1 chord" : chords + " chords") + "."
+    }
     // The bubble for typing a chord is open, and the place the chord being typed belongs
     // to. That place is not the spot: the spot goes on following the pointer while a
     // chord is typed, so that the next place can be pointed at before this chord is
@@ -700,6 +733,30 @@ FocusScope {
         return sentence
     }
 
+    // Whether a paste now would take chords off, which the line of hints says before
+    // Ctrl+V is pressed: whether any line that what was copied would go onto (as paste()
+    // goes) has chords of its own. A line that would be passed over, being of the other
+    // kind, loses nothing and does not count. With nothing copied yet, whether the spot's
+    // line has any.
+    function pasteWouldReplace() {
+        if (!usable(spotRow))
+            return false
+        if (!copied)
+            return rows[spotRow].chords.length > 0
+        let index = spotRow
+        for (const line of copied.lines) {
+            while (index < rows.length && !usable(index))
+                ++index
+            if (index >= rows.length)
+                break
+            const target = rows[index]
+            if ((line.alone !== undefined) === target.alone && target.chords.length > 0)
+                return true
+            ++index
+        }
+        return false
+    }
+
     // Whether a line's chords are the last thing that was copied on this computer, by
     // any program: nothing has been copied anywhere since. (Told by what the system
     // has as last copied being the text it had when the chords were. Something copied
@@ -938,6 +995,11 @@ FocusScope {
     }
 
     function handleKey(event) {
+        // (Ctrl by itself does nothing but bring up, on the line of hints, what it does.)
+        if (event.key === Qt.Key_Control) {
+            ctrlHeld = true
+            return
+        }
         const control = (event.modifiers & Qt.ControlModifier) !== 0
         const shift = (event.modifiers & Qt.ShiftModifier) !== 0
         if (carrying) {
@@ -1255,6 +1317,20 @@ FocusScope {
 
         focus: true
         Keys.onPressed: (event) => sheet.handleKey(event)
+        Keys.onReleased: (event) => {
+            if (event.key === Qt.Key_Control)
+                sheet.ctrlHeld = false
+        }
+    }
+
+    // A key let go while the app was left is never heard of
+    Connections {
+        target: Qt.application
+
+        function onStateChanged() {
+            if (Qt.application.state !== Qt.ApplicationActive)
+                sheet.ctrlHeld = false
+        }
     }
 
     Connections {
@@ -1432,6 +1508,11 @@ FocusScope {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
 
+                // (Whether the pointer is over them, between two of them as well)
+                HoverHandler {
+                    id: stripHover
+                }
+
                 Repeater {
                     model: sheet.inKey
 
@@ -1501,6 +1582,17 @@ FocusScope {
         }
     }
 
+    // The line of hints, under the sheet: what the keys and the mouse do just now
+    HintLine {
+        id: hintLine
+
+        objectName: "hintLine"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        hints: sheet.hintsNow
+    }
+
     Flickable {
         id: flick
 
@@ -1508,7 +1600,7 @@ FocusScope {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: bar.bottom
-        anchors.bottom: parent.bottom
+        anchors.bottom: hintLine.top
         clip: true
         // As big as the song, and never smaller than what it is seen through
         contentWidth: Math.max(width, sheet.pageWidth)
@@ -1563,6 +1655,7 @@ FocusScope {
             height: flick.contentHeight
             hoverEnabled: true
             onPositionChanged: (mouse) => {
+                sheet.ctrlHeld = (mouse.modifiers & Qt.ControlModifier) !== 0
                 if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged)
                     sheet.attending = false
             }
@@ -1727,6 +1820,7 @@ FocusScope {
                         enabled: sheet.usable(line.index)
                         hoverEnabled: true
                         onPositionChanged: (mouse) => {
+                            sheet.ctrlHeld = (mouse.modifiers & Qt.ControlModifier) !== 0
                             if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged) {
                                 sheet.setSpot(line.index, line.placeAt(mouse.x, (mouse.modifiers & Qt.ShiftModifier) === 0))
                                 sheet.attending = true
@@ -1813,6 +1907,7 @@ FocusScope {
                                     moved = false
                                 }
                                 onPositionChanged: (mouse) => {
+                                    sheet.ctrlHeld = (mouse.modifiers & Qt.ControlModifier) !== 0
                                     if (!pressed) {
                                         if (sheet.pointerMoved(this, mouse.x, mouse.y) && !sheet.dragged) {
                                             sheet.setSpot(line.index, bubble.modelData.at)
@@ -1995,7 +2090,15 @@ FocusScope {
                     entry.last = text
                     entry.pick = -1
                 }
+                Keys.onReleased: (event) => {
+                    if (event.key === Qt.Key_Control)
+                        sheet.ctrlHeld = false
+                }
                 Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Control) {
+                        sheet.ctrlHeld = true
+                        return
+                    }
                     if (sheet.keyInTheBox(event, text, entry.begun)) {
                         event.accepted = true
                         return

@@ -144,6 +144,7 @@ qt_add_qml_module(SimplePresenter
         qml/ChordedText.qml
         qml/ChordProEditor.qml
         qml/ChordSheet.qml
+        qml/HintLine.qml
         qml/ImportSong.qml
         qml/LooksPanel.qml
         qml/MacroGlyph.qml
@@ -284,6 +285,8 @@ qt_add_qml_module(SimplePresenter
         src/chords.cpp
         src/chordsbridge.h
         src/chordsbridge.cpp
+        src/sheethints.h
+        src/sheethints.cpp
         src/songimport.h
         src/songimport.cpp
         src/thememath.h

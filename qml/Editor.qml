@@ -1548,7 +1548,9 @@ Rectangle {
             text: screen.notice !== "" ? screen.notice
                 : screen.toolHint !== "" ? screen.toolHint
                 : screen.carriedId !== "" ? "Let go between two rows to put it there: the top of the list is the front  ·  Let go off to one side of the list to leave it where it was"
-                : screen.mode === "chords" ? "1 to 7: the key's chords, or drag one down from the strip  ·  A to G: type one, and a click on the next place keeps it  ·  Drag moves a chord, with Ctrl copies it  ·  Delete removes  ·  Ctrl+C and Ctrl+V: a line's chords onto another"
+                // (Over the chord sheet, what the keys do is said on the line of hints,
+                // over this one, where the spot is: see HintLine.qml.)
+                : screen.mode === "chords" ? (chordView.item && chordView.item.howMuch ? chordView.item.howMuch : "")
                 : screen.mode === "chordpro" ? "[ opens a chord and closes it  ·  Backspace on a bracket removes the chord  ·  The words cannot be changed here"
                 : screen.mode === "reflow" ? (chordView.item ? chordView.item.hint : "")
                 : notes.item && notes.item.typing ? "Notes: select text to format part of it  ·  Ctrl+B, I, U  ·  Right click: font, size and colour  ·  Esc gives the keys back to the slide"

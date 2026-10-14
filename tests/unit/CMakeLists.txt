@@ -76,6 +76,15 @@ target_compile_definitions(tst_chords PRIVATE VECTORS="${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(tst_chords PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME chords COMMAND tst_chords)
 
+qt_add_executable(tst_sheethints
+    tst_sheethints.cpp
+    ${PROJECT_SOURCE_DIR}/src/sheethints.h
+    ${PROJECT_SOURCE_DIR}/src/sheethints.cpp
+)
+target_include_directories(tst_sheethints PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_sheethints PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME sheethints COMMAND tst_sheethints)
+
 qt_add_executable(tst_groupedit
     tst_groupedit.cpp
     ${PROJECT_SOURCE_DIR}/src/groupedit.h

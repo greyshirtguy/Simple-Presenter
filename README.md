@@ -194,6 +194,18 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **The chord sheet, as the Mac and Windows chord editors have it now.** A blue line
+  under the sheet says what the keys and the mouse do just now, where the pointer is:
+  on a chord, that Delete takes it off and 1 to 7 change it; while one is typed, what
+  Enter, Tab and Esc do; and with Ctrl held, how a line's chords are copied and
+  pasted. It lights up for a moment when what it says changes. The line the pointer
+  is on has its words drawn in orange: it is the line Ctrl+C copies from and Ctrl+V
+  pastes to, which only the spot said before. Sharps and flats are drawn as ♯
+  and ♭, F♯m7 and B♭, on the sheet and in the song's two keys; the song itself keeps
+  `#` and `b`, and so does the ChordPro text. A chord's name is orange as it comes. A
+  chord whose name is emptied in its bubble and then kept, by Enter or a click
+  elsewhere, now comes off, where it used to come back. The settings have the line's
+  colour and a switch for the signs. See [the chord editor](#the-chord-editor).
 - **Masks.** A [mask](#masks) is a slide laid over everything else a screen shows, to
   cover the parts of it nothing should be shown on. They are made and drawn in the
   editor, which lists them at its left as it lists slides, and a screen is given one
@@ -1751,6 +1763,16 @@ What makes it quick:
   the bubble opens there: click, type, click, type, down the song. Enter keeps a chord
   too, and Tab keeps it and moves on to the next word. Only Esc throws one away. A
   bubble emptied and kept so, by Enter or a click, takes off the chord that was there.
+- **A line under the sheet says what the keys do, where you are.** On a chord: that
+  Delete takes it off, 1 to 7 change it, it can be dragged, and a click types over
+  it. On a word with none: 1 to 7, or a letter. While a chord is typed: Enter, Tab,
+  Up and Down, Esc. While one is carried: where letting go puts it, and that Ctrl
+  leaves a copy. Over the strip: that its chords can be dragged down. And with **Ctrl**
+  held, how the lit line's chords are copied and pasted, and whether a paste there
+  would replace chords; where the window is too narrow for that side by side, it goes
+  on two lines. It is blue, to be seen, and lights up for a moment when what it says
+  changes. Under it, the line along the bottom says how much there is of the song
+  ("24 slides, 94 chords."), and for a few seconds what was just done.
 - **The line you are at is lit.** The words of the line the pointer is on are drawn
   in orange, and so are those of the line a chord is being typed on, wherever the
   pointer has gone. It is the line Ctrl+C copies from and Ctrl+V pastes to. Over the

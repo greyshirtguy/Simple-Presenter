@@ -12,7 +12,11 @@ import "lib.js" as Lib
 // typed on is it wherever the pointer goes; a chord carried from the strip makes it the line it would land on, and none
 // between slides. The signs: in the bubbles, the box a chord is typed in (as it is typed, the caret where it was), what
 // is offered, the strip and the song's two keys, but never in the file, what is copied or the ChordPro text; and none
-// of it with the setting off. What is looked at is what is drawn, wherever the thing is one that is drawn.
+// of it with the setting off. The line of hints under the sheet: what it says over the strip, on a word, on a chord,
+// with Ctrl held (on two lines where they do not fit on one), while a chord is typed and with the box emptied, while one
+// of the sheet's or of the strip's is carried, and with nobody at the sheet; that it lights up when that changes and
+// fades back; and the line under it, which says how much there is of the song. What is looked at is what is drawn,
+// wherever the thing is one that is drawn.
 QtObject {
     id: t
 
@@ -100,6 +104,23 @@ QtObject {
 
     function sameSong() {
         return JSON.stringify(editScreen.editor.song()) === kept.song && testInput.fileHash(kept.path) === kept.hash
+    }
+
+    // The line of hints, and what it says
+    function hints() {
+        return named("hintLine")
+    }
+
+    // How far apart two colours are, as the most any of their three parts differs
+    function apart(a, b) {
+        const part = (c, i) => parseInt(String(c).substring(1 + 2 * i, 3 + 2 * i), 16)
+        return Math.max(Math.abs(part(a, 0) - part(b, 0)), Math.abs(part(a, 1) - part(b, 1)), Math.abs(part(a, 2) - part(b, 2)))
+    }
+
+    // A pixel of the line of hints at its right end, where no hint reaches
+    function hintGround() {
+        const at = hints().mapToItem(null, hints().width - 6, hints().height / 2)
+        return String(testInput.windowPixel(at.x, at.y))
     }
 
     function run() {
@@ -484,6 +505,165 @@ QtObject {
                 check("(undone)", editScreen.editor.undo() === "" && editScreen.editor.undo() === "" && editScreen.editor.undo() === "" && editScreen.editor.undo() === ""
                       && sameSong(), editScreen.editor.key)
                 return 400
+            },
+            () => {
+                // ---- The line of hints
+                const p = over(kept.g, 6)
+                testInput.mouse(1, p.x - 2, p.y)
+                testInput.mouse(1, p.x, p.y)
+                return 200
+            },
+            () => {
+                check("under the sheet is the line of hints, and the line under that says how much there is of the song", hints() !== null && hints().visible
+                      && /^\d+ slides, \d+ chords\.$/.test(named("editorHintText").text), named("editorHintText").text)
+                const b = centre(button(2))
+                testInput.mouse(1, b.x, b.y + 3)
+                testInput.mouse(1, b.x, b.y)
+                return 300
+            },
+            () => {
+                check("over the key's chords in the strip, it says they can be dragged", hints().says === "You can drag these down to the text on any slide", hints().says)
+                kept.litUp = hints().litUp
+                const p = over(kept.h, kept.place)
+                testInput.mouse(1, p.x - 2, p.y)
+                testInput.mouse(1, p.x, p.y)
+                return 150
+            },
+            () => {
+                check("on a word with no chord, how one is put there", hints().says === "1 – 7 Put one of the key’s chords here · A – G Or a click: type one", hints().says)
+                kept.litPixel = hintGround()
+                check("it lit up when what it said changed", hints().litUp > kept.litUp && named("hintGlow").opacity > 0.3 && apart(kept.litPixel, "#3a82e0") < 60,
+                      hints().litUp + " " + named("hintGlow").opacity + " " + kept.litPixel)
+                testInput.grab("6-hints-on-a-word")
+                return 2200
+            },
+            () => {
+                const now = hintGround()
+                check("and is back to its own blue once nothing has changed for a while", named("hintGlow").opacity === 0 && apart(now, "#1d477c") < 12, now)
+                const c = over(kept.h, kept.chordAt)
+                testInput.mouse(1, c.x - 3, c.y)
+                testInput.mouse(1, c.x - 2, c.y)
+                return 200
+            },
+            () => {
+                check("on a chord, how it is taken off, changed, dragged and typed over", sheet().chordAt(kept.h, sheet().spotAt) !== ""
+                      && hints().says.indexOf("Delete Takes this chord off · 1 – 7 Change it") === 0, hints().says)
+                testInput.keyDown(Qt.Key_Control, false, "", Qt.ControlModifier)
+                return 200
+            },
+            () => {
+                check("with Ctrl held, how the highlighted line's chords are copied and pasted, and that a paste here would take chords off", sheet().ctrlHeld
+                      && hints().says === "Press Ctrl+C to copy all chords on the highlighted line. · Press Ctrl+V to paste previously copied chords to the highlighted line (Replaces existing chords)"
+                      && !hints().fitted.stacked, hints().says)
+                testInput.grab("7-hints-ctrl")
+                // In a narrow window the two go one under the other
+                kept.windowWidth = win.width
+                win.width = 820
+                return 500
+            },
+            () => {
+                // (The sheet has moved from under the pointer: it is put on the line again, Ctrl held as it moves, as a mouse's
+                // moves say it is.)
+                const c = over(kept.h, kept.chordAt)
+                testInput.mouse(1, c.x - 3, c.y, Qt.ControlModifier)
+                testInput.mouse(1, c.x - 2, c.y, Qt.ControlModifier)
+                return 300
+            },
+            () => {
+                check("where they do not fit side by side, one under the other, the line two lines tall", hints().fitted.stacked && hints().fitted.count === 2
+                      && hints().height > 2 * 20 && hints().says.indexOf("Press Ctrl+C") === 0, hints().fitted.stacked + " " + hints().height + " " + hints().says)
+                testInput.grab("8-hints-two-lines")
+                win.width = kept.windowWidth
+                testInput.keyUp(Qt.Key_Control, false, "", 0)
+                return 500
+            },
+            () => {
+                const c = over(kept.h, kept.chordAt)
+                testInput.mouse(1, c.x - 3, c.y)
+                testInput.mouse(1, c.x - 2, c.y)
+                return 300
+            },
+            () => {
+                check("Ctrl let go, it says what it said, on one line again", !sheet().ctrlHeld && !hints().fitted.stacked && hints().height === 30
+                      && hints().says.indexOf("Delete Takes this chord off") === 0, hints().says)
+                // Typing a chord
+                click(over(kept.h, kept.place))
+                return 300
+            },
+            () => {
+                check("while a chord is typed, what Enter, Tab, the arrows and Esc do", sheet().typing && hints().says.indexOf("Enter Keeps it · Tab Keeps it and goes on to the next word") === 0,
+                      hints().says)
+                testInput.key(Qt.Key_Escape)
+                click(over(kept.h, kept.chordAt))
+                return 300
+            },
+            () => {
+                testInput.key(Qt.Key_Delete)
+                return 200
+            },
+            () => {
+                check("and with the box emptied on a chord, that Enter takes it off", sheet().typing && hints().says
+                      === "Enter Takes this chord off · Esc Leaves it as it was · Or type the chord that is to be here", hints().says)
+                testInput.key(Qt.Key_Escape)
+                return 300
+            },
+            () => {
+                check("(Esc: nothing changed)", !sheet().typing && sameSong())
+                // A chord of the sheet's own, carried
+                kept.from = centre(named("chord:" + kept.h + ":" + kept.chordAt))
+                testInput.mouse(1, kept.from.x - 1, kept.from.y)
+                testInput.mouse(1, kept.from.x, kept.from.y)
+                testInput.mouse(0, kept.from.x, kept.from.y)
+                for (let i = 1; i <= 5; ++i)
+                    testInput.mouse(1, kept.from.x + 4 * i, kept.from.y + 2 * i)
+                return 200
+            },
+            () => {
+                check("a chord carried: letting go moves it, and Ctrl leaves a copy", sheet().dragged !== null
+                      && hints().says === "Let go on a word to move it there · Ctrl Held as you let go, leaves a copy behind", hints().says)
+                testInput.keyDown(Qt.Key_Control, false, "", Qt.ControlModifier)
+                return 200
+            },
+            () => {
+                check("and with Ctrl held, that a copy is put there", hints().says === "Let go on a word to put a copy there", hints().says)
+                testInput.keyUp(Qt.Key_Control, false, "", 0)
+                testInput.mouse(2, kept.from.x + 20, kept.from.y + 10)
+                return 300
+            },
+            () => {
+                check("(let go, the chord moved, and that undone)", sheet().dragged === null && !sameSong() && editScreen.editor.undo() === "" && sameSong())
+                // One of the key's chords, carried in from the strip
+                const from = centre(button(4))
+                const to = over(kept.p, 6)
+                testInput.mouse(0, from.x, from.y)
+                for (let i = 1; i <= 10; ++i)
+                    testInput.mouse(1, from.x + (to.x - from.x) * i / 10, from.y + (to.y - from.y) * i / 10)
+                return 300
+            },
+            () => {
+                check("one of the key's chords carried in: where letting go puts it", sheet().carrying && hints().says === "Let go on a word to put this chord there", hints().says)
+                testInput.key(Qt.Key_Escape)
+                testInput.mouse(2, kept.between.x, kept.between.y)
+                return 300
+            },
+            () => {
+                check("(given up: nothing changed)", sheet().dragged === null && sameSong())
+                // Out of the sheet, onto the toolbar over it
+                const m = centre(named("chordsMode"))
+                testInput.mouse(1, m.x, m.y + 2)
+                testInput.mouse(1, m.x, m.y)
+                return 300
+            },
+            () => {
+                check("with nobody at the sheet, it says where to point", hints().says === "Point at a word or a chord, and this line says what the keys do there.", hints().says)
+                testInput.keyDown(Qt.Key_Control, false, "", Qt.ControlModifier)
+                return 200
+            },
+            () => {
+                check("whatever is held: with no highlighted line there is no copying to speak of", hints().says === "Point at a word or a chord, and this line says what the keys do there.",
+                      hints().says)
+                testInput.keyUp(Qt.Key_Control, false, "", 0)
+                return 200
             },
             () => {
                 // ---- The settings: the highlighted line's colour

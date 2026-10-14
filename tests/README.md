@@ -14,13 +14,14 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are twenty-two:
+So far there are twenty-three:
 
 | Test | What it tries |
 | --- | --- |
 | `tst_lookfile` | The looks in ProPresenter's set-up file (`src/lookfile.h`): what each gives each screen, the live look as a look of its own (made from a saved one, changed by itself, saved as that one, made again), a theme known by its place whatever computer named it, the messages and the announcements switched for one screen, a screen given a mask and having it taken away, and changes that leave the rest of the file alone |
 | `tst_maskfile` | The masks in ProPresenter's set-up file (`src/maskfile.h`), on a file made as ProPresenter might have left one: the masks read in the file's order, each with its slide whole; a new one, with nothing on it and a name no other has; one renamed; one removed, which takes it from every look that gave it to a screen; a workspace with no file given one for its first mask; and after each, that the screens, the looks and the rest of the file are as they were |
 | `tst_chords` | Chords (`src/chords.h`): a chord's parts, changing key, the four notations, a key's own chords, what a typed chord might become, the stretch of the words a chord is written over in the file (with words, and with none), ChordPro there and back, a song read from a ChordPro file; and which sharps and flats are drawn as ♯ and ♭, held to the cases the chord editors for the Mac and Windows are held to (`tests/unit/data/signs.json`, copied from the same place as `tst_rtfstandins`'s, whose `tools/signs.py` made it) |
+| `tst_sheethints` | The line of hints under the chord sheet (`src/sheethints.h`): what it says for each thing the person can be about (typing, an emptied box on a chord, carrying a chord of the sheet's or of the strip's, Ctrl held, over the strip, on a chord, on a word, nobody at the sheet), in the words the Mac and Windows chord editors have, each beginning with a capital; and how many go into a width, the last left off, but the two on copying and pasting put one under the other and made smaller instead, and how tall the line then is |
 | `tst_rtfstandins` | A line of chords with no words changed where it stands in an RTF (`src/rtfstandins.h`): held to the cases the chord editors for the Mac and Windows are held to (`tests/unit/data/`, copied from [Pro7 Chord Editor](https://github.com/greyshirtguy/Pro7ChordEditor)'s `testdata/vectors`, whose `tools/standins.py` made them and is the rule's reference), so that all three write the same bytes; and its reader of RTF to what the app's own reader makes of the same samples |
 | `tst_thememath` | Which text box of a slide goes into which text box of a theme (`src/thememath.h`): by name, by size, in order |
 | `tst_searchindex` | Finding presentations by their names and words (`src/searchindex.h`): capitals, punctuation and accents, the order of what is found, the line that is shown; and a list on the screen narrowed to the names that have what was typed, a playlist's headings with it |
