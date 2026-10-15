@@ -67,6 +67,8 @@ qt_add_executable(SimplePresenter
     src/playlistimport.h
     src/proconvert.cpp
     src/proconvert.h
+    src/linejoin.cpp
+    src/linejoin.h
     src/prodocument.cpp
     src/prodocument.h
     src/richtext.cpp

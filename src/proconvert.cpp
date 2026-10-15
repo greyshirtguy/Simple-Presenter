@@ -2,6 +2,7 @@
 
 #include "clocktext.h"
 #include "fontresolver.h"
+#include "linejoin.h"
 #include "rtf.h"
 #include "rtfwriter.h"
 #include "sessionlog.h"
@@ -189,18 +190,16 @@ QString linkTransformed(const QString &text, int transform)
 
 namespace {
 
-// What a text element can do to its own text, however it came by it.
-QString elementTransformed(const QString &text, int transform, const QString &delimiter)
+// What a text element can do to its own text, however it came by it, for the transforms
+// that make words into lines: each word or each character on a line of its own. (The two
+// that make lines into one keep each run's look: joinedLines() in linejoin.h.)
+QString elementTransformed(const QString &text, int transform)
 {
     switch (transform) {
-    case Text::TRANSFORM_SINGLE_LINE:
-        return joined(text.split(u'\n'), QStringLiteral(" "));
     case Text::TRANSFORM_ONE_WORD_PER_LINE:
         return onePerLine(text, true);
     case Text::TRANSFORM_ONE_CHARACTER_PER_LINE:
         return onePerLine(text, false);
-    case Text::TRANSFORM_REPLACE_LINE_RETURNS:
-        return joined(text.split(u'\n'), delimiter);
     default:
         return text;
     }
@@ -1032,9 +1031,14 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
         const QVariantMap element = entry.toMap();
         const RichText own = element.value("text").value<RichText>();
         RichText display = own;
+        // Text the element shows that is not its own words as they stand is drawn in
+        // the look of its first run, but never raised or lowered: a text that begins
+        // with a superscript (a verse's number) would otherwise be drawn small and high
+        // throughout.
         const auto restyled = [&own](const QString &text) {
-            return RichText::plain(text, own.firstRun(),
-                                   own.paragraphs.isEmpty() ? Qt::AlignHCenter : own.paragraphs.first().alignment);
+            TextRun format = own.firstRun();
+            format.superscript = 0;
+            return RichText::plain(text, format, own.paragraphs.isEmpty() ? Qt::AlignHCenter : own.paragraphs.first().alignment);
         };
         if (element.value("linkKind").toString() == QLatin1String("element")) {
             const qsizetype source = findElement(elements, element.value("linkElementId").toString(),
@@ -1068,9 +1072,12 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
             display = restyled(QString());
         }
         const int transform = element.value("textTransform").toInt();
-        if (transform != Text::TRANSFORM_NONE)
-            display = restyled(elementTransformed(display.plainText(), transform,
-                                                  element.value("textTransformDelimiter").toString()));
+        if (transform == Text::TRANSFORM_SINGLE_LINE)
+            display = joinedLines(display, QStringLiteral(" "));
+        else if (transform == Text::TRANSFORM_REPLACE_LINE_RETURNS)
+            display = joinedLines(display, element.value("textTransformDelimiter").toString());
+        else if (transform != Text::TRANSFORM_NONE)
+            display = restyled(elementTransformed(display.plainText(), transform));
         shown.append(display);
     }
 

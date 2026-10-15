@@ -198,6 +198,10 @@ Popup {
                 // sit in from the captions, with room at their left for the tick on a
                 // current one.
                 readonly property bool sectioned: rows.some(row => row.header !== undefined)
+                // Whether its rows can be ticked at all (`current` given, true or false):
+                // they then sit in as far, so that the tick has its own room and is not
+                // drawn over a label's first letter.
+                readonly property bool ticked: rows.some(row => row.current !== undefined)
 
                 // Where it was asked for, moved as far as it takes to be all inside
                 // the window
@@ -283,7 +287,7 @@ Popup {
                                 readonly property bool pictured: !caption && modelData.glyph !== undefined
                                 // Or a slide drawn small, for a row that stands for a look slides can be given
                                 readonly property bool previewed: !caption && modelData.preview !== undefined
-                                readonly property real indent: previewed ? 60 : pictured ? 34 : pane.sectioned && !caption ? 30 : 12
+                                readonly property real indent: previewed ? 60 : pictured ? 34 : (pane.sectioned || pane.ticked) && !caption ? 30 : 12
                                 // A caption that can be clicked
                                 readonly property bool pressable: heading && modelData.run !== undefined
 

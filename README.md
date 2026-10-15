@@ -204,6 +204,12 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Single Line text boxes keep their looks.** A text box set in ProPresenter to Single
+  Line or Replace Line Returns used to be drawn all in the look of its first word:
+  every colour and bold word after it lost, and, where the text began with a raised
+  number, the whole of it small and raised. Each word keeps its own look now; only the
+  line breaks go. And the menus leave room for their ticks, which were drawn over the
+  first letter of a ticked row in most of them.
 - **Bible mode.** **Bible** in the toolbar, or Ctrl+Alt+B, as in ProPresenter, brings
   up a bar over the slides where a passage is typed (`John 3:16-18`, `Ps 23`) and made
   into slides in a theme, with ProPresenter's Bible Slide Options, its references,
@@ -3074,6 +3080,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/songimport.*` | A new presentation made of a ChordPro file |
 | `src/bible.*`, `src/biblexml.*` | A Bible: its books, chapters and verses, the books' names, a passage as it is typed and as it is written; and reading one from an XML file of the four kinds |
 | `src/bibleflow.*` | How a passage's words are shared out across slides: Fill, and Even at natural pauses, and where that fails |
+| `src/linejoin.*` | A text box's lines made one, each run keeping its look: ProPresenter's Single Line and Replace Line Returns |
 | `src/apibible.*` | api.bible: what is asked of it and how its answers are read |
 | `src/bibles.*`, `qml/BiblePanel.qml` | Bible mode: the Bibles imported and api.bible's, a passage looked up, and slides made of it in a theme; and the bar over the slides |
 | `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |

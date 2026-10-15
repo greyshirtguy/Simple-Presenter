@@ -85,6 +85,16 @@ target_include_directories(tst_sheethints PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_sheethints PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME sheethints COMMAND tst_sheethints)
 
+qt_add_executable(tst_linejoin
+    tst_linejoin.cpp
+    ${PROJECT_SOURCE_DIR}/src/linejoin.h
+    ${PROJECT_SOURCE_DIR}/src/linejoin.cpp
+    ${PROJECT_SOURCE_DIR}/src/richtext.h
+)
+target_include_directories(tst_linejoin PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_linejoin PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+add_test(NAME linejoin COMMAND tst_linejoin)
+
 qt_add_executable(tst_bible
     tst_bible.cpp
     ${PROJECT_SOURCE_DIR}/src/bible.h

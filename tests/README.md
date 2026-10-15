@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are twenty-six:
+So far there are twenty-seven:
 
 | Test | What it tries |
 | --- | --- |
@@ -34,6 +34,7 @@ So far there are twenty-six:
 | `tst_decodingguard` | The guard on hardware video decoding (`src/decodingguard.h`), on folders made up to look like a system's: which graphics chip video would be decoded on, what of nouveau's firmware is looked for and where, and which computers are then held back |
 | `tst_slidenumber` | A slide asked for by its number (`src/slidenumber.h`): what the digits typed so far make, what Backspace leaves of them, and which slide of a presentation a number is, or that none is |
 | `tst_elementorder` | Where an element dragged up or down the editor's list of a slide's elements lands (`src/elementorder.h`): the top of the list is the front and under its last row the back, a gap just over or just under the element changes nothing, and every element of a pile let go at every gap, against the list worked the long way |
+| `tst_linejoin` | A text box's lines made one (`src/linejoin.h`), as Single Line and Replace Line Returns draw it: a verse's raised number first and red words, each run keeping its look; the delimiter between lines in the look of the run before it, a line break within a paragraph counting as a line's end; lines trimmed and empty ones left out; the first paragraph's alignment and spacing; and a text with nothing in it |
 | `tst_bible` | Bibles (`src/bible.h`, `src/biblexml.h`), on Bibles made up in the test: the 66 books' names, short forms and ids; a passage as people type it (`john 3 16`, `Jn 3:16-18`, `Matt 1 2 3`, `Ps 23`, `Gen 1:1-2:3`, `Ruth 1-2`, a list of verses, a book of one chapter) and as it is written back; the verses of a passage, across chapters, cut at a chapter's end, and what is said for a book or chapter the Bible has not; the verse after and before a passage, across chapters and books; and reading each of the four kinds of XML file, with its red letters, notes and titles left out, and books found by number, name or order |
 | `tst_bibleflow` | How a passage is flowed across slides (`src/bibleflow.h`), on made-up words with a stand-in for the text box: a passage's words with their verses and red; what each place between two words costs; Fill as ProPresenter fills; Even making as many slides as Fill, never a scrap at the end, breaking at a full stop or a comma near the middle rather than between two words, not leaving a word or two of a phrase alone, and breaking a phrase longer than a slide; a word wider than the box on a slide of its own; and Break on New Verse |
 | `tst_apibible` | api.bible (`src/apibible.h`), on answers made in the test in api.bible's shape: the list of Bibles; the ids a passage is asked by; a passage's verses read from its JSON, the words of Jesus in red and notes left out; the verses wanted taken from whole chapters; what is said for each kind of refusal; and what FUMS is told |
