@@ -19,8 +19,15 @@ class QNetworkReply;
 // Bible mode's work, for the windows (qml/BiblePanel.qml): the Bibles there are to read
 // from, a passage looked up in one, and slides made of it in a theme.
 //
-// THE BIBLES. Two kinds, side by side in one list, as the maintainer asked
-// (2026-10-15: "importing an XML... and the live api.bible lookup"):
+// THE BIBLES. Three kinds, side by side in one list:
+//   - Bibles that come with the app (2026-10-15: "let's add some free bibles,
+//     preinstalled"): the KJV, YLT and BBE, which are in the public domain, as Zefania
+//     files in the repository's bibles/ (its README says where they are from), put
+//     beside the program by the build (build/bibles) and by the package
+//     (/usr/share/simplepresenter/bibles), and listed in included.json there. They are
+//     read where they are, as an imported Bible is, and cannot be taken out.
+// and the two the maintainer asked for first ("importing an XML... and the live
+// api.bible lookup"):
 //   - Bibles the person has as XML files (biblexml.h), imported: a copy of the file
 //     is kept with the app's own data, in Bibles/, beside a list of them (Bibles/
 //     index.json: each file's name, the Bible's name and short name), so that the
@@ -131,7 +138,7 @@ signals:
 private:
     struct Imported
     {
-        QString file; // in Bibles/
+        QString file; // in Bibles/, or for one that comes with the app, in its folder
         QString name;
         QString abbreviation;
     };
@@ -166,16 +173,21 @@ private:
 
     QString key() const;
     QString folder() const;
+    // The file a Bible of an "included:" or "file:" id is read from; "" for any other
+    QString pathOf(const QString &id) const;
+    void readIncluded();
     void readIndex();
     void writeIndex() const;
-    // A file's Bible, read if it has not been: `ready` is called with it on this
-    // thread, now or once it has been read on another
-    void withBible(const QString &file, std::function<void(const bible::Bible *, const QString &error)> ready);
+    // A Bible read from a file (by its id), read if it has not been: `ready` is called
+    // with it on this thread, now or once it has been read on another
+    void withBible(const QString &id, std::function<void(const bible::Bible *, const QString &error)> ready);
     void answer(int request, const QString &id, const bible::Reference &reference, QList<bible::PassageVerse> verses,
                 const QString &copyright, const QString &error);
     void fetch(const std::shared_ptr<Pending> &pending);
     void fums(const QStringList &tokens);
 
+    QList<Imported> m_included;
+    QString m_includedFolder;
     QList<Imported> m_imported;
     QList<apibible::Translation> m_api;
     QString m_apiProblem;

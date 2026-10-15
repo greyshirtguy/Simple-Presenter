@@ -1,0 +1,23 @@
+[
+  {
+    "file": "kjv.xml",
+    "name": "King James Version",
+    "abbreviation": "KJV",
+    "language": "English",
+    "source": "https://ebible.org/Scriptures/details.php?id=eng-kjv2006"
+  },
+  {
+    "file": "ylt.xml",
+    "name": "Young's Literal Translation",
+    "abbreviation": "YLT",
+    "language": "English",
+    "source": "https://ebible.org/Scriptures/details.php?id=engylt"
+  },
+  {
+    "file": "bbe.xml",
+    "name": "Bible in Basic English",
+    "abbreviation": "BBE",
+    "language": "English",
+    "source": "https://ebible.org/Scriptures/details.php?id=engBBE"
+  }
+]

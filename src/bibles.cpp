@@ -13,6 +13,7 @@
 #include "presentation.pb.h"
 #include "template.pb.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -128,6 +129,7 @@ Bibles::Bibles(QObject *parent)
     , m_network(new QNetworkAccessManager(this))
     , m_session(QUuid::createUuid().toString(QUuid::WithoutBraces))
 {
+    readIncluded();
     readIndex();
 }
 
@@ -182,6 +184,10 @@ QString Bibles::folder() const
 QVariantList Bibles::translations() const
 {
     QVariantList all;
+    for (const Imported &each : m_included) {
+        all.append(QVariantMap {{"id", QStringLiteral("included:") + each.file}, {"name", each.name}, {"abbreviation", each.abbreviation},
+                                {"language", QStringLiteral("English")}, {"source", QStringLiteral("included")}, {"description", QString()}});
+    }
     for (const Imported &each : m_imported) {
         all.append(QVariantMap {{"id", QStringLiteral("file:") + each.file}, {"name", each.name}, {"abbreviation", each.abbreviation},
                                 {"language", QString()}, {"source", QStringLiteral("file")}, {"description", QString()}});
@@ -191,6 +197,39 @@ QVariantList Bibles::translations() const
                                 {"language", each.language}, {"source", QStringLiteral("api")}, {"description", each.description}});
     }
     return all;
+}
+
+// ---- Bibles that come with the app
+
+QString Bibles::pathOf(const QString &id) const
+{
+    if (id.startsWith(QLatin1String("file:")))
+        return folder() + u'/' + id.mid(5);
+    if (id.startsWith(QLatin1String("included:")) && !m_includedFolder.isEmpty())
+        return m_includedFolder + u'/' + id.mid(9);
+    return {};
+}
+
+// Their folder is beside the program when it runs from where it was built (build/bibles),
+// and in the data folder it was installed with when it runs from a package
+// (/usr/bin/../share/simplepresenter/bibles). Only their list is read here, not the
+// Bibles themselves, which are read when first looked in (withBible).
+void Bibles::readIncluded()
+{
+    const QString program = QCoreApplication::applicationDirPath();
+    for (const QString &candidate : {program + QStringLiteral("/bibles"), program + QStringLiteral("/../share/simplepresenter/bibles")}) {
+        QFile list(candidate + QStringLiteral("/included.json"));
+        if (!list.open(QIODevice::ReadOnly))
+            continue;
+        m_includedFolder = QDir(candidate).canonicalPath();
+        for (const QJsonValue &value : QJsonDocument::fromJson(list.readAll()).array()) {
+            const QJsonObject each = value.toObject();
+            const QString file = each.value("file").toString();
+            if (!file.isEmpty() && !file.contains(u'/') && QFileInfo::exists(m_includedFolder + u'/' + file))
+                m_included.append({file, each.value("name").toString(), each.value("abbreviation").toString()});
+        }
+        return;
+    }
 }
 
 // ---- Imported Bibles
@@ -284,7 +323,7 @@ QString Bibles::remove(const QString &id)
             return QStringLiteral("%1 could not be taken out.").arg(m_imported[i].name);
         SessionLog::write("bibles", QStringLiteral("%1 taken out").arg(name));
         m_imported.removeAt(i);
-        m_read.remove(name);
+        m_read.remove(id);
         writeIndex();
         emit translationsChanged();
         return {};
@@ -294,6 +333,7 @@ QString Bibles::remove(const QString &id)
 
 void Bibles::withBible(const QString &file, std::function<void(const bible::Bible *, const QString &)> ready)
 {
+    // (`file` is the Bible's id, "file:…" or "included:…", which m_read keeps it by.)
     // (Answered after this has returned, though the Bible is read already: whoever asked
     // is to know the number of what they asked before its answer comes.)
     if (const auto found = m_read.constFind(file); found != m_read.constEnd()) {
@@ -305,7 +345,7 @@ void Bibles::withBible(const QString &file, std::function<void(const bible::Bibl
     m_reading[file].append(ready);
     if (started)
         return;
-    const QString path = folder() + u'/' + file;
+    const QString path = pathOf(file);
     const QPointer<Bibles> self(this);
     QThreadPool::globalInstance()->start([self, path, file] {
         auto read = std::make_shared<bible::Bible>();
@@ -460,8 +500,8 @@ void Bibles::fums(const QStringList &tokens)
 QVariantList Bibles::books(const QString &id)
 {
     QVariantList all;
-    if (id.startsWith(QLatin1String("file:"))) {
-        const QString file = id.mid(5);
+    if (!pathOf(id).isEmpty()) {
+        const QString file = id;
         if (const auto found = m_read.constFind(file); found != m_read.constEnd()) {
             for (const bible::Book &book : (*found)->books)
                 all.append(QVariantMap {{"number", book.number}, {"name", book.name}, {"chapters", int(book.chapters.size())}});
@@ -491,8 +531,8 @@ void Bibles::answer(int request, const QString &id, const bible::Reference &refe
             name = translation.value("name").toString();
         }
     }
-    if (id.startsWith(QLatin1String("file:"))) {
-        if (const auto read = m_read.constFind(id.mid(5)); read != m_read.constEnd()) {
+    if (!pathOf(id).isEmpty()) {
+        if (const auto read = m_read.constFind(id); read != m_read.constEnd()) {
             if (const bible::Book *book = (*read)->book(reference.book))
                 kept.bookName = book->name;
             if (kept.copyright.isEmpty())
@@ -516,9 +556,9 @@ void Bibles::answer(int request, const QString &id, const bible::Reference &refe
 int Bibles::lookup(const QString &id, const QString &typed)
 {
     const int request = ++m_requests;
-    if (id.startsWith(QLatin1String("file:"))) {
+    if (!pathOf(id).isEmpty()) {
         const QPointer<Bibles> self(this);
-        withBible(id.mid(5), [self, request, id, typed](const bible::Bible *read, const QString &error) {
+        withBible(id, [self, request, id, typed](const bible::Bible *read, const QString &error) {
             if (!self)
                 return;
             if (!read) {
@@ -564,9 +604,9 @@ int Bibles::step(int from, int delta)
         return request;
     }
     const int book = was.verses.first().book;
-    if (was.id.startsWith(QLatin1String("file:"))) {
+    if (!pathOf(was.id).isEmpty()) {
         const QPointer<Bibles> self(this);
-        withBible(was.id.mid(5), [self, request, was, delta, book](const bible::Bible *read, const QString &error) {
+        withBible(was.id, [self, request, was, delta, book](const bible::Bible *read, const QString &error) {
             if (!self)
                 return;
             if (!read) {

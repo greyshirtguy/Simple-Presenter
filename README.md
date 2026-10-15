@@ -121,10 +121,11 @@ ChordPro file, chords and all.
 any of its words, as it is typed.
 
 **It makes slides of a Bible passage,** as ProPresenter's Bible view does: a passage
-typed, in a Bible imported from an XML file or read from api.bible over the internet,
-is made into slides in a theme, with ProPresenter's options. The words are shared out
-across the slides more evenly than ProPresenter does it, and broken where they pause.
-No Bible comes with it. See [Bibles](#bibles).
+typed, in one of three public-domain Bibles that come with it (the KJV, YLT and BBE),
+in a Bible imported from an XML file, or read from api.bible over the internet, is made
+into slides in a theme, with ProPresenter's options. The words are shared out across
+the slides more evenly than ProPresenter does it, and broken where they pause. See
+[Bibles](#bibles).
 
 **And one idea of my own: Simple View.** Hold the ~ key, or click its button, and
 everything round the slides gets out of the way, so that as many of them as will fit
@@ -204,6 +205,11 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Three Bibles come with the app.** The King James Version, Young's Literal
+  Translation and the Bible in Basic English, which are in the public domain (the KJV
+  except in the United Kingdom, the BBE in the United States), are in Bible mode's menu
+  under Included, from the start and with nothing to set up; the KJV is chosen until
+  another is. They are eBible.org's: see [bibles/README.md](bibles/README.md).
 - **Bible mode, reworked.** **← Verse** and **Verse →**, under the slides now, add a
   verse to the passage, before it or after it, within its book, and leave the slides
   up to (or from) the one that is live as they were, so nothing on the screen changes;
@@ -1734,9 +1740,17 @@ the one Copy to Current Presentation puts the slides into, and the one leaving B
 mode goes to. A presentation's own buttons over the slides (Destination, Slide Show,
 Arrangements) are not there for Bible mode's slides.
 
-No Bible comes with the app. Nearly every translation is someone's copyright, and
-ProPresenter's are licensed through Renewed Vision, which is nothing to do with this
-app. There are two ways to have one here, the two FreeShow has:
+Nearly every translation is someone's copyright, and ProPresenter's are licensed
+through Renewed Vision, which is nothing to do with this app. Three are in the public
+domain and come with it; others are had the two ways FreeShow has them:
+
+- **Included**, first in the Bible menu: the **King James Version** (1769), **Young's
+  Literal Translation** (1898) and the **Bible in Basic English** (1949, 1964), taken
+  from eBible.org, which has them as public domain: the KJV except in the United
+  Kingdom, where the Crown's letters patent apply, and the BBE in the United States
+  (it says no more of the BBE than that). The KJV is the one chosen until another is.
+  [bibles/README.md](bibles/README.md) says where they are from and what was done to
+  them; they cannot be taken out.
 
 - **An XML Bible, imported.** **Import XML Bible…** is at the foot of the Bible menu,
   and in the settings under Bibles. Four kinds of file are read: Zefania, OSIS, Beblia
@@ -3123,6 +3137,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/songimport.*` | A new presentation made of a ChordPro file |
 | `src/bible.*`, `src/biblexml.*` | A Bible: its books, chapters and verses, the books' names, a passage as it is typed and as it is written; and reading one from an XML file of the four kinds |
 | `src/bibleflow.*` | How a passage's words are shared out across slides: Fill, and Even at natural pauses, and where that fails; and round slides kept as they were |
+| `bibles/` | The three public-domain Bibles that come with the app, as Zefania files, the list the app reads, and the script that made them from eBible.org's (its README) |
 | `src/linejoin.*` | A text box's lines made one, each run keeping its look: ProPresenter's Single Line and Replace Line Returns |
 | `src/apibible.*` | api.bible: what is asked of it and how its answers are read |
 | `src/bibles.*`, `qml/BiblePanel.qml` | Bible mode: the Bibles imported and api.bible's, a passage looked up, and slides made of it in a theme; and the bar over the slides |

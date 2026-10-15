@@ -57,21 +57,16 @@ Rectangle {
     readonly property alias optionsPanel: optionsPanel
 
     // The Bible chosen, or until one is, one to begin with, so that there is nothing to
-    // choose first: the first imported, else api.bible's NIV, NKJV or KJV in that order,
-    // else the first English one it gives, else its first. (A guess at what most will
-    // want: FreeShow starts at the NIV, and ProPresenter at the Bible last installed.)
+    // choose first: the first imported, else api.bible's NIV or NKJV, else the KJV that
+    // comes with the app, else any KJV, else the first in English, else the first. (A
+    // guess at what most will want: FreeShow starts at the NIV, and ProPresenter at the
+    // Bible last installed.)
     readonly property var translation: Bibles.translations.find(t => t.id === settings.translation) ?? firstChoice(Bibles.translations)
 
     function firstChoice(all) {
-        const imported = all.find(t => t.source === "file")
-        if (imported)
-            return imported
-        for (const name of ["NIV", "NKJV", "KJV"]) {
-            const found = all.find(t => t.abbreviation.toUpperCase() === name)
-            if (found)
-                return found
-        }
-        return all.find(t => t.language === "English") ?? all[0] ?? null
+        const named = (source, abbreviation) => all.find(t => (source === "" || t.source === source) && t.abbreviation.toUpperCase() === abbreviation)
+        return all.find(t => t.source === "file") ?? named("api", "NIV") ?? named("api", "NKJV") ?? named("included", "KJV") ?? named("", "KJV")
+               ?? all.find(t => t.language === "English") ?? all[0] ?? null
     }
     readonly property var themeChoices: {
         const all = [{ place: "", slide: "", label: "Plain (no theme)" }]
@@ -252,6 +247,13 @@ Rectangle {
         const rows = []
         const files = Bibles.translations.filter(t => t.source === "file")
         const api = Bibles.translations.filter(t => t.source === "api")
+        const included = Bibles.translations.filter(t => t.source === "included")
+        if (included.length > 0) {
+            rows.push({ header: "Included" })
+            for (const t of included)
+                rows.push({ label: t.name + " (" + t.abbreviation + ")", current: translation !== null && t.id === translation.id, run: () => edit({ translation: t.id }) })
+            rows.push({ divider: true })
+        }
         rows.push({ header: "Imported" })
         if (files.length === 0)
             rows.push({ note: "None yet" })

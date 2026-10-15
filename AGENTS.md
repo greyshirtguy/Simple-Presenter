@@ -56,7 +56,8 @@ These are not style. A change that breaks one of them is wrong however well it w
 - Reading is fine. The log of each run (`~/Documents/SimplePresenter/Logs/`) was written
   to be handed to you: start there.
 - Songs are other people's copyright, and so are the Bibles a person has imported; a
-  workspace says a good deal about the people who use it. Do not copy any of it into
+  workspace says a good deal about the people who use it. (The three Bibles in
+  `bibles/` are in the public domain and are the app's own: no other goes in.) Do not copy any of it into
   this repository, an issue, a pull request, a paste site or anywhere else off the
   computer. Names of files are in the log; words of songs and verses are not.
 - Before deleting anything, look at what it is. Do not delete by a path built from a

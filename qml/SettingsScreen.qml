@@ -1287,9 +1287,41 @@ Rectangle {
                     wrapMode: Text.Wrap
                     color: "#b0b3b8"
                     font.pixelSize: 13
-                    text: "Bible mode (the Bible button in the toolbar, or Ctrl+Alt+B) makes slides of a passage. It reads from Bibles imported "
-                        + "here from XML files (Zefania, OSIS, Beblia and OpenSong), and from api.bible over the internet. No Bible comes with the "
-                        + "app: most translations are copyright, and an imported file is the importer's to answer for."
+                    text: "Bible mode (the Bible button in the toolbar, or Ctrl+Alt+B) makes slides of a passage. It reads from three Bibles in "
+                        + "the public domain that come with the app, from Bibles imported here from XML files (Zefania, OSIS, Beblia and "
+                        + "OpenSong), and from api.bible over the internet. Most other translations are copyright, and an imported file is the "
+                        + "importer's to answer for."
+                }
+
+                SectionTitle {
+                    text: "Included"
+                }
+
+                Repeater {
+                    model: Bibles.translations.filter(t => t.source === "included")
+
+                    Text {
+                        required property var modelData
+
+                        objectName: "includedBible:" + modelData.abbreviation
+                        width: parent.width - 14
+                        height: 28
+                        verticalAlignment: Text.AlignVCenter
+                        color: "#e6e6e6"
+                        font.pixelSize: 14
+                        text: modelData.name + "  (" + modelData.abbreviation + ")"
+                    }
+                }
+
+                Text {
+                    width: parent.width - 14
+                    wrapMode: Text.Wrap
+                    color: "#7d8088"
+                    font.pixelSize: 12
+                    text: Bibles.translations.some(t => t.source === "included")
+                          ? "From eBible.org, which has them as public domain: the KJV except in the United Kingdom, where the Crown's letters "
+                            + "patent apply, and the BBE in the United States."
+                          : "Not found beside the app: it was built or installed without them."
                 }
 
                 SectionTitle {

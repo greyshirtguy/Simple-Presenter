@@ -104,6 +104,8 @@ qt_add_executable(tst_bible
 )
 target_include_directories(tst_bible PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_bible PRIVATE Qt6::Core Qt6::Test)
+# (The Bibles that come with the app, read where they are in the repository)
+target_compile_definitions(tst_bible PRIVATE INCLUDED_BIBLES="${PROJECT_SOURCE_DIR}/bibles")
 add_test(NAME bible COMMAND tst_bible)
 
 qt_add_executable(tst_bibleflow

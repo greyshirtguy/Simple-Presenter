@@ -5,6 +5,10 @@
 #include "bible.h"
 #include "biblexml.h"
 
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTest>
 
 using namespace bible;
@@ -249,6 +253,53 @@ private slots:
         QVERIFY(!biblexml::read("<songs><song/></songs>", "x", &b, &error) && error.contains("Zefania"));
         QVERIFY(!biblexml::read("<XMLBIBLE><BIBLEBOOK bnumber=\"1\"></BIBLEBOOK></XMLBIBLE>", "x", &b, &error) && error.contains("no verses"));
         QVERIFY(!biblexml::read("<XMLBIBLE><BIBLEBOOK bnumber=\"1\"><CHAPTER cnumber=\"1\"><VERS vnumber=\"1\">Broken", "x", &b, &error));
+    }
+
+    // The Bibles that come with the app (bibles/, made by bibles/make.py), read as the app
+    // reads them: each the 66 books, 1189 chapters and every verse it has (the BBE has 16
+    // with no words, left out), under its name, the books named as the app names them, its
+    // public domain said, and each in the list the app reads. Nothing of their words is
+    // looked at here.
+    void theIncludedBibles()
+    {
+        QFile listFile(QStringLiteral(INCLUDED_BIBLES "/included.json"));
+        QVERIFY(listFile.open(QIODevice::ReadOnly));
+        const QJsonArray list = QJsonDocument::fromJson(listFile.readAll()).array();
+        QCOMPARE(list.size(), 3);
+        const QList<std::tuple<QString, QString, QString, int>> wanted {
+            {"kjv.xml", "King James Version", "KJV", 31102}, {"ylt.xml", "Young's Literal Translation", "YLT", 31102},
+            {"bbe.xml", "Bible in Basic English", "BBE", 31086}};
+        for (qsizetype i = 0; i < wanted.size(); ++i) {
+            const auto &[file, name, abbreviation, count] = wanted.at(i);
+            QCOMPARE(list.at(i).toObject().value("file").toString(), file);
+            QCOMPARE(list.at(i).toObject().value("name").toString(), name);
+            QCOMPARE(list.at(i).toObject().value("abbreviation").toString(), abbreviation);
+            QFile source(QStringLiteral(INCLUDED_BIBLES "/") + file);
+            QVERIFY(source.open(QIODevice::ReadOnly));
+            Bible b;
+            QString error;
+            biblexml::Format format = biblexml::Format::Unknown;
+            QVERIFY2(biblexml::read(source.readAll(), file, &b, &error, &format), qPrintable(error));
+            QCOMPARE(format, biblexml::Format::Zefania);
+            QCOMPARE(b.name, name);
+            QCOMPARE(b.abbreviation, abbreviation);
+            QVERIFY(b.copyright.startsWith("Public domain"));
+            QCOMPARE(b.books.size(), 66);
+            int chapters = 0, verses = 0;
+            for (const Book &book : std::as_const(b.books)) {
+                QCOMPARE(book.name, englishName(book.number));
+                chapters += int(book.chapters.size());
+                for (const Chapter &chapter : book.chapters) {
+                    verses += int(chapter.verses.size());
+                    for (const Verse &verse : chapter.verses)
+                        QVERIFY(!verse.text.trimmed().isEmpty() && !verse.text.contains(QChar(0x00b6)));
+                }
+            }
+            QCOMPARE(chapters, 1189);
+            QCOMPARE(verses, count);
+            QCOMPARE(passage(b, parse("John 3:16"), &error).size(), 1);
+            QCOMPARE(passage(b, parse("Psalm 119"), &error).size(), 176);
+        }
     }
 };
 

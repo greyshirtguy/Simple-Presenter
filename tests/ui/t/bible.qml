@@ -162,6 +162,26 @@ QtObject {
             () => {
                 check("and comes to it again, with its bar as high as it was, and still nothing in the grid", win.bibleMode && named("biblePanel").height === kept.barHeight
                       && named("biblePanel").item.height === kept.barHeight && win.document === null, kept.barHeight + " then " + named("biblePanel").height)
+                // ---- The Bibles that come with the app
+                check("the three Bibles that come with the app are offered, the KJV chosen to begin with",
+                      Bibles.translations.filter(t => t.source === "included").map(t => t.abbreviation).join(" ") === "KJV YLT BBE"
+                      && named("bibleTranslation").value === "KJV", JSON.stringify(Bibles.translations.map(t => t.abbreviation)))
+                panel().translationMenu(named("bibleTranslation"))
+                return 400
+            },
+            () => {
+                check("the Bible menu has them first, as Included", labels().startsWith("[Included], *King James Version (KJV), Young's Literal Translation (YLT), "
+                      + "Bible in Basic English (BBE), --, [Imported]"), labels())
+                menu.close()
+                find("John 3:16")
+                return 2500
+            },
+            () => {
+                // (Nothing of its words is looked at: only that it was found, and made into slides.)
+                const p = panel()
+                check("a passage found in the KJV, made into slides, its public domain said", p.passage !== null && p.passage.error === "" && p.passage.translation === "KJV"
+                      && p.passage.verses.length === 1 && slides().length === 1 && named("bibleStatus").text.includes("Public domain"),
+                      p.passage ? p.passage.reference + " " + p.passage.error + " / " + named("bibleStatus").text : "none")
                 // ---- An XML Bible imported
                 Bibles.importFile("file://" + catalog.workspacePath + "/Made Up Bible.xml")
                 return 1500
@@ -436,8 +456,9 @@ QtObject {
             },
             () => {
                 const online = Bibles.translations.find(b => b.source === "api")
-                check("with a key it takes, the Bibles it gives are offered after the imported ones", online !== undefined && online.name === "Made Up Online"
-                      && Bibles.translations[0].source === "file", JSON.stringify(Bibles.translations.map(b => b.name)))
+                check("with a key it takes, the Bibles it gives are offered after those that come with the app and those imported", online !== undefined
+                      && online.name === "Made Up Online" && Bibles.translations.map(b => b.source).join(" ") === "included included included file api",
+                      JSON.stringify(Bibles.translations.map(b => b.name)))
                 panel().edit({ translation: online ? online.id : "", theme: "", themeSlide: "" })
                 find("John 3:16")
                 return 1500
@@ -516,6 +537,8 @@ QtObject {
             () => {
                 const remove = named("removeBible:Made Up Version")
                 check("the settings list the imported Bible, with a way to take it out", named("bibleSettings") !== null && remove !== null && remove.visible)
+                check("and the three that come with the app, which cannot be", ["KJV", "YLT", "BBE"].every(a => named("includedBible:" + a) !== null && named("includedBible:" + a).visible)
+                      && named("removeBible:King James Version") === null)
                 testInput.grab("7-settings")
                 click(centre(remove))
                 return 600
@@ -523,8 +546,8 @@ QtObject {
             () => {
                 check("taken out, it is offered no more", !Bibles.translations.some(b => b.name === "Made Up Version"))
                 panel().edit({ translation: "file:Made Up Version.xml" })
-                check("and a Bible chosen that is there no more gives way to one that is, with nothing to choose (api.bible's first in English)",
-                      panel().translation !== null && panel().translation.name === "Made Up Online" && named("bibleTranslation").value === "MUO",
+                check("and a Bible chosen that is there no more gives way to one that is, with nothing to choose (the KJV that comes with the app)",
+                      panel().translation !== null && panel().translation.source === "included" && named("bibleTranslation").value === "KJV",
                       named("bibleTranslation").value)
                 kept.settings.section = "groups"
                 settingsOpen = false

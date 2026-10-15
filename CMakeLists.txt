@@ -485,6 +485,15 @@ install(FILES packaging/io.github.greyshirtguy.SimplePresenter.svg
 install(FILES packaging/io.github.greyshirtguy.SimplePresenter.metainfo.xml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
 install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/simplepresenter)
+
+# The Bibles that come with the app, which are in the public domain (bibles/README.md):
+# copied beside the program where it is built (build/bibles), where it looks first, and
+# put in the package's data folder, where it looks after (src/bibles.h).
+set(includedBibles bibles/included.json bibles/kjv.xml bibles/ylt.xml bibles/bbe.xml)
+foreach(file IN LISTS includedBibles)
+    configure_file(${file} ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)
+endforeach()
+install(FILES ${includedBibles} DESTINATION ${CMAKE_INSTALL_DATADIR}/simplepresenter/bibles)
 # The GNOME Shell extension that keeps the output and stage windows out of Alt+Tab when
 # the app is run through Wayland (src/windowlists.h says why it takes one). GNOME finds
 # it here the next time someone logs in; it does nothing until it is switched on.
