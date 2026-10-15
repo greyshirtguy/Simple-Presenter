@@ -144,7 +144,7 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         kind: "show"
         label: "Show"
-        on: !toolbar.win.editing
+        on: !toolbar.win.editing && !toolbar.win.bibleMode
         onClicked: toolbar.win.showMode()
     }
 
@@ -197,11 +197,25 @@ Rectangle {
         }
     }
 
+    // Bible mode (BiblePanel.qml): ProPresenter's Bibles, beside its Show and Edit
+    ToolbarIcon {
+        id: bibleButton
+
+        objectName: "bibleButton"
+        anchors.left: reflowButton.right
+        anchors.leftMargin: 2
+        anchors.verticalCenter: parent.verticalCenter
+        kind: "bible"
+        label: "Bible"
+        on: toolbar.win.bibleMode
+        onClicked: toolbar.win.bibleModeToggle()
+    }
+
     // What is open, and the app: in the middle of the window where there is room for it
     // there, and otherwise in what room there is between the edit button and the buttons
     // on the right; where that is too little to say anything in, it is left out
     Text {
-        readonly property real from: reflowButton.x + reflowButton.width + 14
+        readonly property real from: bibleButton.x + bibleButton.width + 14
         readonly property real to: toolbarControls.x - 16
 
         x: Math.max(from, Math.min((parent.width - width) / 2, to - width))

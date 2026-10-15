@@ -120,6 +120,12 @@ ChordPro file, chords and all.
 **It finds things.** [Search](#search) (Ctrl+F) finds a presentation by its name or by
 any of its words, as it is typed.
 
+**It makes slides of a Bible passage,** as ProPresenter's Bible view does: a passage
+typed, in a Bible imported from an XML file or read from api.bible over the internet,
+is made into slides in a theme, with ProPresenter's options. The words are shared out
+across the slides more evenly than ProPresenter does it, and broken where they pause.
+No Bible comes with it. See [Bibles](#bibles).
+
 **And one idea of my own: Simple View.** Hold the ~ key, or click its button, and
 everything round the slides gets out of the way, so that as many of them as will fit
 can be seen at once. The same again brings it all back. More under
@@ -133,7 +139,7 @@ a slide is up, and plays a 4K video under the words with most of the machine to 
 see [Built for modest hardware](#built-for-modest-hardware).
 
 **What it cannot do** is a longer list. ProPresenter does a great deal more than this:
-there are no video inputs, no network API and no Bible here yet, among much else. See
+there are no video inputs and no network API here yet, among much else. See
 [TODO](#todo).
 
 ### Custom features
@@ -162,6 +168,10 @@ always wished ProPresenter had them. The list will grow.
   with the mouse and the keys 1 to 7, and the same song as ChordPro text. See
   [Chords](#chords).
 - **Importing a ChordPro file** as a new song, chords and all.
+- **A Bible passage shared out evenly.** ProPresenter fills each slide and goes on to
+  the next; here the words can be shared out across the slides, broken at a full stop
+  or a comma where there is one near, with no slide left holding a scrap. See
+  [How the words are flowed](#how-the-words-are-flowed).
 
 ### What it is trying to be
 
@@ -194,6 +204,16 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Bible mode.** **Bible** in the toolbar, or Ctrl+Alt+B, as in ProPresenter, brings
+  up a bar over the slides where a passage is typed (`John 3:16-18`, `Ps 23`) and made
+  into slides in a theme, with ProPresenter's Bible Slide Options, its references,
+  Previous Verse and Next Verse, and Save as Presentation, Save to Playlist and Copy to
+  Current Presentation. No Bible comes with the app: one is imported from an XML file
+  (Zefania, OSIS, Beblia or OpenSong), or read from api.bible over the internet, a
+  passage at a time and nothing of it kept. And the words can be flowed **Even, at
+  Natural Pauses**: as many slides as ProPresenter would make, the words shared out
+  across them, broken at the end of a sentence or a verse, or at a comma, where one is
+  near. See [Bibles](#bibles).
 - **The chord sheet, as the Mac and Windows chord editors have it now.** A blue line
   under the sheet says what the keys and the mouse do just now, where the pointer is:
   on a chord, that Delete takes it off and 1 to 7 change it; while one is typed, what
@@ -463,6 +483,10 @@ the top of this page.
       are kept in the files and shown, and not done), an action's delay, putting a
       slide's or a macro's actions in another order, and the clear layer the app
       does not have yet (video inputs).
+- [ ] **Bibles**: they are there (see [Bibles](#bibles)), from XML files and from
+      api.bible. Still to come: searching a Bible by a word; a second translation
+      beside the first; other sources online (the ESV's own, among them); and the
+      flow's weights tried on real passages.
 - [ ] **The audio bin**: it is there (see [Audio](#audio)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, how loud it
       is, and its own fades, which ProPresenter's inspector sets and which are kept
@@ -486,7 +510,6 @@ experiment.
 - [ ] **Linked text: the colours of a timer**
 - [ ] **Timer markers** (an idea of my own)
 - [ ] **Text formatter**
-- [ ] **Bible**, from an online source, as FreeShow has it
 - [ ] **CCLI**: a song's details edited, and the ways of showing them
 - [ ] **More to import**: PowerPoint, to begin with
 - [ ] **Easy View**
@@ -1680,6 +1703,138 @@ otherwise be done twice; which text box a slide with several is a row for; and t
 that go from row to row. The maintainer, who knows ProPresenter, has since said that
 each is as wanted, and that the third is as ProPresenter does, as far as they know.
 
+## Bibles
+
+ProPresenter's Bible view, under ProPresenter's names: a passage is looked up and made
+into slides in a theme. **Bible** in the toolbar, after Reflow (an open book), or
+**Ctrl+Alt+B**, which is ProPresenter's key for it, brings a bar up over the slides; the
+button again, or Show, goes back to the presentation that was being viewed.
+
+No Bible comes with the app. Nearly every translation is someone's copyright, and
+ProPresenter's are licensed through Renewed Vision, which is nothing to do with this
+app. There are two ways to have one here, the two FreeShow has:
+
+- **An XML Bible, imported.** **Import XML Bible…** is at the foot of the Bible menu,
+  and in the settings under Bibles. Four kinds of file are read: Zefania, OSIS, Beblia
+  and OpenSong, which between them are how most Bibles are passed about as files. The
+  file is copied into the app's own folder
+  (`~/.local/share/SimplePresenter/SimplePresenter/Bibles`), so that it stays whatever
+  becomes of the one imported; the settings list what has been imported and take one
+  out again. Whether a file may be used is for whoever imports it. The words of Jesus
+  are red where the file marks them (Zefania's red, OSIS's `<q who="Jesus">`).
+- **api.bible**, the American Bible Society's service, asked over the internet. It
+  gives a key to whoever registers an app there, free for use that is not commercial,
+  and gives that key the Bibles its publishers allow; their terms are that a passage is
+  fetched when it is wanted and not stored, that the copyright is shown with it, and
+  that what was shown is reported back (their "FUMS", which is told the passage, a
+  random number for the computer and one for the run, and nothing else of who looked).
+  So a passage is asked for every time it is looked up, nothing of it is kept but the
+  slides made of it, its copyright is said under the bar, and the report goes as it
+  comes. A copy of the app built with a key (see
+  [Building from source](#building-from-source)) has api.bible's Bibles in the menu
+  from the start; in one without, a key of one's own can be typed in the settings,
+  under Bibles, and is kept in the app's settings.
+
+The bar has three lines. The first finds the passage:
+
+- **The Bible**, and **Book**: ProPresenter's Book menu, the Old Testament and the New
+  (and any other books a file has), each book with its chapters.
+- **The passage**, typed as it is usually written and found with Enter or **Find**:
+  `John 3:16`, `jn 3 16-18`, `Psalm 23`, `Gen 1:1-2:3`, `Ruth 1-2`,
+  `1 Cor 13:4-7`, `John 3:16, 18, 20-21`, `Jude 3`. A book's name can be cut short
+  while it is still only one book's, and a file in another language is found by its
+  own names for the books as well.
+- **Previous Verse** and **Next Verse**: the verse before the passage and the one
+  after, on into the next chapter and the next book.
+- **The cog**: **Save as Presentation**, into a library, under the passage's name;
+  **Save to Playlist**, the same, with a row for it at the foot of a playlist; and
+  **Copy to Current Presentation**, which puts the slides into the presentation that
+  was being viewed, after the slide that was live in it, or at its end.
+
+The second says how the slides are made:
+
+- **Theme**, and its slide: each slide is a copy of the theme slide, with everything
+  on it. **Verse** is the text box the words go in (one called Verse, Scripture,
+  Bible, Text or Lyrics is taken to begin with), and **Reference** the one the
+  passage's reference goes in, or **With Verse**, after the words in the same box. A
+  box called Copyright gets the translation's copyright; the theme's other text boxes
+  are left empty. **Plain (no theme)** is white words on black.
+- ProPresenter's four Bible Slide Options: **Show Verse Numbers** (small and raised),
+  **Break on New Verse** (each verse begins a slide), **Display Translation** (its
+  short name after the reference) and **Preserve Font Color** (the red).
+- ProPresenter's references: **Verse References**, each slide its own verses;
+  **Passage Each**, the whole passage on every slide; **Passage Last**, on the last
+  only; and **No Reference**.
+- **Flow**: how the words are shared out across the slides (below).
+
+The third says what was found, on how many slides, and its copyright. The slides are in
+the grid under it, a presentation of their own, and are clicked, stepped through and
+taken live as any are. Each is labelled with its own verses, and they are one group,
+named for the passage. Until they are saved they are kept in a folder that goes when
+the app is closed. Which theme, which boxes and the options are remembered from one
+start to the next.
+
+### How the words are flowed
+
+ProPresenter fills each slide with as much as fits in the box and goes on to the next:
+that is **Fill Each Slide** here. It leaves two things that look wrong on a screen: the
+last slide is often a few words after full ones, and a slide ends wherever the box is
+full, in the middle of a phrase, when a comma or a full stop a word away is where anyone
+reading it aloud would have paused. **Even, at Natural Pauses** is this app's own, and
+what it starts with. It makes as many slides as Fill would, never more, and chooses
+where they break so that:
+
+- they break where the words pause: best at the end of a sentence that is also the end
+  of a verse, then the end of a sentence, the end of a verse, a semicolon, colon or
+  dash, a comma, and only last between two words with nothing between them;
+- a break inside a sentence does not leave a word or two of a phrase on their own
+  ("… and" at the foot of a slide, "him." at the top of the next);
+- the slides hold about as much as each other, so that a slide's worth of words too
+  many goes two or three ways rather than full, full and a scrap.
+
+Those pull against each other, and all of them are weighed together for every place
+the passage could break: a comma near the middle can win over a full stop at the far
+end, and a phrase is broken between words only where it is longer than a slide or where
+keeping it whole would leave the slides far from even. Nothing goes on a slide that
+does not fit its box, which is measured as it will be drawn. With Break on New Verse,
+each verse is flowed the same way by itself.
+
+Where it cannot find the pauses (the maintainer asked where this way of doing it
+fails):
+
+- A phrase longer than a slide with no comma in it (a list of names, a translation
+  sparing with commas) has to be broken between words; it is broken at the place
+  nearest even that leaves no word or two on their own.
+- A word wider than the box overflows it, whatever is done.
+- A full stop that ends no sentence ("St.", "v. 3", initials) is taken for one.
+- A quotation is not followed: a break inside one is weighed as any other, and the
+  opening quote mark is not carried over to the next slide.
+- Poetry breaks at its lines, which an XML file seldom keeps, so the Psalms in most
+  modern translations are flowed as prose.
+- The marks differ between translations, so the same passage breaks in different
+  places in each.
+- Languages written without spaces between words (Chinese, Japanese, Thai) have no
+  words to break between, and nothing is tried for them.
+- Even leaves each slide a little emptier than Fill: a passage that just overflows one
+  slide is two about half full. That is the point of it, but some will prefer Fill.
+
+The weights are a first setting, tried on made-up passages in the unit tests
+(`tests/unit/tst_bibleflow.cpp`) and not yet on real Bible text: they are what to change
+if a passage breaks where it should not, and they are said in `src/bibleflow.h`.
+
+### What is a guess, or not done
+
+ProPresenter's help says what its Bible view has, and not how it is laid out: the bar
+and its three lines are a guess, and so are the names Even and Fill and where they sit,
+the red (a soft red, `#ff5a4f`), the slides' labels and their group's name, Passage
+Last to begin with, Verse References being there without Break on New Verse, the text
+boxes picked by their names, a box called Copyright, and where Copy to Current
+Presentation puts the slides.
+
+Not here yet, of ProPresenter's: searching the Bible by a word, and a second
+translation beside the first. The ESV is not on api.bible (Crossway has a service of
+its own, which this does not ask). No other online source is asked.
+
 ## Chords
 
 A song can have chords over its words, for a stage screen to show the band. They are
@@ -2329,6 +2484,7 @@ NDI® is a registered trademark of Vizrt NDI AB.
 | A number, then Enter | Goes to the slide with that number |
 | Ctrl+E | Edit mode: the editor, for the presentation being viewed |
 | Ctrl+R | The [reflow editor](#reflow), for the presentation being viewed |
+| Ctrl+Alt+B | [Bible mode](#bibles) on or off |
 | Ctrl+S | Show mode: out of the editor, whichever one is up |
 | Ctrl+F | [Search](#search) |
 | Ctrl+V | Show or hide the media bin |
@@ -2512,6 +2668,15 @@ The first line checks that everything in step 1 is there and sets the build up i
 folder called `build`; the second compiles. It takes a few minutes the first time, most
 of it spent on the code generated for ProPresenter's formats. The result is one file,
 `build/SimplePresenter`, with the interface and the shaders compiled into it.
+
+A key for [api.bible](#bibles) is not in the repository: a key is for whoever
+registered for it, and its use is counted against them. To build one in, so that
+api.bible's Bibles are there with nothing to set up, put the key in the file
+`packaging/api-bible-key.txt` (git leaves that file alone), or give it as
+`-DSIMPLEPRESENTER_API_BIBLE_KEY=…` on the first line above, and build again. It can
+be read out of the program by anyone who has it, and everyone who has the program
+shares its allowance of requests. Without one, a key of one's own can be typed in the
+settings instead.
 
 **4. Run it.**
 
@@ -2841,7 +3006,8 @@ the whole of it).
 **Unit tests** try the parts of the app that are plain rules, by themselves, with no
 window and no workspace: the rules of the show (`src/showstate.*`), chords, the screens,
 the looks and the masks in ProPresenter's file, how a piece of audio plays and how loud it is,
-search, how a date and a time are written, and the matching of themes. They are
+search, how a date and a time are written, the matching of themes, and Bibles, from
+reading a passage as it is typed to sharing it out across slides. They are
 built with the app and take a few milliseconds:
 
 ```
@@ -2849,7 +3015,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: forty-seven scripts and over two
+and look at what its windows then hold and show: forty-nine scripts and over two
 thousand three hundred checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -2906,6 +3072,10 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
 | `src/chords.*`, `src/chordsbridge.*` | Chords: what one is, changing key, the four notations, ChordPro text; and the same for QML to call |
 | `src/songimport.*` | A new presentation made of a ChordPro file |
+| `src/bible.*`, `src/biblexml.*` | A Bible: its books, chapters and verses, the books' names, a passage as it is typed and as it is written; and reading one from an XML file of the four kinds |
+| `src/bibleflow.*` | How a passage's words are shared out across slides: Fill, and Even at natural pauses, and where that fails |
+| `src/apibible.*` | api.bible: what is asked of it and how its answers are read |
+| `src/bibles.*`, `qml/BiblePanel.qml` | Bible mode: the Bibles imported and api.bible's, a passage looked up, and slides made of it in a theme; and the bar over the slides |
 | `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |
 | `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
 | `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
@@ -2934,7 +3104,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/TypedNumber.qml` | The panel over the slides that shows a slide's number while it is typed |
 | `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml`, `MacrosPanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props, stage screens and macros |
 | `qml/ActionDialog.qml`, `qml/PopupMenu.qml` | The panel a timer action or a stage action is set up in, and the menus, which open one out of another |
-| `qml/SettingsScreen.qml` | The settings: groups, slides, screens, looks, video, audio, windows, and what the app is |
+| `qml/SettingsScreen.qml` | The settings: groups, slides, Bibles, screens, looks, video, audio, windows, and what the app is |
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists and its three ways of working, the slide being worked on, and the properties panel |
 | `qml/OutputScene.qml`, `qml/StageScene.qml`, `qml/StageView.qml` | What an audience screen and a stage screen show, whatever they are sent out through; and the plain view a stage screen has without a layout |
 | `qml/Output.qml`, `qml/Stage.qml`, `qml/AuxWindow.qml` | A screen in a window: floating, or filling a display |

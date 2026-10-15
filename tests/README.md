@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are twenty-three:
+So far there are twenty-six:
 
 | Test | What it tries |
 | --- | --- |
@@ -34,6 +34,9 @@ So far there are twenty-three:
 | `tst_decodingguard` | The guard on hardware video decoding (`src/decodingguard.h`), on folders made up to look like a system's: which graphics chip video would be decoded on, what of nouveau's firmware is looked for and where, and which computers are then held back |
 | `tst_slidenumber` | A slide asked for by its number (`src/slidenumber.h`): what the digits typed so far make, what Backspace leaves of them, and which slide of a presentation a number is, or that none is |
 | `tst_elementorder` | Where an element dragged up or down the editor's list of a slide's elements lands (`src/elementorder.h`): the top of the list is the front and under its last row the back, a gap just over or just under the element changes nothing, and every element of a pile let go at every gap, against the list worked the long way |
+| `tst_bible` | Bibles (`src/bible.h`, `src/biblexml.h`), on Bibles made up in the test: the 66 books' names, short forms and ids; a passage as people type it (`john 3 16`, `Jn 3:16-18`, `Matt 1 2 3`, `Ps 23`, `Gen 1:1-2:3`, `Ruth 1-2`, a list of verses, a book of one chapter) and as it is written back; the verses of a passage, across chapters, cut at a chapter's end, and what is said for a book or chapter the Bible has not; the verse after and before a passage, across chapters and books; and reading each of the four kinds of XML file, with its red letters, notes and titles left out, and books found by number, name or order |
+| `tst_bibleflow` | How a passage is flowed across slides (`src/bibleflow.h`), on made-up words with a stand-in for the text box: a passage's words with their verses and red; what each place between two words costs; Fill as ProPresenter fills; Even making as many slides as Fill, never a scrap at the end, breaking at a full stop or a comma near the middle rather than between two words, not leaving a word or two of a phrase alone, and breaking a phrase longer than a slide; a word wider than the box on a slide of its own; and Break on New Verse |
+| `tst_apibible` | api.bible (`src/apibible.h`), on answers made in the test in api.bible's shape: the list of Bibles; the ids a passage is asked by; a passage's verses read from its JSON, the words of Jesus in red and notes left out; the verses wanted taken from whole chapters; what is said for each kind of refusal; and what FUMS is told |
 | `tst_reflow` | The reflow editor's rules for a slide's words (`src/reflow.h`), on texts made in the test: where a slide is split for a caret, with the spaces around it going to neither slide and a line of chords alone not taken for space; a stretch taken with its look, a break taken with a line on either side of it; two texts joined; words typed over, a line break typed, everything deleted; and the chords of a split slide, of two joined, and of a split joined again |
 | `tst_clearfile` | Clear groups (`src/clearfile.h`): the group a workspace with no file is taken to have, written as ProPresenter's own is; a file of ProPresenter's read; a layer taken out and put back where it was; a group made, renamed, moved and removed; its picture, its tint and whether its button is shown; and that the rest of the file, and what is not known of in it, is kept |
 | `tst_showstate` | The rules of the show (`src/showstate.h`): what a slide going live puts on the output and in what order, when the media it brings is started and when what is playing is left to, what a slide's actions do, what clearing leaves, what a clear group clears, how props stack and give way, what a macro does, where a step takes the show, how the show follows a presentation that is read again, and one that is renamed under it; and the audio layer: music one at a time, sound effects over it and each other, what follows a piece that has ended, and what clears which; the messages: several at once, one that goes by itself after its time, what clears them, and an action that shows one; and what the stage is told; the announcements: a presentation sent there goes to their layer, with media of its own under its slide, and the show stays where it was, what clears them, and stepping from where they are; and going on by itself: a slide's Go To Next Timer and its presentation's Slide Show, which of them wins, what stops it, the show and the announcements each by their own time, and a presentation that would never stop being stopped |
@@ -124,6 +127,12 @@ What the folder holds:
 | `workspaces/Act` | The same presentations with ProPresenter's macros, groups, its own account of the workspace (screens and looks) and its themes |
 | `workspaces/Shapes` | One presentation and two pictures, for the editor |
 | `songs/` | Two songs with chords, as Multitracks and ProPresenter wrote them, which the five `chords` tests copy into their workspaces |
+
+The `bible` test needs nothing more of them: `run.py` writes a Bible of its own making
+into the test's copy of the workspace (every verse is "Made up words of verse …"), and
+plays api.bible itself, on a port of this computer, with a made-up key, a Bible of the
+same kind and FUMS. No Bible's words are in the tests, and the test asks nothing of the
+internet.
 | `made/` | Small videos and pictures made for the tests: one keyframe in twenty seconds, dark until nine seconds in, VP9, HEVC, one with sound |
 
 **A trap in them: a playlist's row can lead out of the test.** A row of a playlist says

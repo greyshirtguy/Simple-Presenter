@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import SimplePresenterApp
 
 // The settings screen, laid over the operator window: sections on the left, the selected
@@ -27,6 +28,8 @@ Rectangle {
     // And of the chord sheet's highlighted line, the same way; and whether the sheet
     // draws sharps and flats as ♯ and ♭
     property string chordLineColor: ""
+    // The person's own api.bible key, "" for the one the app was built with, if any
+    property string apiBibleKey: ""
     property bool chordSigns: true
     readonly property color usualSheetChord: "#ff8a1f"
     readonly property color usualTextChord: "#ffb45e"
@@ -53,6 +56,7 @@ Rectangle {
     signal chordTextColorEdited(string color)
     signal chordLineColorEdited(string color)
     signal chordSignsEdited(bool on)
+    signal apiBibleKeyEdited(string key)
     signal simpleKeepsSidePanelEdited(bool keeps)
     // A label kept ready is to be made (index -1) or changed, in the panel a label is
     // made in; or taken out of the list
@@ -208,10 +212,10 @@ Rectangle {
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
         ? [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
-           { name: "Chords", path: "chords" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
+           { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
            { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
         : [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
-           { name: "Chords", path: "chords" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
+           { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
            { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
@@ -1258,6 +1262,145 @@ Rectangle {
                     font.pixelSize: 13
                     text: "These are only how a song looks in the two chord editors. Nothing in a song's file says any of them: the stage "
                         + "shows chords in the colour its layout gives them, and ProPresenter in its own."
+                }
+            }
+        }
+
+        // Bibles: the Bibles imported from XML files, and api.bible's key (src/bibles.h).
+        // Made when the section is turned to: nothing of Bibles is made before it is
+        // wanted.
+        Loader {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            active: screen.section === "bibles"
+            visible: active
+
+            sourceComponent: Column {
+                objectName: "bibleSettings"
+                spacing: 12
+
+                Text {
+                    width: parent.width - 14
+                    wrapMode: Text.Wrap
+                    color: "#b0b3b8"
+                    font.pixelSize: 13
+                    text: "Bible mode (the Bible button in the toolbar, or Ctrl+Alt+B) makes slides of a passage. It reads from Bibles imported "
+                        + "here from XML files (Zefania, OSIS, Beblia and OpenSong), and from api.bible over the internet. No Bible comes with the "
+                        + "app: most translations are copyright, and an imported file is the importer's to answer for."
+                }
+
+                SectionTitle {
+                    text: "Imported"
+                }
+
+                Repeater {
+                    model: Bibles.translations.filter(t => t.source === "file")
+
+                    Item {
+                        required property var modelData
+
+                        width: parent.width - 14
+                        height: 32
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#e6e6e6"
+                            font.pixelSize: 14
+                            text: parent.modelData.name + (parent.modelData.abbreviation !== "" ? "  (" + parent.modelData.abbreviation + ")" : "")
+                        }
+
+                        AppButton {
+                            objectName: "removeBible:" + parent.modelData.name
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            height: 28
+                            font.pixelSize: 12
+                            text: "Remove"
+                            onClicked: {
+                                const error = Bibles.remove(parent.modelData.id)
+                                if (error !== "")
+                                    screen.screensFailed(error)
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    visible: !Bibles.translations.some(t => t.source === "file")
+                    color: "#7d8088"
+                    font.pixelSize: 13
+                    text: "None yet."
+                }
+
+                AppButton {
+                    objectName: "importBible"
+                    height: 30
+                    font.pixelSize: 13
+                    text: "Import XML Bible…"
+                    onClicked: bibleDialog.open()
+                }
+
+                FileDialog {
+                    id: bibleDialog
+
+                    title: "Import XML Bible"
+                    nameFilters: ["XML Bibles (*.xml *.osis *.zefania)", "All files (*)"]
+                    onAccepted: Bibles.importFile(selectedFile)
+                }
+
+                Connections {
+                    target: Bibles
+
+                    function onImported(error, id) {
+                        if (error !== "")
+                            screen.screensFailed(error)
+                    }
+                }
+
+                SectionTitle {
+                    text: "api.bible"
+                }
+
+                Text {
+                    width: parent.width - 14
+                    wrapMode: Text.Wrap
+                    color: "#b0b3b8"
+                    font.pixelSize: 13
+                    text: (Bibles.builtInKey ? "This copy of the app was built with a key for api.bible, which gives the Bibles that key has been allowed. "
+                                             : "This copy of the app has no key for api.bible. ")
+                        + "A key of your own, from api.bible (free for use that is not commercial), can be typed here, and is used in its place. "
+                        + "Each passage is asked for when it is wanted, and nothing of it is kept but in slides you save."
+                }
+
+                Row {
+                    spacing: 10
+
+                    AppTextField {
+                        id: keyField
+
+                        objectName: "apiBibleKey"
+                        width: 380
+                        height: 30
+                        font.pixelSize: 13
+                        placeholderText: "Your own api.bible key"
+                        echoMode: TextInput.Password
+                        text: screen.apiBibleKey
+                        onEditingFinished: screen.apiBibleKeyEdited(text.trim())
+                    }
+
+                    AppButton {
+                        height: 30
+                        font.pixelSize: 12
+                        text: "Clear"
+                        enabled: screen.apiBibleKey !== ""
+                        onClicked: {
+                            keyField.text = ""
+                            screen.apiBibleKeyEdited("")
+                        }
+                    }
                 }
             }
         }

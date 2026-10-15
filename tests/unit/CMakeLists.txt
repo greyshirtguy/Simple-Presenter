@@ -85,6 +85,39 @@ target_include_directories(tst_sheethints PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_sheethints PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME sheethints COMMAND tst_sheethints)
 
+qt_add_executable(tst_bible
+    tst_bible.cpp
+    ${PROJECT_SOURCE_DIR}/src/bible.h
+    ${PROJECT_SOURCE_DIR}/src/bible.cpp
+    ${PROJECT_SOURCE_DIR}/src/biblexml.h
+    ${PROJECT_SOURCE_DIR}/src/biblexml.cpp
+)
+target_include_directories(tst_bible PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_bible PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME bible COMMAND tst_bible)
+
+qt_add_executable(tst_bibleflow
+    tst_bibleflow.cpp
+    ${PROJECT_SOURCE_DIR}/src/bible.h
+    ${PROJECT_SOURCE_DIR}/src/bible.cpp
+    ${PROJECT_SOURCE_DIR}/src/bibleflow.h
+    ${PROJECT_SOURCE_DIR}/src/bibleflow.cpp
+)
+target_include_directories(tst_bibleflow PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_bibleflow PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME bibleflow COMMAND tst_bibleflow)
+
+qt_add_executable(tst_apibible
+    tst_apibible.cpp
+    ${PROJECT_SOURCE_DIR}/src/bible.h
+    ${PROJECT_SOURCE_DIR}/src/bible.cpp
+    ${PROJECT_SOURCE_DIR}/src/apibible.h
+    ${PROJECT_SOURCE_DIR}/src/apibible.cpp
+)
+target_include_directories(tst_apibible PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_apibible PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME apibible COMMAND tst_apibible)
+
 qt_add_executable(tst_groupedit
     tst_groupedit.cpp
     ${PROJECT_SOURCE_DIR}/src/groupedit.h

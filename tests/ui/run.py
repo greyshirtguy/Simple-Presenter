@@ -38,6 +38,7 @@ repository: see tests/README.md.
 import argparse
 import glob
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -1875,6 +1876,159 @@ def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None
             "monitors": monitors}
 
 
+# ---- Bible mode: a made-up Bible, and a stand-in for api.bible
+#
+# Nothing of any real Bible is in the tests. The verses are made up here, numbered so
+# that a test can tell which is which, some longer than others so that they fill slides
+# unevenly, and one with words in red. api.bible is played by a small server on this
+# computer, which the test-hook build is pointed at (SIMPLEPRESENTER_API_BIBLE_URL, read
+# only by such a build: see src/bibles.cpp), and which notes every request it is sent.
+
+
+def made_up_verse(chapter, verse):
+    words = "Made up words of verse %d of chapter %d, said for a test" % (verse, chapter)
+    if verse % 3 == 0:
+        words += "; and a few more words after them, so that this one runs longer than the others do"
+    return words + "."
+
+
+def made_up_bible():
+    """A Zefania file: Genesis 1 (5 verses), John 3 and 4 (20 each), Jude 1 (3); John 3:16 has words in red."""
+    books = [(1, "Genesis", {1: 5}), (43, "John", {3: 20, 4: 20}), (65, "Jude", {1: 3})]
+    out = ['<?xml version="1.0" encoding="UTF-8"?>', '<XMLBIBLE biblename="Made Up Version">',
+           "<INFORMATION><identifier>MUV</identifier><rights>Made up for the tests: no Bible's words.</rights></INFORMATION>"]
+    for number, name, chapters in books:
+        out.append('<BIBLEBOOK bnumber="%d" bname="%s">' % (number, name))
+        for chapter, count in chapters.items():
+            out.append('<CHAPTER cnumber="%d">' % chapter)
+            for verse in range(1, count + 1):
+                words = made_up_verse(chapter, verse)
+                if number == 43 and chapter == 3 and verse == 16:
+                    words = 'Made up words, <STYLE css="color:#ff0000">said in red by a speaker</STYLE>, for a test.'
+                out.append('<VERS vnumber="%d">%s</VERS>' % (verse, words))
+            out.append("</CHAPTER>")
+        out.append("</BIBLEBOOK>")
+    out.append("</XMLBIBLE>")
+    return "\n".join(out)
+
+
+def free_port():
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+BIBLE_PORT = free_port()
+BIBLE_KEY = "a-made-up-test-key"
+
+
+class BibleStandIn:
+    """api.bible, as far as the app asks it: the Bibles a key gives (one, made up), passages of it, and FUMS."""
+
+    def __init__(self):
+        import http.server
+        import threading
+        self.requests = []
+        stand_in = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def answer(self, status, body):
+                data = json.dumps(body).encode() if not isinstance(body, bytes) else body
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_GET(self):
+                url = urllib.parse.urlparse(self.path)
+                query = urllib.parse.parse_qs(url.query)
+                stand_in.requests.append({"path": url.path, "query": query, "key": self.headers.get("api-key", "")})
+                if url.path == "/f3":
+                    return self.answer(200, b"")
+                if self.headers.get("api-key", "") != BIBLE_KEY:
+                    return self.answer(401, {"statusCode": 401, "error": "Unauthorized", "message": "Invalid API key"})
+                if url.path == "/v1/bibles":
+                    return self.answer(200, {"data": [{"id": "made-up-api", "name": "Made Up Online", "abbreviation": "MUO",
+                                                        "abbreviationLocal": "MUO", "language": {"name": "English"}}]})
+                parts = url.path.split("/")
+                if len(parts) == 6 and parts[1:4] == ["v1", "bibles", "made-up-api"] and parts[4] == "passages":
+                    return self.passage(parts[5])
+                return self.answer(404, {"statusCode": 404, "message": "Not found"})
+
+            def passage(self, passage_id):
+                # JHN.3.16, JHN.3.16-JHN.3.18, or JHN.3 (a chapter: 20 verses each)
+                verses = []
+                first = passage_id.split("-")[0].split(".")
+                if len(first) == 2:
+                    verses = [(int(first[1]), v) for v in range(1, 21)]
+                else:
+                    last = passage_id.split("-")[-1].split(".")
+                    verses = [(int(first[1]), v) for v in range(int(first[2]), int(last[2]) + 1) if v <= 20]
+                if first[0] != "JHN" or not verses:
+                    return self.answer(404, {"statusCode": 404, "message": "No such passage"})
+                items = []
+                for chapter, verse in verses:
+                    vid = "JHN.%d.%d" % (chapter, verse)
+                    items.append({"name": "verse", "type": "tag", "attrs": {"number": str(verse), "style": "v"}, "items": [{"text": str(verse), "type": "text"}]})
+                    if verse == 16:
+                        items.append({"text": "Online words, ", "type": "text", "attrs": {"verseId": vid}})
+                        items.append({"name": "char", "type": "tag", "attrs": {"style": "wj"}, "items": [{"text": "said in red online", "type": "text", "attrs": {"verseId": vid}}]})
+                        items.append({"text": ", for a test.", "type": "text", "attrs": {"verseId": vid}})
+                    else:
+                        items.append({"text": "Online " + made_up_verse(chapter, verse), "type": "text", "attrs": {"verseId": vid}})
+                return self.answer(200, {"data": {"id": passage_id, "bibleId": "made-up-api", "copyright": "Made up online for the tests.",
+                                                  "content": [{"name": "para", "type": "tag", "attrs": {"style": "p"}, "items": items}]},
+                                         "meta": {"fumsToken": "token-" + passage_id}})
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", BIBLE_PORT), Handler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+BIBLE_STAND_IN = None
+
+
+def prepare_bible(workspace, test_dir):
+    """The made-up Bible, in the test's own copy of the workspace, to be imported from there; and the stand-in for
+    api.bible, started."""
+    global BIBLE_STAND_IN
+    with open(os.path.join(workspace, "Made Up Bible.xml"), "w", encoding="utf-8") as out:
+        out.write(made_up_bible())
+    BIBLE_STAND_IN = BibleStandIn()
+
+
+def after_bible(workspace, test_dir):
+    """What the stand-in for api.bible was asked: every request with the key, but FUMS's, which has none; and FUMS told
+    of what was shown, with a device's id and a session's."""
+    stand_in = BIBLE_STAND_IN
+    stand_in.stop()
+    asked = [r for r in stand_in.requests if r["path"] != "/f3"]
+    told = [r for r in stand_in.requests if r["path"] == "/f3"]
+    tokens = [t for r in told for t in r["query"].get("t", [])]
+    passages = [r for r in asked if "/passages/" in r["path"]]
+    return [
+        # (One request is made with a wrong key on purpose, to see what is said of it.)
+        said(len(asked) >= 3 and all(r["key"] in (BIBLE_KEY, "a-wrong-key") for r in asked) and sum(r["key"] == "a-wrong-key" for r in asked) == 1,
+             "api.bible was asked for its Bibles and for passages, with the key in its header",
+             "%d asked" % len(asked)),
+        said(all(r["query"].get("content-type") == ["json"] and r["query"].get("include-titles") == ["false"] and r["query"].get("fums-version") == ["3"]
+                 for r in passages) and len(passages) >= 1,
+             "each passage asked for as JSON, without headings, with FUMS's token", ", ".join(r["path"] for r in passages)),
+        said(len(told) >= 1 and all(r["key"] == "" for r in told) and any(t.startswith("token-JHN") for t in tokens)
+             and all(r["query"].get("dId") and r["query"].get("sId") for r in told),
+             "FUMS told what was shown, with no key, and with a device's id and a session's",
+             "%d told: %s" % (len(told), ", ".join(tokens))),
+    ]
+
+
 TESTS = {
     "media": test("Demo"),
     "transport": test("Demo"),
@@ -1926,6 +2080,10 @@ TESTS = {
     "chords3": test("ProPresenter MR", timeout=240, prepare=prepare_chords, after=after_chords3),
     "chords4": test("ProPresenter MR", timeout=240, prepare=prepare_chords),
     "chords5": test("ProPresenter MR", timeout=240, prepare=prepare_chords),
+    # (Settings remembered, in the test's own folder of them: to see that Bible mode's slides are not remembered as
+    # the presentation that was open.)
+    "bible": test("Demo", timeout=300, env={"SIMPLEPRESENTER_API_BIBLE_URL": "http://127.0.0.1:%d" % BIBLE_PORT, "SP_TEST_REMEMBER": "1"},
+                  prepare=prepare_bible, after=after_bible),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)

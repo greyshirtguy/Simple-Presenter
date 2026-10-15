@@ -145,6 +145,7 @@ qt_add_qml_module(SimplePresenter
         qml/ChordProEditor.qml
         qml/ChordSheet.qml
         qml/HintLine.qml
+        qml/BiblePanel.qml
         qml/ImportSong.qml
         qml/LooksPanel.qml
         qml/MacroGlyph.qml
@@ -287,6 +288,16 @@ qt_add_qml_module(SimplePresenter
         src/chordsbridge.cpp
         src/sheethints.h
         src/sheethints.cpp
+        src/bible.h
+        src/bible.cpp
+        src/biblexml.h
+        src/biblexml.cpp
+        src/bibleflow.h
+        src/bibleflow.cpp
+        src/apibible.h
+        src/apibible.cpp
+        src/bibles.h
+        src/bibles.cpp
         src/songimport.h
         src/songimport.cpp
         src/thememath.h
@@ -410,6 +421,30 @@ target_include_directories(SimplePresenter SYSTEM PRIVATE third_party/ndi/includ
 
 # The version, for the window's title and for the log.
 target_compile_definitions(SimplePresenter PRIVATE APP_VERSION="${PROJECT_VERSION}")
+
+# The key api.bible gives this app (see src/bibles.h), built in so that Bible mode can
+# read from api.bible with nothing to set up. It is not in the repository: it is given
+# here (-DSIMPLEPRESENTER_API_BIBLE_KEY=...), or in the environment, or in the file
+# packaging/api-bible-key.txt, which git is told to leave alone. A build with none
+# offers only the Bibles that are imported, and a key typed in the settings.
+set(SIMPLEPRESENTER_API_BIBLE_KEY "" CACHE STRING "The api.bible key to build in (not kept in the repository)")
+set(apiBibleKey "${SIMPLEPRESENTER_API_BIBLE_KEY}")
+if(apiBibleKey STREQUAL "" AND DEFINED ENV{SIMPLEPRESENTER_API_BIBLE_KEY})
+    set(apiBibleKey "$ENV{SIMPLEPRESENTER_API_BIBLE_KEY}")
+endif()
+if(apiBibleKey STREQUAL "" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/packaging/api-bible-key.txt")
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/packaging/api-bible-key.txt" apiBibleKey)
+    string(STRIP "${apiBibleKey}" apiBibleKey)
+    # (A key put in the file, or changed there, is then taken up by the next build.)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS packaging/api-bible-key.txt)
+endif()
+if(NOT apiBibleKey STREQUAL "")
+    if(NOT apiBibleKey MATCHES "^[A-Za-z0-9_-]+$")
+        message(FATAL_ERROR "The api.bible key has characters a key does not have in it")
+    endif()
+    target_compile_definitions(SimplePresenter PRIVATE SIMPLEPRESENTER_API_BIBLE_KEY="${apiBibleKey}")
+    message(STATUS "An api.bible key is built in")
+endif()
 
 # Testing (see tests/README.md).
 #

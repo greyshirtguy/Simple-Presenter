@@ -331,6 +331,20 @@ Window {
     // Whether the editor is up, in place of the slides, working on the presentation
     // being viewed
     property bool editing: false
+    // Bible mode (BiblePanel.qml, src/bibles.h): a bar over the slides for making slides
+    // of a passage of a Bible, which are then the slides shown in the grid. ProPresenter's
+    // Bibles, one of its modes beside Show and Edit, and by its key, Ctrl+Alt+B.
+    property bool bibleMode: false
+    // How Bible slides are made (see BiblePanel's `settings`), kept from one start to
+    // the next, and the person's own api.bible key, "" for the one built in
+    property var bibleSettings: ({})
+    property string apiBibleKey: ""
+    // The presentation the Bible's slides are, while they are what the grid shows; and
+    // the presentation that was being viewed when Bible mode was come to, which they can
+    // be copied into, with the slide of it that was live, if one of it was
+    property string bibleKey: ""
+    property var bibleReturnEntry: null
+    property string bibleReturnSlide: ""
     // Simple View: whether it has been asked for, and whether it is what is showing,
     // which it is not while the editor or the settings screen is up: they need the
     // toolbar, and the view is there again when they are done with.
@@ -830,6 +844,53 @@ Window {
     function showMode() {
         if (editing)
             stopEditing()
+        if (bibleMode)
+            leaveBibles()
+    }
+
+    // Bible mode, come to and left: from the editor, which is left first, as Show mode
+    // leaves it; and back to the presentation that was being viewed, when left.
+    function bibleModeToggle() {
+        if (bibleMode) {
+            leaveBibles()
+            return
+        }
+        if (editing)
+            stopEditing()
+        bibleReturnEntry = currentEntry() ?? null
+        bibleReturnSlide = liveDocument !== null && bibleReturnEntry !== null && liveKey === documentKey && Show.currentSlide.id !== undefined
+                         ? Show.currentSlide.id : ""
+        bibleMode = true
+        Log.note("bibles", "Bible mode come to")
+    }
+
+    function leaveBibles() {
+        bibleMode = false
+        if (documentKey === bibleKey && documentKey !== "") {
+            if (bibleReturnEntry !== null && documents.some(d => d.path === bibleReturnEntry.path))
+                openEntry(bibleReturnEntry)
+            else {
+                document = null
+                documentKey = ""
+            }
+        }
+        Log.note("bibles", "Bible mode left")
+        takeFocus()
+    }
+
+    // The slides Bible mode made, shown in the grid as any presentation's are
+    function showBibleSlides(path) {
+        bibleKey = path
+        documentKey = path
+        document = catalog.open(path)
+        grid.positionViewAtBeginning()
+        Log.note("bibles", quoted(document.name) + ", " + counted(document.slides.length, "slide", "slides"))
+    }
+
+    // Something said that is no fault: on the line where faults are said
+    function tell(message) {
+        notice = message
+        noticeIsError = false
     }
 
     function editMode() {
@@ -2769,7 +2830,9 @@ Window {
             liveDocument = document
             liveFresh = null
         }
-        Show.goLive(cueAt(document, documentKey, playlistId, index), withoutMedia === true)
+        // (The Bible's slides are no row of a playlist being browsed: stepping on from
+        // their last goes nowhere.)
+        Show.goLive(cueAt(document, documentKey, documentKey === bibleKey ? "" : playlistId, index), withoutMedia === true)
         grid.positionViewAtIndex(index, GridView.Contain)
     }
 
@@ -3008,6 +3071,13 @@ Window {
         chordTextColor = chordColorKept(saved("chordTextColor", ""))
         chordLineColor = chordColorKept(saved("chordLineColor", ""))
         chordSigns = String(saved("chordSigns", true)) !== "false"
+        try {
+            const kept = JSON.parse(String(saved("bibleSettings", "{}")))
+            bibleSettings = kept !== null && typeof kept === "object" ? kept : {}
+        } catch (error) {
+            bibleSettings = {}
+        }
+        apiBibleKey = String(saved("apiBibleKey", ""))
         const decoding = String(saved("videoDecoding", "auto"))
         videoDecoding = ["processor", "hardware"].includes(decoding) ? decoding : "auto"
         decodingNoticeSeen = String(saved("decodingNoticeSeen", false)) === "true"
@@ -3185,6 +3255,8 @@ Window {
     onChordTextColorChanged: save("chordTextColor", chordTextColor)
     onChordLineColorChanged: save("chordLineColor", chordLineColor)
     onChordSignsChanged: save("chordSigns", chordSigns)
+    onBibleSettingsChanged: save("bibleSettings", JSON.stringify(bibleSettings))
+    onApiBibleKeyChanged: save("apiBibleKey", apiBibleKey)
     onMediaThumbnailWidthChanged: save("mediaThumbnailWidth", mediaThumbnailWidth)
     onSidePanelWidthChanged: save("sidePanelWidth", sidePanelWidth)
     onMediaBinHeightChanged: save("mediaBinHeight", mediaBinHeight)
@@ -3268,7 +3340,8 @@ Window {
         saveSelection("library", libraryPath)
     }
     onPlaylistIdChanged: saveSelection("playlist", playlistId)
-    onDocumentKeyChanged: saveSelection("presentation", documentKey)
+    // (Not Bible mode's slides: theirs is a file that goes when the app closes.)
+    onDocumentKeyChanged: if (documentKey !== bibleKey) saveSelection("presentation", documentKey)
     onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
     onAudioPlaylistIdChanged: saveSelection("audioPlaylist", audioPlaylistId)
     onAudioFadeChanged: save("audioFade", audioFade)
@@ -3883,6 +3956,15 @@ Window {
         onActivated: win.reflowMode()
     }
 
+    // Bible mode, by ProPresenter's key for it on Windows (on the Mac it is Ctrl+B,
+    // which here is the editor's bold)
+    Shortcut {
+        sequence: "Ctrl+Alt+B"
+        context: Qt.ApplicationShortcut
+        enabled: !win.settingsOpen
+        onActivated: win.bibleModeToggle()
+    }
+
     // The settings, by the key that most apps have for theirs. It does what the
     // toolbar's button does, and like it is there in the editor too. (Not under the
     // notice of the guard on video decoding, which has its own way to them.)
@@ -4070,6 +4152,41 @@ Window {
             onShowControlTabChanged: win.save("showControlTab", showControlTab)
         }
 
+        // Bible mode's bar, over the slides. Made when Bible mode is first come to, and
+        // kept: a passage looked up stays there to go back to.
+        Loader {
+            id: biblePanel
+
+            // (The operator window, for the panel: asked for out here, where `win` is still
+            // the window's name. In the panel it is the panel's own property.)
+            readonly property var operatorWindow: win
+
+            objectName: "biblePanel"
+            anchors.left: win.chromeShown ? sidebar.right : parent.left
+            anchors.right: win.sidePanelShown ? sidePanel.left : parent.right
+            anchors.top: win.chromeShown ? toolbar.bottom : parent.top
+            active: false
+            visible: win.bibleMode
+            // (By the panel's implicit height: a Loader whose height is set makes its item
+            // that height, so a height of 0 while hidden would stay the panel's.)
+            height: visible && item ? item.implicitHeight : 0
+
+            Connections {
+                target: win
+
+                function onBibleModeChanged() {
+                    if (win.bibleMode)
+                        biblePanel.active = true
+                }
+            }
+
+            sourceComponent: BiblePanel {
+                win: biblePanel.operatorWindow
+                settings: biblePanel.operatorWindow.bibleSettings
+                onSettingsEdited: (settings) => biblePanel.operatorWindow.bibleSettings = settings
+            }
+        }
+
         // Between the panes while they are there, and the whole window in Simple View
         // once they have gone.
         SlideGrid {
@@ -4077,7 +4194,7 @@ Window {
 
             anchors.left: win.chromeShown ? sidebar.right : parent.left
             anchors.right: win.sidePanelShown ? sidePanel.left : parent.right
-            anchors.top: win.chromeShown ? toolbar.bottom : parent.top
+            anchors.top: win.bibleMode ? biblePanel.bottom : win.chromeShown ? toolbar.bottom : parent.top
             anchors.bottom: win.chromeShown ? mediaBin.top : parent.bottom
             win: win
         }
@@ -4527,6 +4644,8 @@ Window {
         onChordTextColorEdited: (color) => win.chordTextColor = win.chordColorKept(color)
         onChordLineColorEdited: (color) => win.chordLineColor = win.chordColorKept(color)
         onChordSignsEdited: (on) => win.chordSigns = on
+        apiBibleKey: win.apiBibleKey
+        onApiBibleKeyEdited: (key) => win.apiBibleKey = key
         simpleKeepsSidePanel: win.simpleKeepsSidePanel
         onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
         onLabelEdited: (index) => win.editLabelPreset(index)

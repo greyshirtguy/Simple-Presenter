@@ -14,7 +14,8 @@ import QtQuick.Shapes
 // is a pencil, orange when `on`; "reflow" is a letter T over a wave of two peaks (words,
 // and their flowing from slide to slide), orange when `on`; "show" is the triangle
 // that means play, orange when `on`; "search" is a magnifying glass; "themes" is one slide behind another; "expand"
-// is four corners turned outwards, the sign for filling the screen, orange when `on`.
+// is four corners turned outwards, the sign for filling the screen, orange when `on`; "bible" is an open book, orange
+// when `on` (ProPresenter's toolbar has a Bibles button, and its pack no picture of one).
 //
 // A caption is as wide as it needs to be, up to `captionWidth`, and the button with it:
 // most say one short word, and the Looks button says the name of the look that is live.
@@ -149,6 +150,37 @@ Item {
                 PathQuad { x: 9; y: 11.5; controlX: 7; controlY: 14.7 }
                 PathQuad { x: 13; y: 11.5; controlX: 11; controlY: 8.3 }
                 PathQuad { x: 17; y: 11.5; controlX: 15; controlY: 14.7 }
+            }
+        }
+
+        // An open book: two pages from a spine, their lines of words
+        Shape {
+            anchors.fill: parent
+            visible: button.kind === "bible"
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: button.on ? "#ff8a1f" : button.ink
+                strokeWidth: 1.5
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+
+                // The left page and the right, meeting at the spine
+                startX: 9
+                startY: 3
+                PathQuad { x: 1; y: 2; controlX: 5; controlY: 0.6 }
+                PathLine { x: 1; y: 12 }
+                PathQuad { x: 9; y: 13.5; controlX: 5; controlY: 10.8 }
+                PathQuad { x: 17; y: 12; controlX: 13; controlY: 10.8 }
+                PathLine { x: 17; y: 2 }
+                PathQuad { x: 9; y: 3; controlX: 13; controlY: 0.6 }
+                PathLine { x: 9; y: 13.5 }
+                // A line of words on each page
+                PathMove { x: 3.5; y: 6 }
+                PathQuad { x: 6.8; y: 6.2; controlX: 5.2; controlY: 5.2 }
+                PathMove { x: 11.2; y: 6.2 }
+                PathQuad { x: 14.5; y: 6; controlX: 12.8; controlY: 5.2 }
             }
         }
 

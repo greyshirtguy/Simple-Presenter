@@ -64,6 +64,12 @@ struct TextLayoutResult
 // next one asked for will be for other text.
 TextLayoutResult layoutText(const RichText &text, qreal width, bool byGlyph = false);
 
+// The lines and the height of the text as layoutText() lays it out, and not its glyphs,
+// which are most of the cost; and not kept. For asking many times whether text fits a
+// box, as Bible mode does of a passage (src/bibles.h), where every layout kept would put
+// out one of the slides' that is wanted again.
+TextLayoutResult measureText(const RichText &text, qreal width);
+
 // The text with every size in it multiplied by `by`.
 RichText scaledText(RichText text, qreal by);
 

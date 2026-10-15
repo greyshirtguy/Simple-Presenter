@@ -226,18 +226,11 @@ QFont fontFor(const TextRun &run)
     return font;
 }
 
-TextLayoutResult layoutText(const RichText &content, qreal width, bool byGlyph)
-{
-    // Text is drawn on the render thread of whichever window shows it, so several
-    // threads can be here at once.
-    LayoutCache &cache = layoutCache();
-    const QByteArray key = byGlyph ? QByteArray() : layoutKey(content, width);
-    if (!byGlyph) {
-        const QMutexLocker lock(&cache.mutex);
-        if (const TextLayoutResult *known = cache.layouts.object(key))
-            return *known;
-    }
+namespace {
 
+// The work of layoutText(), and of measureText() without the outlines
+TextLayoutResult laidOut(const RichText &content, qreal width, bool byGlyph, bool outlines)
+{
     TextLayoutResult result;
     const QTextOption option = textOption();
 
@@ -284,7 +277,7 @@ TextLayoutResult layoutText(const RichText &content, qreal width, bool byGlyph)
         }
         layout.endLayout();
 
-        for (qsizetype i = 0; i < paragraph.runs.size(); ++i) {
+        for (qsizetype i = 0; outlines && i < paragraph.runs.size(); ++i) {
             if (formats.at(i).length == 0)
                 continue;
             // Overlapping glyphs (script faces, tight tracking) must not punch holes in each other.
@@ -326,12 +319,34 @@ TextLayoutResult layoutText(const RichText &content, qreal width, bool byGlyph)
         }
     }
     result.height = y;
+    return result;
+}
 
+} // namespace
+
+TextLayoutResult layoutText(const RichText &content, qreal width, bool byGlyph)
+{
+    // Text is drawn on the render thread of whichever window shows it, so several
+    // threads can be here at once.
+    LayoutCache &cache = layoutCache();
+    const QByteArray key = byGlyph ? QByteArray() : layoutKey(content, width);
+    if (!byGlyph) {
+        const QMutexLocker lock(&cache.mutex);
+        if (const TextLayoutResult *known = cache.layouts.object(key))
+            return *known;
+    }
+
+    const TextLayoutResult result = laidOut(content, width, byGlyph, true);
     if (!byGlyph) {
         const QMutexLocker lock(&cache.mutex);
         cache.layouts.insert(key, new TextLayoutResult(result));
     }
     return result;
+}
+
+TextLayoutResult measureText(const RichText &content, qreal width)
+{
+    return laidOut(content, width, false, false);
 }
 
 RichText scaledText(RichText text, qreal by)

@@ -55,10 +55,10 @@ These are not style. A change that breaks one of them is wrong however well it w
   folders instead.
 - Reading is fine. The log of each run (`~/Documents/SimplePresenter/Logs/`) was written
   to be handed to you: start there.
-- Songs are other people's copyright, and a workspace says a good deal about the people
-  who use it. Do not copy any of it into this repository, an issue, a pull request, a
-  paste site or anywhere else off the computer. Names of files are in the log; words of
-  songs are not.
+- Songs are other people's copyright, and so are the Bibles a person has imported; a
+  workspace says a good deal about the people who use it. Do not copy any of it into
+  this repository, an issue, a pull request, a paste site or anywhere else off the
+  computer. Names of files are in the log; words of songs and verses are not.
 - Before deleting anything, look at what it is. Do not delete by a path built from a
   variable that could be empty.
 
@@ -95,7 +95,9 @@ what you checked; do not say "the tests pass" and mean a part of them.
   written, makes the change, and looks at what else is still there.
 - No new dependency without the maintainer agreeing to it first. NDI's library and its
   SDK are never added to the repository or to a package (`third_party/ndi/include` holds
-  the few headers its licence allows).
+  the few headers its licence allows). Nor is a key for api.bible: a build takes one
+  from `packaging/api-bible-key.txt`, which git ignores, and a person's own is in their
+  settings.
 - Words the user reads say plainly what a thing does. They never promise help, never
   call the app a product, and never say or suggest that it is fit to be relied on.
 - A thing ProPresenter has a picture for is shown with ProPresenter's picture, not a
@@ -139,7 +141,7 @@ the next version" for the person: build it for them from source instead.
   ProPresenter does is not here: `README.md` has the list under TODO.
 - **Where things are kept**: workspaces and logs under `~/Documents/SimplePresenter/`;
   settings in `~/.config/SimplePresenter/SimplePresenter.conf`; copies of files as they
-  were before an edit, and NDI's library if it was fetched, under
+  were before an edit, imported Bibles, and NDI's library if it was fetched, under
   `~/.local/share/SimplePresenter/SimplePresenter/`.
 - **The file formats** are in `third_party/ProPresenter7-Proto/autogen-proto` (a
   submodule): the set taken from ProPresenter itself, which the app is built from, and
