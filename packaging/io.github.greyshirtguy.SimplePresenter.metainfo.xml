@@ -39,6 +39,18 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.95" date="2026-10-15">
+      <description>
+        <p>
+          Bible mode: a passage typed is made into slides in a theme, with
+          ProPresenter's Bible options, from a Bible imported as an XML file or read
+          from api.bible a passage at a time; its words can be shared out evenly
+          across the slides, broken where they pause. And the chord sheet as the Mac
+          and Windows chord editors have it now: a line of hints, the line the pointer
+          is on drawn in orange, and sharps and flats drawn as signs.
+        </p>
+      </description>
+    </release>
     <release version="0.94" date="2026-10-14">
       <description>
         <p>
