@@ -205,6 +205,12 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Color Triggers.** A text box linked to a timer, or to a video's time left, changes
+  colour as the time comes down to given times: orange at a minute, red at nothing,
+  and red on through an overrun, say. They are ProPresenter's, read from its files and
+  written back to them, set under the link in the editor's Text tab. They can be
+  dragged into another order, and a list kept as the default and put on another box.
+  See [Timers](#timers).
 - **Three Bibles come with the app.** The King James Version, Young's Literal
   Translation and the Bible in Basic English, which are in the public domain (the KJV
   except in the United Kingdom, the BBE in the United States), are in Bible mode's menu
@@ -531,7 +537,6 @@ experiment.
 - [ ] **The API**: ProPresenter's, over the network, so that the remotes and
       controllers made for it can work this
 - [ ] **Playback markers**
-- [ ] **Linked text: the colours of a timer**
 - [ ] **Timer markers** (an idea of my own)
 - [ ] **Text formatter**
 - [ ] **CCLI**: a song's details edited, and the ways of showing them
@@ -1002,6 +1007,34 @@ shows the timer's time, in the box's own font and colour, on the output, in the
 thumbnails and in the editor. The link finds its timer by the id ProPresenter gave it
 and, failing that, by its name, which is what still holds when a presentation was made
 on another machine.
+
+**Color Triggers.** A text box linked to a timer, or to how long a video has left,
+can change colour as the time comes to given times: ProPresenter's Color Triggers,
+under the link in the editor's Text tab. Each is a time and a colour. The time's words
+take a trigger's colour when a countdown comes down to it (a countdown to a time
+likewise), keep the colour of the last one through an overrun, and are in the box's
+own colour while the time is above them all; the colour of the one the time has come
+to last is the one shown. ProPresenter's own example is orange at 1:00, yellow at 0:30
+and red for the last ten seconds, and its stage layouts come with a red one at 0:00.
+
+- **+** adds one: the first at nothing, in red, each after it half a minute before the
+  latest, in yellow. A time is typed as ProPresenter writes it, minutes, seconds and
+  hundredths (`1:00.00`), with hours before them if wanted (`1:01:00.00`); `1:00`,
+  `90` and `:30` are read too, and what is not a time is not kept. The colour is
+  picked from its swatch, and **×** takes a trigger away.
+- The handle at a row's left drags it to another place in the list, which
+  ProPresenter cannot do. The order does not change which colour is shown (each time
+  is compared); it is kept in the file as it is.
+- **⋯** has **Save as Default**, which keeps the list in the app's own settings, the
+  same in every workspace, and **Recall Default**, which puts that list on the box
+  being edited in place of its own: a quick way to give any new box the usual ones.
+
+They are kept on the link in ProPresenter's file, a stage layout's or a
+presentation's, where ProPresenter keeps them, and whatever else is there stays as it
+was. What is a guess, its help saying nothing of it: that an elapsed time changes
+colour as it goes up past each time; that the time is kept in seconds; and what +
+adds. An audio countdown's link has triggers in the file too, which are kept but not
+shown or set here, the app having no such link of its own yet.
 
 A slide can also work a timer when it is triggered: start it, stop it, put it back,
 and set it up first, which is how one timer is a minute's countdown on one slide and
@@ -1621,7 +1654,9 @@ choose between three ways of working. **Slides** is everything described here.
     the hours, the minutes, the seconds and the hundredths of a second are each
     hidden, or shown as one digit or as two, or shown that way but hidden while they
     are nothing. A part that is hidden is counted in the next one shown, so seconds
-    alone count past sixty.
+    alone count past sixty. Under it are the timer's **Color Triggers**, the colours
+    its words change to as the time comes to given times (see [Timers](#timers)); a
+    video's time left has them too.
   - **System Clock** shows the time of day, the date, or both. Each is written one of
     five ways, by the names ProPresenter has for them (None, Short, Medium, Long,
     Full), in the words and the order this computer is set to; a tick box has the
@@ -3078,7 +3113,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: fifty scripts and nearly two
+and look at what its windows then hold and show: fifty-one scripts and over two
 thousand five hundred checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -3138,6 +3173,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/bible.*`, `src/biblexml.*` | A Bible: its books, chapters and verses, the books' names, a passage as it is typed and as it is written; and reading one from an XML file of the four kinds |
 | `src/bibleflow.*` | How a passage's words are shared out across slides: Fill, and Even at natural pauses, and where that fails; and round slides kept as they were |
 | `bibles/` | The three public-domain Bibles that come with the app, as Zefania files, the list the app reads, and the script that made them from eBible.org's (its README) |
+| `src/colortriggers.*` | A timer's Color Triggers: which is in force as its time comes down or goes up, and a trigger's time written and read as typed |
 | `src/linejoin.*` | A text box's lines made one, each run keeping its look: ProPresenter's Single Line and Replace Line Returns |
 | `src/apibible.*` | api.bible: what is asked of it and how its answers are read |
 | `src/bibles.*`, `qml/BiblePanel.qml` | Bible mode: the Bibles imported and api.bible's, a passage looked up, and slides made of it in a theme; and the bar over the slides |

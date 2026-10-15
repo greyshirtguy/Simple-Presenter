@@ -28,6 +28,10 @@ Rectangle {
     property var chooseMedia: () => {}
     property var setFormat: (format, interim) => {}
     property var settle: () => {}
+    // The Color Triggers kept as the default ([{ time, color }]), in the app's own
+    // settings, and how one is kept (Main.qml)
+    property var colorTriggerDefault: []
+    property var saveColorTriggerDefault: (list) => {}
     property string tab: "shape"
 
     // A value was typed in; whoever had the keyboard can have it back.
@@ -1382,6 +1386,266 @@ Rectangle {
                             text: "Ignore videos that loop"
                             checked: inspector.element !== null && inspector.element.linkVideoIgnoreLooping === true
                             onToggled: (checked) => inspector.setProperties({ linkVideoIgnoreLooping: checked }, false)
+                        }
+
+                        // ProPresenter's Color Triggers, of a timer's time and of a video's:
+                        // times at which the words change to a colour (src/colortriggers.h
+                        // says when each is in force). Each has its time, typed as
+                        // ProPresenter writes it, and its colour; + adds one, × takes one
+                        // away, and the handle at a row's left drags it to another place in
+                        // the list, which ProPresenter cannot do (the maintainer asked for
+                        // it, 2026-10-15). A list can be kept as the default, in the app's
+                        // own settings, and put on another box with Recall Default.
+                        Item {
+                            id: triggerHead
+
+                            readonly property bool shown: linkLine.kind === "timer" || linkLine.kind === "videoCountdown"
+                            readonly property var triggers: inspector.element && inspector.element.linkColorTriggers
+                                                            ? inspector.element.linkColorTriggers : []
+
+                            // The list with one trigger changed, taken out or moved
+                            function changed(index, change) {
+                                return triggers.map((t, i) => i === index ? Object.assign({ time: t.time, color: t.color }, change)
+                                                                          : { time: t.time, color: t.color })
+                            }
+
+                            function set(list, interim) {
+                                inspector.setProperties({ linkColorTriggers: list }, interim)
+                            }
+
+                            visible: shown
+                            width: parent.width
+                            height: 30
+
+                            Caption {
+                                width: 150
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Color Triggers"
+                            }
+
+                            Row {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 4
+
+                                AppButton {
+                                    id: triggerDefaults
+
+                                    objectName: "triggerDefaults"
+                                    width: 30
+                                    height: 26
+                                    leftPadding: 0
+                                    rightPadding: 0
+                                    font.pixelSize: 13
+                                    text: "⋯"
+                                    onClicked: inspector.showMenu([
+                                        { label: "Save as Default", disabled: triggerHead.triggers.length === 0,
+                                          run: () => inspector.saveColorTriggerDefault(triggerHead.triggers.map(t => ({ time: t.time, color: String(t.color) }))) },
+                                        { label: "Recall Default", disabled: inspector.colorTriggerDefault.length === 0,
+                                          run: () => triggerHead.set(inspector.colorTriggerDefault.map(t => ({ time: t.time, color: t.color })), false) },
+                                        { divider: true },
+                                        { note: inspector.colorTriggerDefault.length === 0 ? "No default is kept yet."
+                                              : "The default: " + inspector.colorTriggerDefault.map(t => Timers.triggerTime(t.time)).join(", ") + "." }
+                                    ], triggerDefaults, 0, triggerDefaults.height)
+                                }
+
+                                AppButton {
+                                    objectName: "addTrigger"
+                                    width: 30
+                                    height: 26
+                                    leftPadding: 0
+                                    rightPadding: 0
+                                    font.pixelSize: 15
+                                    text: "+"
+                                    // The first at nothing, in ProPresenter's red (its own stage
+                                    // layouts have that one); each after it half a minute
+                                    // before the latest so far, in yellow. (My choice: what
+                                    // ProPresenter's + adds is not known here.)
+                                    onClicked: {
+                                        const list = triggerHead.changed(-1, {})
+                                        const latest = list.reduce((most, t) => Math.max(most, t.time), -30)
+                                        list.push(list.length === 0 ? { time: 0, color: "#ff2d21" } : { time: latest + 30, color: "#ffcc00" })
+                                        triggerHead.set(list, false)
+                                    }
+                                }
+                            }
+                        }
+
+                        Item {
+                            id: triggerRows
+
+                            readonly property real rowHeight: 32
+                            // The row being dragged, and where it would land: its place
+                            // among the others, the list without it
+                            property int dragging: -1
+                            property int landing: -1
+
+                            // Where a row dragged to `y` lands among the others: after each
+                            // whose middle its middle has passed
+                            function landingAt(y) {
+                                const middle = y + rowHeight / 2
+                                let count = 0
+                                for (let j = 0; j < triggerHead.triggers.length; ++j) {
+                                    if (j !== dragging && (j + 0.5) * rowHeight < middle)
+                                        ++count
+                                }
+                                return count
+                            }
+
+                            visible: triggerHead.shown && triggerHead.triggers.length > 0
+                            width: parent.width
+                            height: triggerHead.triggers.length * rowHeight
+
+                            // Where a line shows the dragged row would land, between the
+                            // others as they stand
+                            Rectangle {
+                                visible: triggerRows.dragging >= 0 && triggerRows.landing !== triggerRows.dragging
+                                y: (triggerRows.landing < triggerRows.dragging ? triggerRows.landing : triggerRows.landing + 1) * triggerRows.rowHeight - 1
+                                width: parent.width
+                                height: 2
+                                color: "#4da3ff"
+                            }
+
+                            Repeater {
+                                model: triggerHead.triggers
+
+                                delegate: Item {
+                                    id: triggerRow
+
+                                    required property var modelData
+                                    required property int index
+
+                                    objectName: "trigger:" + index
+                                    width: triggerRows.width
+                                    height: triggerRows.rowHeight
+                                    // In its place, but while it is dragged, where it is held
+                                    // (the drag sets it, and it is put back when let go)
+                                    y: index * triggerRows.rowHeight
+                                    z: grip.drag.active ? 2 : 0
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: 4
+                                        visible: grip.drag.active
+                                        color: "#3a3c42"
+                                    }
+
+                                    // The handle
+                                    Text {
+                                        id: handle
+
+                                        x: 2
+                                        width: 18
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        horizontalAlignment: Text.AlignHCenter
+                                        color: grip.containsMouse || grip.drag.active ? "#e6e6e6" : "#7d8088"
+                                        font.pixelSize: 15
+                                        text: "≡"
+
+                                        MouseArea {
+                                            id: grip
+
+                                            objectName: "triggerGrip:" + triggerRow.index
+                                            anchors.fill: parent
+                                            anchors.margins: -4
+                                            hoverEnabled: true
+                                            // (The inspector scrolls: without this, its scrolling
+                                            // would take an up-and-down drag for its own.)
+                                            preventStealing: true
+                                            cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                            drag.target: triggerRow
+                                            drag.axis: Drag.YAxis
+                                            drag.minimumY: -triggerRows.rowHeight / 2
+                                            drag.maximumY: (triggerHead.triggers.length - 0.5) * triggerRows.rowHeight
+                                            onPressed: {
+                                                triggerRows.dragging = triggerRow.index
+                                                triggerRows.landing = triggerRow.index
+                                            }
+                                            onPositionChanged: {
+                                                if (drag.active)
+                                                    triggerRows.landing = triggerRows.landingAt(triggerRow.y)
+                                            }
+                                            onReleased: {
+                                                const from = triggerRows.dragging
+                                                const to = triggerRows.landing
+                                                triggerRows.dragging = -1
+                                                triggerRows.landing = -1
+                                                triggerRow.y = Qt.binding(() => triggerRow.index * triggerRows.rowHeight)
+                                                if (from < 0 || to < 0 || to === from)
+                                                    return
+                                                const list = triggerHead.changed(-1, {})
+                                                const moved = list.splice(from, 1)[0]
+                                                list.splice(to, 0, moved)
+                                                triggerHead.set(list, false)
+                                            }
+                                        }
+                                    }
+
+                                    AppTextField {
+                                        id: timeField
+
+                                        objectName: "triggerTime:" + triggerRow.index
+                                        x: 24
+                                        width: 104
+                                        height: 26
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        font.pixelSize: 13
+                                        text: Timers.triggerTime(triggerRow.modelData.time)
+                                        // Kept when it is a time, put back when it is not
+                                        function keep() {
+                                            const seconds = Timers.triggerSeconds(text)
+                                            if (seconds < 0) {
+                                                text = Timers.triggerTime(triggerRow.modelData.time)
+                                                return
+                                            }
+                                            if (Math.abs(seconds - triggerRow.modelData.time) > 1e-9)
+                                                triggerHead.set(triggerHead.changed(triggerRow.index, { time: seconds }), false)
+                                            else
+                                                text = Timers.triggerTime(seconds)
+                                        }
+                                        // (The inspector held first: keeping the time makes the
+                                        // list anew, this row with it.)
+                                        Keys.onReturnPressed: { const held = inspector; keep(); held.finished() }
+                                        Keys.onEnterPressed: { const held = inspector; keep(); held.finished() }
+                                        Keys.onEscapePressed: { text = Timers.triggerTime(triggerRow.modelData.time); inspector.finished() }
+                                        onActiveFocusChanged: if (!activeFocus) keep()
+                                    }
+
+                                    ColorButton {
+                                        objectName: "triggerColor:" + triggerRow.index
+                                        x: timeField.x + timeField.width + 8
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        hasAlpha: false
+                                        value: triggerRow.modelData.color
+                                        onChanging: (value) => triggerHead.set(triggerHead.changed(triggerRow.index, { color: value }), true)
+                                        onPicked: (value) => triggerHead.set(triggerHead.changed(triggerRow.index, { color: value }), false)
+                                        onClosed: inspector.finished()
+                                    }
+
+                                    AppButton {
+                                        objectName: "removeTrigger:" + triggerRow.index
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 28
+                                        height: 26
+                                        leftPadding: 0
+                                        rightPadding: 0
+                                        font.pixelSize: 13
+                                        text: "×"
+                                        onClicked: triggerHead.set(triggerHead.triggers.filter((t, i) => i !== triggerRow.index)
+                                                                   .map(t => ({ time: t.time, color: t.color })), false)
+                                    }
+                                }
+                            }
+                        }
+
+                        Note {
+                            visible: triggerHead.shown
+                            text: triggerHead.triggers.length === 0
+                                  ? "None. With + a time's words can be made to change colour as it comes to a time: a countdown as it comes down to it,"
+                                    + " and on through an overrun, an elapsed time as it goes up past it."
+                                  : "The words take a trigger's colour when the time comes down to it (or up to it, for an elapsed time), and keep it"
+                                    + " through an overrun. Times are minutes:seconds.hundredths, with hours before them if wanted."
                         }
 
                         // The clock: how the date is written and how the time is, each one of

@@ -64,6 +64,10 @@ Rectangle {
     property var backdropFor: (slideId) => ""
     // Opens a menu of rows, as the operator window's menu takes them, at a point of an item
     property var showMenu: (items, item, x, y) => {}
+    // A timer link's Color Triggers kept as the default, and how one is kept (the
+    // window's, in the app's own settings): for the inspector
+    property var colorTriggerDefault: []
+    signal colorTriggerDefaultKept(var list)
     // Deletes a slide from a presentation file, answering with an error message, empty
     // if it worked: the operator window's doing, as every change to which slides a
     // presentation has is.
@@ -1208,6 +1212,8 @@ Rectangle {
         chooseMedia: () => screen.chooseMedia("fill")
         setFormat: (format, interim) => canvas.setFormat(format, interim)
         settle: () => canvas.settle()
+        colorTriggerDefault: screen.colorTriggerDefault
+        saveColorTriggerDefault: (list) => screen.colorTriggerDefaultKept(list)
         onFinished: screen.takeFocus()
     }
 

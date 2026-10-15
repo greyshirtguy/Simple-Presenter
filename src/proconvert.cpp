@@ -406,6 +406,46 @@ const rv::data::Media::DrawingProperties &fillDrawing(const rv::data::Media &med
     return media.has_video() ? media.video().drawing() : media.image().drawing();
 }
 
+// A timer's (or a video's) Color Triggers as QML has them: [{ time, color }], the time in
+// seconds (colortriggers.h), in the order the file has them
+QVariantList colorTriggersOf(const google::protobuf::RepeatedPtrField<DataLink::ColorTrigger> &triggers)
+{
+    QVariantList list;
+    for (const DataLink::ColorTrigger &trigger : triggers)
+        list.append(QVariantMap {{"time", trigger.time()}, {"color", toColor(trigger.color())}});
+    return list;
+}
+
+// And written back in place of the ones there were, in the order given. Each is the one
+// there was with that time and colour, where there was one, kept whole (so that whatever
+// else a ProPresenter to come may keep in a trigger stays with it, wherever it is moved
+// to); a trigger that is new, or whose time or colour has been changed, is made of the
+// two things a trigger has now.
+void setColorTriggers(google::protobuf::RepeatedPtrField<DataLink::ColorTrigger> *triggers, const QVariantList &list)
+{
+    const google::protobuf::RepeatedPtrField<DataLink::ColorTrigger> before = *triggers;
+    QList<bool> used(before.size(), false);
+    triggers->Clear();
+    for (const QVariant &each : list) {
+        const QVariantMap trigger = each.toMap();
+        const double time = qMax(0.0, trigger.value("time").toDouble());
+        const QColor color = trigger.value("color").value<QColor>();
+        DataLink::ColorTrigger *made = triggers->Add();
+        int same = -1;
+        for (int i = 0; i < before.size() && same < 0; ++i) {
+            if (!used.at(i) && qAbs(before.Get(i).time() - time) < 1e-9 && toColor(before.Get(i).color()).rgba() == color.rgba())
+                same = i;
+        }
+        if (same >= 0) {
+            used[same] = true;
+            *made = before.Get(same);
+        } else {
+            made->set_time(time);
+            setColor(made->mutable_color(), color);
+        }
+    }
+}
+
 QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
 {
     const rv::data::Graphics::Element &element = slideElement.element();
@@ -572,6 +612,7 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("linkTimerHundredths", int(timer.timer_format().millisecond()));
             map.insert("linkTimerHundredthsUnderMinute", timer.timer_format().show_milliseconds_under_minute_only());
             map.insert("linkTimerPattern", QString::fromStdString(timer.timer_format_string()));
+            map.insert("linkColorTriggers", colorTriggersOf(timer.color_triggers()));
         } else if (link.has_slide_text()) {
             const DataLink::SlideText &words = link.slide_text();
             map.insert("linkKind", QStringLiteral("slideText"));
@@ -598,6 +639,7 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("linkTimerHundredthsUnderMinute", video.timer_format().show_milliseconds_under_minute_only());
             map.insert("linkTimerPattern", QString::fromStdString(video.timer_format_string()));
             map.insert("linkVideoIgnoreLooping", video.ignore_looping_videos());
+            map.insert("linkColorTriggers", colorTriggersOf(video.color_triggers()));
         } else if (link.has_stage_message()) {
             // What the stage is being told, and whether the box flashes when it is,
             // with what colour for its fill
@@ -1365,7 +1407,7 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                                            "linkTimerHours", "linkTimerMinutes", "linkTimerSeconds", "linkTimerHundredths",
                                            "linkSlideNext", "linkSlideSource", "linkSlideName", "linkSlidePreserve",
                                            "linkClockDate", "linkClockTime", "linkClock24", "linkVideoIgnoreLooping",
-                                           "linkFlash", "linkFlashColor"};
+                                           "linkFlash", "linkFlashColor", "linkColorTriggers"};
     const bool linkChanges = std::any_of(std::begin(linkKeys), std::end(linkKeys),
                                          [&changes](const char *key) { return changes.contains(QLatin1String(key)); });
     if (linkChanges) {
@@ -1426,6 +1468,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                 timer->mutable_timer_format()->set_second(style("linkTimerSeconds"));
             if (changes.contains("linkTimerHundredths"))
                 timer->mutable_timer_format()->set_millisecond(style("linkTimerHundredths"));
+            if (changes.contains("linkColorTriggers"))
+                setColorTriggers(timer->mutable_color_triggers(), changes.value("linkColorTriggers").toList());
             // What ProPresenter writes for a link that shows the time and nothing else
             if (fresh)
                 timer->set_timer_format_string("${timer}");
@@ -1477,6 +1521,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                 video->mutable_timer_format()->set_millisecond(style("linkTimerHundredths"));
             if (changes.contains("linkVideoIgnoreLooping"))
                 video->set_ignore_looping_videos(changes.value("linkVideoIgnoreLooping").toBool());
+            if (changes.contains("linkColorTriggers"))
+                setColorTriggers(video->mutable_color_triggers(), changes.value("linkColorTriggers").toList());
             // (As ProPresenter's own stage layout has one.)
             if (fresh)
                 video->set_timer_format_string("${timer}");

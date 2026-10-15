@@ -121,6 +121,22 @@ Item {
             return undefined
         }
     }
+    // The colour a timer's (or a video's) time is to be in now, by the link's Color
+    // Triggers (src/colortriggers.h), or undefined for the box's own: read with the
+    // same tick and beat as the words, so that it changes with them. Only a box linked
+    // to a timer has `linkColorTriggers` at all (proconvert.cpp), so for any other this
+    // is undefined at once.
+    readonly property var liveLinkColor: {
+        const triggers = source.linkColorTriggers
+        if (!triggers || triggers.length === 0)
+            return undefined
+        if (source.linkKind === "timer")
+            return Timers.tick >= 0 && (source.linkTimerHundredths === 0 || (effects ? Timers.beat : Timers.slowBeat) >= 0)
+                ? Timers.linkedColor(source.linkTimerId, source.linkTimerName, triggers) : undefined
+        if (source.linkKind === "videoCountdown")
+            return Clocks.videoRevision >= 0 ? Clocks.videoColor(triggers, source.linkVideoIgnoreLooping) : undefined
+        return undefined
+    }
     // Whether this is a text box that draws the chords of the slide whose words it
     // shows: then the words are drawn line by line with a row of chords over each
     // (ChordedText), in place of the usual drawing. Only a stage layout has such a
@@ -349,6 +365,7 @@ Item {
         visible: !element.chorded && (element.source.hasText || element.textOverride !== undefined)
         content: element.textOverride !== undefined ? element.textOverride : element.source.displayText
         replacement: element.textOverride !== undefined ? undefined : element.liveLinkText
+        replacementColor: element.textOverride !== undefined ? undefined : element.liveLinkColor
         lineFill: element.source.fillEnabled && element.source.fillLinesOnly ? element.source.fillColor : "transparent"
         lineFillStyle: element.source.lineMaskStyle
         lineFillWidthOffset: element.source.lineMaskWidthOffset

@@ -339,6 +339,10 @@ Window {
     // the next, and the person's own api.bible key, "" for the one built in
     property var bibleSettings: ({})
     property string apiBibleKey: ""
+    // A timer link's Color Triggers kept as the default by the editor's Save as Default
+    // ([{ time, color }]), for Recall Default to put on another box. The app's own, and
+    // the same in every workspace: ProPresenter has no such thing, nor a file for it.
+    property var colorTriggerDefault: []
     // The presentation the Bible's slides are, while they are what the grid shows; and
     // Bible mode's target: the presentation that was being viewed when it was come to, or
     // the one clicked since (which is not shown: the grid in Bible mode shows Bible
@@ -3154,6 +3158,12 @@ Window {
             bibleSettings = {}
         }
         apiBibleKey = String(saved("apiBibleKey", ""))
+        try {
+            const triggers = JSON.parse(String(saved("colorTriggerDefault", "[]")))
+            colorTriggerDefault = Array.isArray(triggers) ? triggers.filter(t => typeof t.time === "number" && typeof t.color === "string") : []
+        } catch (error) {
+            colorTriggerDefault = []
+        }
         const decoding = String(saved("videoDecoding", "auto"))
         videoDecoding = ["processor", "hardware"].includes(decoding) ? decoding : "auto"
         decodingNoticeSeen = String(saved("decodingNoticeSeen", false)) === "true"
@@ -3332,6 +3342,7 @@ Window {
     onChordLineColorChanged: save("chordLineColor", chordLineColor)
     onChordSignsChanged: save("chordSigns", chordSigns)
     onBibleSettingsChanged: save("bibleSettings", JSON.stringify(bibleSettings))
+    onColorTriggerDefaultChanged: save("colorTriggerDefault", JSON.stringify(colorTriggerDefault))
     onApiBibleKeyChanged: save("apiBibleKey", apiBibleKey)
     onMediaThumbnailWidthChanged: save("mediaThumbnailWidth", mediaThumbnailWidth)
     onSidePanelWidthChanged: save("sidePanelWidth", sidePanelWidth)
@@ -4486,6 +4497,8 @@ Window {
         groupColor: (slide) => win.groupColor(slide)
         backdropFor: (slideId) => win.slideBackdrop(slideId)
         showMenu: (items, item, x, y) => menu.show(items, item, x, y)
+        colorTriggerDefault: win.colorTriggerDefault
+        onColorTriggerDefaultKept: (list) => win.colorTriggerDefault = list
         mediaFilter: win.catalog.mediaDialogFilter
         mediaFolder: win.catalog.mediaDirectory
         canPaste: win.catalog.hasCopiedSlide

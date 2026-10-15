@@ -65,6 +65,15 @@ QString Clocks::videoText(int hours, int minutes, int seconds, int hundredths, b
     return Timers::linked(counted ? m_videoLeft : 0, true, format, pattern);
 }
 
+QVariant Clocks::videoColor(const QVariantList &triggers, bool ignoreLooping) const
+{
+    if (triggers.isEmpty())
+        return {};
+    // (The same time as the words show: see videoText.)
+    const bool counted = m_videoLeft >= 0 && !(ignoreLooping && m_videoLoops) && !m_held;
+    return Timers::triggerColor(triggers, counted ? m_videoLeft : 0, true);
+}
+
 // Whether the video is watched follows whether its time has been asked for, a moment
 // after and not on the spot. Where it changes is in the middle of something: a box
 // working out its words, or the window telling this of the video. What the window does

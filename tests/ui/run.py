@@ -2044,6 +2044,8 @@ TESTS = {
     "transport": test("Demo"),
     "timers": test("Demo"),
     "link": test("ProPresenter MR"),
+    # (Settings remembered, in the test's own folder of them: the Color Triggers kept as the default go there.)
+    "triggers": test("ProPresenter MR", env={"SP_TEST_REMEMBER": "1"}),
     "rapid": test("Demo"),
     "chrome": test("Demo"),
     "arrange": test("Demo", timeout=240, after=after_arrange),

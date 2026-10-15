@@ -69,6 +69,8 @@ qt_add_executable(SimplePresenter
     src/proconvert.h
     src/linejoin.cpp
     src/linejoin.h
+    src/colortriggers.cpp
+    src/colortriggers.h
     src/prodocument.cpp
     src/prodocument.h
     src/richtext.cpp

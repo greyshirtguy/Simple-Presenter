@@ -51,6 +51,10 @@ class StrokedText : public QQuickPaintedItem
     // is then drawn as it is, in place of the content and with nothing of the
     // content's style: a slide's notes, shown as they were written.
     Q_PROPERTY(QVariant replacement MEMBER m_replacement NOTIFY replacementChanged)
+    // The colour the replacement's words are filled with, in place of the content's, or
+    // undefined for the content's own: a timer's colour by its Color Triggers
+    // (colortriggers.h). It changes seldom, so a change of it draws all of the text again.
+    Q_PROPERTY(QVariant replacementColor MEMBER m_replacementColor NOTIFY replacementColorChanged)
     // Output pixels per slide unit.
     Q_PROPERTY(qreal unit MEMBER m_unit NOTIFY unitChanged)
     // Slide units by which the item extends beyond the text box on every side, so strokes
@@ -86,6 +90,7 @@ public:
 signals:
     void contentChanged();
     void replacementChanged();
+    void replacementColorChanged();
     void unitChanged();
     void bleedChanged();
     void verticalAlignmentChanged();
@@ -106,6 +111,7 @@ private:
 
     QVariant m_content;
     QVariant m_replacement;
+    QVariant m_replacementColor;
     // The replacement as it was last laid out, and whether that still holds
     TextLayoutResult m_live;
     bool m_liveKnown = false;

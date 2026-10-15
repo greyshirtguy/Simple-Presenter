@@ -1,5 +1,6 @@
 #include "timers.h"
 
+#include "colortriggers.h"
 #include "sessionlog.h"
 #include "workspacefiles.h"
 
@@ -343,6 +344,38 @@ QString Timers::linkedText(const QString &id, const QString &name, int hours, in
             m_fastClock.start();
     }
     return linked(seconds(*timer, run), !timer->configuration().has_elapsed_time(), format, pattern);
+}
+
+QVariant Timers::triggerColor(const QVariantList &triggers, double value, bool countsDown)
+{
+    QList<double> times;
+    for (const QVariant &each : triggers)
+        times.append(each.toMap().value("time").toDouble());
+    const int at = colortriggers::inForce(times, value, countsDown);
+    return at < 0 ? QVariant() : triggers.at(at).toMap().value("color");
+}
+
+QVariant Timers::linkedColor(const QString &id, const QString &name, const QVariantList &triggers) const
+{
+    if (triggers.isEmpty())
+        return {};
+    // A box linked to a timer that is not here shows a time at nothing, and so its colour
+    // is the one at nothing.
+    const rv::data::Timer *timer = find(id, name);
+    if (!timer)
+        return triggerColor(triggers, 0, true);
+    const Run run = m_runs.value(QString::fromStdString(timer->uuid().string()));
+    return triggerColor(triggers, seconds(*timer, run), !timer->configuration().has_elapsed_time());
+}
+
+QString Timers::triggerTime(double seconds) const
+{
+    return colortriggers::written(seconds);
+}
+
+double Timers::triggerSeconds(const QString &typed) const
+{
+    return colortriggers::read(typed);
 }
 
 QString Timers::linkedTimer(const QString &id, const QString &name) const

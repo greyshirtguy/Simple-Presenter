@@ -69,6 +69,9 @@ public:
     // time at nothing. Asking is what has the video watched.
     Q_INVOKABLE QString videoText(int hours, int minutes, int seconds, int hundredths, bool hundredthsUnderMinuteOnly,
                                   bool ignoreLooping, const QString &pattern);
+    // The colour of that time by the link's Color Triggers, as a timer's (Timers::
+    // linkedColor): the colour of the one in force, or nothing for the box's own
+    Q_INVOKABLE QVariant videoColor(const QVariantList &triggers, bool ignoreLooping) const;
 
     // The video that is playing has this many seconds left, and goes round or does
     // not; or there is none.

@@ -39,6 +39,7 @@ StrokedText::StrokedText(QQuickItem *parent)
     connect(this, &StrokedText::fitChanged, this, repaint);
     connect(this, &StrokedText::insetsChanged, this, repaint);
     connect(this, &StrokedText::lineFillChanged, this, repaint);
+    connect(this, &StrokedText::replacementColorChanged, this, repaint);
     connect(this, &StrokedText::replacementChanged, this, &StrokedText::replace);
 }
 
@@ -60,7 +61,10 @@ RichText StrokedText::shown() const
     const RichText content = m_content.value<RichText>();
     if (m_replacement.typeId() != QMetaType::QString)
         return content;
-    return RichText::plain(m_replacement.toString(), content.firstRun(),
+    TextRun format = content.firstRun();
+    if (const QColor color = m_replacementColor.value<QColor>(); m_replacementColor.isValid() && color.isValid())
+        format.fill = color;
+    return RichText::plain(m_replacement.toString(), format,
                            content.paragraphs.isEmpty() ? Qt::AlignHCenter : content.paragraphs.first().alignment);
 }
 

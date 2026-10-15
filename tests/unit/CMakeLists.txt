@@ -85,6 +85,15 @@ target_include_directories(tst_sheethints PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_sheethints PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME sheethints COMMAND tst_sheethints)
 
+qt_add_executable(tst_colortriggers
+    tst_colortriggers.cpp
+    ${PROJECT_SOURCE_DIR}/src/colortriggers.h
+    ${PROJECT_SOURCE_DIR}/src/colortriggers.cpp
+)
+target_include_directories(tst_colortriggers PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_colortriggers PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME colortriggers COMMAND tst_colortriggers)
+
 qt_add_executable(tst_linejoin
     tst_linejoin.cpp
     ${PROJECT_SOURCE_DIR}/src/linejoin.h

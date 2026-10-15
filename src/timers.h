@@ -120,6 +120,18 @@ public:
     // of those in the binding that asks.
     Q_INVOKABLE QString linkedText(const QString &id, const QString &name, int hours, int minutes, int seconds,
                                    int hundredths, bool hundredthsUnderMinuteOnly, const QString &pattern);
+    // The colour a text box linked to a timer is to have now, by the link's Color
+    // Triggers ([{ time, color }], see colortriggers.h): the colour of the one in force,
+    // or nothing (an undefined value) for the box's own. Read with the same tick and beat
+    // as the words, so that the colour changes with them.
+    Q_INVOKABLE QVariant linkedColor(const QString &id, const QString &name, const QVariantList &triggers) const;
+    // A trigger's time as the inspector shows it ("1:00.00"), and one typed, read back
+    // in seconds (-1 for what is not a time): colortriggers.h
+    Q_INVOKABLE QString triggerTime(double seconds) const;
+    Q_INVOKABLE double triggerSeconds(const QString &typed) const;
+    // The colour of the trigger in force for a time of `value` seconds, counting down or
+    // up, or nothing. For Clocks too, whose video countdown has triggers.
+    static QVariant triggerColor(const QVariantList &triggers, double value, bool countsDown);
     // The timer a link means, by id or failing that by name: its id, or "" if there is
     // none.
     Q_INVOKABLE QString linkedTimer(const QString &id, const QString &name) const;
