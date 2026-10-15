@@ -39,6 +39,19 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.96" date="2026-10-16">
+      <description>
+        <p>
+          Color Triggers for a text box linked to a timer: the time's words change
+          colour as it comes down to given times, as in ProPresenter, with a list that
+          can be dragged into order and kept as a default. Three public-domain Bibles
+          come with the app. Bible mode reworked: a verse added before or after the
+          passage keeps what is live as it is, the options in a panel, and Save and the
+          verse buttons under the slides. Text boxes set to Single Line keep each word's
+          look.
+        </p>
+      </description>
+    </release>
     <release version="0.95" date="2026-10-15">
       <description>
         <p>
