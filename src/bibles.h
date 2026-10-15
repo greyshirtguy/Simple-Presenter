@@ -37,12 +37,19 @@ class QNetworkReply;
 // A PASSAGE. lookup() reads what was typed (bible.h, with the Bible's own book names
 // for a file in another language), finds or fetches its verses, and says what it found
 // by found(): { request, translation, reference, verses, copyright, error }. step() is
-// ProPresenter's Next Verse and Previous Verse, from a passage that was found.
+// ← Verse and Verse →, which the maintainer asked (2026-10-15) to grow the
+// passage by a verse after it or before it, within its book: "append (pre-pend) slides
+// from surrounding verses - ie expand the range". Of api.bible only the verse added is
+// asked for.
 //
 // SLIDES. make() lays a passage that was found out on slides (bibleflow.h), each slide
 // a copy of a theme slide with the passage's words in the text box chosen for them and
-// its reference in the one chosen for that, or after the words, and writes them as a
-// presentation into a folder of its own that goes when the app is closed. The window
+// its reference in the one chosen for that, or after the words on a line of its own
+// (run on after them where the box makes its lines one: Single Line),
+// and writes them as a presentation into a folder of its own that goes when the app is
+// closed. Where the passage has grown round a slide of the last ones made that is live,
+// made the same way, the slides up to it (or from it) stay as they were and only the
+// rest are flowed again with the verse added: what is on the screen does not change. The window
 // opens that presentation as it opens any, so that its slides are shown, clicked and
 // stepped through as any are. saveAs() puts a copy of it into a library (ProPresenter's
 // Save as Presentation, and with a playlist row after it, Save to Playlist); copyInto()
@@ -96,13 +103,18 @@ public:
     // The verse after (1) or before (-1) a passage that was found; found() answers
     Q_INVOKABLE int step(int request, int delta);
 
-    // The text boxes of a theme slide, by name, in the order the slide has them
-    Q_INVOKABLE QStringList textBoxes(const QString &place, const QString &slideId) const;
+    // The text boxes of a theme slide, in the order the slide has them: [{ id, name }],
+    // the name being what to show for it (one with no name of its own, or one of two of
+    // the same name, is told apart: "Text Box 2", "Verse (2)"). With no theme, the plain
+    // slide's one box.
+    Q_INVOKABLE QVariantList textBoxes(const QString &place, const QString &slideId) const;
     // Slides of a passage that was found. `options`: { theme, themeSlide, verseBox,
-    // referenceBox ("" for the reference after the words), verseNumbers, breakOnNewVerse,
-    // translation (say which, with the reference), color (keep red letters), references
-    // ("verse", "each", "last" or "none"), flow ("even" or "fill") }.
-    // Answers { path, count, error }: the presentation they were written into.
+    // referenceBox (a box's id, or "" for the reference after the words), verseNumbers,
+    // breakOnNewVerse, translation (say which, with the reference), color (keep red
+    // letters), references ("verse", "each", "last" or "none"), flow ("even" or "fill"),
+    // live (the place among the last slides made of the slide of them that is live, or
+    // -1) }. Answers { path, count, error, name, request, live }: the presentation they
+    // were written into, and where the live slide is among them if it was kept, or -1.
     Q_INVOKABLE QVariantMap make(int request, const QVariantMap &options);
     // The slides last made, put into a library under the passage's name: { path, error }
     Q_INVOKABLE QVariantMap saveAs(const QString &library);
@@ -142,10 +154,14 @@ private:
         QStringList ids;  // api.bible's passage ids still to come
         QList<apibible::Passage> passages;
         QString error;
-        // Next Verse past a chapter's end, and Previous Verse from a chapter's first:
+        // Verse → past a chapter's end, and ← Verse from a chapter's first:
         // what to ask instead if this finds nothing, and to keep only the last verse
         bible::Reference instead;
         bool lastOnly = false;
+        // Verse → (1) or ← Verse (-1): the verse found is added to these
+        int grow = 0;
+        QList<bible::PassageVerse> was;
+        QString bookName;
     };
 
     QString key() const;
@@ -178,4 +194,11 @@ private:
     QString m_lastMade;
     QString m_lastName;
     int m_makes = 0;
+    // What the last slides were made of, and how, for keeping them when the passage
+    // grows: the passage, the words each slide holds, the reference each was given, and
+    // the options it was made with
+    int m_lastRequest = -1;
+    QList<QPair<int, int>> m_lastSlides;
+    QStringList m_lastReferences;
+    QVariantMap m_lastOptions;
 };

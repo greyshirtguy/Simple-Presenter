@@ -163,6 +163,42 @@ private slots:
         const QStringList tight = flowed(texts, 40, {Mode::Even, true});
         QCOMPARE(tight[1], "aaaa bbbb cccc dddd, eeee ffff gggg");
     }
+
+    // A passage grown round slides that are to stay: they stay as they were, and only the
+    // words before and after them are flowed, each by itself
+    void slidesKeptAsTheyWere()
+    {
+        const QStringList texts {QStringLiteral("aaaa bbbb cccc dddd eeee ffff."), QStringLiteral("gggg hhhh iiii jjjj, kkkk llll mmmm nnnn."),
+                                 QStringLiteral("oooo pppp qqqq."), QStringLiteral("rrrr ssss, tttt uuuu vvvv wwww xxxx.")};
+        const QList<Word> words = wordsOf(verses(texts));
+        const Fits fits = room(words, 45);
+        // As the first two verses were flowed, the second of their slides kept: the last
+        // two verses, which "Next Verse" added, flowed after it by themselves
+        const QList<Word> firstTwo = wordsOf(verses(texts.mid(0, 2)));
+        const QList<Slide> before = flow(firstTwo, {Mode::Even, false}, room(firstTwo, 45));
+        QVERIFY(before.size() >= 2);
+        const QList<Slide> grown = flow(words, {Mode::Even, false}, fits, {before.mid(0, 2)});
+        QCOMPARE(grown.mid(0, 2), before.mid(0, 2));
+        QCOMPARE(grown.last().to, int(words.size()));
+        for (qsizetype i = 1; i < grown.size(); ++i)
+            QCOMPARE(grown.at(i).from, grown.at(i - 1).to);
+        // What came after the kept slides is what the same words make flowed by themselves
+        const QList<Word> rest = words.mid(before.at(1).to);
+        QCOMPARE(grown.size() - 2, flow(rest, {Mode::Even, false}, room(rest, 45)).size());
+
+        // Kept in the middle: the words either side flowed each by itself
+        const QList<Slide> middle {{6, 10}, {10, 14}};
+        const QList<Slide> round = flow(words, {Mode::Even, false}, fits, middle);
+        QVERIFY(round.contains(middle.at(0)) && round.contains(middle.at(1)));
+        QCOMPARE(round.first().from, 0);
+        QCOMPARE(round.last().to, int(words.size()));
+        for (qsizetype i = 1; i < round.size(); ++i)
+            QCOMPARE(round.at(i).from, round.at(i - 1).to);
+
+        // Slides that are not of these words, or leave a gap, keep nothing
+        QCOMPARE(flow(words, {Mode::Even, false}, fits, {{0, 3}, {4, 6}}), flow(words, {Mode::Even, false}, fits));
+        QCOMPARE(flow(words, {Mode::Even, false}, fits, {{0, int(words.size()) + 1}}), flow(words, {Mode::Even, false}, fits));
+    }
 };
 
 QTEST_APPLESS_MAIN(TestBibleFlow)

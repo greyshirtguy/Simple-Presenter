@@ -291,7 +291,7 @@ Rectangle {
         anchors.bottom: filterBar.top
         // As the box under the list narrows it (see documentFilter in Main.qml)
         model: sidebar.win.shownDocuments
-        selectedPath: sidebar.win.documentKey
+        selectedPath: sidebar.win.selectedPresentation
         livePath: sidebar.win.cueLive && sidebar.win.livePlaylistId === sidebar.win.playlistId ? sidebar.win.liveKey : ""
         dragProxy: sidebar.presentationDrag
         draggable: (entry) => entry.playlistItem || sidebar.win.openable(entry)

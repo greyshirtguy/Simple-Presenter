@@ -1,6 +1,7 @@
 #include "bibles.h"
 
 #include "bibleflow.h"
+#include "linejoin.h"
 #include "biblexml.h"
 #include "prodocument.h"
 #include "proconvert.h"
@@ -94,14 +95,27 @@ rv::data::Slide plainSlide()
     return slide;
 }
 
-// Where an element of a slide is, by its name (the first of that name with text); -1
-int elementNamed(const rv::data::Slide &slide, const QString &name)
+// What ← Verse or Verse → says at the end or the start of a book
+QString bookEdge(int delta, int book, const QString &bookName)
 {
-    if (name.isEmpty())
+    const QString name = bookName.isEmpty() ? bible::englishName(book) : bookName;
+    return delta > 0 ? QStringLiteral("That is the end of %1.").arg(name) : QStringLiteral("That is the start of %1.").arg(name);
+}
+
+// Where a text box of a slide is, by its id (textBoxes()); or by its name, the first of
+// that name, which is how a choice was kept before boxes had ids here (0.95); -1
+int textBoxAt(const rv::data::Slide &slide, const QString &key)
+{
+    if (key.isEmpty())
         return -1;
     for (int i = 0; i < slide.elements_size(); ++i) {
         const auto &element = slide.elements(i).element();
-        if (element.has_text() && QString::fromStdString(element.name()) == name)
+        if (element.has_text() && QString::fromStdString(element.uuid().string()) == key)
+            return i;
+    }
+    for (int i = 0; i < slide.elements_size(); ++i) {
+        const auto &element = slide.elements(i).element();
+        if (element.has_text() && QString::fromStdString(element.name()) == key)
             return i;
     }
     return -1;
@@ -361,6 +375,9 @@ void Bibles::fetch(const std::shared_ptr<Pending> &pending)
             again->request = pending->request;
             again->id = pending->id;
             again->reference = pending->instead;
+            again->grow = pending->grow;
+            again->was = pending->was;
+            again->bookName = pending->bookName;
             again->ids = apibible::passageIds(again->reference);
             fetch(again);
             return;
@@ -370,6 +387,8 @@ void Bibles::fetch(const std::shared_ptr<Pending> &pending)
         QString error = pending->error;
         if (!verses.isEmpty())
             error.clear();
+        else if (pending->grow != 0 && error.isEmpty())
+            error = bookEdge(pending->grow, pending->reference.book, pending->bookName);
         else if (error.isEmpty())
             error = QStringLiteral("api.bible gave no verses for this passage.");
         QStringList tokens;
@@ -380,6 +399,11 @@ void Bibles::fetch(const std::shared_ptr<Pending> &pending)
         bible::Reference reference = pending->reference;
         if (pending->lastOnly && !verses.isEmpty())
             reference = bible::referenceTo(verses);
+        // ← Verse and Verse →: the verse added to the passage it grew from
+        if (pending->grow != 0 && !verses.isEmpty()) {
+            verses = pending->grow > 0 ? pending->was + verses : verses + pending->was;
+            reference = bible::referenceTo(verses);
+        }
         answer(pending->request, pending->id, reference, verses, pending->passages.isEmpty() ? QString() : pending->passages.first().copyright, error);
         if (!verses.isEmpty())
             fums(tokens);
@@ -527,18 +551,22 @@ int Bibles::lookup(const QString &id, const QString &typed)
     return request;
 }
 
+// The verse added to a passage by Verse → (delta 1) or ← Verse (-1), within the
+// passage's book: at its first or last verse there is nothing more to add, and saying so
+// leaves the passage as it is (BiblePanel keeps it).
 int Bibles::step(int from, int delta)
 {
     const int request = ++m_requests;
     const Found was = m_found.value(from);
     if (was.verses.isEmpty()) {
-        QMetaObject::invokeMethod(this, [this, request, was] { answer(request, was.id, {}, {}, {}, QStringLiteral("There is no passage to go on from.")); },
+        QMetaObject::invokeMethod(this, [this, request, was] { answer(request, was.id, {}, {}, {}, QStringLiteral("There is no passage to add to.")); },
                                   Qt::QueuedConnection);
         return request;
     }
+    const int book = was.verses.first().book;
     if (was.id.startsWith(QLatin1String("file:"))) {
         const QPointer<Bibles> self(this);
-        withBible(was.id.mid(5), [self, request, was, delta](const bible::Bible *read, const QString &error) {
+        withBible(was.id.mid(5), [self, request, was, delta, book](const bible::Bible *read, const QString &error) {
             if (!self)
                 return;
             if (!read) {
@@ -546,11 +574,16 @@ int Bibles::step(int from, int delta)
                 return;
             }
             const bible::Reference reference = delta > 0 ? bible::nextVerse(*read, was.verses) : bible::previousVerse(*read, was.verses);
-            QString problem = delta > 0 ? QStringLiteral("There is no verse after this one.") : QStringLiteral("There is no verse before this one.");
-            QList<bible::PassageVerse> verses;
-            if (reference.valid())
-                verses = bible::passage(*read, reference, &problem);
-            self->answer(request, was.id, reference, verses, read->copyright, verses.isEmpty() ? problem : QString());
+            QString problem = bookEdge(delta, book, was.bookName);
+            QList<bible::PassageVerse> added;
+            if (reference.valid() && reference.book == book)
+                added = bible::passage(*read, reference, &problem);
+            if (added.isEmpty()) {
+                self->answer(request, was.id, {}, {}, {}, problem);
+                return;
+            }
+            const QList<bible::PassageVerse> all = delta > 0 ? was.verses + added : added + was.verses;
+            self->answer(request, was.id, bible::referenceTo(all), all, read->copyright, QString());
         });
         return request;
     }
@@ -560,33 +593,30 @@ int Bibles::step(int from, int delta)
     auto pending = std::make_shared<Pending>();
     pending->request = request;
     pending->id = was.id;
+    pending->grow = delta;
+    pending->was = was.verses;
+    pending->bookName = was.bookName;
     const bible::PassageVerse edge = delta > 0 ? was.verses.last() : was.verses.first();
-    const int book = edge.book;
-    const auto one = [book](int b, int chapter, int verse) {
+    const auto one = [book](int chapter, int verse) {
         bible::Reference r;
-        r.book = b > 0 ? b : book;
+        r.book = book;
         r.ranges.append({chapter, verse, chapter, verse});
         return r;
     };
     if (delta > 0) {
-        pending->reference = one(book, edge.chapter, edge.verse.number + 1);
+        pending->reference = one(edge.chapter, edge.verse.number + 1);
         if (edge.chapter < bible::chapterCount(book))
-            pending->instead = one(book, edge.chapter + 1, 1);
-        else if (book < bible::bookCount)
-            pending->instead = one(book + 1, 1, 1);
+            pending->instead = one(edge.chapter + 1, 1);
     } else if (edge.verse.number > 1) {
-        pending->reference = one(book, edge.chapter, edge.verse.number - 1);
-    } else {
-        const int b = edge.chapter > 1 ? book : book - 1;
-        const int chapter = edge.chapter > 1 ? edge.chapter - 1 : bible::chapterCount(b);
-        if (b < 1) {
-            QMetaObject::invokeMethod(this, [this, request, was] { answer(request, was.id, {}, {}, {}, QStringLiteral("There is no verse before this one.")); },
-                                      Qt::QueuedConnection);
-            return request;
-        }
-        pending->reference.book = b;
-        pending->reference.ranges.append({chapter, 0, chapter, 0});
+        pending->reference = one(edge.chapter, edge.verse.number - 1);
+    } else if (edge.chapter > 1) {
+        pending->reference.book = book;
+        pending->reference.ranges.append({edge.chapter - 1, 0, edge.chapter - 1, 0});
         pending->lastOnly = true;
+    } else {
+        QMetaObject::invokeMethod(this, [this, request, was, delta, book] { answer(request, was.id, {}, {}, {}, bookEdge(delta, book, was.bookName)); },
+                                  Qt::QueuedConnection);
+        return request;
     }
     pending->ids = apibible::passageIds(pending->reference);
     fetch(pending);
@@ -595,20 +625,38 @@ int Bibles::step(int from, int delta)
 
 // ---- Slides
 
-QStringList Bibles::textBoxes(const QString &place, const QString &slideId) const
+// By id, which a box keeps whatever it is called: two boxes of one name, or a box with
+// none (ProPresenter allows both), are each a box of their own here, where by name the
+// second could not be chosen and the nameless one not even shown. The theme's file is
+// read each time, so that a box added to the theme in the editor is there at once.
+QVariantList Bibles::textBoxes(const QString &place, const QString &slideId) const
 {
-    QStringList names;
+    QVariantList boxes;
     rv::data::Template::Document theme;
-    if (place.isEmpty() || !themefile::read(m_workspace, place, &theme, nullptr))
-        return {QStringLiteral("Verse")};
+    // (The plain slide is made afresh each time, so its box's id is a stand-in: make()
+    // puts the words in its only box whatever it is given.)
+    if (place.isEmpty())
+        return {QVariantMap {{"id", QStringLiteral("plain")}, {"name", QStringLiteral("Verse")}}};
+    if (!themefile::read(m_workspace, place, &theme, nullptr))
+        return boxes;
     const rv::data::Template::Slide *slide = themefile::slideOf(theme, slideId);
     if (!slide)
-        return names;
+        return boxes;
+    QHash<QString, int> seen;
+    int number = 0;
     for (const rv::data::Slide::Element &element : slide->base_slide().elements()) {
-        if (element.element().has_text())
-            names << QString::fromStdString(element.element().name());
+        if (!element.element().has_text())
+            continue;
+        ++number;
+        QString name = QString::fromStdString(element.element().name()).trimmed();
+        if (name.isEmpty())
+            name = QStringLiteral("Text Box %1").arg(number);
+        const int times = ++seen[name];
+        if (times > 1)
+            name += QStringLiteral(" (%1)").arg(times);
+        boxes.append(QVariantMap {{"id", QString::fromStdString(element.element().uuid().string())}, {"name", name}});
     }
-    return names;
+    return boxes;
 }
 
 QVariantMap Bibles::make(int request, const QVariantMap &options)
@@ -633,7 +681,7 @@ QVariantMap Bibles::make(int request, const QVariantMap &options)
     } else {
         base = plainSlide();
     }
-    int verseAt = elementNamed(base, options.value("verseBox").toString());
+    int verseAt = place.isEmpty() ? -1 : textBoxAt(base, options.value("verseBox").toString());
     if (verseAt < 0) {
         // (The box asked for is not there: the first that takes words.)
         for (int i = 0; i < base.elements_size() && verseAt < 0; ++i) {
@@ -643,7 +691,7 @@ QVariantMap Bibles::make(int request, const QVariantMap &options)
     }
     if (verseAt < 0)
         return failed(QStringLiteral("The theme slide has no text box for the words."));
-    int referenceAt = elementNamed(base, options.value("referenceBox").toString());
+    int referenceAt = place.isEmpty() ? -1 : textBoxAt(base, options.value("referenceBox").toString());
     if (referenceAt == verseAt)
         referenceAt = -1;
     // A box named for the copyright, where a theme has one, is given it
@@ -653,6 +701,34 @@ QVariantMap Bibles::make(int request, const QVariantMap &options)
         if (i != verseAt && i != referenceAt && element.has_text()
             && QString::fromStdString(element.name()).compare(QLatin1String("Copyright"), Qt::CaseInsensitive) == 0)
             copyrightAt = i;
+    }
+
+    // The words are laid out by the flow, measured as they will be drawn, at the theme's
+    // size. So the copies of the box they go in do not scale their font, up or down: a
+    // slide with fewer words would otherwise be in larger letters than the next, and
+    // what the flow measured would not be what is drawn (the maintainer, 2026-10-15:
+    // "ignore that in any theme verse element"). A transform that makes lines one (Single
+    // Line, Replace Line Returns) is kept, as the maintainer asked: a theme can be made to
+    // run verses of poetry on as one line, for a lower third say. The words are then
+    // measured joined, as they are drawn, and a reference With Verse runs on after them
+    // instead of starting a line. The two that put each word or each letter on a line of
+    // its own would undo the flow altogether, and are not kept. (What ProPresenter makes
+    // of such boxes in its own Bible slides is not known here.)
+    using Text = rv::data::Graphics::Text;
+    bool joins = false;  // whether the box makes its lines one
+    QString joinWith;    // and with what
+    {
+        Text *text = base.mutable_elements(verseAt)->mutable_element()->mutable_text();
+        text->set_scale_behavior(Text::SCALE_BEHAVIOR_NONE);
+        if (text->transform() == Text::TRANSFORM_SINGLE_LINE) {
+            joins = true;
+            joinWith = QStringLiteral(" ");
+        } else if (text->transform() == Text::TRANSFORM_REPLACE_LINE_RETURNS) {
+            joins = true;
+            joinWith = QString::fromStdString(text->transformdelimiter());
+        } else {
+            text->set_transform(Text::TRANSFORM_NONE);
+        }
     }
 
     // How the words are written: in the box's own format, a verse's number a little
@@ -720,8 +796,10 @@ QVariantMap Bibles::make(int request, const QVariantMap &options)
     const auto fits = [&](int from, int to) {
         // (Measured only: the glyphs are not wanted. With them, a chapter of twenty verses
         // went from found to shown in 564 ms on the 2017 laptop, under the test runner;
-        // without, in 155. It is asked about twice for each word: see bibleflow.h.)
-        const TextLayoutResult laid = measureText(richFor(from, to, referenceOn(from, to)), room.width());
+        // without, in 155. It is asked about twice for each word: see bibleflow.h. Joined
+        // where the box joins its lines, as the slide will draw it: proconvert.cpp.)
+        const RichText rich = richFor(from, to, referenceOn(from, to));
+        const TextLayoutResult laid = measureText(joins ? joinedLines(rich, joinWith) : rich, room.width());
         if (laid.height > room.height() + 0.5)
             return false;
         for (const QRectF &line : laid.lines) {
@@ -733,7 +811,60 @@ QVariantMap Bibles::make(int request, const QVariantMap &options)
     bibleflow::Options flowing;
     flowing.mode = options.value("flow").toString() == u"fill" ? bibleflow::Mode::Fill : bibleflow::Mode::Even;
     flowing.breakOnNewVerse = options.value("breakOnNewVerse").toBool();
-    const QList<bibleflow::Slide> slides = bibleflow::flow(words, flowing, fits);
+
+    // Slides kept as they were made last: where the passage has grown by Verse → or
+    // ← Verse round a slide of the last ones made that is live, and nothing else
+    // about how they are made has changed, the slides up to the live one (grown at the
+    // end) or from it (grown at the start) stay, and the rest are flowed again with the
+    // verse added (bibleflow::flow with `kept`).
+    QVariantMap choices = options;
+    choices.remove(QStringLiteral("live"));
+    const int live = options.value("live", -1).toInt();
+    QList<bibleflow::Slide> kept;
+    bool grewAtStart = false;
+    const QList<bible::PassageVerse> before = m_found.value(m_lastRequest).verses;
+    if (live >= 0 && live < m_lastSlides.size() && choices == m_lastOptions && found.verses.size() > before.size() && !before.isEmpty()) {
+        const auto sameAt = [&](qsizetype at) {
+            for (qsizetype i = 0; i < before.size(); ++i) {
+                const bible::PassageVerse &a = found.verses.at(at + i);
+                const bible::PassageVerse &b = before.at(i);
+                if (a.book != b.book || a.chapter != b.chapter || a.verse.number != b.verse.number)
+                    return false;
+            }
+            return true;
+        };
+        if (sameAt(0)) {
+            for (int i = 0; i <= live; ++i)
+                kept.append({m_lastSlides.at(i).first, m_lastSlides.at(i).second});
+        } else if (const qsizetype added = found.verses.size() - before.size(); sameAt(added)) {
+            // (Every word of the old passage is that many words further on.)
+            const int shift = int(std::count_if(words.begin(), words.end(), [added](const bibleflow::Word &w) { return w.verse < added; }));
+            for (int i = live; i < m_lastSlides.size(); ++i)
+                kept.append({m_lastSlides.at(i).first + shift, m_lastSlides.at(i).second + shift});
+            grewAtStart = true;
+        }
+    }
+    const QList<bibleflow::Slide> slides = bibleflow::flow(words, flowing, fits, kept);
+    // Where the live slide is now, if it was kept
+    int liveAt = -1;
+    if (!kept.isEmpty())
+        liveAt = int(slides.indexOf(grewAtStart ? kept.first() : kept.last()));
+
+    // The reference each slide is given. A kept slide whose words are not to change may
+    // be given a longer one now (Passage Each, or the last slide's with Passage Last, the
+    // passage having grown at its start); where that would no longer fit, it keeps the
+    // one it had.
+    QStringList slideReferences;
+    for (qsizetype s = 0; s < slides.size(); ++s) {
+        const bibleflow::Slide &each = slides.at(s);
+        QString reference = referenceOn(each.from, each.to);
+        const qsizetype k = kept.indexOf(each);
+        if (k >= 0 && referenceAt < 0 && !fits(each.from, each.to)) {
+            const int old = grewAtStart ? live + int(k) : int(k);
+            reference = m_lastReferences.value(old);
+        }
+        slideReferences << reference;
+    }
 
     // The presentation: one group, named for the passage; each slide labelled with the
     // verses it holds
@@ -745,7 +876,8 @@ QVariantMap Bibles::make(int request, const QVariantMap &options)
     group->mutable_group()->set_name(bible::written(found.reference, found.bookName).toStdString());
     group->mutable_group()->mutable_hotkey();
     const QSizeF size(base.size().width() > 0 ? base.size().width() : 1920, base.size().height() > 0 ? base.size().height() : 1080);
-    for (const bibleflow::Slide &each : slides) {
+    for (qsizetype s = 0; s < slides.size(); ++s) {
+        const bibleflow::Slide &each = slides.at(s);
         const QString label = bible::written(bible::referenceTo(versesOf(each.from, each.to)), found.bookName);
         rv::data::Cue *cue = proconvert::addBlankCue(&presentation, label.toStdString(), size);
         group->add_cue_identifiers()->set_string(cue->uuid().string());
@@ -762,7 +894,7 @@ QVariantMap Bibles::make(int request, const QVariantMap &options)
                 element->mutable_uuid()->set_string(workspace::newUuid());
             if (!element->has_text())
                 continue;
-            const QString reference = referenceOn(each.from, each.to);
+            const QString &reference = slideReferences.at(s);
             if (i == verseAt) {
                 proconvert::writeText(element->mutable_text(), richFor(each.from, each.to, reference));
             } else {
@@ -785,7 +917,13 @@ QVariantMap Bibles::make(int request, const QVariantMap &options)
         return failed(error);
     m_lastMade = path;
     m_lastName = name;
-    return {{"path", path}, {"count", int(slides.size())}, {"error", QString()}, {"name", name}};
+    m_lastRequest = request;
+    m_lastSlides.clear();
+    for (const bibleflow::Slide &each : slides)
+        m_lastSlides.append({each.from, each.to});
+    m_lastReferences = slideReferences;
+    m_lastOptions = choices;
+    return {{"path", path}, {"count", int(slides.size())}, {"error", QString()}, {"name", name}, {"request", request}, {"live", liveAt}};
 }
 
 QVariantMap Bibles::saveAs(const QString &library)

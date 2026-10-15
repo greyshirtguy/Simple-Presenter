@@ -182,4 +182,29 @@ QList<Slide> flow(const QList<Word> &words, const Options &options, const Fits &
     return slides;
 }
 
+QList<Slide> flow(const QList<Word> &words, const Options &options, const Fits &fits, const QList<Slide> &kept)
+{
+    const int count = int(words.size());
+    // (Slides that are not of these words, or not one after another, keep nothing.)
+    bool usable = !kept.isEmpty() && kept.first().from >= 0 && kept.last().to <= count;
+    for (qsizetype i = 0; usable && i < kept.size(); ++i) {
+        usable = kept.at(i).from < kept.at(i).to && (i == 0 || kept.at(i).from == kept.at(i - 1).to);
+    }
+    if (!usable)
+        return flow(words, options, fits);
+
+    // A stretch of the words flowed by itself, its slides counted through the whole
+    const auto part = [&](int from, int to) {
+        QList<Slide> slides;
+        if (from >= to)
+            return slides;
+        const QList<Word> some = words.mid(from, to - from);
+        const Fits within = [&fits, from](int a, int b) { return fits(from + a, from + b); };
+        for (const Slide &slide : flow(some, options, within))
+            slides.append({slide.from + from, slide.to + from});
+        return slides;
+    };
+    return part(0, kept.first().from) + kept + part(kept.last().to, count);
+}
+
 }

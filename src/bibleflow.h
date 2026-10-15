@@ -106,4 +106,18 @@ struct Slide
 };
 QList<Slide> flow(const QList<Word> &words, const Options &options, const Fits &fits);
 
+// The same, with slides already made that are to stay as they are: a passage that has
+// grown round a slide of it that is live (← Verse and Verse → add a verse to
+// the passage, and what is on the screen must not change under the person). `kept` are
+// slides of `words`, in order and one after another; the words before the first of
+// them and after the last are each flowed by themselves, as flow() flows a passage, so
+// that what is added is shared out evenly too, and the slides come back in order.
+//
+// The maintainer's own thought (2026-10-15) was to flow each passage with four or five
+// verses either side of it taken into account, unseen, so that what Verse → adds
+// would already have its place. That keeps nothing still once a verse is added (the
+// even flow of the whole is then another one); keeping the slides up to the one that
+// is live does, and flows the rest with what is added as if it had been asked for so.
+QList<Slide> flow(const QList<Word> &words, const Options &options, const Fits &fits, const QList<Slide> &kept);
+
 }

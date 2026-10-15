@@ -158,7 +158,7 @@ Rectangle {
         kind: "edit"
         label: "Edit"
         on: toolbar.win.editing && !toolbar.win.reflowing
-        opacity: toolbar.win.editing || (toolbar.win.document !== null && toolbar.win.currentEntry() !== undefined) ? 1 : 0.4
+        opacity: toolbar.win.editing || toolbar.win.editTarget() !== undefined ? 1 : 0.4
         // (From the reflow editor it leads to the editor proper, on the same
         // presentation; from the editor proper, back to the show.)
         onClicked: {
@@ -167,7 +167,7 @@ Rectangle {
             else if (toolbar.win.editing)
                 toolbar.win.stopEditing()
             else
-                toolbar.win.startEditing(toolbar.win.currentEntry())
+                toolbar.win.startEditing(toolbar.win.editTarget())
         }
     }
 

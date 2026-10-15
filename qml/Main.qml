@@ -340,11 +340,16 @@ Window {
     property var bibleSettings: ({})
     property string apiBibleKey: ""
     // The presentation the Bible's slides are, while they are what the grid shows; and
-    // the presentation that was being viewed when Bible mode was come to, which they can
-    // be copied into, with the slide of it that was live, if one of it was
+    // Bible mode's target: the presentation that was being viewed when it was come to, or
+    // the one clicked since (which is not shown: the grid in Bible mode shows Bible
+    // slides alone), which they can be copied into, after the slide of it that is live
+    // if one is, and which leaving Bible mode goes to (the maintainer, 2026-10-15)
     property string bibleKey: ""
     property var bibleReturnEntry: null
     property string bibleReturnSlide: ""
+    // The presentation marked in the list at the left: the one being viewed, or in Bible
+    // mode its target
+    readonly property string selectedPresentation: bibleMode ? (bibleReturnEntry ? bibleReturnEntry.path : "") : documentKey
     // Simple View: whether it has been asked for, and whether it is what is showing,
     // which it is not while the editor or the settings screen is up: they need the
     // toolbar, and the view is there again when they are done with.
@@ -588,13 +593,17 @@ Window {
     readonly property string stageLayoutId: Show.stageLayoutId
     readonly property var stageLayout: StageLayouts.layouts.find(layout => layout.id === stageLayoutId) ?? null
 
+    // The playlist the slides being viewed are a row of: the one being browsed, but for
+    // Bible mode's slides, which are no row of one (they go live with none, and are
+    // stepped through and marked live as such)
+    readonly property string viewedPlaylistId: documentKey !== "" && documentKey === bibleKey ? "" : playlistId
     readonly property bool viewingLive: document !== null && liveDocument !== null
-                                        && documentKey === liveKey && playlistId === livePlaylistId
+                                        && documentKey === liveKey && viewedPlaylistId === livePlaylistId
                                         && document.arrangement === liveDocument.arrangement
     // Whether the presentation being viewed is the one the announcements are in, and
     // whether it is one that is sent to the announcements at all
     readonly property bool viewingAnnouncements: document !== null && announcementDocument !== null
-                                                 && documentKey === Show.announcementKey && playlistId === Show.announcementPlaylistId
+                                                 && documentKey === Show.announcementKey && viewedPlaylistId === Show.announcementPlaylistId
                                                  && document.arrangement === announcementDocument.arrangement
     readonly property bool viewedGoesToAnnouncements: document !== null && document.destination === "announcements"
     // The item the pop-up menu is open for, or null while it is shut
@@ -655,6 +664,11 @@ Window {
         if (!openable(entry)) {
             if (entry.kind === "presentation")
                 Log.problem("The presentation " + quoted(entry.name) + " is listed in " + browsing() + " but its file is not in the workspace")
+            return
+        }
+        // (In Bible mode a presentation clicked is not shown: it is Bible mode's target.)
+        if (bibleMode) {
+            aimBibles(entry)
             return
         }
         documentKey = entry.path
@@ -745,6 +759,10 @@ Window {
 
     function openFirst() {
         const first = documents.find(openable)
+        if (bibleMode) {
+            aimBibles(first ?? null)
+            return
+        }
         if (first) {
             openEntry(first)
         } else {
@@ -858,33 +876,88 @@ Window {
         if (editing)
             stopEditing()
         bibleReturnEntry = currentEntry() ?? null
-        bibleReturnSlide = liveDocument !== null && bibleReturnEntry !== null && liveKey === documentKey && Show.currentSlide.id !== undefined
-                         ? Show.currentSlide.id : ""
+        bibleReturnSlide = liveDocument !== null && bibleReturnEntry !== null && liveKey === documentKey && livePlaylistId === playlistId
+                         && Show.currentSlide.id !== undefined ? Show.currentSlide.id : ""
         bibleMode = true
+        // The grid shows the slides Bible mode made last, this run; or until it has made
+        // some, nothing: never the presentation that was being viewed, whose slides are
+        // not Bible mode's. (Not kept from one run to the next: the slides are in a
+        // folder that goes when the app closes.)
+        if (bibleKey !== "") {
+            documentKey = bibleKey
+            document = catalog.open(bibleKey)
+        } else {
+            documentKey = ""
+            document = null
+        }
         Log.note("bibles", "Bible mode come to")
     }
 
     function leaveBibles() {
         bibleMode = false
-        if (documentKey === bibleKey && documentKey !== "") {
-            if (bibleReturnEntry !== null && documents.some(d => d.path === bibleReturnEntry.path))
-                openEntry(bibleReturnEntry)
-            else {
-                document = null
-                documentKey = ""
-            }
+        if (documentKey === "" || documentKey === bibleKey) {
+            const back = bibleReturnEntry !== null ? documents.find(d => d.path === bibleReturnEntry.path) : undefined
+            if (back)
+                openEntry(back)
+            else
+                openFirst()
         }
         Log.note("bibles", "Bible mode left")
         takeFocus()
     }
 
-    // The slides Bible mode made, shown in the grid as any presentation's are
-    function showBibleSlides(path) {
-        bibleKey = path
-        documentKey = path
-        document = catalog.open(path)
-        grid.positionViewAtBeginning()
+    // Bible mode's target set to a presentation (or none): what Copy to Current
+    // Presentation puts the slides into, after its live slide if it has the one that is
+    // live, and what leaving Bible mode goes to
+    function aimBibles(entry) {
+        bibleReturnEntry = entry
+        bibleReturnSlide = entry !== null && liveDocument !== null && liveKey === entry.path && livePlaylistId === playlistId
+                         && Show.currentSlide.id !== undefined ? Show.currentSlide.id : ""
+        if (entry !== null)
+            Log.note("bibles", quoted(entry.name) + " chosen, for after Bible mode")
+    }
+
+    // The presentation Edit and Reflow go to: the one being viewed, or in Bible mode its
+    // target, Bible mode being left for it
+    function editTarget() {
+        return bibleMode ? (bibleReturnEntry !== null ? documents.find(d => d.path === bibleReturnEntry.path) : undefined) : currentEntry()
+    }
+
+    // Bible mode's ← Verse and Verse → (under the slides, SlideGrid.qml): the passage
+    // grown by the verse before it or after it
+    readonly property bool bibleCanStep: bibleMode && biblePanel.item !== null && biblePanel.item.passage !== null && biblePanel.item.passage.error === ""
+
+    function bibleStep(delta) {
+        if (biblePanel.item)
+            biblePanel.item.step(delta)
+    }
+
+    // The slides Bible mode made (Bibles.make's answer), shown in the grid as any
+    // presentation's are. Where the passage grew round a slide of it that was live, that
+    // slide was kept as it was and is at `live` among the new ones: the show follows it
+    // into the new file without showing it again, so that it is still the one marked
+    // live and the one the arrow keys go on from.
+    function showBibleSlides(made) {
+        const was = bibleKey
+        bibleKey = made.path
+        documentKey = made.path
+        document = catalog.open(made.path)
+        if (made.live >= 0 && was !== "" && liveDocument !== null && liveKey === was && livePlaylistId === "") {
+            Show.renamed(was, made.path)
+            liveDocument = document
+            Show.follow(Object.assign(cueAt(document, made.path, "", made.live), { destination: "" }))
+            grid.positionViewAtIndex(made.live, GridView.Contain)
+        } else {
+            grid.positionViewAtBeginning()
+        }
         Log.note("bibles", quoted(document.name) + ", " + counted(document.slides.length, "slide", "slides"))
+    }
+
+    // Bible mode's menu of ways to keep the slides it made, from the Save button under
+    // the slides (SlideGrid.qml)
+    function bibleKeepMenu(item) {
+        if (biblePanel.item)
+            biblePanel.item.keepMenu(item)
     }
 
     // Something said that is no fault: on the line where faults are said
@@ -896,20 +969,20 @@ Window {
     function editMode() {
         if (reflowing)
             editScreen.setMode("slides")
-        else if (!editing && document !== null && currentEntry() !== undefined)
-            startEditing(currentEntry())
+        else if (!editing && editTarget() !== undefined)
+            startEditing(editTarget())
     }
 
     // The reflow editor (ReflowEditor.qml): the editor in another of its ways of
     // working, for the presentation being viewed, or for the one the editor is on.
     readonly property bool reflowing: editing && editScreen.mode === "reflow"
     readonly property bool canReflow: editing ? editScreen.kind === "presentation"
-                                              : document !== null && currentEntry() !== undefined && openable(currentEntry())
+                                              : editTarget() !== undefined && openable(editTarget())
     function reflowMode() {
         if (reflowing || !canReflow)
             return
         if (!editing)
-            startEditing(currentEntry())
+            startEditing(editTarget())
         if (editing && editScreen.kind === "presentation") {
             editScreen.setMode("reflow")
             Log.note("edit", "the reflow editor come to")
@@ -2184,6 +2257,9 @@ Window {
     function startEditing(entry, slideId) {
         if (editing || !entry || !openable(entry))
             return
+        // (From Bible mode, which is left for the presentation, as Show mode leaves it)
+        if (bibleMode)
+            leaveBibles()
         if (documentKey !== entry.path)
             openEntry(entry)
         const slide = slideId ?? (viewingLive && liveIndex >= 0 && liveIndex < document.slides.length
@@ -2832,7 +2908,7 @@ Window {
         }
         // (The Bible's slides are no row of a playlist being browsed: stepping on from
         // their last goes nowhere.)
-        Show.goLive(cueAt(document, documentKey, documentKey === bibleKey ? "" : playlistId, index), withoutMedia === true)
+        Show.goLive(cueAt(document, documentKey, viewedPlaylistId, index), withoutMedia === true)
         grid.positionViewAtIndex(index, GridView.Contain)
     }
 
@@ -2938,7 +3014,7 @@ Window {
     // which would only clear itself again); from another presentation it starts at
     // the top.
     function step(delta) {
-        goLive(Show.stepTarget(documentKey, playlistId, delta, viewedGoesToAnnouncements))
+        goLive(Show.stepTarget(documentKey, viewedPlaylistId, delta, viewedGoesToAnnouncements))
     }
 
     function clearSlide() {
@@ -3340,8 +3416,9 @@ Window {
         saveSelection("library", libraryPath)
     }
     onPlaylistIdChanged: saveSelection("playlist", playlistId)
-    // (Not Bible mode's slides: theirs is a file that goes when the app closes.)
-    onDocumentKeyChanged: if (documentKey !== bibleKey) saveSelection("presentation", documentKey)
+    // (Not in Bible mode, nor Bible mode's slides: theirs is a file that goes when the
+    // app closes, and the grid in Bible mode shows nothing else.)
+    onDocumentKeyChanged: if (!bibleMode && documentKey !== bibleKey) saveSelection("presentation", documentKey)
     onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
     onAudioPlaylistIdChanged: saveSelection("audioPlaylist", audioPlaylistId)
     onAudioFadeChanged: save("audioFade", audioFade)
@@ -3409,7 +3486,7 @@ Window {
             openLibrary(firstLibrary)
         else if (playlistId === "" && !catalog.libraries.some(l => l.path === libraryPath))
             openLibrary(firstLibrary)
-        else if (!documents.some(d => d.path === documentKey && openable(d)))
+        else if (!documents.some(d => d.path === selectedPresentation && openable(d)))
             openFirst()
         if (!catalog.playlists.some(p => p.path === selectedNode))
             selectedNode = playlistId

@@ -259,6 +259,7 @@ public:
                 QVariantMap map = run.format();
                 map.insert("text", run.text);
                 map.insert("color", run.fill.name());
+                map.insert("superscript", run.superscript);
                 runs.append(map);
             }
         }

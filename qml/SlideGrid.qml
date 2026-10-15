@@ -51,7 +51,9 @@ Item {
         // which is for running a show and has nothing to set things up with: the
         // button is not there either (it would be under that view's own button, where
         // the pane at the right is kept).
-        readonly property bool arranging: slides.win.arrangementsShown && slides.win.document !== null && !slides.win.simple
+        // (Not for Bible mode's slides, which have no arrangements, destination or Slide
+        // Show of their own to set: the maintainer, 2026-10-15)
+        readonly property bool arranging: slides.win.arrangementsShown && slides.win.document !== null && !slides.win.simple && !slides.win.bibleMode
 
         onArrangingChanged: {
             if (arranging)
@@ -157,7 +159,7 @@ Item {
             anchors.rightMargin: 10
             y: 4
             spacing: 4
-            visible: slides.win.document !== null && !slides.win.simple
+            visible: slides.win.document !== null && !slides.win.simple && !slides.win.bibleMode
 
             // The destination: where the presentation's slides go when they are
             // triggered, the slide and media layers ("Presentation") or the
@@ -273,7 +275,7 @@ Item {
             width: 30
             height: 22
             radius: 6
-            visible: slides.win.document !== null && !slides.win.simple
+            visible: slides.win.document !== null && !slides.win.simple && !slides.win.bibleMode
             color: on ? "#4da3ff" : toggleMouse.pressed ? "#50535a" : toggleMouse.containsMouse ? "#45484e" : "#3a3c42"
 
             ProIcon {
@@ -795,15 +797,78 @@ Item {
             color: "#3a3c42"
         }
 
-        TransitionControls {
+        // Bible mode's Save (BiblePanel's keepMenu): the slides it made saved as a
+        // presentation, to a playlist, or put into the presentation that was open. At the
+        // left, the transition moved over for it, where the maintainer asked for it
+        // (2026-10-15). Made only once Bible mode is come to.
+        Loader {
+            id: bibleSave
+
             anchors.left: parent.left
             anchors.leftMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: 1
+            active: slides.win.bibleMode
+            visible: active
+
+            sourceComponent: AppButton {
+                id: saveButton
+
+                objectName: "bibleSave"
+                height: 24
+                font.pixelSize: 12
+                text: "Save ▾"
+                enabled: slides.win.document !== null && slides.win.documentKey === slides.win.bibleKey
+                onClicked: slides.win.bibleKeepMenu(saveButton)
+            }
+        }
+
+        TransitionControls {
+            id: transitionControls
+
+            anchors.left: bibleSave.active ? bibleSave.right : parent.left
+            anchors.leftMargin: bibleSave.active ? 12 : 16
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: 1
             win: slides.win
         }
 
+        // Bible mode's ← Verse and Verse →: the passage grown by the verse before it or
+        // after it (BiblePanel's step). Midway between the transition and the size of the
+        // thumbnails, where the maintainer asked for them (2026-10-15).
+        Loader {
+            x: transitionControls.x + transitionControls.width + (zoomButtons.x - transitionControls.x - transitionControls.width - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: 1
+            active: slides.win.bibleMode
+            visible: active
+
+            sourceComponent: Row {
+                spacing: 8
+
+                AppButton {
+                    objectName: "biblePrevious"
+                    height: 24
+                    font.pixelSize: 12
+                    text: "← Verse"
+                    enabled: slides.win.bibleCanStep
+                    onClicked: slides.win.bibleStep(-1)
+                }
+
+                AppButton {
+                    objectName: "bibleNext"
+                    height: 24
+                    font.pixelSize: 12
+                    text: "Verse →"
+                    enabled: slides.win.bibleCanStep
+                    onClicked: slides.win.bibleStep(1)
+                }
+            }
+        }
+
         ZoomButtons {
+            id: zoomButtons
+
             anchors.right: parent.right
             anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter

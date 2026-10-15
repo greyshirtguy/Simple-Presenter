@@ -11,12 +11,23 @@ import SimplePresenterApp
 // the work.
 //
 // How it is laid out is a guess: ProPresenter's help says what the Bible view has and not
-// where each thing is. Here, a line for finding a passage (the Bible, ProPresenter's Book
-// menu, the passage typed, Previous Verse and Next Verse, and the cog's menu of what to do
-// with the slides), a line for how the slides are made (the theme, the text boxes the
-// verse and its reference go in, ProPresenter's four Bible Slide Options and its Verse
-// References, and how the words are flowed), and a line saying what was found and its
-// copyright, which api.bible asks to be shown with its words.
+// where each thing is. Here, as the maintainer rearranged it (2026-10-15): a line for
+// finding a passage (the Bible, ProPresenter's Book menu, the passage typed and found
+// with Enter, and the cog, which opens a panel of how the slides are made:
+// ProPresenter's four Bible Slide Options, its Verse References and how the words are
+// flowed); a line for the theme and the text boxes the verse and its reference go in;
+// and a line saying what was found and its copyright, which api.bible asks to be shown
+// with its words. Under the slides (SlideGrid.qml) are Save, at the left of the
+// transition, which asks this bar's keepMenu(), and ← Verse and Verse →, between the
+// transition and the size of the thumbnails, which ask its step().
+//
+// ← Verse and Verse → add the verse before or after the passage to it, within its book,
+// as the maintainer asked; the slides up to (or from) the one that is live stay as they
+// are (Bibles::make), so that nothing on the screen changes under the person.
+//
+// The boxes chosen for the verse and the reference are kept for each theme slide, by the
+// box's id, so that going to another theme and back keeps them, and a box with no name or
+// with another's name can be chosen too.
 //
 // Not here yet, of ProPresenter's: searching by keyword, and a second translation beside
 // the first (its +).
@@ -25,18 +36,25 @@ Rectangle {
 
     required property var win
     // How slides are made, kept by the window from one start to the next:
-    // { translation, theme, themeSlide, verseBox, referenceBox, verseNumbers,
-    //   breakOnNewVerse, translationShown, color, references, flow }
+    // { translation, theme, themeSlide, boxes, verseNumbers, breakOnNewVerse,
+    //   translationShown, color, references, flow }, `boxes` being for each theme slide
+    // ("<place>|<slide id>") the boxes chosen: { verse, reference } by id ("" reference
+    // for With Verse). (0.95 kept one verseBox and referenceBox by name for every theme:
+    // still read, where a theme slide has no choice of its own.)
     property var settings: ({})
     signal settingsEdited(var settings)
-    // The passage found last, as Bibles.found gave it, and the lookup waited for
+    // The passage found last, as Bibles.found gave it, and the lookup waited for, and
+    // whether that is ← Verse or Verse → growing the passage
     property var passage: null
     property int request: -1
-    // What went wrong, or ""; and what was made: { path, count, name }
+    property bool growing: false
+    // What went wrong, or ""; and what was made: { path, count, name, request, live }
     property string problem: ""
     property var made: null
     // The passage as it was typed, which the field keeps
     property alias typed: passageField.text
+    // (The panel of options, which is drawn in the window's overlay and not in the bar)
+    readonly property alias optionsPanel: optionsPanel
 
     // The Bible chosen, or until one is, one to begin with, so that there is nothing to
     // choose first: the first imported, else api.bible's NIV, NKJV or KJV in that order,
@@ -64,21 +82,64 @@ Rectangle {
         return all
     }
     readonly property var themeChoice: themeChoices.find(c => c.place === (settings.theme ?? "") && c.slide === (settings.themeSlide ?? "")) ?? themeChoices[0]
-    readonly property var boxes: Bibles.textBoxes(themeChoice.place, themeChoice.slide)
-    readonly property string verseBox: boxes.includes(settings.verseBox) ? settings.verseBox : guessBox(["verse", "scripture", "bible", "text", "lyrics"], "", boxes[0] ?? "")
-    readonly property string referenceBox: settings.referenceBox === "" ? "" : boxes.includes(settings.referenceBox) && settings.referenceBox !== verseBox ? settings.referenceBox
-                                                                         : guessBox(["reference", "ref"], verseBox, "")
+    readonly property string themeKey: themeChoice.place + "|" + themeChoice.slide
+    // The theme slide's text boxes, [{ id, name }]: read again whenever the theme
+    // chosen or the workspace's themes change, Bible mode is come to, or a menu of them
+    // is opened, so that a box added in the editor is there
+    property var boxes: []
+    // This theme slide's own choice of boxes, if it has one
+    readonly property var chosenBoxes: (settings.boxes ?? {})[themeKey] ?? null
+    readonly property string verseBox: {
+        if (chosenBoxes && boxes.some(b => b.id === chosenBoxes.verse))
+            return chosenBoxes.verse
+        const named = boxes.find(b => b.name === settings.verseBox)
+        if (named)
+            return named.id
+        return guessBox(["verse", "scripture", "bible", "text", "lyrics"], "") ?? boxes[0]?.id ?? ""
+    }
+    readonly property string referenceBox: {
+        if (chosenBoxes && chosenBoxes.reference !== undefined)
+            return chosenBoxes.reference === "" || (chosenBoxes.reference !== verseBox && boxes.some(b => b.id === chosenBoxes.reference))
+                   ? chosenBoxes.reference : ""
+        if (settings.referenceBox === "")
+            return ""
+        const named = boxes.find(b => b.name === settings.referenceBox && b.id !== verseBox)
+        if (named)
+            return named.id
+        return guessBox(["reference", "ref"], verseBox) ?? ""
+    }
+    readonly property string verseBoxName: boxName(verseBox)
     readonly property var referenceNames: ({ verse: "Verse References", each: "Passage Each", last: "Passage Last", none: "No Reference" })
+    readonly property var referenceKeys: ["verse", "each", "last", "none"]
 
-    // The text box a theme most likely means for something, by its name, not `taken`;
-    // `otherwise`
-    function guessBox(words, taken, otherwise) {
-        for (const word of words) {
-            const found = boxes.find(name => name.toLowerCase().includes(word) && name !== taken)
-            if (found !== undefined)
-                return found
+    function refreshBoxes() {
+        boxes = Bibles.textBoxes(themeChoice.place, themeChoice.slide)
+    }
+
+    onThemeKeyChanged: refreshBoxes()
+    onVisibleChanged: if (visible) refreshBoxes()
+
+    Connections {
+        target: Themes
+
+        function onChanged() {
+            panel.refreshBoxes()
         }
-        return otherwise
+    }
+
+    function boxName(id) {
+        return boxes.find(b => b.id === id)?.name ?? ""
+    }
+
+    // The id of the text box a theme most likely means for something, by its name, not
+    // `taken`; undefined
+    function guessBox(words, taken) {
+        for (const word of words) {
+            const found = boxes.find(b => b.name.toLowerCase().includes(word) && b.id !== taken)
+            if (found !== undefined)
+                return found.id
+        }
+        return undefined
     }
 
     // Another Bible looks the passage up again in that one, as ProPresenter changes the
@@ -89,12 +150,19 @@ Rectangle {
         Qt.callLater(otherBible ? lookup : remake)
     }
 
-    function options() {
+    // The boxes chosen for the theme slide being used: { verse } or { reference }
+    function editBoxes(change) {
+        const all = Object.assign({}, settings.boxes ?? {})
+        all[themeKey] = Object.assign({ verse: verseBox, reference: referenceBox }, change)
+        edit({ boxes: all })
+    }
+
+    function options(live) {
         return {
             theme: themeChoice.place, themeSlide: themeChoice.slide, verseBox: verseBox, referenceBox: referenceBox,
             verseNumbers: settings.verseNumbers !== false, breakOnNewVerse: settings.breakOnNewVerse === true,
             translation: settings.translationShown !== false, color: settings.color !== false,
-            references: settings.references ?? "last", flow: settings.flow ?? "even"
+            references: settings.references ?? "last", flow: settings.flow ?? "even", live: live
         }
     }
 
@@ -106,29 +174,38 @@ Rectangle {
             return
         }
         problem = ""
+        growing = false
         request = Bibles.lookup(translation.id, passageField.text)
     }
 
-    // ProPresenter's Previous Verse and Next Verse
+    // ← Verse and Verse →: the passage grows by the verse before or after it
     function step(delta) {
-        if (passage && passage.error === "")
+        if (passage && passage.error === "") {
+            growing = true
             request = Bibles.step(passage.request, delta)
+        }
     }
 
-    // The slides made again, and shown in the grid
-    function remake() {
+    // The slide of the last ones made that is live, or -1: the one kept where the passage
+    // grows (Bibles::make)
+    function liveSlide() {
+        return made && win.liveKey === made.path && win.livePlaylistId === "" && win.cueLive ? win.liveIndex : -1
+    }
+
+    // The slides made again, and shown in the grid; `live` is the slide kept, or -1
+    function remake(live) {
         if (!passage || passage.error !== "")
             return
-        const result = Bibles.make(passage.request, options())
+        const result = Bibles.make(passage.request, options(typeof live === "number" ? live : -1))
         if (result.error !== "") {
             problem = result.error
             return
         }
         made = result
-        win.showBibleSlides(result.path)
+        win.showBibleSlides(result)
     }
 
-    // The cog's menu: ProPresenter's three ways to keep the slides
+    // ProPresenter's three ways to keep the slides, from the Save button under them
     function keepMenu(item) {
         const libraries = win.catalog.libraries.map(library => ({ label: library.name, run: () => saveIn(library.path, "") }))
         const playlists = win.catalog.playlists.filter(p => !p.folder).map(playlist => ({
@@ -184,7 +261,7 @@ Rectangle {
         rows.push({ divider: true })
         rows.push({ header: "api.bible" })
         if (!Bibles.hasKey)
-            rows.push({ note: "This copy of the app has no key for api.bible: one can be typed in the settings, under Bibles." })
+            rows.push({ note: "api.bible needs a key of your own: register at api.bible for one, and type it in the settings, under Bibles." })
         else if (Bibles.apiLoading)
             rows.push({ note: "Asking api.bible…" })
         else if (Bibles.apiProblem !== "")
@@ -230,30 +307,17 @@ Rectangle {
     }
 
     function verseBoxMenu(item) {
-        win.showMenu(boxes.length > 0 ? boxes.map(name => ({ label: name, current: name === verseBox, run: () => edit({ verseBox: name }) }))
+        refreshBoxes()
+        win.showMenu(boxes.length > 0 ? boxes.map(box => ({ label: box.name, current: box.id === verseBox, run: () => editBoxes({ verse: box.id }) }))
                                       : [{ note: "This theme slide has no text box" }], item)
     }
 
     function referenceBoxMenu(item) {
-        const rows = [{ label: "With Verse", current: referenceBox === "", run: () => edit({ referenceBox: "" }) }, { divider: true }]
-        for (const name of boxes.filter(n => n !== verseBox))
-            rows.push({ label: name, current: name === referenceBox, run: () => edit({ referenceBox: name }) })
+        refreshBoxes()
+        const rows = [{ label: "With Verse", current: referenceBox === "", run: () => editBoxes({ reference: "" }) }, { divider: true }]
+        for (const box of boxes.filter(b => b.id !== verseBox))
+            rows.push({ label: box.name, current: box.id === referenceBox, run: () => editBoxes({ reference: box.id }) })
         win.showMenu(rows, item)
-    }
-
-    function referencesMenu(item) {
-        win.showMenu(["verse", "each", "last", "none"].map(key => ({
-            label: referenceNames[key], current: (settings.references ?? "last") === key, run: () => edit({ references: key })
-        })), item)
-    }
-
-    function flowMenu(item) {
-        win.showMenu([
-            { label: "Even, at Natural Pauses", current: (settings.flow ?? "even") === "even", run: () => edit({ flow: "even" }) },
-            { label: "Fill Each Slide", current: settings.flow === "fill", run: () => edit({ flow: "fill" }) },
-            { divider: true },
-            { note: "Even shares the words out across the slides, breaking at a full stop or a comma where there is one near: no slide is left with a few words. Fill puts as much on each slide as goes, as ProPresenter does." }
-        ], item)
     }
 
     color: win.panelColor
@@ -274,8 +338,10 @@ Rectangle {
         value: panel.win.apiBibleKey
     }
 
-    // api.bible's Bibles, asked for once Bible mode is first come to
+    // api.bible's Bibles, asked for once Bible mode is first come to; and the theme
+    // slide's boxes, read
     Component.onCompleted: {
+        refreshBoxes()
         if (Bibles.hasKey && !Bibles.translations.some(t => t.source === "api"))
             Bibles.refreshApi()
     }
@@ -286,12 +352,19 @@ Rectangle {
         function onFound(request, result) {
             if (request !== panel.request)
                 return
+            // A passage that could not grow (the end of its book) stays as it was
+            if (panel.growing && result.error !== "") {
+                panel.problem = result.error
+                return
+            }
+            // The slide that is live, kept where the passage grew round it
+            const live = panel.growing ? panel.liveSlide() : -1
             panel.passage = result
             panel.problem = result.error
             if (result.error === "") {
                 // (The field says what was found, as it was found: "John 3:16–18".)
                 passageField.text = result.reference
-                panel.remake()
+                panel.remake(live)
             }
         }
 
@@ -389,50 +462,27 @@ Rectangle {
                 id: passageField
 
                 objectName: "biblePassage"
-                width: Math.max(160, Math.min(320, content.width - 640))
+                width: Math.max(160, Math.min(420, content.width - 300))
                 height: 30
                 font.pixelSize: 14
-                placeholderText: "A passage: John 3:16-18"
+                placeholderText: "A passage, then Enter: John 3:16-18"
+                // (Found with Enter alone: no Find button, as the maintainer asked)
                 Keys.onReturnPressed: panel.lookup()
                 Keys.onEnterPressed: panel.lookup()
                 // (Esc gives the keys back to the slides)
                 Keys.onEscapePressed: panel.win.takeFocus()
             }
 
-            AppButton {
-                objectName: "bibleFind"
-                height: 30
-                font.pixelSize: 13
-                text: "Find"
-                onClicked: panel.lookup()
-            }
-
-            AppButton {
-                objectName: "biblePrevious"
-                height: 30
-                font.pixelSize: 13
-                text: "← Previous Verse"
-                enabled: panel.passage !== null && panel.passage.error === ""
-                onClicked: panel.step(-1)
-            }
-
-            AppButton {
-                objectName: "bibleNext"
-                height: 30
-                font.pixelSize: 13
-                text: "Next Verse →"
-                enabled: panel.passage !== null && panel.passage.error === ""
-                onClicked: panel.step(1)
-            }
-
             Pick {
-                objectName: "bibleKeep"
+                id: optionsButton
+
+                objectName: "bibleOptions"
                 value: "⚙"
-                onOpened: (item) => panel.keepMenu(item)
+                onOpened: optionsPanel.open()
             }
         }
 
-        // How the slides are made
+        // The theme, and the boxes of its slide the words go in
         Flow {
             width: parent.width
             spacing: 8
@@ -447,60 +497,15 @@ Rectangle {
             Pick {
                 objectName: "bibleVerseBox"
                 caption: "Verse"
-                value: panel.verseBox !== "" ? panel.verseBox : "—"
+                value: panel.verseBox !== "" ? panel.verseBoxName : "—"
                 onOpened: (item) => panel.verseBoxMenu(item)
             }
 
             Pick {
                 objectName: "bibleReferenceBox"
                 caption: "Reference"
-                value: panel.referenceBox !== "" ? panel.referenceBox : "With Verse"
+                value: panel.referenceBox !== "" ? panel.boxName(panel.referenceBox) : "With Verse"
                 onOpened: (item) => panel.referenceBoxMenu(item)
-            }
-
-            AppCheck {
-                objectName: "bibleVerseNumbers"
-                height: 30
-                text: "Show Verse Numbers"
-                checked: panel.settings.verseNumbers !== false
-                onToggled: (checked) => panel.edit({ verseNumbers: checked })
-            }
-
-            AppCheck {
-                objectName: "bibleBreakOnNewVerse"
-                height: 30
-                text: "Break on New Verse"
-                checked: panel.settings.breakOnNewVerse === true
-                onToggled: (checked) => panel.edit({ breakOnNewVerse: checked })
-            }
-
-            AppCheck {
-                objectName: "bibleDisplayTranslation"
-                height: 30
-                text: "Display Translation"
-                checked: panel.settings.translationShown !== false
-                onToggled: (checked) => panel.edit({ translationShown: checked })
-            }
-
-            AppCheck {
-                objectName: "biblePreserveColor"
-                height: 30
-                text: "Preserve Font Color"
-                checked: panel.settings.color !== false
-                onToggled: (checked) => panel.edit({ color: checked })
-            }
-
-            Pick {
-                objectName: "bibleReferences"
-                value: panel.referenceNames[panel.settings.references ?? "last"]
-                onOpened: (item) => panel.referencesMenu(item)
-            }
-
-            Pick {
-                objectName: "bibleFlow"
-                caption: "Flow"
-                value: (panel.settings.flow ?? "even") === "even" ? "Even" : "Fill"
-                onOpened: (item) => panel.flowMenu(item)
             }
         }
 
@@ -518,6 +523,112 @@ Rectangle {
                                                 + (panel.passage.copyright !== "" ? "   ·   " + panel.passage.copyright : "")
                 : !panel.translation ? "Choose a Bible, and type a passage."
                 : "Type a passage and press Enter, or choose one from Book."
+        }
+    }
+
+    // How the slides are made, opened from the cog: ProPresenter's four Bible Slide
+    // Options, its references, and how the words are flowed. In the look of the panel
+    // the transition's options open in (TransitionOptions.qml). The two lists are the
+    // app's drop-downs, which open over it; a menu of the window's own would open
+    // under it.
+    Popup {
+        id: optionsPanel
+
+        objectName: "bibleOptionsPanel"
+        width: 300
+        // Under the cog, its right edge at the cog's, placed as it opens
+        onAboutToShow: {
+            x = Math.max(0, Math.min(optionsButton.mapToItem(panel, optionsButton.width, 0).x - width, panel.width - width))
+            y = optionsButton.mapToItem(panel, 0, optionsButton.height).y + 6
+        }
+        padding: 14
+        focus: true
+        onClosed: panel.win.takeFocus()
+
+        background: Rectangle {
+            radius: 9
+            color: "#33363d"
+            border.width: 1.5
+            border.color: "#8b8f98"
+        }
+
+        contentItem: Column {
+            spacing: 10
+
+            AppCheck {
+                objectName: "bibleVerseNumbers"
+                width: parent.width
+                text: "Show Verse Numbers"
+                checked: panel.settings.verseNumbers !== false
+                onToggled: (checked) => panel.edit({ verseNumbers: checked })
+            }
+
+            AppCheck {
+                objectName: "bibleBreakOnNewVerse"
+                width: parent.width
+                text: "Break on New Verse"
+                checked: panel.settings.breakOnNewVerse === true
+                onToggled: (checked) => panel.edit({ breakOnNewVerse: checked })
+            }
+
+            AppCheck {
+                objectName: "bibleDisplayTranslation"
+                width: parent.width
+                text: "Display Translation"
+                checked: panel.settings.translationShown !== false
+                onToggled: (checked) => panel.edit({ translationShown: checked })
+            }
+
+            AppCheck {
+                objectName: "biblePreserveColor"
+                width: parent.width
+                text: "Preserve Font Color"
+                checked: panel.settings.color !== false
+                onToggled: (checked) => panel.edit({ color: checked })
+            }
+
+            Text {
+                topPadding: 4
+                color: "#9a9da3"
+                font.pixelSize: 12
+                text: "References"
+            }
+
+            AppComboBox {
+                objectName: "bibleReferences"
+                width: parent.width
+                height: 30
+                font.pixelSize: 13
+                model: panel.referenceKeys.map(key => panel.referenceNames[key])
+                currentIndex: Math.max(0, panel.referenceKeys.indexOf(panel.settings.references ?? "last"))
+                onActivated: (index) => panel.edit({ references: panel.referenceKeys[index] })
+            }
+
+            Text {
+                topPadding: 4
+                color: "#9a9da3"
+                font.pixelSize: 12
+                text: "Flow"
+            }
+
+            AppComboBox {
+                objectName: "bibleFlow"
+                width: parent.width
+                height: 30
+                font.pixelSize: 13
+                model: ["Even, at Natural Pauses", "Fill Each Slide"]
+                currentIndex: panel.settings.flow === "fill" ? 1 : 0
+                onActivated: (index) => panel.edit({ flow: index === 1 ? "fill" : "even" })
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 11
+                text: "Even shares the words out across the slides, breaking at a full stop or a comma where there is one near: "
+                      + "no slide is left with a few words. Fill puts as much on each slide as goes, as ProPresenter does."
+            }
         }
     }
 }

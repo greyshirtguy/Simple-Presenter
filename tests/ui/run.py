@@ -2005,6 +2005,12 @@ def prepare_bible(workspace, test_dir):
     BIBLE_STAND_IN = BibleStandIn()
 
 
+def prepare_bible_file(workspace, test_dir):
+    """The made-up Bible alone, in the test's own copy of the workspace."""
+    with open(os.path.join(workspace, "Made Up Bible.xml"), "w", encoding="utf-8") as out:
+        out.write(made_up_bible())
+
+
 def after_bible(workspace, test_dir):
     """What the stand-in for api.bible was asked: every request with the key, but FUMS's, which has none; and FUMS told
     of what was shown, with a device's id and a session's."""
@@ -2026,6 +2032,10 @@ def after_bible(workspace, test_dir):
              and all(r["query"].get("dId") and r["query"].get("sId") for r in told),
              "FUMS told what was shown, with no key, and with a device's id and a session's",
              "%d told: %s" % (len(told), ", ".join(tokens))),
+        # (The script asks for John 3:16 and then Next Verse: the passage grows to 3:16-17, and only 3:17 is asked for. No
+        # other step asks for 3:17 by itself.)
+        said("JHN.3.17" in [r["path"].rsplit("/", 1)[-1] for r in passages],
+             "Next Verse asked api.bible for the verse it adds, and for no more", ", ".join(r["path"].rsplit("/", 1)[-1] for r in passages)),
     ]
 
 
@@ -2084,6 +2094,8 @@ TESTS = {
     # the presentation that was open.)
     "bible": test("Demo", timeout=300, env={"SIMPLEPRESENTER_API_BIBLE_URL": "http://127.0.0.1:%d" % BIBLE_PORT, "SP_TEST_REMEMBER": "1"},
                   prepare=prepare_bible, after=after_bible),
+    # (A theme of ProPresenter's whose Bible slide's verse box is Single Line: the Act workspace's New Life Chapel.)
+    "bible2": test("Act", timeout=200, prepare=prepare_bible_file),
     # (On a desktop of its own, with two displays to send screens to.)
     "screens": test("Demo", after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)

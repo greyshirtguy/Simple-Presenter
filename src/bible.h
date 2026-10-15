@@ -134,8 +134,8 @@ QList<PassageVerse> passage(const Bible &bible, const Reference &reference, QStr
 Reference referenceTo(const QList<PassageVerse> &verses);
 
 // The verse after or before the last or first of these, in the Bible, across chapters
-// and books; a reference with no book where there is none (ProPresenter's Next Verse and
-// Previous Verse).
+// and books; a reference with no book where there is none (Bible mode's ← Verse and
+// Verse →).
 Reference nextVerse(const Bible &bible, const QList<PassageVerse> &verses);
 Reference previousVerse(const Bible &bible, const QList<PassageVerse> &verses);
 

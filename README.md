@@ -204,6 +204,18 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Bible mode, reworked.** **← Verse** and **Verse →**, under the slides now, add a
+  verse to the passage, before it or after it, within its book, and leave the slides
+  up to (or from) the one that is live as they were, so nothing on the screen changes;
+  a live Bible slide is ringed whatever is being browsed at the left, and the arrow
+  keys go on from it. The grid in Bible mode shows only Bible slides: nothing at first,
+  then the last ones made. A presentation clicked meanwhile is not shown, but is the
+  one the slides are copied into and the one Show or Edit goes back to. The options are
+  in a panel behind the cog, Save is under the slides at the left of the transition,
+  Enter finds a passage, and a presentation's own buttons are not over Bible slides.
+  Every slide's words are in the theme's size, a Single Line box runs them on as one
+  line, and the boxes chosen are remembered for each theme slide. api.bible wants a key
+  of one's own, typed in the settings. See [Bibles](#bibles).
 - **Single Line text boxes keep their looks.** A text box set in ProPresenter to Single
   Line or Replace Line Returns used to be drawn all in the look of its first word:
   every colour and bold word after it lost, and, where the text began with a raised
@@ -1714,7 +1726,13 @@ each is as wanted, and that the third is as ProPresenter does, as far as they kn
 ProPresenter's Bible view, under ProPresenter's names: a passage is looked up and made
 into slides in a theme. **Bible** in the toolbar, after Reflow (an open book), or
 **Ctrl+Alt+B**, which is ProPresenter's key for it, brings a bar up over the slides; the
-button again, or Show, goes back to the presentation that was being viewed.
+button again, Show, or Edit goes back to the presentation that was being viewed, or to
+the one clicked in the list at the left since. The grid under the bar shows only what
+Bible mode makes: nothing at first, and after that the slides it made last (until the
+app is closed). A presentation clicked in the list is marked there but not shown: it is
+the one Copy to Current Presentation puts the slides into, and the one leaving Bible
+mode goes to. A presentation's own buttons over the slides (Destination, Slide Show,
+Arrangements) are not there for Bible mode's slides.
 
 No Bible comes with the app. Nearly every translation is someone's copyright, and
 ProPresenter's are licensed through Renewed Vision, which is nothing to do with this
@@ -1736,49 +1754,68 @@ app. There are two ways to have one here, the two FreeShow has:
   random number for the computer and one for the run, and nothing else of who looked).
   So a passage is asked for every time it is looked up, nothing of it is kept but the
   slides made of it, its copyright is said under the bar, and the report goes as it
-  comes. A copy of the app built with a key (see
-  [Building from source](#building-from-source)) has api.bible's Bibles in the menu
-  from the start; in one without, a key of one's own can be typed in the settings,
-  under Bibles, and is kept in the app's settings.
+  comes. The app comes with no key: whoever wants api.bible's Bibles registers there
+  for a key of their own, asks there for the Bibles they want, and types the key in the
+  settings, under Bibles, where it is kept with the app's settings. (One can be built
+  into a copy of the app: [Building from source](#building-from-source).)
 
-The bar has three lines. The first finds the passage:
+The bar has three lines. The first finds the passage, and has the options:
 
 - **The Bible**, and **Book**: ProPresenter's Book menu, the Old Testament and the New
   (and any other books a file has), each book with its chapters.
-- **The passage**, typed as it is usually written and found with Enter or **Find**:
+- **The passage**, typed as it is usually written and found with Enter:
   `John 3:16`, `jn 3 16-18`, `Psalm 23`, `Gen 1:1-2:3`, `Ruth 1-2`,
   `1 Cor 13:4-7`, `John 3:16, 18, 20-21`, `Jude 3`. A book's name can be cut short
   while it is still only one book's, and a file in another language is found by its
   own names for the books as well.
-- **Previous Verse** and **Next Verse**: the verse before the passage and the one
-  after, on into the next chapter and the next book.
-- **The cog**: **Save as Presentation**, into a library, under the passage's name;
-  **Save to Playlist**, the same, with a row for it at the foot of a playlist; and
-  **Copy to Current Presentation**, which puts the slides into the presentation that
-  was being viewed, after the slide that was live in it, or at its end.
+- **The cog** opens a panel of how the slides are made: ProPresenter's four Bible Slide
+  Options, **Show Verse Numbers** (small and raised), **Break on New Verse** (each
+  verse begins a slide), **Display Translation** (its short name after the reference)
+  and **Preserve Font Color** (the red); its references, **Verse References** (each
+  slide its own verses), **Passage Each** (the whole passage on every slide),
+  **Passage Last** (on the last only) and **No Reference**; and **Flow**, how the words
+  are shared out across the slides (below).
 
-The second says how the slides are made:
+The second line is the theme:
 
 - **Theme**, and its slide: each slide is a copy of the theme slide, with everything
   on it. **Verse** is the text box the words go in (one called Verse, Scripture,
   Bible, Text or Lyrics is taken to begin with), and **Reference** the one the
-  passage's reference goes in, or **With Verse**, after the words in the same box. A
-  box called Copyright gets the translation's copyright; the theme's other text boxes
-  are left empty. **Plain (no theme)** is white words on black.
-- ProPresenter's four Bible Slide Options: **Show Verse Numbers** (small and raised),
-  **Break on New Verse** (each verse begins a slide), **Display Translation** (its
-  short name after the reference) and **Preserve Font Color** (the red).
-- ProPresenter's references: **Verse References**, each slide its own verses;
-  **Passage Each**, the whole passage on every slide; **Passage Last**, on the last
-  only; and **No Reference**.
-- **Flow**: how the words are shared out across the slides (below).
+  passage's reference goes in, or **With Verse**, on a line of its own after the words
+  in the same box (or run on after them, in a Single Line box). A box called Copyright gets the translation's copyright; the
+  theme's other text boxes are left empty. **Plain (no theme)** is white words on
+  black. The boxes chosen are remembered for each theme slide, by the box itself
+  rather than its name, so a box with no name, or with another box's name, can be
+  chosen, and going to another theme and back keeps the choice.
+- The box the words go in is used as the theme has it, but that it never scales its
+  font up or down: the words are laid out at the theme's size, and every slide's are in
+  it. A **Single Line** or **Replace Line Returns** box keeps that: a theme can run
+  verses on as one line (a lower third, say), and a reference With Verse then runs on
+  after the words instead of starting a line of its own. A box that puts each word or
+  each letter on a line of its own does not, here.
 
-The third says what was found, on how many slides, and its copyright. The slides are in
-the grid under it, a presentation of their own, and are clicked, stepped through and
-taken live as any are. Each is labelled with its own verses, and they are one group,
-named for the passage. Until they are saved they are kept in a folder that goes when
-the app is closed. Which theme, which boxes and the options are remembered from one
-start to the next.
+The third line says what was found, on how many slides, and its copyright. The slides
+are in the grid under it, a presentation of their own, and are clicked, stepped through
+and taken live as any are, ringed when live whatever is being browsed at the left.
+Each is labelled with its own verses, and they are one group, named for the passage.
+Until they are saved they are kept in a folder that goes when the app is closed. Which
+theme, which boxes and the options are remembered from one start to the next.
+
+Under the slides are two more things of Bible mode's:
+
+- **← Verse** and **Verse →**, midway between the transition and the thumbnails' size:
+  the passage grows by the verse before it or the one after, on into the chapter
+  before or after, but not out of its book (the bar says when it is at the book's
+  start or end, and the passage stays as it was). Of api.bible only the verse added is
+  asked for. If a slide of the passage is live, the slides up to it (Verse →) or from
+  it (← Verse) stay exactly as they were, and it stays the live slide, ringed as such;
+  only the rest are flowed again, with the verse added among them. With nothing live,
+  the whole passage is flowed again, as it would be had it been typed.
+- **Save**, at the left of the transition: **Save as Presentation**, into a library,
+  under the passage's name; **Save to Playlist**, the same, with a row for it at the
+  foot of a playlist; and **Copy to Current Presentation**, which puts the slides into
+  the presentation that was being viewed or has been clicked since, after the slide
+  that is live in it, or at its end.
 
 ### How the words are flowed
 
@@ -1831,11 +1868,17 @@ if a passage breaks where it should not, and they are said in `src/bibleflow.h`.
 ### What is a guess, or not done
 
 ProPresenter's help says what its Bible view has, and not how it is laid out: the bar
-and its three lines are a guess, and so are the names Even and Fill and where they sit,
-the red (a soft red, `#ff5a4f`), the slides' labels and their group's name, Passage
-Last to begin with, Verse References being there without Break on New Verse, the text
-boxes picked by their names, a box called Copyright, and where Copy to Current
-Presentation puts the slides.
+and its three lines are a guess (rearranged as the maintainer asked: the options
+behind the cog; Save, ← Verse and Verse → under the slides; no Find), and so are the
+names Even and Fill and where they sit, the red (a soft red, `#ff5a4f`), the slides'
+labels and their group's name, Passage Last to begin with, Verse References being
+there without Break on New Verse, the text boxes picked by their names to begin with,
+a box called Copyright, where Copy to Current Presentation puts the slides, and which
+Bible is chosen until one is (the first imported, else api.bible's NIV, NKJV or KJV,
+else its first in English). As the maintainer asked or agreed: ← Verse and Verse →
+growing the passage and stopping at its book; the slides round the live one kept;
+Single Line kept and font scaling not; a presentation clicked in Bible mode not shown
+but gone to after; and no presentation buttons over Bible mode's slides.
 
 Not here yet, of ProPresenter's: searching the Bible by a word, and a second
 translation beside the first. The ESV is not on api.bible (Crossway has a service of
@@ -3021,8 +3064,8 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: forty-nine scripts and over two
-thousand three hundred checks. They run on a desktop of their own that shows nowhere, on
+and look at what its windows then hold and show: fifty scripts and nearly two
+thousand five hundred checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
 in by, which a release does not have:
@@ -3079,7 +3122,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/chords.*`, `src/chordsbridge.*` | Chords: what one is, changing key, the four notations, ChordPro text; and the same for QML to call |
 | `src/songimport.*` | A new presentation made of a ChordPro file |
 | `src/bible.*`, `src/biblexml.*` | A Bible: its books, chapters and verses, the books' names, a passage as it is typed and as it is written; and reading one from an XML file of the four kinds |
-| `src/bibleflow.*` | How a passage's words are shared out across slides: Fill, and Even at natural pauses, and where that fails |
+| `src/bibleflow.*` | How a passage's words are shared out across slides: Fill, and Even at natural pauses, and where that fails; and round slides kept as they were |
 | `src/linejoin.*` | A text box's lines made one, each run keeping its look: ProPresenter's Single Line and Replace Line Returns |
 | `src/apibible.*` | api.bible: what is asked of it and how its answers are read |
 | `src/bibles.*`, `qml/BiblePanel.qml` | Bible mode: the Bibles imported and api.bible's, a passage looked up, and slides made of it in a theme; and the bar over the slides |

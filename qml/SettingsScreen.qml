@@ -1369,9 +1369,12 @@ Rectangle {
                     wrapMode: Text.Wrap
                     color: "#b0b3b8"
                     font.pixelSize: 13
+                    // (The app comes with no key: each person registers for their own, as the
+                    // maintainer settled on 2026-10-15. One can still be built in: README.)
                     text: (Bibles.builtInKey ? "This copy of the app was built with a key for api.bible, which gives the Bibles that key has been allowed. "
-                                             : "This copy of the app has no key for api.bible. ")
-                        + "A key of your own, from api.bible (free for use that is not commercial), can be typed here, and is used in its place. "
+                                               + "A key of your own can be typed here instead. "
+                                             : "api.bible needs a key of your own: register at api.bible for one (it is free for use that is not commercial), "
+                                               + "ask there for the Bibles you want, and type the key here. ")
                         + "Each passage is asked for when it is wanted, and nothing of it is kept but in slides you save."
                 }
 
