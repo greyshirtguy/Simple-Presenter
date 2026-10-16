@@ -207,7 +207,9 @@ The big things lately, the newest first.
 
 - **Copy Text Style and Paste Text Style.** A slide's menu, while showing and in the
   editor, puts the look of one slide's text boxes on another's, as a theme would,
-  keeping the words. See [Editing](#editing).
+  keeping the words. See [Editing](#editing). And a paste into a text box is a paste
+  and match style, by Ctrl+V or Ctrl+Shift+V: the words come in, centred lines and
+  all, in the box's own format.
 - **The slide live on the announcements has a green ring**, the show's keeping its
   orange, so the two are told apart. See [Announcements](#announcements).
 - **Mended:** a screen sent over NDI went out black, or as a garble, after it was
@@ -1653,7 +1655,11 @@ choose between three ways of working. **Slides** is everything described here.
   other lists.)
 - **Text.** Double-click an element to edit its text where it stands, drawn as it will
   be shown. Font, size, colour, bold, italic, underline, capitals, spacing and outline
-  apply to the text that is selected, or to all of the text when none is.
+  apply to the text that is selected, or to all of the text when none is. A paste is a
+  paste and match style, whether by Ctrl+V or Ctrl+Shift+V: only the words of what was
+  copied come in, in the format of the text where they go, each new line a paragraph
+  like the one the caret was in. (There is no paste that keeps the copied text's own
+  formatting.)
 - **Adding.** The first three buttons over the slide add a text box (the T), a shape
   from a short list (a rectangle, a rounded rectangle, an ellipse or an arrow, each
   filled with a plain colour to begin with), and a picture or video from a file. The
@@ -2711,6 +2717,7 @@ In the editor:
 | Delete, Backspace | Delete the picked element |
 | Ctrl+D | Duplicate the picked element |
 | Ctrl+B / Ctrl+I / Ctrl+U | Bold / italic / underline |
+| Ctrl+V, Ctrl+Shift+V | Paste the words, in the format of the text where they go |
 | Ctrl+Z / Ctrl+Shift+Z, Ctrl+Y | Undo / redo |
 | Shift while dragging | Move in a straight line; resize from a corner in proportion |
 | Ctrl while dragging | No snapping |

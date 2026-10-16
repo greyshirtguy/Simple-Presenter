@@ -4,6 +4,7 @@
 #include "richtext.h"
 #include "textlayout.h"
 
+#include <QClipboard>
 #include <QCommandLineParser>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -266,6 +267,24 @@ public:
             }
         }
         return runs;
+    }
+    // How each paragraph of a RichText value is aligned, as Qt's flags (left 1, right 2, centred 4, justified 8)
+    Q_INVOKABLE QVariantList alignmentsOf(const QVariant &richText) const
+    {
+        QVariantList alignments;
+        for (const TextParagraph &paragraph : richText.value<RichText>().paragraphs)
+            alignments.append(int(paragraph.alignment));
+        return alignments;
+    }
+    // Puts words on the clipboard as another program would: as words, and, if given, as the same words with a
+    // formatting of their own (HTML), so that what a paste takes of them can be seen.
+    Q_INVOKABLE void setClipboard(const QString &text, const QString &html = QString())
+    {
+        auto *data = new QMimeData;
+        data->setText(text);
+        if (!html.isEmpty())
+            data->setHtml(html);
+        QGuiApplication::clipboard()->setMimeData(data);
     }
     Q_INVOKABLE void quit() { QCoreApplication::quit(); }
     // How much of the picture an NDI screen last drew to send is red, from 0 to 1 (see redShare); -1 before there is

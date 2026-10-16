@@ -7,7 +7,9 @@ import "lib.js" as Lib
 // box keeps its words and its id and takes the red, the place and the name, with everything else in the file as it
 // was, and the red drawn on the output and in the operator's preview; in the editor's slide menu, pasted on a slide
 // with a chord, which stays, and undone, which leaves the file byte for byte as it was; a style copied in the editor
-// pasted in the show; a theme put on a slide with a chord, which stays.
+// pasted in the show; a theme put on a slide with a chord, which stays. And pasting into a text box (Ctrl+V,
+// Ctrl+Shift+V, and into a box emptied first): only the words come in, in the box's own format and alignment, though
+// the clipboard has them green, bold and in Courier.
 QtObject {
     id: t
 
@@ -221,7 +223,58 @@ QtObject {
             () => {
                 const box = boxOn(kept.target.entry, kept.other.index, kept.other.box.id)
                 check("a slide dressed in a theme keeps the chords over its words", box !== undefined && chordsOf(box) === "0:G", box ? chordsOf(box) : "none")
-                return 300
+                // ---- Pasting into a text box
+                startEditing(kept.target.entry, kept.other.id)
+                return 800
+            },
+            () => {
+                const box = editScreen.canvas.elements.find(e => e.id === kept.other.box.id)
+                kept.look = looks(box)[0]
+                kept.alignment = testInput.alignmentsOf(box.text)[0]
+                editScreen.canvas.editText(kept.other.box.id)
+                testInput.setClipboard("Pasted One\nPasted Two", "<p style=\"color:#00ff00;font-family:Courier;font-size:40px\"><b>Pasted One</b></p><p>Pasted Two</p>")
+                testInput.key(Qt.Key_V, Qt.ControlModifier)
+                return 400
+            },
+            () => {
+                editScreen.canvas.finishText()
+                return 500
+            },
+            () => {
+                const box = editScreen.canvas.elements.find(e => e.id === kept.other.box.id)
+                check("pasted words come in as words, line by line, in the box's own format and alignment, whatever the clipboard had",
+                      box !== undefined && testInput.plain(box.text) === "Pasted One\nPasted Two" && looks(box).every(l => l === kept.look)
+                      && testInput.alignmentsOf(box.text).every(a => a === kept.alignment),
+                      box ? JSON.stringify([testInput.plain(box.text), looks(box), kept.look, testInput.alignmentsOf(box.text), kept.alignment]) : "none")
+                editScreen.canvas.editText(kept.other.box.id)
+                testInput.setClipboard("Again", "<span style=\"color:#00ff00;font-family:Courier\">Again</span>")
+                testInput.key(Qt.Key_V, Qt.ControlModifier | Qt.ShiftModifier)
+                return 400
+            },
+            () => {
+                editScreen.canvas.finishText()
+                return 500
+            },
+            () => {
+                const box = editScreen.canvas.elements.find(e => e.id === kept.other.box.id)
+                check("Ctrl+Shift+V pastes the same way", box !== undefined && testInput.plain(box.text) === "Again" && looks(box).every(l => l === kept.look),
+                      box ? JSON.stringify([testInput.plain(box.text), looks(box)]) : "none")
+                editScreen.canvas.editText(kept.other.box.id)
+                testInput.key(Qt.Key_Backspace)
+                testInput.setClipboard("Into Nothing", "<span style=\"color:#00ff00;font-family:Courier\">Into Nothing</span>")
+                testInput.key(Qt.Key_V, Qt.ControlModifier)
+                return 400
+            },
+            () => {
+                editScreen.canvas.finishText()
+                return 500
+            },
+            () => {
+                const box = editScreen.canvas.elements.find(e => e.id === kept.other.box.id)
+                check("and into a box emptied first, still in the box's format", box !== undefined && testInput.plain(box.text) === "Into Nothing"
+                      && looks(box).every(l => l === kept.look), box ? JSON.stringify([testInput.plain(box.text), looks(box), kept.look]) : "none")
+                stopEditing()
+                return 500
             },
         ]
         next()

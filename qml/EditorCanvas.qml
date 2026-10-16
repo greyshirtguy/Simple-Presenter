@@ -1215,6 +1215,13 @@ Item {
             }
             // What the keys do while typing: Esc ends it, and the usual keys set bold,
             // italic and underline. Undo first undoes typing, then earlier changes.
+            //
+            // A paste is always a paste and match style, Ctrl+V and Ctrl+Shift+V alike
+            // (Shift+Insert too): the words of what was copied, without its formatting,
+            // in the format of the text where they go, each new line a paragraph made
+            // as the one the caret was in. (The text box's own paste kept the words'
+            // format but not the paragraph's: centred lines pasted in came out to the
+            // left. There is no paste that keeps the copied text's own formatting.)
             Keys.onPressed: (event) => {
                 const control = event.modifiers & Qt.ControlModifier
                 if (event.key === Qt.Key_Escape) {
@@ -1226,6 +1233,8 @@ Item {
                     canvas.setFormat({ italic: !canvas.format.italic }, false)
                 } else if (control && event.key === Qt.Key_U) {
                     canvas.setFormat({ underline: !canvas.format.underline }, false)
+                } else if ((control && event.key === Qt.Key_V) || event.matches(StandardKey.Paste)) {
+                    textEdit.cursorPosition = canvas.bridge.paste(textEdit.textDocument, textEdit.selectionStart, textEdit.selectionEnd)
                 } else if (control && event.key === Qt.Key_Z && !(event.modifiers & Qt.ShiftModifier) && !canUndo) {
                     canvas.undo()
                 } else if (control && (event.key === Qt.Key_Y || (event.key === Qt.Key_Z && (event.modifiers & Qt.ShiftModifier)))
