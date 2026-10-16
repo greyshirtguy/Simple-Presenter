@@ -7,11 +7,15 @@ import "lib.js" as Lib
 // Screens: the two a workspace starts with, more of each kind added in the settings, what
 // each is sent out through (a window, a display, NDI, nothing), a video played once for
 // every audience screen, a layout for each stage screen, and the list as it is written
-// to the workspace's file.
+// to the workspace's file. Over NDI, what goes out is looked at: red, while a red picture
+// is on the media layer, before the screen is switched off and after it is switched on
+// again.
 QtObject {
     id: t
 
 //COMMON
+    readonly property string media: "@WORKSPACES@".replace(/WorkSpaces$/, "media")
+
     function screen(id) {
         return Screens.screens.find(s => s.id === id)
     }
@@ -114,7 +118,8 @@ QtObject {
             },
             () => {
                 check("and on", output.visible === true && scenes[kept.second].visible === true)
-                // ---- NDI
+                // ---- NDI. (A red picture on the media layer, to tell what goes out by.)
+                Show.showMedia({ name: "Red.png", path: media + "/Red.png", source: "file://" + media + "/Red.png", video: false })
                 Screens.setOutput(kept.second, { output: "ndi", ndiName: "Test Screen", ndiWidth: 1280, ndiHeight: 720, ndiRate: "30" })
                 return 3500
             },
@@ -127,6 +132,8 @@ QtObject {
                     check("with NDI's library here, it is on the network, and pictures go out", sender.sending === true && sender.problem === "" && sender.framesSent >= 2,
                           sender.sending + " " + sender.framesSent + " " + sender.problem)
                     check("the scene that is sent shows what is live", slidesIn(scenes[kept.second]).includes(document.slides[6].id) && mediaItems(scenes[kept.second]).length > 0)
+                    kept.red = testInput.ndiRed(sender)
+                    check("and what goes out is it: red, where the picture is", kept.red > 0.5, kept.red)
                     kept.sent = sender.framesSent
                 } else {
                     check("without NDI's library it is not, and says where to get it", sender.sending === false && Ndi.problem.includes("ndi.video"), Ndi.problem)
@@ -137,6 +144,18 @@ QtObject {
             () => {
                 check("the audience button takes an NDI screen off the network too", senders[kept.second].sending === false)
                 outputEnabled = true
+                return 2500
+            },
+            () => {
+                if (Ndi.available) {
+                    // (Once, what went out after this was black, or whatever was left in the graphics card's memory:
+                    // the window went on drawing into the picture that had been let go of.)
+                    const sender = senders[kept.second]
+                    const red = testInput.ndiRed(sender)
+                    check("switched on again, it is back on the network, and what goes out is what is live again", sender.sending === true
+                          && sender.framesSent >= 2 && Math.abs(red - kept.red) < 0.1, sender.framesSent + " pictures, red " + red + " against " + kept.red)
+                }
+                clearMedia()
                 Screens.setOutput(kept.second, { ndiRate: "59.94" })
                 return 500
             },

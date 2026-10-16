@@ -1,5 +1,6 @@
 #include "testhook.h"
 
+#include "ndi.h"
 #include "richtext.h"
 #include "textlayout.h"
 
@@ -267,6 +268,14 @@ public:
         return runs;
     }
     Q_INVOKABLE void quit() { QCoreApplication::quit(); }
+    // How much of the picture an NDI screen last drew to send is red, from 0 to 1 (see redShare); -1 before there is
+    // one
+    Q_INVOKABLE double ndiRed(QObject *screen)
+    {
+        auto *sender = qobject_cast<NdiScreen *>(screen);
+        const QImage picture = sender ? sender->picture().convertToFormat(QImage::Format_RGB32) : QImage();
+        return picture.isNull() ? -1 : redShare(picture, picture.rect());
+    }
     // What is drawn in another of the app's windows ("stage", "output"), for a script to look through as it does
     // the operator window's own; null where there is no such window
     Q_INVOKABLE QObject *windowContent(const QString &name)

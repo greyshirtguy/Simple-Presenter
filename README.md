@@ -205,6 +205,8 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Mended:** a screen sent over NDI went out black, or as a garble, after it was
+  switched off and on again.
 - **Screen Preview.** A shape can be filled with a picture of what one of the
   workspace's screens is showing, which is ProPresenter's Screen Preview: on a stage
   layout, the output as the room sees it, video and all; or on a slide or a prop.

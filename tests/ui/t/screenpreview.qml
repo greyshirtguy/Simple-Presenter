@@ -9,7 +9,9 @@ import "lib.js" as Lib
 // the stage; a picture of the stage screen itself, which has no picture inside it; in the editor, the fill chosen in
 // the Fill menu, the screen chosen, what is in the file afterwards with the rest of the element as it was, and the
 // file byte for byte as it was once another fill is chosen; and such a slide on the output, whose picture of the
-// output has no picture inside it, while a thumbnail of it draws none. What is looked at is what is drawn.
+// output has no picture inside it, while a thumbnail of it draws none; and, where NDI's library is here, a stage
+// screen sent over NDI with the picture in what goes out, before the stage is switched off and after it is switched on
+// again. What is looked at is what is drawn.
 QtObject {
     id: t
 
@@ -314,6 +316,46 @@ QtObject {
                 testInput.grabOutput("6-output")
                 testInput.grab("6-operator")
                 clearSlide()
+                return 300
+            },
+            () => {
+                // ---- A stage screen sent over NDI, its layout's Screen Preview of the output in what goes out,
+                // before the stage is switched off and after it is switched on again. (Where NDI's library is here.)
+                if (!Ndi.available) {
+                    check("(NDI's library is not here, so a stage screen sent over NDI is not tried)", true)
+                    return 10
+                }
+                kept.ndiStage = Screens.stage.find(s => s.id !== Screens.stage[0].id) ?? Screens.stage[0]
+                Screens.setOutput(kept.ndiStage.id, { output: "ndi", ndiName: "Test Stage", ndiWidth: 960, ndiHeight: 540, ndiRate: "30" })
+                Show.setStageLayout(kept.ndiStage.id, kept.layout.id)
+                Show.showMedia({ name: "Red.png", path: media + "/Red.png", source: "file://" + media + "/Red.png", video: false })
+                return 3500
+            },
+            () => {
+                if (!Ndi.available)
+                    return 10
+                const sender = senders[kept.ndiStage.id]
+                kept.ndiRed = sender ? testInput.ndiRed(sender) : -1
+                check("a stage screen sent over NDI has its Screen Preview of the output in what goes out", sender !== undefined && sender.sending && kept.ndiRed > 0.2,
+                      kept.ndiRed)
+                stageEnabled = false
+                return 800
+            },
+            () => {
+                if (!Ndi.available)
+                    return 10
+                check("the stage button takes it off the network", senders[kept.ndiStage.id].sending === false)
+                stageEnabled = true
+                return 2500
+            },
+            () => {
+                if (!Ndi.available)
+                    return 10
+                const sender = senders[kept.ndiStage.id]
+                const red = testInput.ndiRed(sender)
+                check("switched on again, what goes out has it again", sender.sending && Math.abs(red - kept.ndiRed) < 0.1, red + " against " + kept.ndiRed)
+                Screens.setOutput(kept.ndiStage.id, { output: "none" })
+                clearMedia()
                 return 300
             },
         ]

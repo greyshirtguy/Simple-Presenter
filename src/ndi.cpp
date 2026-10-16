@@ -581,6 +581,12 @@ bool NdiScreen::start()
         }
         m_initialised = true;
     }
+    // The window is told to let go of the picture it was drawing into before that goes.
+    // Otherwise, sent out again after being switched off, it went on drawing into the
+    // one that had gone and sent black, or whatever was left in the graphics card's
+    // memory: the new picture is given the old one's number by the graphics card, so
+    // the window took it for the same and did not look at it again.
+    m_window->setRenderTarget(QQuickRenderTarget());
     delete m_target;
     m_target = new QOpenGLFramebufferObject(m_size, QOpenGLFramebufferObject::CombinedDepthStencil);
     if (!m_target->isValid()) {
@@ -643,6 +649,14 @@ void NdiScreen::stop()
     SessionLog::write("ndi", QStringLiteral("the screen \"%1\" is off the network, after %2 pictures").arg(m_sendingAs).arg(m_framesSent));
     m_receivers = 0;
     emit statusChanged();
+}
+
+QImage NdiScreen::picture() const
+{
+    if (!m_hasPicture)
+        return QImage();
+    const std::vector<uchar> &picture = m_pictures[m_picture];
+    return QImage(picture.data(), m_sendingSize.width(), m_sendingSize.height(), m_sendingSize.width() * 4, QImage::Format_RGBA8888).copy();
 }
 
 // Draws the scene and reads the picture back into the one of the two that NDI is not

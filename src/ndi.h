@@ -2,6 +2,7 @@
 
 #include <QElapsedTimer>
 #include <QFile>
+#include <QImage>
 #include <QObject>
 #include <QPointer>
 #include <QQuickItem>
@@ -198,6 +199,9 @@ public:
     QString problem() const { return m_problem; }
     int receivers() const { return m_receivers; }
     int framesSent() const { return m_framesSent; }
+    // The picture last drawn to be sent, the right way up; a null image before there is
+    // one. (For the tests, which look at what goes out, not only at how much.)
+    QImage picture() const;
 
 signals:
     void nameChanged();

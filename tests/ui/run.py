@@ -1664,7 +1664,7 @@ def after_announce(workspace, test_dir):
 
 def prepare_red_picture(workspace, test_dir):
     """A picture of one colour, red and the shape of a screen, for a test to put on the media layer and look for
-    (screenpreview): in the test's own folder and NOT under the workspace's Media, which in a copy of a
+    (screenpreview, screens): in the test's own folder and NOT under the workspace's Media, which in a copy of a
     fixture is a link to a real one (see prepare_audio)."""
     folder = os.path.join(test_dir, "media")
     os.makedirs(folder)
@@ -2114,7 +2114,7 @@ TESTS = {
     # (A theme of ProPresenter's whose Bible slide's verse box is Single Line: the Act workspace's New Life Chapel.)
     "bible2": test("Act", timeout=200, prepare=prepare_bible_file),
     # (On a desktop of its own, with two displays to send screens to.)
-    "screens": test("Demo", after=after_screens, monitors=2),
+    "screens": test("Demo", prepare=prepare_red_picture, after=after_screens, monitors=2),
     # (With no library of NDI's to be found, and its installer fetched from a copy on this computer if there is one.)
     "ndisetup": test("Demo", env={"NDI_RUNTIME_DIR_V6": "", "SIMPLEPRESENTER_NDI_SDK_URL": NDI_INSTALLER}),
 }
