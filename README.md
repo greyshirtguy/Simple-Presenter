@@ -205,6 +205,8 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **The slide live on the announcements has a green ring**, the show's keeping its
+  orange, so the two are told apart. See [Announcements](#announcements).
 - **Mended:** a screen sent over NDI went out black, or as a garble, after it was
   switched off and on again.
 - **Screen Preview.** A shape can be filled with a picture of what one of the
@@ -1180,7 +1182,9 @@ under the slides that follow, a foreground goes with the next slide that brings 
 The show itself is left where it was. Its slide stays on the slide layer under the
 announcement, its media plays on, and the arrow keys and the space bar step whichever
 presentation is being viewed: the announcements, if it is theirs. So two
-presentations are live at once, each marked in its own list of slides.
+presentations are live at once, each marked in its own list of slides: the slide that
+is live on the announcements with a green ring, the green of the button that sends a
+presentation there, and the show's with the usual orange.
 
 The layer is cleared by its own button, the sixth of the clears of the layers, with
 ProPresenter's megaphone on it; by **Clear All**; by a [clear group](#clear-groups)

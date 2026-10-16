@@ -388,12 +388,22 @@ Item {
             // The live slide's glow spills a little over its neighbours.
             z: live ? 1 : 0
 
-            // Only the live slide has a ring, and only it has one made.
+            // Only the live slide has a ring, and only it has one made. It is green for a
+            // slide that is live on the announcements' layer, which is the green of the
+            // button that sends a presentation there, and orange for one that is live on
+            // the slides' own (which wins, should one slide be both). Which it is, is asked
+            // in the ring, which only the live slide has, and not by every slide.
+            //
+            // (The user's choice of colour, asked for 2026-10-16. Whether ProPresenter marks
+            // the two apart, and how, has not been looked at.)
             Loader {
                 anchors.fill: frameRect
                 anchors.margins: -5
                 active: cell.live
-                sourceComponent: LiveRing {}
+                sourceComponent: LiveRing {
+                    objectName: "liveRing"
+                    color: slides.win.viewingLive && slides.win.cueLive && slides.win.liveIndex === cell.index ? "#ff8a1f" : "#3ddc68"
+                }
             }
 
             Rectangle {

@@ -16,6 +16,13 @@ QtObject {
     id: t
 
 //COMMON
+    // The colour of the ring round a slide of the grid, as the operator window draws it
+    function ringAt(index) {
+        const cell = slideCell(index)
+        const at = cell.mapToItem(null, cell.width / 2, 2.5)
+        return String(testInput.windowPixel(at.x, at.y))
+    }
+
     // Three points of a screen, as shares of it: in a notice's block, in a block of
     // the other presentation, and where neither has anything
     readonly property point atNotice: Qt.point(0.78, 0.25)
@@ -184,7 +191,8 @@ QtObject {
                       && Show.announcementKey === entry("Notices").path && Show.liveIndex === 0 && Show.liveKey === entry("Plain").path && !cleared)
                 check("both are drawn, the notice over the slide, on the output and in the operator's preview",
                       both(atNotice, "#ff0000") && both(atPlain, "#ffff00") && both(atFree, "#000000"), drawn())
-                check("the notice is marked as the one that is on, in its presentation", slideCell(0).live && !slideCell(1).live && viewingAnnouncements)
+                check("the notice is marked as the one that is on, in its presentation, by a green ring", slideCell(0).live && !slideCell(1).live && viewingAnnouncements
+                      && ringAt(0) === "#3ddc68" && ringAt(1) !== "#3ddc68", ringAt(0))
                 check("the announcements' clear button is red, and the slide's is too", named("clearAnnouncements").live && buttonRed("clearAnnouncements")
                       && buttonRed("clearSlide") && !buttonRed("clearMedia"))
                 testInput.grabOutput("1-output-notice-over-slide")
@@ -200,7 +208,8 @@ QtObject {
                 return 500
             },
             () => {
-                check("in the other presentation its own slide is the one marked", viewingLive && !viewingAnnouncements && slideCell(0).live && !slideCell(1).live)
+                check("in the other presentation its own slide is the one marked, by the orange ring", viewingLive && !viewingAnnouncements && slideCell(0).live
+                      && !slideCell(1).live && ringAt(0) === "#ff8a1f", ringAt(0))
                 click(centre(slideCell(1)))
                 return 800
             },
