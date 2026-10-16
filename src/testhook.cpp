@@ -15,6 +15,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlContext>
+#include <QQuickItem>
 #include <QQuickWindow>
 #include <QTextStream>
 #include <QTimer>
@@ -266,6 +267,13 @@ public:
         return runs;
     }
     Q_INVOKABLE void quit() { QCoreApplication::quit(); }
+    // What is drawn in another of the app's windows ("stage", "output"), for a script to look through as it does
+    // the operator window's own; null where there is no such window
+    Q_INVOKABLE QObject *windowContent(const QString &name)
+    {
+        QQuickWindow *other = named(name.toLatin1().constData());
+        return other ? other->contentItem() : nullptr;
+    }
 
     // A drag of files in from another application, sent to the operator window as the
     // desktop would send it. type 0: over the point (entering the window if it had not);

@@ -29,6 +29,8 @@ Item {
     // Whether this plays a video itself, or is fed the frames of the scene that does
     // (see MediaContent)
     property bool leads: true
+    // The operator window, for Screen Previews (see Slide)
+    property var pictures: null
     // A slide held back until the media that goes with it can be shown; undefined
     // when none is
     property var heldSlide: undefined
@@ -94,6 +96,8 @@ Item {
         tint: announcements.tint
         direction: announcements.direction
         duration: announcements.duration
-        delegate: Slide {}
+        delegate: Slide {
+            pictures: announcements.pictures
+        }
     }
 }

@@ -102,8 +102,9 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 // A slide as the QML side consumes it: size, background, label, plain text, and a list
 // of elements. Each element is a map of
 //   id, name, x, y, width, height, rotation, opacity, locked, hidden
-//   fillOn, fillKind ("color", "gradient", "media", "other" or "none"), fillColor, and
-//     fillEnabled (on, and a plain colour, which is the kind that is drawn)
+//   fillOn, fillKind ("color", "gradient", "media", "screen", "other" or "none"),
+//     fillColor, and fillEnabled (on, and a plain colour, which is the kind that is
+//     drawn)
 //   fillLinesOnly (the fill is only behind the lines of the text) and how: lineMaskStyle
 //     (0 the box's width, 1 each line's, 2 the widest line's), lineMaskWidthOffset,
 //     lineMaskHeightOffset, lineMaskHorizontalOffset, lineMaskVerticalOffset
@@ -113,7 +114,12 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 //     way it runs, in degrees anticlockwise from pointing right); fillMediaName,
 //     fillMediaPath and fillMediaSource (the file, the last two empty if it cannot be
 //     found or, the source, if it is a video, which is not drawn), fillMediaVideo and
-//     fillMediaScale (0 to fit, 1 to fill, 2 stretched)
+//     fillMediaScale (0 to fit, 1 to fill, 2 stretched). A fill that is a Screen
+//     Preview, a picture of what one of the workspace's screens is showing, is kind
+//     "screen", with fillScreenId and fillScreenName (the screen, found by id or failing
+//     that by name): ProPresenter keeps it as a link of the element's, beside a fill of
+//     its own that only stands in for it, and those two keys are there only for an
+//     element that has such a link
 //   shape ("rectangle", "roundedRectangle", "ellipse", "arrow" or "other"), roundness
 //     (of a rounded rectangle: its corners' radius as a part of its shorter side), and
 //     outline (for anything but a rectangle: its points on the unit square, each
@@ -201,8 +207,11 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 // keys; these can be changed:
 //   x, y, width, height, opacity, name, locked, hidden
 //   fillOn, fillColor (which also makes the fill a plain colour), fillLinesOnly
-//   fillKind ("color" or "gradient"), fillGradientFrom, fillGradientTo,
-//     fillGradientAngle, fillMediaPath (which makes the fill that file), fillMediaScale
+//   fillKind ("color", "gradient" or "screen"), fillGradientFrom, fillGradientTo,
+//     fillGradientAngle, fillMediaPath (which makes the fill that file), fillMediaScale,
+//     fillScreenId and fillScreenName (the screen a Screen Preview is of). Making the
+//     fill a Screen Preview adds the link, and leaves the fill the file has as the
+//     stand-in it is for ProPresenter; making it anything else takes the link away.
 //   roundness, featherOn, featherRadius
 //   strokeOn, strokeColor, strokeWidth
 //   shadowEnabled, shadowColor, shadowAngle, shadowOffset, shadowRadius, and the same

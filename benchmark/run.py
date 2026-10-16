@@ -16,10 +16,16 @@ the baseline by more than a fifth and by more than the runs differ among themsel
 anything less is as likely to be the machine as the app.
 
 The windows open on your screens while it runs, the output filling one of them. Leave
-the machine alone until it is done: about a minute a run.
+the machine alone until it is done: about a minute and a half a run.
+
+The last lines are about video, which the app cannot make for itself: a video is made
+here, once for all the runs, with ffmpeg, where the computer has it (`sudo apt install
+ffmpeg`), and those lines are left out where it has not. ffmpeg is needed for nothing
+else, and the app does not use it.
 """
 import argparse
 import os
+import shutil
 import statistics
 import subprocess
 import sys
@@ -43,8 +49,28 @@ def read(path):
     return header, values
 
 
-def one_run(binary, folder, number):
-    """Runs the benchmark once, in a home of its own under `folder`. Returns its report's path."""
+def make_video(folder):
+    """Ten seconds of video the size of a screen, 1920 by 1080 at thirty frames a second in H.264, as most background
+    videos are, of ffmpeg's own picture for testing (which moves all over it), in `folder`. Returns its path, or None
+    where the computer has no ffmpeg, or ffmpeg could not make it."""
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        print("ffmpeg is not installed, so there is no video, and no lines about one", file=sys.stderr)
+        return None
+    path = os.path.join(folder, "video.mp4")
+    made = subprocess.run([ffmpeg, "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=1920x1080:rate=30", "-t", "10",
+                           "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-b:v", "8M", path],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=300, check=False)
+    if made.returncode != 0 or not os.path.exists(path):
+        print("ffmpeg could not make the video, so there are no lines about one: " + made.stderr.decode(errors="replace"),
+              file=sys.stderr)
+        return None
+    return path
+
+
+def one_run(binary, folder, number, video):
+    """Runs the benchmark once, in a home of its own under `folder`, with the video at `video` if it is not None.
+    Returns its report's path."""
     home = os.path.join(folder, f"run{number}")
     documents = os.path.join(home, "Documents")
     for part in ("config", "data", "cache", "Documents"):
@@ -54,6 +80,8 @@ def one_run(binary, folder, number):
         dirs.write(f'XDG_DOCUMENTS_DIR="{documents}"\n')
     environment = dict(os.environ, XDG_CONFIG_HOME=os.path.join(home, "config"), XDG_DATA_HOME=os.path.join(home, "data"),
                        XDG_CACHE_HOME=os.path.join(home, "cache"))
+    if video:
+        environment["SP_BENCHMARK_VIDEO"] = video
     report = os.path.join(home, "report.txt")
     done = subprocess.run([binary, "--benchmark", report], env=environment, stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL, timeout=600, check=False)
@@ -75,9 +103,10 @@ def main():
 
     header, runs = [], []
     with tempfile.TemporaryDirectory(prefix="simplepresenter-benchmark-") as folder:
+        video = make_video(folder)
         for number in range(1, asked.runs + 1):
             print(f"run {number} of {asked.runs}...", file=sys.stderr, flush=True)
-            header, values = read(one_run(binary, folder, number))
+            header, values = read(one_run(binary, folder, number, video))
             runs.append(values)
 
     names = list(runs[0])

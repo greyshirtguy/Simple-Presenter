@@ -235,7 +235,6 @@ QString otherLinkLabel(const DataLink &link)
     case DataLink::kTicker: return QStringLiteral("Ticker");
     case DataLink::kClockText: return QStringLiteral("Clock");
     case DataLink::kChordChart: return QStringLiteral("Chord chart");
-    case DataLink::kOutputScreen: return QStringLiteral("Output screen");
     case DataLink::kPcoLive: return QStringLiteral("Planning Center Live");
     case DataLink::kAlternateFill: return QStringLiteral("Fill of another element");
     case DataLink::kStageMessage: return QStringLiteral("Stage message");
@@ -270,13 +269,13 @@ QString otherLinkLabel(const DataLink &link)
 }
 
 // Whether what a link puts in an element is not words but a picture or a colour, which
-// takes the place of the element's fill: a picture of a slide or of an output, say.
-// The fill such an element has in the file is then only a stand-in for it.
+// takes the place of the element's fill: a picture of a slide, say. The fill such an
+// element has in the file is then only a stand-in for it. (A picture of a screen is of
+// the kind too, but is drawn: it is read as a fill of its own, "screen".)
 bool linkIsPicture(const DataLink &link)
 {
     switch (link.PropertyType_case()) {
     case DataLink::kChordChart:
-    case DataLink::kOutputScreen:
     case DataLink::kAlternateFill:
     case DataLink::kSlideImage:
     case DataLink::kGroupColor:
@@ -680,6 +679,17 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("visibilityRules", true);
             map.insert("visibilityCriterion", int(link.visibility_link().visibility_criterion()));
             map.insert("visibilityConditions", conditions);
+        } else if (link.has_output_screen()) {
+            // A Screen Preview. It is not where the text comes from but what the element
+            // is filled with: the fill the file has (black, in ProPresenter's own) only
+            // stands in for it, and the element may have linked text as well, which
+            // stays as the other links have it. So whether it is drawn at all is the
+            // fill's switch.
+            map.insert("fillKind", QStringLiteral("screen"));
+            map.insert("fillShown", fill.enable());
+            map.insert("fillEnabled", false);
+            map.insert("fillScreenId", QString::fromStdString(link.output_screen().screen_id().string()));
+            map.insert("fillScreenName", QString::fromStdString(link.output_screen().screen_name()));
         } else if (!otherLinkLabel(link).isEmpty()) {
             map.insert("linkKind", QStringLiteral("other"));
             map.insert("linkLabel", otherLinkLabel(link));
@@ -1331,6 +1341,29 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
         (media->has_video() ? media->mutable_video()->mutable_drawing() : media->mutable_image()->mutable_drawing())
             ->set_scale_behavior(scale);
         fill->set_enable(true);
+    }
+    // A Screen Preview: the link names the screen, by id and by name as ProPresenter's
+    // does, and the fill is switched on, which is what shows it. Any other fill takes
+    // the link away, and the fill the file had is drawn again.
+    if (changes.value("fillKind").toString() == QLatin1String("screen") || changes.contains("fillScreenId")) {
+        DataLink *link = nullptr;
+        for (DataLink &candidate : *slideElement->mutable_data_links()) {
+            if (candidate.has_output_screen()) {
+                link = &candidate;
+                break;
+            }
+        }
+        DataLink::OutputScreen *screen = (link ? link : slideElement->add_data_links())->mutable_output_screen();
+        if (changes.contains("fillScreenId")) {
+            screen->mutable_screen_id()->set_string(changes.value("fillScreenId").toString().toStdString());
+            screen->set_screen_name(changes.value("fillScreenName").toString().toStdString());
+        }
+        rv::data::Graphics::Fill *fill = element->mutable_fill();
+        fill->set_enable(true);
+        if (fill->FillType_case() == rv::data::Graphics::Fill::FILLTYPE_NOT_SET)
+            setColor(fill->mutable_color(), Qt::black);
+    } else if (changes.contains("fillKind") || changes.contains("fillMediaPath")) {
+        removeLinks(slideElement, [](const DataLink &link) { return link.has_output_screen(); });
     }
     if (changes.contains("fillMediaScale") && element->fill().has_media()) {
         rv::data::Media *media = element->mutable_fill()->mutable_media();

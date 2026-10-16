@@ -62,6 +62,8 @@ Item {
     // A slide held back until the media that goes with it can be shown: see
     // showSlideWithMedia(). Undefined when none is; null is a slide layer to be cleared.
     property var heldSlide: undefined
+    // The operator window, for the Screen Previews on the slides here (see Slide)
+    property var pictures: null
 
     // `slide` is a slide map from Catalog.open(); null clears the layer.
     function showSlide(slide) {
@@ -163,7 +165,9 @@ Item {
         tint: scene.tint
         direction: scene.direction
         duration: scene.duration
-        delegate: Slide {}
+        delegate: Slide {
+            pictures: scene.pictures
+        }
     }
 
     // The announcements, over the slides and under the props. Made when the first
@@ -184,6 +188,7 @@ Item {
 
         sourceComponent: AnnouncementLayer {
             leads: scene.leads
+            pictures: scene.pictures
             transitionName: scene.transitionName
             shader: scene.shader
             options: scene.options
@@ -197,6 +202,7 @@ Item {
         id: propsLayer
 
         anchors.fill: parent
+        pictures: scene.pictures
         opacity: scene.propsOn ? 1 : 0
         visible: opacity > 0
 
@@ -226,6 +232,7 @@ Item {
         sourceComponent: PropsLayer {
             props: scene.messages
             duration: propsLayer.duration
+            pictures: scene.pictures
         }
     }
 
@@ -246,6 +253,7 @@ Item {
 
         sourceComponent: Slide {
             slide: scene.mask
+            pictures: scene.pictures
         }
     }
 }

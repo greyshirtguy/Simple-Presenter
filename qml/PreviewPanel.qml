@@ -39,23 +39,6 @@ Rectangle {
     // keyboard
     readonly property bool renaming: showControl.renaming
 
-    // The announcements in the preview: what a screen's scene is told, the preview is
-    // told too (see showAnnouncement() and clearAnnouncements() in OutputScene.qml).
-    function showAnnouncement(slide, showing, media) {
-        previewAnnouncements.active = true
-        const layer = previewAnnouncements.item
-        if (showing === 2)
-            layer.showSlideWithMedia(slide, media)
-        else if (showing === 1)
-            layer.showSlideOverMedia(slide)
-        else
-            layer.showSlide(slide)
-    }
-
-    function clearAnnouncements() {
-        if (previewAnnouncements.item)
-            previewAnnouncements.item.clear()
-    }
     // The clear groups that have a button: all but those the workspace keeps out of
     // sight (see ClearGroups)
     readonly property var shownGroups: ClearGroups.groups.filter(group => !group.hidden)
@@ -264,99 +247,17 @@ Rectangle {
             anchors.fill: parent
             anchors.margins: 1
 
-            Image {
+            // What the first audience screen shows (see ScreenPicture), with the Screen
+            // Previews its slides have; a video's frames a few a second.
+            ScreenPicture {
+                id: previewPicture
+
                 anchors.fill: parent
-                visible: sidePanel.win.previewLook.media && sidePanel.win.liveMedia !== null && !sidePanel.win.liveMedia.video
-                source: visible ? sidePanel.win.thumbnailUrl(sidePanel.win.liveMedia.path) : ""
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-            }
-
-            VideoOutput {
-                id: previewVideo
-
-                objectName: "previewVideo"
-                anchors.fill: parent
-                visible: sidePanel.win.previewLook.media && sidePanel.win.liveMedia !== null && sidePanel.win.liveMedia.video
-                fillMode: VideoOutput.PreserveAspectFit
-            }
-
-            // (No frames are borrowed for a video the look keeps from the screen.)
-            FrameRelay {
-                id: relay
-
-                source: sidePanel.win.previewLook.media ? sidePanel.liveVideoSink : null
-                target: previewVideo.videoSink
-                interval: 100
-            }
-
-            Slide {
-                objectName: "previewSlide"
-                anchors.fill: parent
-                visible: sidePanel.win.previewLook.slide
-                slide: sidePanel.win.previewSlide
-                effects: false
-            }
-
-            // The announcements, over the slide and under the props, as the output
-            // has them: their layer again, fed the frames of a video that the output
-            // plays (it does not lead), and told what the screens are told. Made when
-            // the first announcement is shown, and kept.
-            Loader {
-                id: previewAnnouncements
-
-                objectName: "previewAnnouncements"
-                anchors.fill: parent
-                visible: sidePanel.win.previewLook.announcements !== false
-                active: false
-                sourceComponent: AnnouncementLayer {
-                    leads: false
-                }
-            }
-
-            PropsLayer {
-                objectName: "previewProps"
-                anchors.fill: parent
-                visible: sidePanel.win.previewLook.props
-                props: sidePanel.win.shownProps
-                duration: Math.round(Props.transitionDuration * 1000)
-                effects: false
-            }
-
-            // The messages, over the props, as the output has them: made when the
-            // first is shown, and kept (see OutputScene).
-            Loader {
-                id: previewMessages
-
-                property bool wanted: sidePanel.win.shownMessages.length > 0
-
-                objectName: "previewMessages"
-                anchors.fill: parent
-                visible: sidePanel.win.previewLook.messages
-                active: false
-                onWantedChanged: {
-                    if (wanted)
-                        active = true
-                }
-
-                sourceComponent: PropsLayer {
-                    props: sidePanel.win.shownMessages
-                    duration: Math.round(Props.transitionDuration * 1000)
-                    effects: false
-                }
-            }
-
-            // The mask the live look gives the screen the preview stands for, over
-            // everything, as the output has it (see OutputScene)
-            Loader {
-                objectName: "previewMask"
-                anchors.fill: parent
-                active: sidePanel.win.previewMask !== null
-
-                sourceComponent: Slide {
-                    slide: sidePanel.win.previewMask
-                    effects: false
-                }
+                win: sidePanel.win
+                screenId: sidePanel.win.audienceIds[0] ?? (Screens.audience[0]?.id ?? "")
+                inner: true
+                videoInterval: 100
+                namePrefix: "preview"
             }
 
             // How loud what the app is playing is, on the left and on the right: two
@@ -469,6 +370,7 @@ Rectangle {
             visible: sidePanel.win.stageLayout !== null
             slide: sidePanel.win.stageLayout ? sidePanel.win.stageLayout.slide : null
             effects: false
+            pictures: sidePanel.win
         }
     }
 
@@ -583,7 +485,7 @@ Rectangle {
         anchors.margins: sidePanel.gap
         player: sidePanel.livePlayer
         media: sidePanel.win.liveMedia
-        pulse: relay
+        pulse: previewPicture.relay
     }
 
     Rule {

@@ -2872,6 +2872,37 @@ Window {
         scenes = all
     }
 
+    // The pictures of screens there are (see ScreenPicture): the operator's preview,
+    // and every shape on show whose fill is a Screen Preview. Each says when it is made
+    // and when it goes, and is told what the screens are told of the announcements,
+    // which are not something it can look up; and, made while an announcement is up,
+    // is told of it at once, as a scene is. (Kept in a plain object, which nothing
+    // watches: a picture coming or going is no change to anything that is drawn.)
+    readonly property var pictureList: ({ all: [] })
+    function pictureMade(picture) {
+        pictureList.all.push(picture)
+        if (announcementSlide || lastAnnouncementPlayed !== null)
+            picture.showAnnouncement(announcementSlide, Show.WithMedia, lastAnnouncementPlayed)
+    }
+
+    function pictureGone(picture) {
+        const at = pictureList.all.indexOf(picture)
+        if (at >= 0)
+            pictureList.all.splice(at, 1)
+    }
+
+    function eachPicture(act) {
+        for (const picture of pictureList.all.slice())
+            act(picture)
+    }
+
+    // The slide of the stage layout a stage screen has, or null for the plain view
+    function stageSlideOf(screenId) {
+        const id = Show.screenLayouts[screenId] ?? ""
+        const found = id === "" ? undefined : StageLayouts.layouts.find(candidate => candidate.id === id)
+        return found ? found.slide : null
+    }
+
     // A slide as Show is handed it when it goes live: which presentation it is of, by
     // the row it was opened from and the playlist that row is in, where it is in it,
     // and the slide itself with the one after it.
@@ -3644,6 +3675,7 @@ Window {
                     propsDuration: Math.round(Props.transitionDuration * 1000)
                     messages: win.shownMessages
                     mask: win.maskSlide(audienceHost.look.mask)
+                    pictures: win
                     keyTarget: keys
                     Component.onCompleted: win.sceneMade(audienceHost.modelData, this, true)
                     Component.onDestruction: win.sceneGone(audienceHost.modelData, this)
@@ -3683,6 +3715,7 @@ Window {
                         propsDuration: Math.round(Props.transitionDuration * 1000)
                         messages: win.shownMessages
                         mask: win.maskSlide(audienceHost.look.mask)
+                        pictures: win
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, ndiScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, ndiScene)
                     }
@@ -3702,11 +3735,7 @@ Window {
             readonly property var screen: Screens.screens.find(candidate => candidate.id === stageHost.modelData) ?? ({ output: "none", name: "" })
             readonly property bool overNdi: screen.output === "ndi"
             // The slide of the layout this stage screen has, or null for the plain view
-            readonly property var layout: {
-                const id = Show.screenLayouts[stageHost.modelData] ?? ""
-                const found = id === "" ? undefined : StageLayouts.layouts.find(candidate => candidate.id === id)
-                return found ? found.slide : null
-            }
+            readonly property var layout: win.stageSlideOf(stageHost.modelData)
 
             property Instantiator inWindow: Instantiator {
                 model: stageHost.overNdi ? 0 : 1
@@ -3720,6 +3749,7 @@ Window {
                     layout: stageHost.layout
                     currentText: win.stageCurrentText
                     nextText: win.stageNextText
+                    pictures: win
                     keyTarget: keys
                 }
             }
@@ -3741,6 +3771,7 @@ Window {
                         layout: stageHost.layout
                         currentText: win.stageCurrentText
                         nextText: win.stageNextText
+                        pictures: win
                     }
                 }
             }
@@ -3804,7 +3835,7 @@ Window {
             const slide = win.announcementDocument.slides[Show.announcementIndex]
             const played = showing === Show.WithMedia ? win.playingAnnouncement(media) : null
             win.eachAudienceScene(scene => scene.showAnnouncement(slide, showing, played))
-            sidePanel.showAnnouncement(slide, showing, played)
+            win.eachPicture(picture => picture.showAnnouncement(slide, showing, played))
         }
 
         // A slide's Go To Next Timer, or its presentation's Slide Show, has run out:
@@ -3831,7 +3862,7 @@ Window {
         function onAnnouncementsCleared() {
             win.lastAnnouncementPlayed = null
             win.eachAudienceScene(scene => scene.clearAnnouncements())
-            sidePanel.clearAnnouncements()
+            win.eachPicture(picture => picture.clearAnnouncements())
         }
 
         // The audio layer is played by AudioLayer, which is told what the show says.

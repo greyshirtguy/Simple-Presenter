@@ -32,6 +32,9 @@ import SimplePresenterApp
 // read, and five in a small picture. (A slide's notes can also be shown as they were
 // written, in their own fonts and colours: `liveLinkText` is then that text itself.)
 //
+// A fill can also be a picture of what one of the screens is showing, which is
+// ProPresenter's Screen Preview: see ScreenPicture, which draws it, and `pictures`.
+//
 // A shadow is the one dear thing here. The shape or the text is drawn into a texture of
 // its own, which a blur then turns into the shadow under it: an extra pass, and an extra
 // texture, for each shadow. So nothing is set up for a shadow unless the element has
@@ -61,6 +64,13 @@ Item {
     // placed; shown for real, a block of colour where a picture was meant would be
     // worse than nothing.
     property bool standIns: false
+    // The operator window, where the element is on show (on a screen, or in the
+    // operator's preview of one): what a fill that is a Screen Preview asks what the
+    // screen is showing. Null where it is only being looked at (a thumbnail, the
+    // editor), where such a fill draws nothing, or its stand-in if standIns says so:
+    // a grid of thumbnails, each drawing a screen and borrowing a video's frames, would
+    // cost more than the show itself.
+    property var pictures: null
     // The words of an element whose words change while it is shown, or undefined for an
     // element that shows what its map says: a timer's time (see Timers); the words or
     // the notes of the slide that is live or of the one after it (see Show), which are
@@ -237,14 +247,69 @@ Item {
         Item {
             id: rich
 
-            readonly property string kind: element.boxFilled ? element.source.fillKind : "none"
+            // (A Screen Preview that is not drawn here is drawn as its stand-in, the
+            // fill the file has for it, where stand-ins are, and not at all elsewhere.)
+            readonly property string kind: !element.boxFilled ? "none"
+                                         : element.source.fillKind !== "screen" ? element.source.fillKind
+                                         : element.pictures !== null ? "screen" : element.standIns ? "color" : "none"
             readonly property bool cut: element.source.shape !== "rectangle"
             // Which way a gradient runs: its angle is anticlockwise from pointing right
             readonly property real along: element.source.fillGradientAngle * Math.PI / 180
             readonly property real reach: Math.abs(width / 2 * Math.cos(along)) + Math.abs(height / 2 * Math.sin(along))
+            // The picture of a Screen Preview, while the fill is one: see placeScreen()
+            property var screenPicture: null
+
+            // A Screen Preview: what one of the screens is showing, fitted in, and cut to
+            // the shape by the same mask as a picture is.
+            //
+            // Chosen for speed, and of this app's own: its slides have shadows only where
+            // the element is a quarter of an output's height or more, where they can be
+            // seen; and a video under them is in it frame for frame (borrowed, not played
+            // again: see ScreenPicture), each frame being a redraw of the window it is in.
+            // The benchmark measures what that costs, with a picture of the output as big
+            // as most of the stage screen.
+            //
+            // Made here, from its file by its address, only while the fill is one. Not by
+            // its name, as everything else here is made: a picture is made of slides and a
+            // slide of these elements, and QML will not have a component that is made,
+            // however far down, of itself (it refuses it without a word, and the app has
+            // no window); made this way, the one is not part of the other until a picture
+            // is wanted, and then not for ever, the picture's own slides having none (see
+            // ScreenPicture). And not by a Loader standing by in every shape: every shape
+            // of every slide drawn anywhere, each thumbnail's among them, would carry one
+            // for the few that ever have a Screen Preview.
+            function placeScreen() {
+                const wanted = kind === "screen"
+                if (wanted === (screenPicture !== null))
+                    return
+                if (!wanted) {
+                    screenPicture.destroy()
+                    screenPicture = null
+                    return
+                }
+                const made = Qt.createComponent(Qt.resolvedUrl("ScreenPicture.qml")).createObject(fill, {
+                    win: element.pictures,
+                    screenId: element.source.fillScreenId ?? "",
+                    screenName: element.source.fillScreenName ?? "",
+                    effects: element.effects && element.boxHeight >= 270,
+                    videoInterval: 0,
+                })
+                made.anchors.fill = fill
+                made.screenId = Qt.binding(() => element.source.fillScreenId ?? "")
+                made.screenName = Qt.binding(() => element.source.fillScreenName ?? "")
+                made.effects = Qt.binding(() => element.effects && element.boxHeight >= 270)
+                made.layer.effect = picture.layer.effect
+                made.layer.enabled = Qt.binding(() => rich.cut)
+                screenPicture = made
+            }
+
+            onKindChanged: placeScreen()
+            Component.onCompleted: placeScreen()
 
             // The fill, which is the part whose edges fade if they do
             Item {
+                id: fill
+
                 anchors.fill: parent
 
                 layer.enabled: element.feathered
@@ -295,8 +360,11 @@ Item {
 
                 // A picture: made to fit inside the element, to fill it and be cut off
                 // at its edges, or stretched to it. In a shape that is not a rectangle
-                // it is cut to the shape by a mask.
+                // it is cut to the shape by a mask. (A Screen Preview is cut by the same,
+                // and is put in after this, by placeScreen().)
                 Image {
+                    id: picture
+
                     anchors.fill: parent
                     visible: rich.kind === "media"
                     source: rich.kind === "media" ? element.source.fillMediaSource : ""
@@ -319,7 +387,7 @@ Item {
                     id: mask
 
                     anchors.fill: parent
-                    active: rich.cut && rich.kind === "media"
+                    active: rich.cut && (rich.kind === "media" || rich.kind === "screen")
 
                     sourceComponent: Shape {
                         visible: false

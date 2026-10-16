@@ -6,11 +6,16 @@ an operator waits for, and compares them with a set of times kept from before.
     cmake --build build
     benchmark/run.py
 
-That runs the app five times over, about a minute each. The windows open on your
-screens while it does, the output filling one of them: leave the machine alone until it
-is done. Nothing of yours is read or changed. The app makes a workspace of its own to
-work on, with three presentations of fixed content, and each run has settings, caches
-and a Documents folder of its own in a temporary folder.
+That runs the app five times over, about a minute and a half each. The windows open on
+your screens while it does, the output filling one of them: leave the machine alone
+until it is done. Nothing of yours is read or changed. The app makes a workspace of its
+own to work on, with presentations of fixed content and a stage layout, and each run
+has settings, caches and a Documents folder of its own in a temporary folder.
+
+The lines about video need a video, which the app cannot make: `run.py` makes one,
+once for all the runs, with ffmpeg (`sudo apt install ffmpeg`), and leaves those lines
+out where the computer has no ffmpeg. Nothing else needs it, and the app does not use
+it.
 
 What comes out is a table: each thing timed, as the median of the runs, beside the
 baseline and the change between them. A line is marked `!` when it is worse than the
@@ -34,11 +39,27 @@ Anything less is as likely to be the machine as the app.
 - **Standing by**: how much of the processor the app uses with a slide on the output
   and nothing happening, and whether it is drawing frames it has no need to.
 - **Memory**: how much the app holds at the end, and the most it held.
+- **A Screen Preview on the stage**: the slides shown again, as above, with the stage
+  screen showing a stage layout whose one shape is a picture of the output, most of
+  the stage's size.
+- **Video**: a 1080p video playing under the words, for eight seconds with the stage's
+  plain view and eight with the Screen Preview, nothing being done. Over each, how many
+  frames a second the output drew, how many the video's decoder gave, and how many the
+  stage drew; the longest gap between two frames of the output (a gap much over a
+  thirtieth of a second is a frame of the video that was not shown); the processor
+  used; and the longest the app's own thread was too busy to look at the clock, which
+  is how long a click would have waited. Then slides changed over the video, with the
+  work in each click and the same longest wait. These are what to watch as more is
+  added that keeps drawing.
 
-The three presentations are words (large text, as most slides are), shapes (one of each
+The stage screen fills a display of its own where there are two, as it does in a
+church; with one, it is a window of 1280 by 720 over the output. Its frames a second
+say whether the desktop drew it at all.
+
+The presentations are words (large text, as most slides are), shapes (one of each
 kind the app draws, with a gradient, pictures cut to shapes and feathered edges, which
-is the slide that costs most to draw) and pictures (words over a picture the slide
-brings with it as its background). There is no video in it yet.
+is the slide that costs most to draw), pictures (words over a picture the slide
+brings with it as its background), and words over the video.
 
 ## The baseline
 

@@ -11,6 +11,9 @@ Item {
     property var layout: null
     property alias currentText: view.currentText
     property alias nextText: view.nextText
+    // As for Slide: shadows, and the operator window, for the layout's Screen Previews
+    property bool effects: true
+    property var pictures: null
 
     StageView {
         id: view
@@ -23,5 +26,7 @@ Item {
         anchors.fill: parent
         visible: scene.layout !== null
         slide: scene.layout
+        effects: scene.effects
+        pictures: scene.pictures
     }
 }

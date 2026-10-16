@@ -13,6 +13,18 @@ import QtQuick
 // window has gone a while without a new one. Each is given in milliseconds since the
 // asking; where a thing is done many times over, the middle one of them (the median)
 // and the worst are given.
+//
+// The last part is of what keeps drawing: a video playing under the slides, on the
+// output and in a Screen Preview of the output on the stage screen. There nothing is
+// waited for; what is counted, over some seconds, is how many frames each window drew
+// and how many the video's decoder gave, the longest gap between two frames of the
+// output (a gap is a frame of the video that was not shown), the processor used, and
+// the longest the app's own thread was too busy to look at the clock, which is how
+// long a click would have waited for it. The stage screen fills a display of its own
+// where there is a second one, as it does in a church; on a computer with one display
+// it is a window of 1280 by 720 over the output. (Whether the desktop draws a window
+// that is over another that fills the screen is the desktop's affair: the stage's
+// frames a second say whether it did.)
 QtObject {
     id: run
 
@@ -28,6 +40,20 @@ QtObject {
     property var waiting: null
     // Called as each frame of the operator window reaches the screen, if set
     property var eachFrame: null
+    // The longest gap between two frames of the output since it was last set to nothing
+    property double outputWorstGap: 0
+    // The stage window, and how many of its frames have reached the screen
+    property var stageWindow: bench.window("stage")
+    property int stageFrames: 0
+    // How many frames the decoder of the video that is playing has handed the screens
+    property int videoFrames: 0
+    // The longest the app's thread was too busy to look at the clock (see look()) since
+    // it was last set to nothing, in milliseconds, and when it last did; kept only while
+    // something that asks for it is measured (`keepingStall`), so that the clock is not
+    // asked a hundred times a second, at a cost of its own, while the app stands by
+    property double stall: 0
+    property double lookedAt: 0
+    property bool keepingStall: false
     // What is still to do, in order: each is a function, which calls next() when done
     property var jobs: []
 
@@ -53,7 +79,20 @@ QtObject {
             if (++run.outputFrames === 1)
                 run.bench.record("startup: to the output window's first frame", now, "ms")
             run.framed(true, now, run.outputFrame)
+            run.outputWorstGap = Math.max(run.outputWorstGap, now - run.outputFrame)
             run.outputFrame = now
+        }
+    }
+    property Connections stageWatch: Connections {
+        target: run.stageWindow
+        function onFrameSwapped() {
+            ++run.stageFrames
+        }
+    }
+    property Connections videoWatch: Connections {
+        target: output ? output.liveVideoSink : null
+        function onVideoFrameChanged() {
+            ++run.videoFrames
         }
     }
 
@@ -81,7 +120,15 @@ QtObject {
         w.lastAt = now
     }
 
+    // (Asked for every 10 ms on the app's own thread: a longer wait than that is time the
+    // thread was doing something else, and is kept as `stall`.)
     function look() {
+        if (keepingStall) {
+            const at = bench.now()
+            if (lookedAt > 0)
+                stall = Math.max(stall, at - lookedAt - watch.interval)
+            lookedAt = at
+        }
         const w = waiting
         if (!w)
             return
@@ -217,6 +264,66 @@ QtObject {
         })
     }
 
+    // Some seconds of whatever is playing, with nothing being done: see the top.
+    function playing(label, seconds) {
+        let from = 0
+        let cpu = 0
+        let output = 0
+        let stage = 0
+        let decoded = 0
+        jobs.push(() => {
+            from = bench.now()
+            cpu = bench.cpu()
+            output = outputFrames
+            stage = stageFrames
+            decoded = videoFrames
+            outputWorstGap = 0
+            stall = 0
+            lookedAt = 0
+            keepingStall = true
+            after(seconds * 1000)
+        })
+        jobs.push(() => {
+            keepingStall = false
+            const lasted = (bench.now() - from) / 1000
+            bench.record(label + ": output frames a second", (outputFrames - output) / lasted, "fps")
+            bench.record(label + ": video frames decoded a second", (videoFrames - decoded) / lasted, "fps")
+            bench.record(label + ": stage frames a second", (stageFrames - stage) / lasted, "fps")
+            bench.record(label + ": longest wait between frames of the output", outputWorstGap, "ms")
+            bench.record(label + ": processor used, of one core", (bench.cpu() - cpu) / 10 / lasted, "%")
+            bench.record(label + ": longest the app was too busy to answer", stall, "ms")
+            next()
+        })
+    }
+
+    // Slides of a presentation put on the output one after another, a little apart,
+    // while something plays: the work in each click, and the longest the app was too
+    // busy to answer while they changed. (Not the time to the output, which is drawing
+    // a frame of the video every thirtieth of a second anyway.)
+    function changing(name, label, count) {
+        const calls = []
+        jobs.push(() => {
+            stall = 0
+            lookedAt = 0
+            keepingStall = true
+            next()
+        })
+        for (let index = 1; index <= count; ++index) {
+            jobs.push(() => {
+                const from = bench.now()
+                goLive(index)
+                calls.push(bench.now() - from)
+                after(700)
+            })
+        }
+        jobs.push(() => {
+            keepingStall = false
+            bench.record(label + ": work in the click itself, median", median(calls), "ms")
+            bench.record(label + ": longest the app was too busy to answer", stall, "ms")
+            next()
+        })
+    }
+
     Component.onCompleted: {
         const names = ["Words", "Shapes", "Pictures"]
 
@@ -293,6 +400,64 @@ QtObject {
             bench.record("standing by: frames drawn a second, both windows", (operatorFrames + outputFrames - frames) / seconds, "fps")
             bench.record("memory: held at the end", bench.memory(), "MB")
             bench.record("memory: most held", bench.peakMemory(), "MB")
+            next()
+        })
+
+        // ---- A Screen Preview of the output on the stage screen, which fills a display
+        // of its own if there is a second one (one the output is not on)
+        const previewLayout = () => StageLayouts.layouts.find(layout => layout.name === "Screen Preview")?.id ?? ""
+        jobs.push(() => {
+            const stage = Screens.stage[0]
+            const other = Screens.displays.find(display => display.name !== output.screen.name)
+            if (stage && other)
+                Screens.setOutput(stage.id, { output: "display", display: other.name })
+            after(1500)
+        })
+        jobs.push(() => {
+            // (Found again: a window moved to another display may be one made anew.) On
+            // one display, the window is made the size of a small screen, so that what
+            // it draws is not made to look cheaper than it is.
+            stageWindow = bench.window("stage")
+            if (stageWindow && stageWindow.screen.name === output.screen.name) {
+                stageWindow.width = 1280
+                stageWindow.height = 720
+            }
+            Show.stageLayoutId = previewLayout()
+            after(1000)
+        })
+        showing("Words", "stage preview: show", 18)
+
+        // ---- A video playing under the slides, with the stage screen's plain view and
+        // then with its Screen Preview of the output: where the workspace has the video,
+        // which is known only once its library is open (the jobs for it are put in
+        // front of what is left)
+        jobs.push(() => {
+            if (presentation("Video")) {
+                const rest = jobs
+                jobs = []
+                jobs.push(() => {
+                    Show.stageLayoutId = ""
+                    openEntry(presentation("Video"))
+                    goLive(0)
+                    after(3000)
+                })
+                playing("video, the stage's plain view", 8)
+                jobs.push(() => {
+                    Show.stageLayoutId = previewLayout()
+                    after(1500)
+                })
+                playing("video, a Screen Preview on the stage", 8)
+                changing("Video", "video, a Screen Preview on the stage, slides changed", 10)
+                jobs.push(() => {
+                    clearMedia()
+                    after(500)
+                })
+                jobs = jobs.concat(rest)
+            }
+            next()
+        })
+        jobs.push(() => {
+            Show.stageLayoutId = ""
             next()
         })
 

@@ -14,8 +14,10 @@ Item {
     property var props: []
     // How long one takes to come or go, in milliseconds
     property int duration: 0
-    // As for Slide: shadows, and whether a timer's hundredths are worth following
+    // As for Slide: shadows, and whether a timer's hundredths are worth following; and
+    // the operator window, for Screen Previews
     property bool effects: true
+    property var pictures: null
 
     // Takes away the ones that are off and have faded from sight. (All of them at one
     // go: several asking for this at once, as when the props are cleared, are answered
@@ -74,6 +76,7 @@ Item {
             z: place
             slide: kept
             effects: stack.effects
+            pictures: stack.pictures
             opacity: on && made ? 1 : 0
             onNowChanged: {
                 if (now)

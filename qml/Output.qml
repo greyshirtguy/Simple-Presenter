@@ -25,6 +25,7 @@ AuxWindow {
     property alias propsDuration: scene.propsDuration
     property alias messages: scene.messages
     property alias mask: scene.mask
+    property alias pictures: scene.pictures
     readonly property var liveVideoSink: scene.liveVideoSink
     readonly property var livePlayer: scene.livePlayer
     readonly property var heldSlide: scene.heldSlide

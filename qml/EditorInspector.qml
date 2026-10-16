@@ -461,8 +461,10 @@ Rectangle {
                 text: "Fill"
             }
 
-            // What it is filled with: a colour, a gradient from one colour to another, or
-            // a picture. Choosing a kind turns the fill on.
+            // What it is filled with: a colour, a gradient from one colour to another, a
+            // picture, or a Screen Preview, which is what one of the workspace's screens is
+            // showing (see ScreenPicture), as ProPresenter's fill menu has it. Choosing a
+            // kind turns the fill on. A Screen Preview starts as the first audience screen.
             CheckLine {
                 id: fillLine
 
@@ -475,20 +477,27 @@ Rectangle {
                 Choice {
                     objectName: "fillKind"
                     width: shapeTab.width - 78
-                    model: ["Colour", "Gradient", "Media"]
-                    choice: fillLine.kind === "gradient" ? 1 : fillLine.kind === "media" ? 2 : 0
+                    model: ["Colour", "Gradient", "Media", "Screen Preview"]
+                    choice: fillLine.kind === "gradient" ? 1 : fillLine.kind === "media" ? 2 : fillLine.kind === "screen" ? 3 : 0
                     onChosen: (index) => {
-                        if (index === 2)
+                        if (index === 2) {
                             inspector.chooseMedia()
-                        else
+                        } else if (index === 3) {
+                            if (fillLine.kind !== "screen") {
+                                const first = Screens.audience[0] ?? Screens.screens[0]
+                                inspector.setProperties({ fillKind: "screen", fillScreenId: first ? first.id : "",
+                                                          fillScreenName: first ? first.name : "", fillOn: true }, false)
+                            }
+                        } else {
                             inspector.setProperties({ fillKind: index === 1 ? "gradient" : "color", fillOn: true }, false)
+                        }
                     }
                 }
             }
 
             Line {
                 caption: "Colour"
-                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media"
+                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen"
 
                 // Picking a colour turns the fill on, and makes it a plain colour.
                 ColorButton {
@@ -573,9 +582,40 @@ Rectangle {
                 }
             }
 
+            // Which screen a Screen Preview is of: any of the workspace's, audience or
+            // stage, by name. One the link names that this workspace does not have is
+            // shown as the link names it, and nothing is drawn for it.
+            Line {
+                caption: "Screen"
+                visible: fillLine.kind === "screen"
+
+                Choice {
+                    id: screenChoice
+
+                    readonly property var screens: Screens.screens
+                    readonly property int found: {
+                        const element = inspector.element
+                        if (!element || element.fillKind !== "screen")
+                            return -1
+                        const byId = screens.findIndex(screen => screen.id === element.fillScreenId)
+                        return byId >= 0 ? byId : screens.findIndex(screen => screen.name === element.fillScreenName)
+                    }
+
+                    objectName: "fillScreen"
+                    width: shapeTab.width - 78
+                    model: found >= 0 || !inspector.element ? screens.map(screen => screen.name)
+                                                            : screens.map(screen => screen.name).concat([inspector.element.fillScreenName + " (not here)"])
+                    choice: found >= 0 ? found : screens.length
+                    onChosen: (index) => {
+                        if (index < screens.length && index !== found)
+                            inspector.setProperties({ fillScreenId: screens[index].id, fillScreenName: screens[index].name }, false)
+                    }
+                }
+            }
+
             AppCheck {
                 width: parent.width
-                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media"
+                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen"
                 text: "Only behind the lines of text"
                 checked: inspector.element ? inspector.element.fillLinesOnly : false
                 onToggled: (checked) => inspector.setProperties({ fillLinesOnly: checked }, false)

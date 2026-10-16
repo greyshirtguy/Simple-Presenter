@@ -18,6 +18,11 @@ Item {
     property alias content: root.slide
     // Whether to draw shadows; thumbnails go without (see SlideElement)
     property bool effects: true
+    // The operator window, where the slide is on show or stands for a screen that it is
+    // on (the operator's preview), for the Screen Previews in it to ask what the
+    // screens show; null for a slide that is only being looked at (a thumbnail, the
+    // editor), which draws none (see SlideElement and ScreenPicture)
+    property var pictures: null
     readonly property real slideWidth: slide?.width ?? 1920
     readonly property real slideHeight: slide?.height ?? 1080
     readonly property real u: Math.min(width / slideWidth, height / slideHeight)
@@ -94,6 +99,7 @@ Item {
                 source: modelData
                 unit: root.u
                 effects: root.effects
+                pictures: root.pictures
                 // Reading the tick is what has a rule about a timer asked again. (And
                 // one about the stage message reads that, where it is asked.)
                 visible: modelData.visibilityTimed ? Timers.tick >= 0 && root.showsNow(modelData) : modelData.visible

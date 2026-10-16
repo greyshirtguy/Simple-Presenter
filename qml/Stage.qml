@@ -8,6 +8,7 @@ AuxWindow {
     property alias layout: scene.layout
     property alias currentText: scene.currentText
     property alias nextText: scene.nextText
+    property alias pictures: scene.pictures
 
     objectName: "stage"
     title: "Stage"

@@ -461,14 +461,15 @@ groups {
 """
 
 
-def tiny_png(rgb, size=8):
-    """A small square picture of one colour, as the bytes of a PNG file."""
+def tiny_png(rgb, size=8, height=None):
+    """A small picture of one colour, as the bytes of a PNG file: square, or `size` wide and `height` high."""
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
 
+    height = height or size
     row = b"\x00" + bytes(rgb) * size
-    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(row * size)) + chunk(b"IEND", b""))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(row * height)) + chunk(b"IEND", b""))
 
 
 def prepare_cleargroups(workspace, test_dir):
@@ -1661,6 +1662,19 @@ def after_announce(workspace, test_dir):
     ]
 
 
+def prepare_red_picture(workspace, test_dir):
+    """A picture of one colour, red and the shape of a screen, for a test to put on the media layer and look for
+    (screenpreview): in the test's own folder and NOT under the workspace's Media, which in a copy of a
+    fixture is a link to a real one (see prepare_audio)."""
+    folder = os.path.join(test_dir, "media")
+    os.makedirs(folder)
+    path = os.path.join(folder, "Red.png")
+    if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("a test's picture was about to be written outside the test's folder: %s" % os.path.realpath(path))
+    with open(path, "wb") as out:
+        out.write(tiny_png((255, 0, 0), 320, 180))
+
+
 def prepare_messages(workspace, test_dir):
     """The workspace is given a file of messages as ProPresenter might have left one (MESSAGES_FILE). Nothing is
     written but that one file, in the copy's Configuration."""
@@ -2064,6 +2078,7 @@ TESTS = {
     "audio": test("Act", timeout=300, prepare=prepare_audio, after=after_audio),
     "notes": test("Act", timeout=300, prepare=prepare_notes, after=after_notes),
     "messages": test("Act", timeout=300, prepare=prepare_messages, after=after_messages),
+    "screenpreview": test("Act", timeout=240, prepare=prepare_red_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),
     "shapes": test("Shapes", SHELL, 120),

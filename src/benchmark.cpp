@@ -1,17 +1,21 @@
 #include "benchmark.h"
 
 #include "proconvert.h"
+#include "screenfile.h"
+#include "stage.pb.h"
 #include "workspacefiles.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QPainter>
 #include <QScreen>
 #include <QSysInfo>
 #include <QTextStream>
+#include <QWindow>
 
 #include <ctime>
 #include <unistd.h>
@@ -142,6 +146,16 @@ double Benchmark::sinceStart()
     return double(now.tv_sec) * 1000.0 + double(now.tv_nsec) / 1e6 - started;
 }
 
+QObject *Benchmark::window(const QString &name) const
+{
+    const auto windows = QGuiApplication::allWindows();
+    for (QWindow *candidate : windows) {
+        if (candidate->objectName() == name)
+            return candidate;
+    }
+    return nullptr;
+}
+
 double Benchmark::cpu() const
 {
     timespec used;
@@ -236,15 +250,62 @@ QString Benchmark::makeWorkspace(const QString &folder)
         return error;
 
     // Pictures: words over a picture that the slide brings with it as its background.
-    return writePresentation(library + "/Pictures.pro", "Pictures", 18,
-                             [&](rv::data::Presentation *, rv::data::Cue *cue, rv::data::Slide *slide, int i) {
+    const auto background = [&folder](rv::data::Cue *cue, const QString &file) {
+        rv::data::Action *action = cue->add_actions();
+        action->mutable_uuid()->set_string(workspace::newUuid());
+        action->set_isenabled(true);
+        action->set_type(rv::data::Action::ACTION_TYPE_MEDIA);
+        action->mutable_media()->mutable_audio();
+        *action->mutable_media()->mutable_element() = workspace::mediaElement(file, folder);
+        workspace::setMediaForeground(action, false);
+    };
+    error = writePresentation(library + "/Pictures.pro", "Pictures", 18,
+                              [&](rv::data::Presentation *, rv::data::Cue *cue, rv::data::Slide *slide, int i) {
         addWords(slide, words(i, 2), 340, 400, 110);
-        rv::data::Action *background = cue->add_actions();
-        background->mutable_uuid()->set_string(workspace::newUuid());
-        background->set_isenabled(true);
-        background->set_type(rv::data::Action::ACTION_TYPE_MEDIA);
-        background->mutable_media()->mutable_audio();
-        *background->mutable_media()->mutable_element() = workspace::mediaElement(pictures.at(i % 4), folder);
-        workspace::setMediaForeground(background, false);
+        background(cue, pictures.at(i % 4));
     });
+    if (!error.isEmpty())
+        return error;
+
+    // Video: words over a video that the first slide brings with it as its background,
+    // and that goes on playing, round and round, under the rest. Only where
+    // benchmark/run.py has made a video and said where it is: the app has no way of
+    // making one itself (Qt's own recorder would not, on the computer this is made on).
+    // It is put beside Media and not in it: what is in Media is in the media bin, whose
+    // thumbnail of a video would be made while the app starts, and change what the
+    // start-up lines measure.
+    const QString video = qEnvironmentVariable("SP_BENCHMARK_VIDEO");
+    if (!video.isEmpty() && QFileInfo(video).isFile()) {
+        const QString copied = folder + "/Video.mp4";
+        if (!QFile::copy(video, copied))
+            return QStringLiteral("Could not copy %1 to %2").arg(video, copied);
+        error = writePresentation(library + "/Video.pro", "Video", 12,
+                                  [&](rv::data::Presentation *, rv::data::Cue *cue, rv::data::Slide *slide, int i) {
+            addWords(slide, words(i, 2), 340, 400, 110);
+            if (i == 0)
+                background(cue, copied);
+        });
+        if (!error.isEmpty())
+            return error;
+    }
+
+    // A stage layout of one shape, filled with a Screen Preview of the output: as big as
+    // most of the stage screen, as ProPresenter's own stage layouts have theirs, so that
+    // what a picture of the output costs is not made to look less than it is.
+    rv::data::Stage::Document stage;
+    rv::data::Stage::Layout *layout = stage.add_layouts();
+    layout->mutable_uuid()->set_string(workspace::newUuid());
+    layout->set_name("Screen Preview");
+    rv::data::Slide *slide = layout->mutable_slide();
+    slide->mutable_uuid()->set_string(workspace::newUuid());
+    slide->set_draws_background_color(true);
+    proconvert::setColor(slide->mutable_background_color(), Qt::black);
+    slide->mutable_size()->set_width(1920);
+    slide->mutable_size()->set_height(1080);
+    const screenfile::Screen output = screenfile::defaults().first();
+    addShape(slide, "rectangle", QRectF(0, 180, 1440, 810),
+             {{"fillKind", "screen"}, {"fillScreenId", output.id}, {"fillScreenName", output.name}, {"fillOn", true}});
+    if (!QDir().mkpath(folder + "/Configuration"))
+        return QStringLiteral("Could not make the benchmark's Configuration folder in %1").arg(folder);
+    return workspace::writeMessage(folder + "/Configuration/Stage", stage, QStringLiteral("the stage layouts"));
 }

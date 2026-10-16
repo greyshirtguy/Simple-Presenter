@@ -10,8 +10,11 @@
 // It is for telling whether a change to the app has made it slower. So what it times
 // has to be the same from one run to the next, which a real workspace is not: the
 // benchmark makes its own, with three presentations of fixed content (words; shapes,
-// gradients and pictures cut to shapes; words over pictures), and throws it away when
-// it is done. The user's workspaces and settings are not read or touched.
+// gradients and pictures cut to shapes; words over pictures), a stage layout whose one
+// shape is a Screen Preview of the output, and, where benchmark/run.py has made a
+// video and named it in SP_BENCHMARK_VIDEO, a fourth presentation of words over that
+// video; and throws it away when it is done. The user's workspaces and settings are
+// not read or touched.
 //
 // The run itself is qml/Benchmark.qml, which works the app as an operator would. This
 // is what that needs and QML cannot do: a fine clock, the processor time and memory the
@@ -35,6 +38,9 @@ public:
 
     // The same, for the run: every time in the report is on this clock.
     Q_INVOKABLE double now() const { return sinceStart(); }
+    // One of the app's windows, by its name ("stage"), for the run to count its frames;
+    // null if there is none
+    Q_INVOKABLE QObject *window(const QString &name) const;
     // Milliseconds of processor time the app has used, on all its threads
     Q_INVOKABLE double cpu() const;
     // Megabytes of memory the app holds now, and the most it has held

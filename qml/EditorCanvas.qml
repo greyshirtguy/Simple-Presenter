@@ -98,6 +98,15 @@ Item {
         return error === ""
     }
 
+    // Which screen an element whose fill is a Screen Preview shows, in a few words: the
+    // screen by the name it has now, or as the link names it if this workspace has no
+    // such screen. (The picture itself is not drawn in the editor: see SlideElement.)
+    function screenCaption(element) {
+        const screen = Screens.screens.find(candidate => candidate.id === element.fillScreenId)
+                    ?? Screens.screens.find(candidate => candidate.name === element.fillScreenName)
+        return "Screen Preview: " + (screen ? screen.name : element.fillScreenName + " (not here)")
+    }
+
     // What an element's text is linked to, in a few words; "" for one whose text is
     // its own. A timer goes by the name it has now, which may not be the name the link
     // was made with.
@@ -882,9 +891,10 @@ Item {
         }
     }
 
-    // An element whose text is linked to something: a yellow outline, and in small
-    // print at its foot what it is linked to. It goes with the element as that is
-    // dragged, and stays when the element is picked, inside the frame that shows that.
+    // An element whose text is linked to something, or whose fill is a Screen Preview:
+    // a yellow outline, and in small print at its foot what it is linked to. It goes
+    // with the element as that is dragged, and stays when the element is picked,
+    // inside the frame that shows that.
     Repeater {
         model: canvas.elements.length
 
@@ -895,14 +905,15 @@ Item {
             readonly property var modelData: canvas.elementOf(index)
             readonly property var box: canvas.dragBox !== null && modelData.id === canvas.selectedId ? canvas.dragBox
                                                                                                     : modelData
-            readonly property string caption: modelData.linkKind !== "none" ? canvas.linkCaption(modelData) : ""
+            readonly property string caption: modelData.linkKind !== "none" ? canvas.linkCaption(modelData)
+                                            : modelData.fillKind === "screen" ? canvas.screenCaption(modelData) : ""
 
             objectName: "linkMark"
             x: canvas.originX + box.x * canvas.u
             y: canvas.originY + box.y * canvas.u
             width: box.width * canvas.u
             height: box.height * canvas.u
-            visible: !modelData.hidden && modelData.linkKind !== "none"
+            visible: !modelData.hidden && (modelData.linkKind !== "none" || modelData.fillKind === "screen")
             rotation: canvas.dragTurn !== null && modelData.id === canvas.selectedId ? canvas.dragTurn : modelData.rotation
             color: "transparent"
             border.width: 1.5

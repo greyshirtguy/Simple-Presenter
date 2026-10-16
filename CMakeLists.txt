@@ -175,6 +175,7 @@ qt_add_qml_module(SimplePresenter
         qml/RowDrag.qml
         qml/RowIcon.qml
         qml/SectionTitle.qml
+        qml/ScreenPicture.qml
         qml/ScreensSettings.qml
         qml/SearchPanel.qml
         qml/SettingsScreen.qml

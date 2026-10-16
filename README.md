@@ -205,6 +205,13 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Screen Preview.** A shape can be filled with a picture of what one of the
+  workspace's screens is showing, which is ProPresenter's Screen Preview: on a stage
+  layout, the output as the room sees it, video and all; or on a slide or a prop.
+  ProPresenter's own Screen Previews in its stage layouts are drawn now, and one is
+  made in the editor's Fill menu, with the screen chosen under it. The picture is drawn
+  again from what the screen is told, its video's frames borrowed from the one decoder
+  that plays it: see [Stage layouts](#stage-layouts) for what it costs.
 - **Color Triggers.** A text box linked to a timer, or to a video's time left, changes
   colour as the time comes down to given times: orange at a minute, red at nothing,
   and red on through an overrun, say. They are ProPresenter's, read from its files and
@@ -450,7 +457,8 @@ the top of this page.
       spacing, made smaller or larger to suit its box where it is set to be; shapes,
       from their outlines, whatever they are; fills that are a colour (including one
       that is only behind the lines of the text), a gradient from one colour to
-      another, or a picture; strokes, shadows and feathered edges; elements that show
+      another, a picture, or a Screen Preview of a screen; strokes, shadows and
+      feathered edges; elements that show
       only when another has text, or while a timer runs; and text linked from another
       element, from a timer, or from the slide that is live.
 - [ ] **Editor**: text boxes, shapes and pictures can be added, moved, resized, turned
@@ -1525,6 +1533,41 @@ and changed in the same [editor](#editing) as a slide. A text box of one can sho
 
 [Editing](#editing) has how each is set, under Linked text.
 
+### Screen Preview
+
+A shape on a stage layout can be filled with a **Screen Preview**: a picture of what one
+of the workspace's screens is showing, kept up to date as it changes. Of an audience
+screen it is everything the screen shows (the media, with a video moving in it as it
+plays, the slide, the announcements, the props, the messages and the mask, in what the
+live look gives that screen); of a stage screen, the layout it has. It is chosen in the
+editor's Fill menu, with the screen under it, and slides and props can have one too.
+ProPresenter's own stage layouts come with some, which are drawn as they are.
+
+The picture is not a copy of the screen's pixels, which one window cannot read from
+another without a trip through the computer's memory that would cost more than
+drawing it again. It is the screen drawn again, at the picture's size, from what the
+screen is told: the slide's words again, a still picture at the picture's size, and a
+video's frames borrowed from the one decoder that plays it for the screens, every one
+of them. Each borrowed frame is a frame the stage screen draws as well, which is the
+whole of the cost. On the laptop this is made on, with a 1080p video playing under the
+words and the stage showing a picture of the output most of its size, the app used
+about a quarter of one of the processor's cores, where with the stage showing its plain
+view it used a tenth: a stage drawing every frame of a video costs about what the
+output itself does. Nothing else was held up, and no frame of the output was late. A
+picture that took fifteen frames a second instead, tried for comparison, used a sixth.
+(The benchmark measures this: see [Built for modest hardware](#built-for-modest-hardware).)
+
+Guesses at ProPresenter, and choices of this app's own: the screen is fitted into the
+shape whole, on black where it shows nothing, and the shape is empty around it; a slide
+coming or going is a cut in the picture, without the transition the screen makes; its
+slides have shadows only where the shape is a quarter of the screen's height or more;
+a picture's own slides have no pictures in them, so that a screen with a picture of
+itself shows it once and not without end; a screen the link names that the workspace
+does not have shows nothing; and the thumbnails show nothing for it, nor does the
+editor, where the shape has the fill ProPresenter keeps beside the link (black, in its
+own) and a yellow mark that says which screen. ProPresenter's stage editor also adds a
+Screen Preview with its `+`; here a shape is added and its fill made one.
+
 Along the bottom of the tab is the **stage message**: a box to type in what the people
 on the stage are to be told, and a button that shows it and hides it. Enter in the box
 shows it too. Shown, it is what every text box linked to the stage message shows, on
@@ -1548,9 +1591,10 @@ a given name (and nothing at all of a slide that has no element of that name, wh
 how ProPresenter has it and is made use of), and with a song's chords over them where a
 box has those switched on; a slide's notes; timers; the clock; the time left of a
 video; the stage message; and boxes that show only while a timer is running, or has
-run out. What they have that is not shown yet (pictures of the slides or of an output)
-is left empty on the stage, and in the editor is marked with what it is; the links
-themselves are kept, so the layouts still work in ProPresenter.
+run out; and Screen Previews (above). What they have that is not shown yet (pictures of
+the slide that is live or of the next) is left empty on the stage, and in the editor is
+marked with what it is; the links themselves are kept, so the layouts still work in
+ProPresenter.
 
 ## Editing
 
@@ -1619,8 +1663,9 @@ choose between three ways of working. **Slides** is everything described here.
   once the drag is under way.)
 - **Shape.** Position and size, opacity, fill, stroke and shadow. A fill is a colour
   (optionally only behind the lines of the text), a gradient from one colour to another
-  along an angle, or a picture, which is made to fit inside the element, to fill it and
-  be cut off at its edges, or stretched to it. A rounded rectangle has one handle more
+  along an angle, a picture, which is made to fit inside the element, to fill it and
+  be cut off at its edges, or stretched to it, or a [Screen Preview](#screen-preview) of
+  one of the workspace's screens, chosen under it. A rounded rectangle has one handle more
   than the others, a round one on its top edge, which is dragged to make its corners
   more round or less. A rectangle, a rounded rectangle and an ellipse can have their
   edges feathered, which fades them out. A picture is referred to where it is on disk,
@@ -2828,6 +2873,7 @@ with Intel HD 620 graphics. On it, when each of these was last measured:
 | Going into [Simple View](#simple-view) | a third of a second: the panes slide off in a fifth, at sixty frames a second, and the slides fill the window a tenth later |
 | Thumbnails for 112 videos, 47 of them 4K, the first time they are seen | 2.5 seconds, while the window stays responsive |
 | Putting a still on the output, even one of 8000 by 4500 | read in the background; the window is not held up |
+| A 1080p video under the words, with a [Screen Preview](#screen-preview) of the output on the stage | a quarter of one processor core, against a tenth without the Screen Preview; every frame on both screens, none late (measured by the benchmark, in a desktop of its own) |
 | Memory, with a workspace open | about 290 MB, of which 160 MB is what Qt needs for any window; up to 450 MB while a 4K video plays |
 
 What gets it there:
@@ -2841,7 +2887,9 @@ What gets it there:
   busy for the same picture.
 - **Video is decoded once, by the hardware if it can.** The graphics chip decodes it
   when a driver is installed, and the preview in the operator window borrows a few of
-  the output's frames a second instead of decoding the file again.
+  the output's frames a second, and a Screen Preview every one, instead of decoding the
+  file again. Drawing them is then what costs: a window that shows a moving video draws
+  thirty frames a second, whatever it borrows them from.
 - **Media files are never read on the thread that runs the windows.** Thumbnails are
   made on spare processor threads, one keyframe from each video, and kept on disk. A
   still put on the output is read on another thread, at no more than the size it can be
