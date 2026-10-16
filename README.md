@@ -205,10 +205,13 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Copy Text Style and Paste Text Style.** A slide's menu, while showing and in the
+  editor, puts the look of one slide's text boxes on another's, as a theme would,
+  keeping the words. See [Editing](#editing).
 - **The slide live on the announcements has a green ring**, the show's keeping its
   orange, so the two are told apart. See [Announcements](#announcements).
 - **Mended:** a screen sent over NDI went out black, or as a garble, after it was
-  switched off and on again.
+  switched off and on again; and a song dressed in a theme lost its chords.
 - **Screen Preview.** A shape can be filled with a picture of what one of the
   workspace's screens is showing, which is ProPresenter's Screen Preview: on a stage
   layout, the output as the room sees it, video and all; or on a slide or a prop.
@@ -1685,6 +1688,19 @@ choose between three ways of working. **Slides** is everything described here.
   Delete Slide… too. A pasted slide is a slide of its own, and so is everything on it.
   None of these can be undone with Undo, and each takes with it what could be undone
   before; deleting asks first.
+- **Text style.** A slide's menu, in the editor's list and while showing, has **Copy
+  Text Style** and **Paste Text Style**: the look of one slide's text boxes put on
+  another's, in this presentation or another. It is the copied slide taken as a
+  [theme](#themes) would be, for its text boxes alone. The text boxes of the two that
+  have words are matched as a slide's are with a theme's (by name, then by size, then
+  in order), and each of the slide's takes everything of its match's: its name, place,
+  size, fill, outline, shadow, and the one format of its text. It keeps its words and
+  the chords over them. Nothing else of the slide changes, and nothing else of the
+  copied one comes with it: not its shapes or pictures, not a text box left over, not
+  its background. In the editor it is a step that can be undone; while showing it is
+  for good, and the file as it was is kept with the editor's backups first, as for a
+  theme. (What "text style" covers is a choice of this app's, from taking the copied
+  slide as a theme: ProPresenter's own has not been looked at.)
 - **Visibility.** An element can be set to show only when other elements of the slide
   have text, or have none: all, any or none of a list of conditions.
 - **Linked text.** A text box can show something other than text of its own, in its
@@ -2519,10 +2535,11 @@ this app's reading of it, and may differ from ProPresenter's in the corners.
   both; and boxes much of a size **in the order** they come.
 - A matched text box takes everything from the theme's: its name, place, size, fill,
   outline, shadow, and the one format the theme's text is in (font, size, colour,
-  alignment, capitals, how it fits its box). It keeps its words. (The name is worth
-  having: a [stage layout](#stage-layouts) can show only the text boxes of a given
-  name, and a song whose boxes were called something else, or nothing, is brought into
-  line by being dressed in a theme, however its boxes were matched.)
+  alignment, capitals, how it fits its box). It keeps its words, and the chords over
+  them. (The name is worth having: a [stage layout](#stage-layouts) can show only the
+  text boxes of a given name, and a song whose boxes were called something else, or
+  nothing, is brought into line by being dressed in a theme, however its boxes were
+  matched.)
 - What else the theme slide has (shapes, pictures, text boxes that get no words) comes
   with it, the text boxes empty.
 - **Words are never thrown away**: a text box of the slide that has no box in the theme

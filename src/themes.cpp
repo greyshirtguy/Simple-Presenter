@@ -55,8 +55,9 @@ QString freeSlideName(const rv::data::Template::Document &theme)
     return name;
 }
 
-// The file as it is, kept beside the editor's backups before it is changed.
-void keepCopy(const QString &path, const QString &workspace)
+// The file as it is, kept beside the editor's backups before it is changed: by a theme,
+// or by a pasted text style (`what`).
+void keepCopy(const QString &path, const QString &workspace, const QString &what)
 {
     const QFileInfo file(path);
     QString place = file.dir().dirName();
@@ -67,7 +68,7 @@ void keepCopy(const QString &path, const QString &workspace)
     if (!directory.mkpath(QStringLiteral(".")))
         return;
     const QString target = directory.filePath(file.completeBaseName() + QDateTime::currentDateTime().toString(QStringLiteral(" yyyy-MM-dd HH.mm.ss"))
-                                              + QStringLiteral(" before theme.") + file.suffix());
+                                              + QStringLiteral(" before ") + what + u'.' + file.suffix());
     if (!QFile::exists(target))
         QFile::copy(path, target);
 }
@@ -168,7 +169,7 @@ QString Themes::apply(const QString &presentation, const QStringList &slideIds, 
     const rv::data::Template::Slide *themed = themefile::slideOf(theme, slideId);
     if (!themed)
         return QStringLiteral("The theme \"%1\" no longer has that slide").arg(place);
-    keepCopy(presentation, m_workspace);
+    keepCopy(presentation, m_workspace, QStringLiteral("theme"));
     int count = 0;
     error = ProDocument::dressCues(presentation, slideIds, themed->base_slide(), m_elementIds, &count);
     if (error.isEmpty())
@@ -199,6 +200,34 @@ QVariantMap Themes::dressed(const QString &presentation, const QString &slideId,
         m_dressed.clear();
     m_dressed.insert(key, made);
     return made;
+}
+
+QString Themes::copyTextStyle(const QString &presentation, const QString &slideId)
+{
+    QString error;
+    const QByteArray slide = ProDocument::slideOfCue(presentation, slideId, &error);
+    if (!error.isEmpty())
+        return error;
+    m_copiedTextStyle = slide;
+    emit copiedTextStyleChanged();
+    return {};
+}
+
+QString Themes::pasteTextStyle(const QString &presentation, const QStringList &slideIds)
+{
+    rv::data::Slide style;
+    if (m_copiedTextStyle.isEmpty() || !style.ParseFromArray(m_copiedTextStyle.constData(), int(m_copiedTextStyle.size())))
+        return QStringLiteral("There is no copied text style to paste");
+    keepCopy(presentation, m_workspace, QStringLiteral("text style"));
+    int count = 0;
+    const QString error = ProDocument::dressCuesText(presentation, slideIds, style, &count);
+    if (error.isEmpty())
+        SessionLog::write("themes", QStringLiteral("a copied text style put on %1 of \"%2\" (%3)")
+                                        .arg(slideIds.size() == 1 ? QStringLiteral("a slide") : QStringLiteral("%1 slides").arg(slideIds.size()),
+                                             QFileInfo(presentation).completeBaseName(),
+                                             count == 1 ? QStringLiteral("one text box") : QStringLiteral("%1 text boxes").arg(count)));
+    m_dressed.clear();
+    return error;
 }
 
 QVariantMap Themes::add(const QString &name)

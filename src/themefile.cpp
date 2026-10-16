@@ -11,6 +11,8 @@
 #include <QFile>
 #include <QSaveFile>
 
+#include <algorithm>
+
 namespace themefile {
 
 QString folder(const QString &workspace)
@@ -127,6 +129,41 @@ RichText poured(const QString &words, const rv::data::Graphics::Text &themed)
     return made;
 }
 
+// Where a thing of a slide of one size goes on a slide of another: as far across and as
+// far down, and as large in the same proportion.
+void fit(rv::data::Graphics::Element *graphic, double across, double down)
+{
+    if (across == 1 && down == 1)
+        return;
+    rv::data::Graphics::Rect *bounds = graphic->mutable_bounds();
+    bounds->mutable_origin()->set_x(bounds->origin().x() * across);
+    bounds->mutable_origin()->set_y(bounds->origin().y() * down);
+    bounds->mutable_size()->set_width(bounds->size().width() * across);
+    bounds->mutable_size()->set_height(bounds->size().height() * down);
+}
+
+// A text box of a slide made to look as another does: it takes everything of the
+// other's (its name, where it is and how large, fitted to the slide, its fill, outline
+// and shadow, and the one format its text is in), and keeps its own words, the chords
+// over them, and what else is its own and not its look (its id, what its text is
+// linked to, how it comes on, which are kept beside it and not in it).
+//
+// (The chords are put back over the words. They are kept in the text beside its
+// format, and went with it once: a song dressed in a theme lost its chords. And a box
+// with chords whose look is taken leaves its chords behind, which are its words', not
+// its look's.)
+void restyle(Element *element, const Element &styled, double across, double down)
+{
+    const QString words = wordsOf(*element);
+    const QList<chords::Chord> chords = proconvert::readChords(element->element().text());
+    const rv::data::UUID id = element->element().uuid();
+    *element->mutable_element() = styled.element();
+    fit(element->mutable_element(), across, down);
+    proconvert::writeText(element->mutable_element()->mutable_text(), poured(words, styled.element().text()));
+    proconvert::writeChords(element->mutable_element()->mutable_text(), chords);
+    *element->mutable_element()->mutable_uuid() = id;
+}
+
 }
 
 void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QString> &themeElements)
@@ -157,15 +194,6 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
     // A theme made for a slide of another size is fitted to this one.
     const double across = theme.size().width() > 0 && slide->size().width() > 0 ? slide->size().width() / theme.size().width() : 1;
     const double down = theme.size().height() > 0 && slide->size().height() > 0 ? slide->size().height() / theme.size().height() : 1;
-    const auto fitted = [across, down](rv::data::Graphics::Element *graphic) {
-        if (across == 1 && down == 1)
-            return;
-        rv::data::Graphics::Rect *bounds = graphic->mutable_bounds();
-        bounds->mutable_origin()->set_x(bounds->origin().x() * across);
-        bounds->mutable_origin()->set_y(bounds->origin().y() * down);
-        bounds->mutable_size()->set_width(bounds->size().width() * across);
-        bounds->mutable_size()->set_height(bounds->size().height() * down);
-    };
 
     QList<Element> made = own;
     QList<bool> used(worded.size(), false);
@@ -174,17 +202,15 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
         const int box = themeBoxes.indexOf(i);
         const int from = box < 0 ? -1 : into.at(box);
         Element element = from < 0 ? themed : worded.at(from);
-        *element.mutable_element() = themed.element();
-        fitted(element.mutable_element());
-        if (box >= 0) {
-            // The words that go in it, or none
-            const QString words = from < 0 ? QString() : wordsOf(worded.at(from));
-            proconvert::writeText(element.mutable_element()->mutable_text(), poured(words, themed.element().text()));
-        }
         if (from >= 0) {
+            // The slide's own text box, with its words, in the theme's look
+            restyle(&element, themed, across, down);
             used[from] = true;
-            // It is still the slide's own text box, by its id
-            *element.mutable_element()->mutable_uuid() = worded.at(from).element().uuid();
+        } else {
+            fit(element.mutable_element(), across, down);
+            // A text box of the theme's that gets no words is left empty
+            if (box >= 0)
+                proconvert::writeText(element.mutable_element()->mutable_text(), poured(QString(), themed.element().text()));
         }
         made << element;
     }
@@ -201,6 +227,46 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
         *slide->mutable_background_color() = theme.background_color();
     else
         slide->clear_background_color();
+}
+
+bool hasWords(const rv::data::Slide &slide)
+{
+    return std::any_of(slide.elements().begin(), slide.elements().end(), [](const Element &element) { return isTextBox(element); });
+}
+
+int dressText(rv::data::Slide *slide, const rv::data::Slide &style)
+{
+    // The text boxes of each that have words, matched as a slide's are with a theme's
+    QList<int> worded;
+    QList<thememath::Box> slideSizes;
+    for (int i = 0; i < slide->elements_size(); ++i) {
+        if (isTextBox(slide->elements(i))) {
+            worded << i;
+            slideSizes << boxOf(slide->elements(i));
+        }
+    }
+    QList<int> styled;
+    QList<thememath::Box> styleSizes;
+    for (int i = 0; i < style.elements_size(); ++i) {
+        if (isTextBox(style.elements(i))) {
+            styled << i;
+            styleSizes << boxOf(style.elements(i));
+        }
+    }
+    const QList<int> into = thememath::match(slideSizes, styleSizes);
+
+    // A slide of another size has its boxes fitted to this one, as a theme's are.
+    const double across = style.size().width() > 0 && slide->size().width() > 0 ? slide->size().width() / style.size().width() : 1;
+    const double down = style.size().height() > 0 && slide->size().height() > 0 ? slide->size().height() / style.size().height() : 1;
+    int count = 0;
+    for (int box = 0; box < styled.size(); ++box) {
+        if (into.at(box) < 0)
+            continue;
+        // In its own place among the slide's things: nothing else moves.
+        restyle(slide->mutable_elements(worded.at(into.at(box))), style.elements(styled.at(box)), across, down);
+        ++count;
+    }
+    return count;
 }
 
 }

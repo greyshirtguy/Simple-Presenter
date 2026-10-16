@@ -35,12 +35,20 @@ class Themes : public QObject
     Q_PROPERTY(QVariantList tree READ tree NOTIFY changed)
     // Every theme, in the order of the alphabet, as the entries above
     Q_PROPERTY(QVariantList themes READ themes NOTIFY changed)
+    // A slide's text style, copied to be put on other slides (Copy Text Style, in a
+    // slide's menu): whether one has been, and the slide it was copied from, as the file
+    // had it then, which the editor is handed to paste (PresentationEditor's
+    // pasteTextStyle). Kept until the app ends, as a copied slide is (see Catalog).
+    Q_PROPERTY(bool hasCopiedTextStyle READ hasCopiedTextStyle NOTIFY copiedTextStyleChanged)
+    Q_PROPERTY(QByteArray copiedTextStyle READ copiedTextStyle NOTIFY copiedTextStyleChanged)
 
 public:
     using QObject::QObject;
 
     QVariantList tree() const { return m_tree; }
     QVariantList themes() const { return m_themes; }
+    bool hasCopiedTextStyle() const { return !m_copiedTextStyle.isEmpty(); }
+    QByteArray copiedTextStyle() const { return m_copiedTextStyle; }
 
     // Reads the themes of a workspace folder.
     Q_INVOKABLE void open(const QString &workspace);
@@ -57,6 +65,13 @@ public:
     // as it is in the file if there is no such theme slide. Nothing is written.
     Q_INVOKABLE QVariantMap dressed(const QString &presentation, const QString &slideId, const QString &place, const QString &themeSlideId);
 
+    // Copy Text Style and Paste Text Style: the look of a slide's text boxes, kept, and
+    // put on slides of a presentation, for good (see themefile::dressText), the file as
+    // it was being kept first as it is for a theme. Each answers with what went wrong,
+    // or nothing.
+    Q_INVOKABLE QString copyTextStyle(const QString &presentation, const QString &slideId);
+    Q_INVOKABLE QString pasteTextStyle(const QString &presentation, const QStringList &slideIds);
+
     // Making and changing themes, each written at once. add() makes a theme of that name
     // with one slide to start from, and answers { place, slideId, error }.
     Q_INVOKABLE QVariantMap add(const QString &name);
@@ -67,6 +82,7 @@ public:
 
 signals:
     void changed();
+    void copiedTextStyleChanged();
 
 private:
     QVariantList read(const QString &place);
@@ -76,4 +92,5 @@ private:
     QVariantList m_themes;
     QSet<QString> m_elementIds;
     QHash<QString, QVariantMap> m_dressed;
+    QByteArray m_copiedTextStyle;
 };

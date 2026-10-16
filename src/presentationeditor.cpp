@@ -9,6 +9,7 @@
 #include "richtext.h"
 #include "rtfstandins.h"
 #include "sessionlog.h"
+#include "themefile.h"
 #include "workspacefiles.h"
 
 #include "proworkspace.pb.h"
@@ -956,6 +957,16 @@ QVariantList PresentationEditor::reflow() const
         });
     }
     return rows;
+}
+
+QString PresentationEditor::pasteTextStyle(int row, const QByteArray &style)
+{
+    rv::data::Slide styled;
+    if (style.isEmpty() || !styled.ParseFromArray(style.constData(), int(style.size())))
+        return QStringLiteral("There is no copied text style to paste.");
+    return change(row, [&](rv::data::Slide *slide) {
+        return themefile::dressText(slide, styled) > 0 ? QString() : QStringLiteral("That slide has no words for the copied text style to go on.");
+    });
 }
 
 QString PresentationEditor::reflowType(int row, const QString &words)

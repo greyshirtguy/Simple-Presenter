@@ -355,6 +355,17 @@ Rectangle {
                     report(screen.copySlide(editor.path, slide.id))
                 } },
                 { label: "Paste", disabled: !screen.canPaste, run: () => restructure(() => screen.pasteSlide(editor.path, slide.id)) },
+                // The look of its text, kept to be put on another slide's, here or in the
+                // show's slides; and put on this one, as a step that can be undone (see
+                // Themes and PresentationEditor's pasteTextStyle)
+                { label: "Copy Text Style", disabled: slide.plainText.trim() === "", run: () => {
+                    finish()
+                    report(Themes.copyTextStyle(editor.path, slide.id))
+                } },
+                { label: "Paste Text Style", disabled: !Themes.hasCopiedTextStyle, run: () => {
+                    finish()
+                    report(editor.pasteTextStyle(editor.rowOf(slide.id), Themes.copiedTextStyle))
+                } },
                 { label: "Delete Slide…", danger: true, disabled: editor.count < 2, run: () => showMenu([
                     { note: "Slide " + number + " will be deleted. That cannot be undone, and neither can what was done before it." },
                     { label: "Delete", danger: true, run: () => restructure(() => screen.removeSlide(editor.path, slide.id)) },

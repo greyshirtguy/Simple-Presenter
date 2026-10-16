@@ -133,6 +133,10 @@ public:
     // Gives a presentation's slide a label of these words, or with none takes its
     // words away; the label's colour is kept. One step to undo, like any change here.
     Q_INVOKABLE QString setLabel(int row, const QString &text);
+    // Gives the text boxes of a row's slide the look of another slide's (Paste Text
+    // Style; see themefile::dressText): `style` is the slide, as Themes keeps a copied
+    // text style. One step, undone as any other.
+    Q_INVOKABLE QString pasteTextStyle(int row, const QByteArray &style);
     Q_INVOKABLE QVariantMap addMedia(int row, const QUrl &file);
     // Adds a copy of an element, a little down and right of it. Returns { id, error }.
     Q_INVOKABLE QVariantMap duplicate(int row, const QString &element);

@@ -2316,6 +2316,10 @@ Window {
             // presentation or another.
             { label: "Copy", run: () => copySlide(index) },
             { label: "Paste", disabled: !catalog.hasCopiedSlide, run: () => pasteSlide(index) },
+            // The look of its text, kept to be put on another slide's, here or in the
+            // editor (see Themes.copyTextStyle)
+            { label: "Copy Text Style", disabled: slide.plainText.trim() === "", run: () => copyTextStyle(index) },
+            { label: "Paste Text Style", disabled: !Themes.hasCopiedTextStyle, run: () => pasteTextStyle(index) },
             // Asked twice, since it is for good. (Not the last one there is: a
             // presentation with no slides is not one ProPresenter makes.)
             { label: "Delete Slide…", danger: true, disabled: new Set(document.slides.map(s => s.id)).size < 2,
@@ -2480,6 +2484,21 @@ Window {
     function copySlide(index) {
         if (report(catalog.copySlide(document.path, document.slides[index].id)))
             Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name) + " copied")
+    }
+
+    // The look of a slide's text boxes, kept to be put on others; and put on one, for
+    // good, as a theme is (see Themes), the file as it was being kept first.
+    function copyTextStyle(index) {
+        if (report(Themes.copyTextStyle(document.path, document.slides[index].id)))
+            Log.note("edit", "the text style of slide " + (index + 1) + " of " + quoted(document.name) + " copied")
+    }
+
+    function pasteTextStyle(index) {
+        if (!report(Themes.pasteTextStyle(document.path, [document.slides[index].id])))
+            return
+        reloadDocument()
+        notice = "Slide " + (index + 1) + " has the copied text style now. The file as it was is kept with the editor's backups."
+        noticeIsError = false
     }
 
     function pasteSlide(index) {

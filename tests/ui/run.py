@@ -2079,6 +2079,7 @@ TESTS = {
     "notes": test("Act", timeout=300, prepare=prepare_notes, after=after_notes),
     "messages": test("Act", timeout=300, prepare=prepare_messages, after=after_messages),
     "screenpreview": test("Act", timeout=240, prepare=prepare_red_picture),
+    "textstyle": test("Act", timeout=240),
     "drop": test("Demo"),
     "simple": test("Demo"),
     "shapes": test("Shapes", SHELL, 120),

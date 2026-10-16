@@ -29,7 +29,8 @@ class Template_Slide;
 //   - A matched text box takes everything from the theme's: its name, where it is and
 //     how large, its fill, its outline, its shadow, and the one format the theme's text
 //     is in (font, size, colour, alignment, capitals, how it fits its box). It keeps its
-//     words, and what else is its own (what its text is linked to, how it comes on).
+//     words and the chords over them, and what else is its own (what its text is
+//     linked to, how it comes on).
 //     The name matters more than it looks: a stage layout can be set to show only the
 //     text boxes of a given name ("Lyrics"), and shows nothing of a slide that has none
 //     of that name. Dressing a song in a theme is how its text boxes, whatever they
@@ -68,5 +69,24 @@ QSet<QString> elementIds(const QString &workspace);
 
 // Dresses a slide in a theme slide (see above).
 void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QString> &themeElements);
+
+// Gives a slide's text boxes the look of another slide's, which is what Paste Text
+// Style in a slide's menu does: the other slide is taken as a theme slide would be, and
+// only its text boxes' looks come of it. The text boxes of the two that have words are
+// matched as for a theme (by name, then by size, then in order), and each of the
+// slide's takes everything of its match's that dressing would give it, keeping its
+// words and the chords over them. Nothing else of the slide is changed (its shapes,
+// pictures, other text boxes and background, and the order its things are in), and
+// nothing else of the other slide comes with it. Says how many text boxes took a look:
+// none where either has no text box with words.
+//
+// (A choice of this app's, from the user's own reading that pasting a slide's text
+// style is applying that slide as a theme: what of it is "text style", that it is the
+// text boxes' whole look and not their text's format alone, is the user's and mine,
+// and not looked up in ProPresenter.)
+int dressText(rv::data::Slide *slide, const rv::data::Slide &style);
+// Whether a slide has a text box with words in it, which is what a theme's words go
+// into and what has a text style
+bool hasWords(const rv::data::Slide &slide);
 
 }

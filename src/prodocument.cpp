@@ -723,6 +723,60 @@ QVariantMap ProDocument::dressedSlide(const QString &path, const QString &cueId,
     return {};
 }
 
+QByteArray ProDocument::slideOfCue(const QString &path, const QString &cueId, QString *error)
+{
+    rv::data::Presentation presentation;
+    if (!readPresentation(path, &presentation, error))
+        return {};
+    for (const rv::data::Cue &cue : presentation.cues()) {
+        if (QString::fromStdString(cue.uuid().string()) != cueId)
+            continue;
+        for (const rv::data::Action &action : cue.actions()) {
+            if (!action.isenabled() || !action.has_slide() || !action.slide().has_presentation())
+                continue;
+            const rv::data::Slide &slide = action.slide().presentation().base_slide();
+            // (A slide with no words has no text style: dressing with it would do nothing.)
+            if (!themefile::hasWords(slide)) {
+                *error = QStringLiteral("That slide has no words, so it has no text style to copy");
+                return {};
+            }
+            return QByteArray::fromStdString(slide.SerializeAsString());
+        }
+        *error = QStringLiteral("That slide only triggers media, so it has no text style to copy");
+        return {};
+    }
+    *error = QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+    return {};
+}
+
+QString ProDocument::dressCuesText(const QString &path, const QStringList &cueIds, const rv::data::Slide &style, int *restyled)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    int count = 0;
+    bool found = false;
+    for (rv::data::Cue &cue : *presentation.mutable_cues()) {
+        if (!cueIds.contains(QString::fromStdString(cue.uuid().string())))
+            continue;
+        for (rv::data::Action &action : *cue.mutable_actions()) {
+            if (!action.has_slide() || !action.slide().has_presentation())
+                continue;
+            found = true;
+            count += themefile::dressText(action.mutable_slide()->mutable_presentation()->mutable_base_slide(), style);
+        }
+    }
+    if (restyled)
+        *restyled = count;
+    if (!found)
+        return QStringLiteral("%1 has no such slides any more").arg(QFileInfo(path).fileName());
+    if (count == 0)
+        return cueIds.size() == 1 ? QStringLiteral("That slide has no words for the copied text style to go on")
+                                  : QStringLiteral("None of those slides has words for the copied text style to go on");
+    return writePresentation(path, presentation);
+}
+
 QString ProDocument::setCueLabel(const QString &path, const QString &cueId, const QString &text, const QString &color)
 {
     return changeCue(path, cueId, [&](rv::data::Cue *cue) {

@@ -224,6 +224,14 @@ struct ProDocument
     // `slides` holds for drawing: empty if the cue is not there. The file is not changed.
     static QVariantMap dressedSlide(const QString &path, const QString &cueId, const rv::data::Slide &theme,
                                     const QSet<QString> &themeElements);
+    // The slide a cue shows, as the file has it, to take the look of its text from
+    // (Copy Text Style): empty, with *error set, if it is not there or has no text box
+    // with words in it.
+    static QByteArray slideOfCue(const QString &path, const QString &cueId, QString *error);
+    // Gives the slides of these cues the look of that slide's text boxes (see
+    // themefile::dressText) and writes the file back, where any text box took it.
+    // `restyled` is given how many text boxes did.
+    static QString dressCuesText(const QString &path, const QStringList &cueIds, const rv::data::Slide &style, int *restyled);
 
 private:
     // Reads the file, hands the cue with this id to `change`, and writes the file back
