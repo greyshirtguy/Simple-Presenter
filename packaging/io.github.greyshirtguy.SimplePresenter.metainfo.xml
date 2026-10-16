@@ -39,6 +39,19 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.97" date="2026-10-16">
+      <description>
+        <p>
+          A shape can be filled with a Screen Preview, a picture of what one of the
+          screens is showing, video and all, as ProPresenter's stage layouts have; and the
+          benchmark measures what video and such a picture cost. Copy Text Style and Paste
+          Text Style put the look of one slide's text boxes on another's. A paste into a
+          text box keeps the box's own format and alignment. The slide live on the
+          announcements has a green ring. A screen sent over NDI no longer goes out black
+          after being switched off and on, and a song dressed in a theme keeps its chords.
+        </p>
+      </description>
+    </release>
     <release version="0.96" date="2026-10-16">
       <description>
         <p>
