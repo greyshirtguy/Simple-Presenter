@@ -43,9 +43,13 @@ QtObject {
             () => {
                 kept.id = Screens.audience[1].id
                 const choice = Lib.find(settingsRows()[1], item => String(item.objectName) === "screenOutput")
-                check("NDI is among the things a screen can be sent to", choice.model.indexOf("NDI") > 0, JSON.stringify(choice.model))
+                click(centre(choice))
+                return 400
+            },
+            () => {
+                check("NDI is among the things a screen can be sent to", menu.opened && labels().includes("NDI"), labels())
                 check("nothing is asked until it is chosen", !shown("ndiSetup"))
-                choice.activated(choice.model.indexOf("NDI"))
+                click(menuRow("NDI"))
                 return 600
             },
             () => {

@@ -24,6 +24,8 @@
 //                    and can be made to fill whatever display it is put on;
 //         "display"  one of the computer's displays, by its name, filled;
 //         "ndi"      the network, as an NDI source of a given name, size and rate;
+//         "decklink" an output of a Blackmagic DeckLink card, in a given format, and
+//                    keyed or not (see decklink.h);
 //         "none"     nothing: the screen is there for things to name, and is not drawn.
 //     A screen nothing has been said about is a window if it is the first of its kind,
 //     as the one output and the one stage display always were, and otherwise nothing.
@@ -45,10 +47,15 @@ class Screens : public QObject
     QML_SINGLETON
     // Every screen, in the workspace's order:
     //   { id, name, kind ("audience" or "stage"), first (of its kind), width, height,
-    //     output, display, displayThere, ndiName, ndiWidth, ndiHeight, ndiRate }
+    //     output, display, displayThere, ndiName, ndiWidth, ndiHeight, ndiRate,
+    //     decklinkOutput, decklinkName, decklinkFormat, decklinkAlpha, decklinkKey,
+    //     decklinkBlend }
     // `display` is the name of the display a "display" output fills and `displayThere`
     // whether one of that name is plugged in. The ndi ones are an "ndi" output's name
-    // on the network, its size, and its frames a second as text ("30", "59.94").
+    // on the network, its size, and its frames a second as text ("30", "59.94"). The
+    // decklink ones are a "decklink" output's card output (by DeckLink's id, and the name
+    // it had), its format ("1080p29.97"), and its keying: alpha "none", "premultiplied"
+    // or "straight", key "internal" or "external", and the blend, 0 to 100.
     Q_PROPERTY(QVariantList screens READ screens NOTIFY changed)
     // Those of each kind
     Q_PROPERTY(QVariantList audience READ audience NOTIFY changed)
@@ -87,7 +94,7 @@ public:
     Q_INVOKABLE QString rename(const QString &id, const QString &name);
 
     // What a screen is sent out through on this computer: any of output, display,
-    // ndiName, ndiWidth, ndiHeight and ndiRate, as in `screens`.
+    // ndiName, ndiWidth, ndiHeight and ndiRate, and the decklink ones, as in `screens`.
     Q_INVOKABLE void setOutput(const QString &id, const QVariantMap &changes);
 
     // A frame rate as two whole numbers, as video counts it: "59.94" is 60000 over 1001.

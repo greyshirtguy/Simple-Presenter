@@ -315,6 +315,10 @@ qt_add_qml_module(SimplePresenter
         src/ndi.cpp
         src/ndisetup.h
         src/ndisetup.cpp
+        src/decklink.h
+        src/decklink.cpp
+        src/decklinkformats.h
+        src/decklinkformats.cpp
         src/showstate.h
         src/showstate.cpp
         src/slidenumber.h
@@ -423,6 +427,12 @@ target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia Qt6::DB
 # MIT licence (each says so at its top); the library itself is not here, and is looked
 # for when the app runs (see src/ndi.h).
 target_include_directories(SimplePresenter SYSTEM PRIVATE third_party/ndi/include)
+# Blackmagic's DeckLink headers, likewise (see third_party/decklink/README.md), and the
+# one source file of theirs, which finds their library when the app runs (see
+# src/decklink.h). It is theirs as it comes, so their warnings are not this build's.
+target_include_directories(SimplePresenter SYSTEM PRIVATE third_party/decklink/include)
+target_sources(SimplePresenter PRIVATE third_party/decklink/include/DeckLinkAPIDispatch.cpp)
+set_source_files_properties(third_party/decklink/include/DeckLinkAPIDispatch.cpp PROPERTIES COMPILE_OPTIONS "-w")
 
 # The version, for the window's title and for the log.
 target_compile_definitions(SimplePresenter PRIVATE APP_VERSION="${PROJECT_VERSION}")

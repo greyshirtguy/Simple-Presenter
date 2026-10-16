@@ -86,7 +86,8 @@ running: see [Go To Next timers and the Slide Show](#go-to-next-timers-and-the-s
 
 **It sends the show to as many screens as are needed.** A workspace can have up to
 sixteen [screens](#screens), for the audience and for the stage, each in a window, on
-one of the computer's displays, or on the network as an [NDI](#ndi) source.
+one of the computer's displays, on the network as an [NDI](#ndi) source, or out of a
+[Blackmagic DeckLink](#blackmagic-decklink) card, keyed or not.
 [Looks](#looks) say which layers each audience screen gets, so that the room has the
 words over the video while a stream has the words alone, and ProPresenter's
 [themes](#themes) dress the slides, for good or on one screen only. A screen can be
@@ -205,6 +206,10 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Blackmagic DeckLink output**, not yet tried with a card. A screen can go out
+  through an output of a DeckLink card, in one of ten formats, and an output that is a
+  linked pair of connectors can key, internally or externally, with ProPresenter's
+  alpha settings. See [Blackmagic DeckLink](#blackmagic-decklink).
 - **Copy Text Style and Paste Text Style.** A slide's menu, while showing and in the
   editor, puts the look of one slide's text boxes on another's, as a theme would,
   keeping the words. See [Editing](#editing). And a paste into a text box is a paste
@@ -534,6 +539,10 @@ the top of this page.
       api.bible. Still to come: searching a Bible by a word; a second translation
       beside the first; other sources online (the ESV's own, among them); and the
       flow's weights tried on real passages.
+- [ ] **Blackmagic DeckLink**: a screen can go out through a card's output, keyed or
+      not (see [Blackmagic DeckLink](#blackmagic-decklink)), and has not been tried
+      with a card. Still to come: the video coming in (see Video input, below); sound,
+      in and out, the first two channels to begin with; and more formats.
 - [ ] **The audio bin**: it is there (see [Audio](#audio)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, how loud it
       is, and its own fades, which ProPresenter's inspector sets and which are kept
@@ -548,7 +557,8 @@ no promise that any of them will turn out to be possible this way: that is the
 experiment.
 
 - [ ] **A simple help file**: the app's own features explained in one place, in the app
-- [ ] **Video input**
+- [ ] **Video input**: from a Blackmagic card's input first, on a video input layer
+      under the media, with its clear button and its place in the clear groups
 - [ ] **Clear to logo**
 - [ ] **Communication devices**: MIDI, RossTalk, custom HTTP requests
 - [ ] **The API**: ProPresenter's, over the network, so that the remotes and
@@ -561,7 +571,6 @@ experiment.
 - [ ] **Easy View**
 - [ ] **Table View**
 - [ ] **Timecode**
-- [ ] **Blackmagic SDI**
 - [ ] **Streaming and recording** (RTP), perhaps
 
 ## Installing
@@ -2315,14 +2324,15 @@ sixteen, of both kinds together, and the pair of buttons at the right of the too
 (or Ctrl+1 and Ctrl+2) switch all the screens of a kind on and off together.
 
 The screens are set up under **Settings → Screens**: a line for each, with its name and
-what it is sent out through, and **+ Add** for another of either kind. A screen goes to
-one of four things:
+what it is sent out through, and **+ Add** for another of either kind. Where a screen
+goes is chosen from a menu, as in ProPresenter, and is one of five things:
 
 | It is sent to | What that is |
 | --- | --- |
 | **A window of its own** | A small window that floats over the operator window, and can be made to fill whatever display it is on (see below). What the one output and the one stage display always were, and what the first screen of each kind is until it is set to something else |
 | **A display** | One of the computer's displays, by its name (`HDMI-A-1`, say), filled. While that display is not plugged in the screen is not shown, and the settings say so; plugged in again, it is back |
 | **NDI** | The local network, as an NDI source: see [NDI](#ndi) |
+| **A Blackmagic output** | An output of a DeckLink card, as Blackmagic's Desktop Video Setup names it, in a format chosen from its own menu, and keyed or not: see [Blackmagic DeckLink](#blackmagic-decklink) |
 | **Nothing** | The screen is there for things to name (a stage action, say), and is not drawn. What a screen ProPresenter made is until it is set to something here |
 
 Two things are known of a screen, and they are kept in two places.
@@ -2642,6 +2652,63 @@ Plain NDI is what is sent (full frames, lightly compressed, a good deal of netwo
 NDI|HX. There is no sound in it yet, and nothing is received.
 
 NDI® is a registered trademark of Vizrt NDI AB.
+
+## Blackmagic DeckLink
+
+**Not yet tried with a card.** What follows is what was built, from Blackmagic's SDK and
+from what ProPresenter does; it has been tested only against outputs the app pretends,
+on a computer with no card.
+
+A screen can go out through an output of a Blackmagic DeckLink card (a DeckLink Duo 2 is
+the one it was made for), as an SDI signal, for a vision mixer, a recorder or a monitor.
+Video only, for now.
+
+**The outputs** are the ones Blackmagic's *Desktop Video Setup* has made of the card's
+connectors, by the names it gives them; the app does not change how they are arranged,
+and nor does ProPresenter. A pair of connectors linked there for fill and key is one
+output, and the connector it takes for the key is not offered by itself while it is.
+In a screen's menu of where it goes (Settings → Screens), each output is under
+**Blackmagic**, and is a menu of the formats it can send: 1080p at 24, 25, 29.97, 30,
+50, 59.94 and 60 frames a second, and 720p at 50, 59.94 and 60. Choosing a format is
+choosing the output. The outputs are looked for again each time that menu is opened,
+so a card arranged otherwise in Desktop Video Setup is seen without the app being
+started again.
+
+**Keying.** An output that can key, which a linked pair can, has ProPresenter's alpha
+settings on the screen's line:
+
+| Setting | What it does |
+| --- | --- |
+| **Alpha: None** | The screen goes out as it is, on black, as on any display. What an output that cannot key always sends |
+| **Alpha: Premultiplied** | What nothing is drawn on is see-through, and the colours are as the app draws them, already darkened by how see-through they are |
+| **Alpha: Straight** | The same, with the colours as they would be if they were not darkened: for a mixer that wants them so |
+| **Key: Internal** | The card itself lays the screen over the video coming into it, and sends the two together |
+| **Key: External** | The card sends the screen (the fill) out of one connector, and its opacity in black and white (the key) out of the other, for a vision mixer to key with |
+| **Blend** | How strongly the card lays the screen over, from 0% to 100% |
+
+Which alpha type a mixer wants is the mixer's to say; ProPresenter's help on alpha
+keying explains the difference. That the app asks the card for the key after starting
+its output, and the blend as a share of 255, is how Blackmagic's SDK reads, and has not
+been seen to work.
+
+**How it is sent.** The screen is drawn out of sight by the graphics card, as for NDI,
+read back into a frame the DeckLink card made, and handed to it. Only when something
+has changed: the card goes on showing the last frame it was given, so a still slide
+costs nothing, and a moving one costs a picture read back for each frame that changes.
+A frame goes out on the card's next frame after it is ready rather than being timed to
+the frame, which is a choice of less work over exact timing.
+
+**Blackmagic's library is not part of this app.** It comes with *Desktop Video*, the
+drivers for the card, from Blackmagic Design, which a computer with a card has installed
+already; version 14.3 or later. The app looks for it the first time a screen's menu is
+opened or a screen is set to go out through a card, and never otherwise, so on a
+computer with no card it costs nothing. Without it, the settings say so.
+
+The header files the app is built against are in `third_party/decklink/include`, under
+Blackmagic's licence at the top of each.
+
+DeckLink and Desktop Video are Blackmagic Design's. This app has nothing to do with
+them, or with Renewed Vision.
 
 ## Keys
 
@@ -3332,6 +3399,10 @@ It uses, under their own licences:
 - NDI's header files, under the MIT licence: everything in `third_party/ndi/include`,
   each of which says so at its top. NDI's library is not here; whoever installs it does
   so under NDI's own licence ([NDI](#ndi)).
+- Blackmagic Design's DeckLink SDK header files: everything in
+  `third_party/decklink/include`, under the licence at the top of each. Blackmagic's
+  library is not here; it comes with their Desktop Video
+  ([Blackmagic DeckLink](#blackmagic-decklink)).
 - [ProPresenter7-Proto](https://github.com/greyshirtguy/ProPresenter7-Proto), under the
   MIT licence.
 - Transitions ported from [gl-transitions](https://gl-transitions.com), under the MIT

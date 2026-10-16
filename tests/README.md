@@ -26,6 +26,7 @@ So far there are twenty-eight:
 | `tst_thememath` | Which text box of a slide goes into which text box of a theme (`src/thememath.h`): by name, by size, in order |
 | `tst_searchindex` | Finding presentations by their names and words (`src/searchindex.h`): capitals, punctuation and accents, the order of what is found, the line that is shown; and a list on the screen narrowed to the names that have what was typed, a playlist's headings with it |
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
+| `tst_decklinkformats` | What a screen sent out through a Blackmagic DeckLink card is sent as (`src/decklinkformats.h`): the formats offered, in the menu's order, each with its size, its rate and the code Blackmagic's SDK gives it; and pictures made straight from premultiplied, rounded, never past white, and a pixel with nothing on it left alone |
 | `tst_screenfile` | The list of a workspace's screens in ProPresenter's set-up file (`src/screenfile.h`): what a workspace with no file has, what adding, renaming and removing a screen write, and that the rest of a file ProPresenter wrote goes back as it came |
 | `tst_groupedit` | Putting slides into another group as ProPresenter does (`src/groupedit.h`): the whole group from its first slide, a split from a later one, what becomes of the arrangements, and that nothing else of the presentation is touched |
 | `tst_arrangementedit` | A presentation's arrangements (`src/arrangementedit.h`), on a presentation built as ProPresenter writes one: a new one of every group once in Master's order, a copy straight after what it is a copy of, a name made free with a number, renaming and the names that are refused, removing the one selected and another, a group put in at each kind of gap, every move of every place against the list worked the long way, one coming up of a group taken out; and after each, the groups, the slides and the other arrangements as they were to the byte |
@@ -101,6 +102,14 @@ once the library is in place. It does not download anything: it is pointed at a 
 of NDI's installer kept on this computer (`third_party/ndi-sdk/download/`, which is not
 in the repository), and where there is no such copy it tries what the app says when
 the download fails instead.
+
+And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
+card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two
+outputs, one that can key as a linked pair of connectors can, and one that cannot, and
+keeps each picture it would have handed the card for the test to look at. Everything
+but the handing over is the app's own: the menu, the formats, the alpha settings, the
+drawing, the reading back, starting and stopping. Whether a real card takes what it is
+given is not tested here.
 
 **What a run leaves.** A line for each test, and its failures:
 

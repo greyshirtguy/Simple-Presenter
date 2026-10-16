@@ -1,5 +1,6 @@
 #include "testhook.h"
 
+#include "decklink.h"
 #include "ndi.h"
 #include "richtext.h"
 #include "textlayout.h"
@@ -294,6 +295,33 @@ public:
         auto *sender = qobject_cast<NdiScreen *>(screen);
         const QImage picture = sender ? sender->picture().convertToFormat(QImage::Format_RGB32) : QImage();
         return picture.isNull() ? -1 : redShare(picture, picture.rect());
+    }
+    // A pixel of the picture a Blackmagic screen last handed its card, as "#aarrggbb", opacity and all; the place
+    // as shares of the picture. "" before there is one.
+    Q_INVOKABLE QString deckLinkPixel(QObject *screen, double x, double y)
+    {
+        auto *sender = qobject_cast<DeckLinkScreen *>(screen);
+        const QImage picture = sender ? sender->picture() : QImage();
+        if (picture.isNull())
+            return QString();
+        return picture.pixelColor(qBound(0, int(x * picture.width()), picture.width() - 1),
+                                  qBound(0, int(y * picture.height()), picture.height() - 1)).name(QColor::HexArgb);
+    }
+    // How much of that picture is see-through (no opacity at all), and how much is red, from 0 to 1 each
+    Q_INVOKABLE QVariantList deckLinkShares(QObject *screen)
+    {
+        auto *sender = qobject_cast<DeckLinkScreen *>(screen);
+        const QImage picture = sender ? sender->picture() : QImage();
+        if (picture.isNull())
+            return {-1, -1};
+        qint64 clear = 0;
+        for (int row = 0; row < picture.height(); ++row) {
+            const QRgb *line = reinterpret_cast<const QRgb *>(picture.constScanLine(row));
+            for (int column = 0; column < picture.width(); ++column)
+                clear += qAlpha(line[column]) == 0 ? 1 : 0;
+        }
+        return {double(clear) / (double(picture.width()) * picture.height()),
+                redShare(picture.convertToFormat(QImage::Format_RGB32), picture.rect())};
     }
     // What is drawn in another of the app's windows ("stage", "output"), for a script to look through as it does
     // the operator window's own; null where there is no such window

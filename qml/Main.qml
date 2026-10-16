@@ -3666,9 +3666,10 @@ Window {
             // live is shown again as it now looks here.
             onThemeKeyChanged: win.redress(audienceHost.modelData)
             readonly property bool overNdi: screen.output === "ndi"
+            readonly property bool overDeckLink: screen.output === "decklink"
 
             property Instantiator inWindow: Instantiator {
-                model: audienceHost.overNdi ? 0 : 1
+                model: audienceHost.overNdi || audienceHost.overDeckLink ? 0 : 1
                 delegate: Output {
                     objectName: audienceHost.leads ? "output" : "output-" + audienceHost.modelData
                     title: audienceHost.leads ? "Output" : "Output: " + audienceHost.screen.name
@@ -3740,6 +3741,49 @@ Window {
                     }
                 }
             }
+
+            // Out through a Blackmagic card's output (see DeckLinkScreen): the scene again,
+            // as it is for NDI
+            property Instantiator sentOverDeckLink: Instantiator {
+                model: audienceHost.overDeckLink ? 1 : 0
+                delegate: DeckLinkScreen {
+                    objectName: "decklink-" + audienceHost.modelData
+                    output: audienceHost.screen.decklinkOutput
+                    outputName: audienceHost.screen.decklinkName
+                    format: audienceHost.screen.decklinkFormat
+                    alpha: audienceHost.screen.decklinkAlpha
+                    key: audienceHost.screen.decklinkKey
+                    blend: audienceHost.screen.decklinkBlend
+                    active: win.outputEnabled
+                    Component.onCompleted: win.senderMade(audienceHost.modelData, this)
+                    Component.onDestruction: win.senderGone(audienceHost.modelData, this)
+
+                    OutputScene {
+                        id: cardScene
+
+                        leads: audienceHost.leads
+                        slideOn: audienceHost.look.slide
+                        mediaOn: audienceHost.look.media
+                        announcementsOn: audienceHost.look.announcements
+                        propsOn: audienceHost.look.props
+                        messagesOn: audienceHost.look.messages
+                        lookFade: win.lookFade
+                        shader: transitionCatalogue.shaderUrl(win.transition)
+                        options: win.transitionUniforms.options
+                        tint: win.transitionUniforms.tint
+                        direction: win.transitionUniforms.direction
+                        duration: Math.round(win.transitionDuration * 1000)
+                        transitionName: win.transition.name
+                        props: win.shownProps
+                        propsDuration: Math.round(Props.transitionDuration * 1000)
+                        messages: win.shownMessages
+                        mask: win.maskSlide(audienceHost.look.mask)
+                        pictures: win
+                        Component.onCompleted: win.sceneMade(audienceHost.modelData, cardScene, true)
+                        Component.onDestruction: win.sceneGone(audienceHost.modelData, cardScene)
+                    }
+                }
+            }
         }
     }
 
@@ -3753,11 +3797,12 @@ Window {
             readonly property string modelData: screenId
             readonly property var screen: Screens.screens.find(candidate => candidate.id === stageHost.modelData) ?? ({ output: "none", name: "" })
             readonly property bool overNdi: screen.output === "ndi"
+            readonly property bool overDeckLink: screen.output === "decklink"
             // The slide of the layout this stage screen has, or null for the plain view
             readonly property var layout: win.stageSlideOf(stageHost.modelData)
 
             property Instantiator inWindow: Instantiator {
-                model: stageHost.overNdi ? 0 : 1
+                model: stageHost.overNdi || stageHost.overDeckLink ? 0 : 1
                 delegate: Stage {
                     objectName: stageHost.index === 0 ? "stage" : "stage-" + stageHost.modelData
                     title: stageHost.index === 0 ? "Stage" : "Stage: " + stageHost.screen.name
@@ -3782,6 +3827,29 @@ Window {
                     height: stageHost.screen.ndiHeight
                     rateNumerator: Screens.rateOf(stageHost.screen.ndiRate).numerator
                     rateDenominator: Screens.rateOf(stageHost.screen.ndiRate).denominator
+                    active: win.stageEnabled
+                    Component.onCompleted: win.senderMade(stageHost.modelData, this)
+                    Component.onDestruction: win.senderGone(stageHost.modelData, this)
+
+                    StageScene {
+                        layout: stageHost.layout
+                        currentText: win.stageCurrentText
+                        nextText: win.stageNextText
+                        pictures: win
+                    }
+                }
+            }
+
+            property Instantiator sentOverDeckLink: Instantiator {
+                model: stageHost.overDeckLink ? 1 : 0
+                delegate: DeckLinkScreen {
+                    objectName: "decklink-" + stageHost.modelData
+                    output: stageHost.screen.decklinkOutput
+                    outputName: stageHost.screen.decklinkName
+                    format: stageHost.screen.decklinkFormat
+                    alpha: stageHost.screen.decklinkAlpha
+                    key: stageHost.screen.decklinkKey
+                    blend: stageHost.screen.decklinkBlend
                     active: win.stageEnabled
                     Component.onCompleted: win.senderMade(stageHost.modelData, this)
                     Component.onDestruction: win.senderGone(stageHost.modelData, this)
@@ -4764,6 +4832,7 @@ Window {
         visible: win.settingsOpen
         groups: win.groups
         onGroupsEdited: (groups) => win.setGroups(groups)
+        onScreenMenuWanted: (rows, item, x, y) => menu.show(rows, item, x, y)
         otherHotkeys: win.otherHotkeys
         actionIconOpacity: win.actionIconOpacity
         onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))

@@ -85,6 +85,15 @@ target_include_directories(tst_sheethints PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_sheethints PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME sheethints COMMAND tst_sheethints)
 
+qt_add_executable(tst_decklinkformats
+    tst_decklinkformats.cpp
+    ${PROJECT_SOURCE_DIR}/src/decklinkformats.h
+    ${PROJECT_SOURCE_DIR}/src/decklinkformats.cpp
+)
+target_include_directories(tst_decklinkformats PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_decklinkformats PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME decklinkformats COMMAND tst_decklinkformats)
+
 qt_add_executable(tst_colortriggers
     tst_colortriggers.cpp
     ${PROJECT_SOURCE_DIR}/src/colortriggers.h

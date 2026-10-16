@@ -17,11 +17,12 @@
 //   (qml/StageScene.qml) is what the people on stage see: the words of this slide and
 //   the next, plainly, or laid out as one of the workspace's stage layouts has them.
 //   A workspace has as many of each as it is given (src/screens.h), and each is sent
-//   out through a window of its own (qml/Output.qml, qml/Stage.qml), a display, or the
-//   network as an NDI source (src/ndi.h). Every screen has a scene of its own, drawn by
-//   itself; a video is played once for all of them. A picture of a screen, which the
-//   operator's preview is and a shape filled with a Screen Preview has, is the screen
-//   drawn again, small, from the same things it is told (qml/ScreenPicture.qml).
+//   out through a window of its own (qml/Output.qml, qml/Stage.qml), a display, the
+//   network as an NDI source (src/ndi.h), or an output of a Blackmagic DeckLink card
+//   (src/decklink.h). Every screen has a scene of its own, drawn by itself; a video is
+//   played once for all of them. A picture of a screen, which the operator's preview is
+//   and a shape filled with a Screen Preview has, is the screen drawn again, small, from
+//   the same things it is told (qml/ScreenPicture.qml).
 //
 // The two halves of the code.
 //

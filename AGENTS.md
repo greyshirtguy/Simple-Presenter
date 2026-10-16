@@ -96,7 +96,9 @@ what you checked; do not say "the tests pass" and mean a part of them.
   written, makes the change, and looks at what else is still there.
 - No new dependency without the maintainer agreeing to it first. NDI's library and its
   SDK are never added to the repository or to a package (`third_party/ndi/include` holds
-  the few headers its licence allows). Nor is a key for api.bible: a build takes one
+  the few headers its licence allows). Nor are Blackmagic's DeckLink library, or
+  anything of its SDK but the headers in `third_party/decklink/include`: its samples
+  are for the use of whoever downloaded them, and none of their code goes here. Nor is a key for api.bible: a build takes one
   from `packaging/api-bible-key.txt`, which git ignores, and a person's own is in their
   settings.
 - Words the user reads say plainly what a thing does. They never promise help, never

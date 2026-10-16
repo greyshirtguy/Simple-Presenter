@@ -6,9 +6,17 @@ import SimplePresenterApp
 // each is sent out through on this computer (see Screens).
 //
 // A line for each screen: its name, where it goes (a window, one of the displays, NDI,
-// or nowhere), and for NDI what the source is called, how large it is and how many
-// frames a second it has. The list is the workspace's and is written to its file as it
-// is changed; where a screen goes is this computer's, and is kept in the app's settings.
+// an output of a Blackmagic card, or nowhere), and for NDI what the source is called,
+// how large it is and how many frames a second it has. The list is the workspace's and
+// is written to its file as it is changed; where a screen goes is this computer's, and
+// is kept in the app's settings.
+//
+// Where a screen goes is chosen from a menu, as in ProPresenter: each of a Blackmagic
+// card's outputs, as Desktop Video Setup names and arranges them, is a menu of the
+// formats it can send, and choosing one is choosing the output (see DeckLink). An
+// output that can key, which a pair of connectors linked there for fill and key is, has
+// ProPresenter's alpha settings under it: the alpha type (none, premultiplied or
+// straight), internal or external keying, and the blend.
 Flickable {
     id: section
 
@@ -20,6 +28,9 @@ Flickable {
     signal failed(string text)
     // A screen has been set to NDI and NDI's library is not here: how to get it is wanted
     signal ndiWanted
+    // The menu of where a screen can go is to be shown (by the operator window, whose
+    // menus can have menus in them), under an item
+    signal menuWanted(var rows, var item, real x, real y)
 
     readonly property var sizes: [[1280, 720], [1920, 1080], [2560, 1440], [3840, 2160]]
 
@@ -37,13 +48,66 @@ Flickable {
 
         required property var modelData
         readonly property var screen: modelData
-        // What is in the drop-down: a window, each display, NDI, nothing
-        readonly property var outputs: [{ label: "A window of its own", output: "window", display: "" }]
-            .concat(Screens.displays.map(display => ({ label: "Display: " + display.label, output: "display", display: display.name })))
-            .concat(screen.output === "display" && !screen.displayThere
-                    ? [{ label: "Display: " + screen.display + " (not plugged in)", output: "display", display: screen.display }] : [])
-            .concat([{ label: "NDI", output: "ndi", display: "" }, { label: "Nothing", output: "none", display: "" }])
         readonly property var sender: section.senders[screen.id] ?? null
+        // The card output it goes to, as found now, or null
+        readonly property var card: screen.output === "decklink" ? DeckLink.outputs.find(output => output.id === screen.decklinkOutput) ?? null : null
+        readonly property bool keys: card !== null && (card.internal || card.external)
+        readonly property bool keyed: screen.decklinkAlpha !== "none"
+        // Where it goes, in a few words
+        readonly property string outputLabel: {
+            switch (screen.output) {
+            case "window":
+                return "A window of its own"
+            case "display": {
+                const display = Screens.displays.find(candidate => candidate.name === screen.display)
+                return "Display: " + (display ? display.label : screen.display + " (not plugged in)")
+            }
+            case "ndi":
+                return "NDI"
+            case "decklink":
+                return (screen.decklinkName !== "" ? screen.decklinkName : "Blackmagic") + " · " + screen.decklinkFormat
+            default:
+                return "Nothing"
+            }
+        }
+
+        // The menu of where it can go: a window, each display, NDI, each card output with
+        // its formats, nothing. (What each does is worked out from values of its own:
+        // changing a screen makes the list anew, and this line of it with it.)
+        function outputRows() {
+            const id = screen.id
+            const now = screen
+            const settings = section
+            const choose = (changes, ask) => {
+                Screens.setOutput(id, changes)
+                if (ask)
+                    settings.ndiWanted()
+            }
+            const rows = [{ label: "A window of its own", current: now.output === "window", run: () => choose({ output: "window", display: "" }) }]
+            for (const display of Screens.displays)
+                rows.push({ label: "Display: " + display.label, current: now.output === "display" && now.display === display.name,
+                            run: () => choose({ output: "display", display: display.name }) })
+            if (now.output === "display" && !now.displayThere)
+                rows.push({ label: "Display: " + now.display + " (not plugged in)", current: true, run: () => {} })
+            rows.push({ label: "NDI", current: now.output === "ndi", run: () => choose({ output: "ndi", display: "" }, !Ndi.available) })
+            const cards = DeckLink.outputs
+            if (cards.length > 0 || now.output === "decklink")
+                rows.push({ header: "Blackmagic" })
+            for (const card of cards) {
+                const here = now.output === "decklink" && now.decklinkOutput === card.id
+                rows.push({ label: card.name, current: here, items: [{ header: card.name }].concat(card.formats.map(format => ({
+                    label: format, current: here && now.decklinkFormat === format,
+                    // (An output that cannot key sends the screen as it is: the alpha
+                    // settings are not open for it.)
+                    run: () => choose({ output: "decklink", display: "", decklinkOutput: card.id, decklinkName: card.name, decklinkFormat: format,
+                                        decklinkAlpha: card.internal || card.external ? now.decklinkAlpha : "none" })
+                }))) })
+            }
+            if (now.output === "decklink" && !cards.some(card => card.id === now.decklinkOutput))
+                rows.push({ label: now.decklinkName + " (not here)", current: true, run: () => {} })
+            rows.push({ label: "Nothing", current: now.output === "none", run: () => choose({ output: "none", display: "" }) })
+            return rows
+        }
 
         objectName: "screenRow"
         width: parent ? parent.width : 0
@@ -79,23 +143,19 @@ Flickable {
                     }
                 }
 
-                AppComboBox {
+                AppButton {
+                    id: outputButton
+
                     objectName: "screenOutput"
                     width: Math.min(400, body.width - 200 - remove.width - 16)
                     height: 28
                     font.pixelSize: 13
-                    model: row.outputs.map(entry => entry.label)
-                    currentIndex: Math.max(0, row.outputs.findIndex(entry => entry.output === row.screen.output
-                                                                             && (entry.output !== "display" || entry.display === row.screen.display)))
-                    // (What is to be done is worked out first: changing a screen makes
-                    // the list anew, and this line of it with it.)
-                    onActivated: (index) => {
-                        const chosen = row.outputs[index]
-                        const ask = chosen.output === "ndi" && !Ndi.available
-                        const settings = section
-                        Screens.setOutput(row.screen.id, { output: chosen.output, display: chosen.display })
-                        if (ask)
-                            settings.ndiWanted()
+                    text: row.outputLabel + "  ▾"
+                    // (The card outputs are looked for again each time: Desktop Video
+                    // Setup may have arranged them otherwise since.)
+                    onClicked: {
+                        DeckLink.refresh()
+                        section.menuWanted(row.outputRows(), outputButton, 0, outputButton.height)
                     }
                 }
 
@@ -174,6 +234,78 @@ Flickable {
                 }
             }
 
+            // A Blackmagic output's keying, as ProPresenter's Alpha settings have it: for an
+            // output that can key (a linked pair), and not otherwise. Made only for a screen
+            // that goes to a Blackmagic output: the settings are made at start, and these
+            // controls on every screen's line would be work at every start for nothing.
+            Loader {
+                active: row.screen.output === "decklink"
+                visible: active
+
+                sourceComponent: Row {
+                    spacing: 8
+                    enabled: row.keys
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: "#9a9da3"
+                        font.pixelSize: 12
+                        text: "Alpha"
+                    }
+
+                    AppComboBox {
+                        readonly property var values: ["none", "premultiplied", "straight"]
+
+                        objectName: "screenDeckLinkAlpha"
+                        width: 140
+                        height: 26
+                        font.pixelSize: 12
+                        model: ["None", "Premultiplied", "Straight"]
+                        currentIndex: Math.max(0, values.indexOf(row.screen.decklinkAlpha))
+                        onActivated: (index) => Screens.setOutput(row.screen.id, { decklinkAlpha: values[index] })
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: "#9a9da3"
+                        font.pixelSize: 12
+                        text: "Key"
+                    }
+
+                    AppComboBox {
+                        readonly property var values: ["internal", "external"]
+
+                        objectName: "screenDeckLinkKey"
+                        width: 110
+                        height: 26
+                        font.pixelSize: 12
+                        enabled: row.keyed
+                        model: ["Internal", "External"]
+                        currentIndex: Math.max(0, values.indexOf(row.screen.decklinkKey))
+                        onActivated: (index) => Screens.setOutput(row.screen.id, { decklinkKey: values[index] })
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: "#9a9da3"
+                        font.pixelSize: 12
+                        text: "Blend"
+                    }
+
+                    NumberField {
+                        objectName: "screenDeckLinkBlend"
+                        width: 64
+                        from: 0
+                        to: 100
+                        step: 5
+                        suffix: "%"
+                        enabled: row.keyed
+                        value: row.screen.decklinkBlend
+                        onEdited: (value) => Screens.setOutput(row.screen.id, { decklinkBlend: Math.round(value) })
+                    }
+                }
+            }
+
             // How it is going
             Text {
                 objectName: "screenStatus"
@@ -183,10 +315,19 @@ Flickable {
                 readonly property bool wrong: (row.screen.output === "ndi" && row.sender !== null && row.sender.problem !== "")
                                               || (row.screen.output === "ndi" && !Ndi.available)
                                               || (row.screen.output === "display" && !row.screen.displayThere)
+                                              || (row.screen.output === "decklink" && ((row.sender !== null && row.sender.problem !== "")
+                                                                                       || (DeckLink.looked && !DeckLink.available)))
                 color: wrong ? "#ff9a8a" : "#9a9da3"
                 text: row.screen.output === "none" ? "Not drawn. Things that name this screen still find it."
                     : row.screen.output === "display" ? (row.screen.displayThere ? "Fills that display." : "That display is not plugged in, so this screen is not shown.")
                     : row.screen.output === "window" ? "A small window that floats over this one. Double-click its title bar to fill the display it is on."
+                    : row.screen.output === "decklink" ? (DeckLink.looked && !DeckLink.available ? DeckLink.problem
+                        : row.sender === null ? ""
+                        : row.sender.problem !== "" ? row.sender.problem
+                        : !row.sender.sending ? "Switched off with the " + (row.screen.kind === "stage" ? "stage" : "audience") + " screens, on the toolbar."
+                        : "Going out through " + row.screen.decklinkName + " as " + row.screen.decklinkFormat
+                          + (row.keyed ? ", keyed " + row.screen.decklinkKey + "ly, " + row.screen.decklinkAlpha + ", at " + row.screen.decklinkBlend + "%." : ".")
+                          + (row.card === null && DeckLink.looked ? " (It is not among the outputs found now.)" : ""))
                     : !Ndi.available ? "NDI's library is not on this computer yet, so this screen is not being sent."
                     : row.sender === null ? ""
                     : row.sender.problem !== "" ? row.sender.problem
@@ -282,6 +423,19 @@ Flickable {
             color: "#9a9da3"
             font.pixelSize: 12
             text: Screens.screens.length + " of the " + Screens.limit + " screens a workspace can have."
+        }
+
+        Text {
+            objectName: "deckLinkNote"
+            width: parent.width
+            wrapMode: Text.Wrap
+            color: "#9a9da3"
+            font.pixelSize: 12
+            text: "Blackmagic: " + (!DeckLink.looked ? "its cards are looked for when a screen's menu of where it goes is opened."
+                  : !DeckLink.available ? DeckLink.problem
+                  : "Desktop Video " + DeckLink.version + ", " + (DeckLink.outputs.length === 0 ? "with no outputs." : DeckLink.outputs.length === 1 ? "one output." : DeckLink.outputs.length + " outputs."))
+                + " The outputs are as Blackmagic's Desktop Video Setup names and arranges them: a pair of connectors linked there for fill "
+                + "and key is one output, which can key. Video only, for now. DeckLink is Blackmagic Design's."
         }
 
         Text {

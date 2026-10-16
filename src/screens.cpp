@@ -1,5 +1,6 @@
 #include "screens.h"
 
+#include "decklinkformats.h"
 #include "sessionlog.h"
 
 #include <QGuiApplication>
@@ -9,8 +10,11 @@
 namespace {
 
 const QStringList outputKeys {QStringLiteral("output"), QStringLiteral("display"), QStringLiteral("ndiName"),
-                              QStringLiteral("ndiWidth"), QStringLiteral("ndiHeight"), QStringLiteral("ndiRate")};
-const QStringList outputKinds {QStringLiteral("window"), QStringLiteral("display"), QStringLiteral("ndi"), QStringLiteral("none")};
+                              QStringLiteral("ndiWidth"), QStringLiteral("ndiHeight"), QStringLiteral("ndiRate"),
+                              QStringLiteral("decklinkOutput"), QStringLiteral("decklinkName"), QStringLiteral("decklinkFormat"),
+                              QStringLiteral("decklinkAlpha"), QStringLiteral("decklinkKey"), QStringLiteral("decklinkBlend")};
+const QStringList outputKinds {QStringLiteral("window"), QStringLiteral("display"), QStringLiteral("ndi"), QStringLiteral("decklink"),
+                               QStringLiteral("none")};
 
 QString settingsKey(const QString &id, const QString &key)
 {
@@ -96,6 +100,11 @@ QString Screens::open(const QString &workspace)
                     output == QLatin1String("display") ? QStringLiteral("the display %1%2").arg(screen.value("display").toString(),
                                                              screen.value("displayThere").toBool() ? QString() : QStringLiteral(", which is not plugged in"))
                   : output == QLatin1String("ndi") ? QStringLiteral("NDI as \"%1\"").arg(screen.value("ndiName").toString())
+                  : output == QLatin1String("decklink") ? QStringLiteral("the Blackmagic output \"%1\" as %2%3").arg(screen.value("decklinkName").toString(),
+                                                              screen.value("decklinkFormat").toString(),
+                                                              screen.value("decklinkAlpha").toString() == QLatin1String("none") ? QString()
+                                                              : QStringLiteral(", keyed %1ly, %2").arg(screen.value("decklinkKey").toString(),
+                                                                                                       screen.value("decklinkAlpha").toString()))
                   : output == QLatin1String("none") ? QStringLiteral("nothing") : QStringLiteral("a window"));
     }
     SessionLog::write("screens", QStringLiteral("%1 %2: %3").arg(m_screens.size()).arg(found.fromFile ? QStringLiteral("in the workspace's set-up file")
@@ -115,6 +124,9 @@ QVariantMap Screens::outputOf(const screenfile::Screen &screen, bool first) cons
     for (const QVariant &entry : m_displays)
         there = there || entry.toMap().value("name").toString() == display;
     const QString rate = kept.value("ndiRate").toString();
+    const QString format = kept.value("decklinkFormat").toString();
+    const QString alpha = kept.value("decklinkAlpha").toString();
+    static const QStringList alphas {QStringLiteral("none"), QStringLiteral("premultiplied"), QStringLiteral("straight")};
     return {
         {"output", output},
         {"display", display},
@@ -123,6 +135,12 @@ QVariantMap Screens::outputOf(const screenfile::Screen &screen, bool first) cons
         {"ndiWidth", qBound(16, kept.value("ndiWidth", screen.width).toInt(), 7680)},
         {"ndiHeight", qBound(16, kept.value("ndiHeight", screen.height).toInt(), 4320)},
         {"ndiRate", rates().contains(rate) ? rate : QStringLiteral("30")},
+        {"decklinkOutput", kept.value("decklinkOutput").toString()},
+        {"decklinkName", kept.value("decklinkName").toString()},
+        {"decklinkFormat", decklinkformats::formatNamed(format) ? format : QStringLiteral("1080p29.97")},
+        {"decklinkAlpha", alphas.contains(alpha) ? alpha : QStringLiteral("none")},
+        {"decklinkKey", kept.value("decklinkKey").toString() == QLatin1String("internal") ? QStringLiteral("internal") : QStringLiteral("external")},
+        {"decklinkBlend", qBound(0, kept.value("decklinkBlend", 100).toInt(), 100)},
     };
 }
 

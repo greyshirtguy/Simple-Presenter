@@ -1664,7 +1664,7 @@ def after_announce(workspace, test_dir):
 
 def prepare_red_picture(workspace, test_dir):
     """A picture of one colour, red and the shape of a screen, for a test to put on the media layer and look for
-    (screenpreview, screens): in the test's own folder and NOT under the workspace's Media, which in a copy of a
+    (screenpreview, screens, decklink): in the test's own folder and NOT under the workspace's Media, which in a copy of a
     fixture is a link to a real one (see prepare_audio)."""
     folder = os.path.join(test_dir, "media")
     os.makedirs(folder)
@@ -2080,6 +2080,8 @@ TESTS = {
     "messages": test("Act", timeout=300, prepare=prepare_messages, after=after_messages),
     "screenpreview": test("Act", timeout=240, prepare=prepare_red_picture),
     "textstyle": test("Act", timeout=240),
+    # (With the two Blackmagic outputs the app pretends for tests: there is no card here.)
+    "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),
     "shapes": test("Shapes", SHELL, 120),

@@ -48,6 +48,8 @@ Rectangle {
 
     signal groupsEdited(var groups)
     signal screensFailed(string text)
+    // The menu of where a screen can go is to be shown (see ScreensSettings)
+    signal screenMenuWanted(var rows, var item, real x, real y)
     signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
     signal videoDecodingEdited(string mode)
@@ -754,6 +756,7 @@ Rectangle {
             senders: screen.senders
             onFailed: (text) => screen.screensFailed(text)
             onNdiWanted: ndiSetup.visible = true
+            onMenuWanted: (rows, item, x, y) => screen.screenMenuWanted(rows, item, x, y)
         }
 
         // (The looks, which say what each of those screens gets, have a window of their
