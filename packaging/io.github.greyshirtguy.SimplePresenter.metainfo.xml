@@ -39,6 +39,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.98" date="2026-10-17">
+      <description>
+        <p>
+          A screen can go out through an output of a Blackmagic DeckLink card, in one of
+          ten formats, and an output that is a linked pair of connectors can key,
+          internally or externally, with ProPresenter's alpha settings; tried so far on
+          one card. Screens going out through cards are drawn together and handed over
+          together, so that their outputs change together.
+        </p>
+      </description>
+    </release>
     <release version="0.97" date="2026-10-16">
       <description>
         <p>
