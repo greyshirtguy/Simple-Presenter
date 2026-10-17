@@ -5,6 +5,7 @@
 #include <DeckLinkAPI.h>
 #include <DeckLinkAPIVideoOutput_v15_3_1.h>
 
+#include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
@@ -13,6 +14,7 @@
 #include <QQuickRenderControl>
 #include <QQuickRenderTarget>
 #include <QQuickWindow>
+#include <QTimer>
 
 #include <cstdlib>
 #include <vector>
@@ -438,6 +440,115 @@ private:
 
 }
 
+namespace decklink {
+
+// Every screen going out through a card, drawn in the same passes (see decklink.h, and
+// the beat in decklinkformats.h): one clock and one timer for them all. There is one of
+// these, made the first time a screen goes out through a card.
+class Passes : public QObject
+{
+public:
+    static Passes &the()
+    {
+        static QPointer<Passes> made;
+        if (!made)
+            made = new Passes(QCoreApplication::instance());
+        return *made;
+    }
+
+    qint64 now() const { return m_clock.nsecsElapsed(); }
+
+    void join(DeckLinkScreen *screen)
+    {
+        if (!m_screens.contains(screen))
+            m_screens << screen;
+    }
+
+    void leave(DeckLinkScreen *screen) { m_screens.removeAll(screen); }
+
+    // A pass when the soonest of the screens waiting is due, unless one is coming sooner.
+    // (Asked at every change of every screen, which is many a frame in a transition: it
+    // only looks at the few screens there are.)
+    void schedule()
+    {
+        QList<decklinkformats::Waiting> waiting;
+        for (DeckLinkScreen *screen : std::as_const(m_screens)) {
+            if (screen->waiting())
+                waiting << screen->beat();
+        }
+        const qint64 due = decklinkformats::passDue(waiting);
+        if (due < 0)
+            return;
+        const int wait = int(qMax<qint64>(0, due - now()) / 1'000'000);
+        if (m_timer.isActive() && m_timer.remainingTime() <= wait)
+            return;
+        m_timer.start(wait);
+    }
+
+private:
+    explicit Passes(QObject *parent)
+        : QObject(parent)
+    {
+        m_timer.setSingleShot(true);
+        m_timer.setTimerType(Qt::PreciseTimer);
+        connect(&m_timer, &QTimer::timeout, this, &Passes::pass);
+        m_clock.start();
+    }
+
+    // Each screen the pass takes is drawn, then each is read back into a frame of its
+    // card, then all are handed over at once.
+    void pass()
+    {
+        const qint64 now = this->now();
+        QList<decklinkformats::Waiting> waiting;
+        for (DeckLinkScreen *screen : std::as_const(m_screens)) {
+            if (screen->waiting())
+                waiting << screen->beat();
+        }
+        // Not yet: it waits for a card to give a frame back (or the clock woke it early)
+        if (decklinkformats::passDue(waiting) - now > 1'000'000) {
+            schedule();
+            return;
+        }
+        QList<DeckLinkScreen *> taken;
+        for (DeckLinkScreen *screen : std::as_const(m_screens)) {
+            if (screen->waiting() && decklinkformats::drawnInPass(screen->beat(), now))
+                taken << screen;
+        }
+        if (!taken.isEmpty()) {
+            ++m_passes;
+            QElapsedTimer took;
+            took.start();
+            QList<DeckLinkScreen *> drawn;
+            for (DeckLinkScreen *screen : std::as_const(taken)) {
+                if (screen->render())
+                    drawn << screen;
+            }
+            QList<int> frames;
+            for (DeckLinkScreen *screen : std::as_const(drawn))
+                frames << screen->readBack();
+            const qint64 spent = took.nsecsElapsed();
+            for (qsizetype i = 0; i < drawn.size(); ++i) {
+                if (frames[i] >= 0)
+                    drawn[i]->handOver(frames[i], m_passes, spent);
+            }
+            for (DeckLinkScreen *screen : std::as_const(taken))
+                screen->m_next = decklinkformats::nextAfter(screen->beat(), now);
+        }
+        // Any still waiting: one not due yet, or one that changed again as it was drawn
+        schedule();
+    }
+
+    QList<DeckLinkScreen *> m_screens;
+    QTimer m_timer;
+    QElapsedTimer m_clock;
+    int m_passes = 0;
+};
+
+}
+
+using decklink::Passes;
+
 DeckLink::DeckLink(QObject *parent)
     : QObject(parent)
 {
@@ -482,10 +593,6 @@ void DeckLink::refresh()
 DeckLinkScreen::DeckLinkScreen(QObject *parent)
     : QObject(parent)
 {
-    m_timer.setSingleShot(true);
-    m_timer.setTimerType(Qt::PreciseTimer);
-    connect(&m_timer, &QTimer::timeout, this, &DeckLinkScreen::tick);
-    m_clock.start();
 }
 
 DeckLinkScreen::~DeckLinkScreen()
@@ -747,6 +854,7 @@ bool DeckLinkScreen::start()
     m_free.clear();
     for (int i = 0; i < m_card->frames(); ++i)
         m_free << i;
+    m_slotPass = QList<int>(m_card->frames(), -1);
     m_worker = new QObject;
     m_worker->moveToThread(&m_thread);
     m_thread.start();
@@ -759,20 +867,25 @@ bool DeckLinkScreen::start()
     m_lastSlot = -1;
     m_changed = true;
     m_next = 0;
+    m_period = decklinkformats::period(*format);
+    m_drawings = 0;
+    m_drawingTotal = 0;
+    m_drawingLongest = 0;
     m_problem.clear();
     SessionLog::write("decklink", QStringLiteral("a screen goes out through \"%1\" as %2%3").arg(m_outputName, m_format,
                                   keyed ? QStringLiteral(", keyed %1ly, %2, at %3%").arg(m_key, m_alpha).arg(m_blend) : QString()));
     emit statusChanged();
     emit framesSentChanged();
+    Passes::the().join(this);
     schedule();
     return true;
 }
 
 void DeckLinkScreen::stop()
 {
-    m_timer.stop();
     if (!m_sending)
         return;
+    Passes::the().leave(this);
     // The thread that hands frames to the card finishes what it has first.
     m_thread.quit();
     m_thread.wait();
@@ -784,27 +897,59 @@ void DeckLinkScreen::stop()
     m_free.clear();
     m_sending = false;
     m_lastSlot = -1;
-    SessionLog::write("decklink", QStringLiteral("the screen sent through \"%1\" has stopped, after %2 frames").arg(m_sentName).arg(m_framesSent));
+    // (With how long drawing took, the other screens going out through a card with it:
+    // what an older computer can keep up with is in that.)
+    SessionLog::write("decklink", QStringLiteral("the screen sent through \"%1\" has stopped, after %2 %3%4").arg(m_sentName).arg(m_framesSent)
+                                  .arg(m_framesSent == 1 ? QStringLiteral("frame") : QStringLiteral("frames"))
+                                  .arg(m_drawings > 0 ? QStringLiteral(", each drawn (with any other screens going out through a card) in "
+                                                                         "%1 ms on average, %2 ms at most")
+                                                                .arg(double(m_drawingTotal) / m_drawings / 1e6, 0, 'f', 1)
+                                                                .arg(double(m_drawingLongest) / 1e6, 0, 'f', 1)
+                                                        : QString()));
     emit statusChanged();
 }
 
-void DeckLinkScreen::draw(int slot)
+bool DeckLinkScreen::waiting() const
 {
-    if (!m_context->makeCurrent(m_surface))
-        return;
+    // (Not while what is wanted has changed and the card is about to be started again
+    // for it: the size may no longer be the card's.)
+    return m_sending && m_changed && m_sendingAs == wanted(this);
+}
+
+decklinkformats::Waiting DeckLinkScreen::beat() const
+{
+    return {m_next, m_period, !m_free.isEmpty()};
+}
+
+bool DeckLinkScreen::render()
+{
+    if (!m_context->makeCurrent(m_surface)) {
+        m_changed = false;
+        fail(QStringLiteral("the graphics card would not let the app draw it."));
+        return false;
+    }
     m_control->polishItems();
     m_control->beginFrame();
     m_control->sync();
     m_control->render();
     m_control->endFrame();
     m_changed = false;
+    // Sent to the graphics chip now, to be drawn while the others are
+    m_context->functions()->glFlush();
+    return true;
+}
 
+int DeckLinkScreen::readBack()
+{
+    const int slot = m_free.takeFirst();
     // Read back straight into the card's own frame: blue, green, red, opacity, the
     // order the card takes them in. Premultiplied is how the app draws, so only straight
     // has anything done to it.
-    uchar *bytes = m_card->beginWriting(slot);
-    if (!bytes)
-        return;
+    uchar *bytes = m_context->makeCurrent(m_surface) ? m_card->beginWriting(slot) : nullptr;
+    if (!bytes) {
+        m_free.prepend(slot);
+        return -1;
+    }
     QOpenGLFunctions *gl = m_context->functions();
     gl->glBindFramebuffer(GL_FRAMEBUFFER, m_target->handle());
     gl->glPixelStorei(GL_PACK_ALIGNMENT, 4);
@@ -818,45 +963,32 @@ void DeckLinkScreen::draw(int slot)
             decklinkformats::unpremultiplied(bytes + qsizetype(row) * m_card->rowBytes(), m_sentSize.width());
     }
     m_card->endWriting(slot);
+    return slot;
+}
+
+void DeckLinkScreen::handOver(int slot, int pass, qint64 took)
+{
+    m_slotPass[slot] = pass;
+    ++m_drawings;
+    m_drawingTotal += took;
+    m_drawingLongest = qMax(m_drawingLongest, took);
+    decklink::Card *card = m_card.get();
+    QPointer<DeckLinkScreen> self(this);
+    const int run = m_run;
+    QMetaObject::invokeMethod(m_worker, [card, run, slot, self] {
+        const bool ok = card->display(slot);
+        if (self)
+            QMetaObject::invokeMethod(self.data(), [self, run, slot, ok] {
+                if (self)
+                    self->shown(run, slot, ok);
+            }, Qt::QueuedConnection);
+    }, Qt::QueuedConnection);
 }
 
 void DeckLinkScreen::schedule()
 {
-    if (!m_sending || !m_changed || m_timer.isActive())
-        return;
-    m_timer.start(int(qMax<qint64>(0, m_next - m_clock.nsecsElapsed()) / 1'000'000));
-}
-
-void DeckLinkScreen::tick()
-{
-    // (Not while what is wanted has changed and the card is about to be started again
-    // for it: the size may no longer be the card's.)
-    if (!m_sending || m_sendingAs != wanted(this))
-        return;
-    // Drawn and handed to the card only when something has changed, and while the card
-    // has a frame free: the one before is still being shown otherwise, and the change
-    // waits for the card to give one back (shown()).
-    if (m_changed && !m_free.isEmpty()) {
-        const int slot = m_free.takeFirst();
-        draw(slot);
-        decklink::Card *card = m_card.get();
-        QPointer<DeckLinkScreen> self(this);
-        const int run = m_run;
-        QMetaObject::invokeMethod(m_worker, [card, run, slot, self] {
-            const bool ok = card->display(slot);
-            if (self)
-                QMetaObject::invokeMethod(self.data(), [self, run, slot, ok] {
-                    if (self)
-                        self->shown(run, slot, ok);
-                }, Qt::QueuedConnection);
-        }, Qt::QueuedConnection);
-        // The next no sooner than a frame of the format on: on the beat of this one if
-        // this was on time, and a frame from now if it came after a while of nothing
-        const decklinkformats::Format *format = decklinkformats::formatNamed(m_format);
-        const qint64 period = format ? qint64(1'000'000'000) * format->rateDenominator / format->rateNumerator : 33'333'333;
-        const qint64 now = m_clock.nsecsElapsed();
-        m_next = now - m_next < period ? m_next + period : now + period;
-    }
+    if (m_sending && m_changed)
+        Passes::the().schedule();
 }
 
 void DeckLinkScreen::shown(int run, int slot, bool ok)
@@ -877,6 +1009,11 @@ void DeckLinkScreen::shown(int run, int slot, bool ok)
     }
     // A change that waited for a frame to be free
     schedule();
+}
+
+int DeckLinkScreen::shownPass() const
+{
+    return m_lastSlot >= 0 && m_lastSlot < m_slotPass.size() ? m_slotPass[m_lastSlot] : -1;
 }
 
 QImage DeckLinkScreen::picture() const

@@ -307,6 +307,12 @@ public:
         return picture.pixelColor(qBound(0, int(x * picture.width()), picture.width() - 1),
                                   qBound(0, int(y * picture.height()), picture.height() - 1)).name(QColor::HexArgb);
     }
+    // Which pass (of those that draw every screen going out through a card together) drew that picture; -1 if none
+    Q_INVOKABLE int deckLinkPass(QObject *screen)
+    {
+        auto *sender = qobject_cast<DeckLinkScreen *>(screen);
+        return sender ? sender->shownPass() : -1;
+    }
     // How much of that picture is see-through (no opacity at all), and how much is red, from 0 to 1 each
     Q_INVOKABLE QVariantList deckLinkShares(QObject *screen)
     {

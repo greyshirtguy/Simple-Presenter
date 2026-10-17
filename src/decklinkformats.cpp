@@ -52,4 +52,38 @@ void unpremultiplied(uchar *pixels, qsizetype count)
     }
 }
 
+qint64 period(const Format &format)
+{
+    return qint64(1'000'000'000) * format.rateDenominator / format.rateNumerator;
+}
+
+qint64 passDue(const QList<Waiting> &waiting)
+{
+    // (One with no frame free makes no pass due by itself: it would be due over and over,
+    // and drawn in none. Its card giving a frame back asks for a pass again.)
+    qint64 soonest = -1;
+    for (const Waiting &screen : waiting) {
+        if (screen.ready && (soonest < 0 || screen.next < soonest))
+            soonest = screen.next;
+    }
+    if (soonest < 0)
+        return -1;
+    qint64 due = soonest;
+    for (const Waiting &screen : waiting) {
+        if (!screen.ready && screen.next - soonest <= screen.period / 2)
+            due = qMax(due, soonest + screen.period / 2);
+    }
+    return due;
+}
+
+bool drawnInPass(const Waiting &screen, qint64 now)
+{
+    return screen.ready && screen.next - now <= screen.period / 2;
+}
+
+qint64 nextAfter(const Waiting &screen, qint64 now)
+{
+    return now - screen.next < screen.period ? screen.next + screen.period : now + screen.period;
+}
+
 }

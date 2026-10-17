@@ -2,7 +2,6 @@
 
 #include "decklinkformats.h"
 
-#include <QElapsedTimer>
 #include <QImage>
 #include <QList>
 #include <QObject>
@@ -10,7 +9,6 @@
 #include <QQuickItem>
 #include <QSize>
 #include <QThread>
-#include <QTimer>
 #include <QQmlParserStatus>
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
@@ -25,6 +23,7 @@ class QSurface;
 
 namespace decklink {
 class Card;
+class Passes;
 }
 
 // Screens sent out through a Blackmagic DeckLink card (a DeckLink Duo 2 is the one this
@@ -55,6 +54,17 @@ class Card;
 // on the beat of the frames drawn before it. (A choice for cost over timing:
 // a frame goes out on the card's next frame after it is ready, rather than being
 // scheduled to the frame. ProPresenter's way is not known.)
+//
+// Together. Every screen going out through a card is drawn in the same passes, on one
+// clock (decklinkformats.h has the rules of when): each screen that has changed is
+// drawn, then each is read back, then all are handed to their cards at once. Drawn one
+// after another, each read back before the next was drawn, three outputs on an older
+// computer were seen to change one after another; so no card is handed its frame before
+// the others have theirs, and the graphics chip draws the next while the first is read
+// back. That they then go out on the same frame of the cards is a GUESS: it depends on
+// the outputs' frames being lined up, which is not known. (Blackmagic's SDK can line
+// them up exactly, in "playback groups", but only for frames scheduled ahead, which
+// would cost a few frames of delay and a wake of the clock at every frame: not done.)
 //
 // Blackmagic's library. libDeckLinkAPI.so comes with Desktop Video, which a computer
 // with a card has installed; it is not in the app's package. It is looked for the first
@@ -111,6 +121,7 @@ signals:
 class DeckLinkScreen : public QObject, public QQmlParserStatus
 {
     Q_OBJECT
+    friend class decklink::Passes;
     Q_INTERFACES(QQmlParserStatus)
     QML_ELEMENT
     // The output, by its id (see DeckLink), and the name it had, for saying which it was
@@ -164,6 +175,9 @@ public:
     // The picture last handed to the card, as the card was given it (blue, green, red
     // and opacity); a null image before there is one. (For the tests.)
     QImage picture() const;
+    // Which of the passes (counted for all the screens together) drew that picture; -1
+    // before there is one. (For the tests: screens drawn together have the same.)
+    int shownPass() const;
 
     void classBegin() override {}
     void componentComplete() override;
@@ -188,10 +202,16 @@ private:
     bool prepareDrawing();
     void releaseDrawing();
     void fit();
-    // Something has changed: drawn when it is next allowed, and a frame of the card is free
+    // Something has changed: drawn in the next pass that takes it (see decklink::Passes)
     void schedule();
-    void tick();
-    void draw(int slot);
+    // What a pass asks of it: whether it is waiting to be drawn (something has changed),
+    // and when it may be, and whether its card has a frame free; then drawn, read back
+    // into a free frame of its card (which, or -1), and handed to the card
+    bool waiting() const;
+    decklinkformats::Waiting beat() const;
+    bool render();
+    int readBack();
+    void handOver(int slot, int pass, qint64 took);
     void fail(const QString &why);
     // A frame the card has shown, and so can be drawn into again (on this object's thread),
     // in the sending started `run`th
@@ -239,8 +259,14 @@ private:
     // started again is of the frames before, and not put back among the new ones
     int m_run = 0;
     QString m_problem;
-    QTimer m_timer;
-    QElapsedTimer m_clock;
-    // When the next frame may be drawn, on m_clock
+    // When the next frame may be drawn, on the passes' clock, and how long a frame of the
+    // format it was started in is (both in nanoseconds)
     qint64 m_next = 0;
+    qint64 m_period = 0;
+    // The pass each of the card's frames was last drawn in
+    QList<int> m_slotPass;
+    // How many passes drew it, and how long they took, for the log when it stops
+    int m_drawings = 0;
+    qint64 m_drawingTotal = 0;
+    qint64 m_drawingLongest = 0;
 };

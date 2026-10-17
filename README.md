@@ -206,10 +206,12 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
-- **Blackmagic DeckLink output**, not yet tried with a card. A screen can go out
+- **Blackmagic DeckLink output**, tried so far on one card. A screen can go out
   through an output of a DeckLink card, in one of ten formats, and an output that is a
   linked pair of connectors can key, internally or externally, with ProPresenter's
-  alpha settings. See [Blackmagic DeckLink](#blackmagic-decklink).
+  alpha settings. Screens going out through cards are drawn together and handed over
+  together, so that their outputs change together. See
+  [Blackmagic DeckLink](#blackmagic-decklink).
 - **Copy Text Style and Paste Text Style.** A slide's menu, while showing and in the
   editor, puts the look of one slide's text boxes on another's, as a theme would,
   keeping the words. See [Editing](#editing). And a paste into a text box is a paste
@@ -2655,9 +2657,11 @@ NDI® is a registered trademark of Vizrt NDI AB.
 
 ## Blackmagic DeckLink
 
-**Not yet tried with a card.** What follows is what was built, from Blackmagic's SDK and
-from what ProPresenter does; it has been tested only against outputs the app pretends,
-on a computer with no card.
+**Tried so far on one card.** What follows was built from Blackmagic's SDK and from what
+ProPresenter does, and tested against outputs the app pretends, on a computer with no
+card. It has since been tried on one computer with a card (a DeckLink Duo 2, with
+Desktop Video 15.0), sending three screens through its outputs; keying has not been
+seen to work yet.
 
 A screen can go out through an output of a Blackmagic DeckLink card (a DeckLink Duo 2 is
 the one it was made for), as an SDI signal, for a vision mixer, a recorder or a monitor.
@@ -2697,6 +2701,15 @@ has changed: the card goes on showing the last frame it was given, so a still sl
 costs nothing, and a moving one costs a picture read back for each frame that changes.
 A frame goes out on the card's next frame after it is ready rather than being timed to
 the frame, which is a choice of less work over exact timing.
+
+**Together.** Every screen going out through a card is drawn in the same passes: each
+that has changed is drawn, then each is read back, then all are handed to their cards
+at once. (Drawn one after another, each read back before the next was drawn, three
+outputs on an older computer were seen to change one by one.) That they then go out on
+the same frame of the cards depends on the cards' frames being lined up, which is not
+known. Blackmagic's SDK can line outputs up exactly, but only for frames sent a few
+frames ahead, at every frame, which would cost a delay and work on a still slide: that
+is not done. The log's line for a screen that stops says how long its drawing took.
 
 **Blackmagic's library is not part of this app.** It comes with *Desktop Video*, the
 drivers for the card, from Blackmagic Design, which a computer with a card has installed

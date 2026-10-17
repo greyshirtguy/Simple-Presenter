@@ -9,7 +9,8 @@ import "lib.js" as Lib
 // and not handed over again while it stays; black and opaque while nothing is on; see-through once it is keyed
 // (premultiplied, straight; internal; a blend); switched off and on, it goes out again; another format chosen while
 // it goes out starts it again at that size; an output that cannot key has its alpha set to none and its settings shut;
-// an output that is not there says so. And the log says what was found and sent.
+// an output that is not there says so. And the log says what was found and sent. Then two screens, one on each output:
+// drawn in the same passes and handed over together, a change and every frame of a dissolve alike.
 QtObject {
     id: t
 
@@ -181,10 +182,64 @@ QtObject {
                       && part("screenStatus").text.includes("Gone Card"), part("screenStatus").text)
                 check("the log says what was found, what was sent and what stopped", logged(/  decklink +a screen goes out through "DeckLink Duo \(1\)" as 1080p29\.97$/).length >= 1
                       && logged(/  decklink +a screen goes out through "DeckLink Duo \(1\)" as 1080p29\.97, keyed internally, premultiplied, at 60%$/).length === 1
-                      && logged(/  decklink +the screen sent through "DeckLink Duo \(1\)" has stopped, after \d+ frames$/).length >= 1
+                      && logged(/  decklink +the screen sent through "DeckLink Duo \(1\)" has stopped, after \d+ frames, each drawn \(with any other screens going out through a card\) in \d+\.\d ms on average, \d+\.\d ms at most$/).length >= 1
                       && logged(/  PROBLEM +A screen is not being sent through the Blackmagic output "Gone Card": there is no Blackmagic output/).length === 1,
                       logged(/decklink|Blackmagic/).join(" | "))
                 Screens.setOutput(kept.id, { output: "none" })
+                clearMedia()
+                Screens.add("audience")
+                return 800
+            },
+            () => {
+                // ---- two screens, one on each output, in one format
+                kept.second = Screens.audience[2].id
+                Screens.setOutput(kept.id, { output: "decklink", decklinkOutput: "pretend-1", decklinkName: "DeckLink Duo (1)", decklinkFormat: "1080p29.97",
+                                             decklinkAlpha: "none" })
+                Screens.setOutput(kept.second, { output: "decklink", decklinkOutput: "pretend-3", decklinkName: "DeckLink Duo (3)", decklinkFormat: "1080p29.97",
+                                                 decklinkAlpha: "none" })
+                return 1500
+            },
+            () => {
+                const other = senders[kept.second] ?? null
+                check("two screens go out, one through each output", sender().sending && other !== null && other.sending,
+                      sender().problem + " / " + (other ? other.problem : "none"))
+                red()
+                return 1200
+            },
+            () => {
+                const other = senders[kept.second]
+                check("a change is drawn for both in the same pass, and handed over together", testInput.deckLinkPass(sender()) > 0
+                      && testInput.deckLinkPass(sender()) === testInput.deckLinkPass(other) && shares()[1] > 0.9 && testInput.deckLinkShares(other)[1] > 0.9,
+                      JSON.stringify([testInput.deckLinkPass(sender()), testInput.deckLinkPass(other), shares(), testInput.deckLinkShares(other)]))
+                clearMedia()
+                return 1200
+            },
+            () => {
+                selectTransition("Dissolve")
+                transitionDuration = 1.2
+                red()
+                kept.tries = 0
+                return 500
+            },
+            () => {
+                // Halfway through the dissolve. (A frame each card has shown is said back on its own thread; looked at
+                // between the two sayings, the one is a frame on from the other: looked at again a moment later.)
+                const other = senders[kept.second]
+                const passes = [testInput.deckLinkPass(sender()), testInput.deckLinkPass(other)]
+                if (passes[0] !== passes[1] && ++kept.tries < 20) {
+                    --at
+                    return 3
+                }
+                const pixels = [testInput.deckLinkPixel(sender(), 0.5, 0.5), testInput.deckLinkPixel(other, 0.5, 0.5)]
+                check("halfway through a dissolve, both show the same frame of it, drawn in the same pass", passes[0] === passes[1] && pixels[0] === pixels[1]
+                      && pixels[0] !== "#ff000000" && pixels[0] !== "#ffff0000", JSON.stringify([passes, pixels, kept.tries]))
+                return 1500
+            },
+            () => {
+                const other = senders[kept.second]
+                check("and both end on red", shares()[1] > 0.9 && testInput.deckLinkShares(other)[1] > 0.9)
+                Screens.setOutput(kept.id, { output: "none" })
+                Screens.setOutput(kept.second, { output: "none" })
                 clearMedia()
                 return 500
             },
