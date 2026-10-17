@@ -3,6 +3,7 @@
 #include "sessionlog.h"
 
 #include <DeckLinkAPI.h>
+#include <DeckLinkAPIVideoOutput_v15_3_1.h>
 
 #include <QGuiApplication>
 #include <QOpenGLContext>
@@ -30,6 +31,25 @@ static_assert(bmdModeHD1080p24 == 0x32347073 && bmdModeHD1080p25 == 0x48703235 &
               && bmdModeHD1080p6000 == 0x48703630 && bmdModeHD720p50 == 0x68703530 && bmdModeHD720p5994 == 0x68703539
               && bmdModeHD720p60 == 0x68703630,
               "decklinkformats.cpp's codes are not the SDK's");
+
+// Which of the SDK's interfaces are asked for. A new version of the SDK gives some of
+// its interfaces new ids, and a card's driver answers only to the ids of its own version
+// and the ones before: a driver older than the SDK does not know the newest. Asked for by
+// SDK 16.0's ids, as this file did at first, Desktop Video 15.0 answered for none of its
+// connectors, and no output was found at all. So the app asks for the ids of Desktop
+// Video 14.3 to 15.3.1, which the SDK keeps (its files with _v15_3_1 in the name) so
+// that programs built for them go on working with later drivers: every driver from 14.3
+// on answers to them, 16.0's and later's included. Nothing this app does needs what 16.0
+// changed. (The other interfaces used here, IDeckLink, IDeckLinkIterator,
+// IDeckLinkAPIInformation, IDeckLinkKeyer and the frames, have kept their ids since 14.3.)
+using DeckLinkAttributes = IDeckLinkProfileAttributes_v15_3_1;
+using DeckLinkOutput = IDeckLinkOutput_v15_3_1;
+using DeckLinkBuffer = IDeckLinkVideoBuffer_v15_3_1;
+static const REFIID &iidAttributes = IID_IDeckLinkProfileAttributes_v15_3_1;
+static const REFIID &iidOutput = IID_IDeckLinkOutput_v15_3_1;
+static const REFIID &iidBuffer = IID_IDeckLinkVideoBuffer_v15_3_1;
+// The oldest Desktop Video those ids are known to, as BMDDeckLinkAPIVersion writes it
+constexpr int64_t oldestVersion = 0x0e030000;
 
 namespace decklink {
 
@@ -72,6 +92,8 @@ struct Output
     bool internal = false;
     bool external = false;
     QStringList formats;
+    // Why a connector is not an output, for the log, when it is not
+    QString left;
 };
 
 // What was found the last time the outputs were looked for. (One for the app, as the
@@ -106,7 +128,7 @@ QString taken(const char *text)
 
 // An output's id: the persistent id Desktop Video gives a connector, or failing that the
 // place the card is in, or failing that its name
-QString idOf(IDeckLinkProfileAttributes *attributes, const QString &name)
+QString idOf(DeckLinkAttributes *attributes, const QString &name)
 {
     int64_t value = 0;
     if (attributes->GetInt(BMDDeckLinkPersistentID, &value) == S_OK)
@@ -116,32 +138,43 @@ QString idOf(IDeckLinkProfileAttributes *attributes, const QString &name)
     return name;
 }
 
-// A card's device as an output, or one with no id if it is not one: it sends no video,
-// or it is a connector a linked pair has taken (Desktop Video says it is inactive).
+// A card's device as an output, or one with no id if it is not one (and why, in left):
+// it sends no video, or it is a connector a linked pair has taken (Desktop Video says it
+// is inactive), or the driver did not answer for it.
 Output describe(IDeckLink *deckLink)
 {
     Output made;
-    IDeckLinkProfileAttributes *attributes = nullptr;
-    if (deckLink->QueryInterface(IID_IDeckLinkProfileAttributes, reinterpret_cast<void **>(&attributes)) != S_OK)
+    const char *text = nullptr;
+    if (deckLink->GetDisplayName(&text) == S_OK)
+        made.name = taken(text);
+    if (deckLink->GetModelName(&text) == S_OK)
+        made.model = taken(text);
+    DeckLinkAttributes *attributes = nullptr;
+    if (deckLink->QueryInterface(iidAttributes, reinterpret_cast<void **>(&attributes)) != S_OK) {
+        made.left = QStringLiteral("Desktop Video would not say what it can do");
         return made;
+    }
     int64_t io = 0;
     int64_t duplex = 0;
     const bool sends = attributes->GetInt(BMDDeckLinkVideoIOSupport, &io) == S_OK && (io & bmdDeviceSupportsPlayback);
     const bool inactive = attributes->GetInt(BMDDeckLinkDuplex, &duplex) == S_OK && duplex == bmdDuplexInactive;
     attributes->GetFlag(BMDDeckLinkSupportsInternalKeying, &made.internal);
     attributes->GetFlag(BMDDeckLinkSupportsExternalKeying, &made.external);
-    const char *text = nullptr;
-    if (deckLink->GetDisplayName(&text) == S_OK)
-        made.name = taken(text);
-    if (deckLink->GetModelName(&text) == S_OK)
-        made.model = taken(text);
     const QString id = idOf(attributes, made.name);
     attributes->Release();
-    if (!sends || inactive)
+    if (!sends) {
+        made.left = QStringLiteral("it does not send video");
         return made;
-    IDeckLinkOutput *output = nullptr;
-    if (deckLink->QueryInterface(IID_IDeckLinkOutput, reinterpret_cast<void **>(&output)) != S_OK)
+    }
+    if (inactive) {
+        made.left = QStringLiteral("Desktop Video has it inactive (taken by a linked pair, perhaps)");
         return made;
+    }
+    DeckLinkOutput *output = nullptr;
+    if (deckLink->QueryInterface(iidOutput, reinterpret_cast<void **>(&output)) != S_OK) {
+        made.left = QStringLiteral("Desktop Video would not give its output");
+        return made;
+    }
     for (const Format &format : decklinkformats::formats()) {
         bool supported = false;
         if (output->DoesSupportVideoMode(bmdVideoConnectionUnspecified, format.mode, bmdFormat8BitBGRA, bmdNoVideoOutputConversion,
@@ -171,11 +204,20 @@ void look()
         return;
     }
     // (The first of these is what finds Blackmagic's library: see DeckLinkAPIDispatch.cpp.)
+    int64_t version = 0;
     if (IDeckLinkAPIInformation *information = CreateDeckLinkAPIInformationInstance()) {
-        int64_t version = 0;
         if (information->GetInt(BMDDeckLinkAPIVersion, &version) == S_OK)
             kept.version = QStringLiteral("%1.%2.%3").arg((version >> 24) & 0xff).arg((version >> 16) & 0xff).arg((version >> 8) & 0xff);
+        else
+            version = 0;
         information->Release();
+    }
+    if (version && version < oldestVersion) {
+        kept.available = false;
+        kept.problem = QStringLiteral("Blackmagic's Desktop Video here is version %1, and this needs 14.3 or later: it comes with the "
+                                      "card's drivers, from Blackmagic Design.").arg(kept.version);
+        SessionLog::write("decklink", QStringLiteral("no DeckLink outputs: %1").arg(kept.problem));
+        return;
     }
     IDeckLinkIterator *iterator = CreateDeckLinkIteratorInstance();
     if (!iterator) {
@@ -188,11 +230,14 @@ void look()
     kept.available = true;
     IDeckLink *deckLink = nullptr;
     QStringList said;
+    QStringList left;
     while (iterator->Next(&deckLink) == S_OK) {
         const Output output = describe(deckLink);
         deckLink->Release();
-        if (output.id.isEmpty())
+        if (output.id.isEmpty()) {
+            left << QStringLiteral("\"%1\" (%2)").arg(output.name, output.left);
             continue;
+        }
         kept.outputs << output;
         said << QStringLiteral("\"%1\" (%2; %3 formats; %4)").arg(output.name, output.model).arg(output.formats.size())
                     .arg(output.internal && output.external ? QStringLiteral("keys internally and externally")
@@ -200,8 +245,9 @@ void look()
                                                                                    : QStringLiteral("does not key"));
     }
     iterator->Release();
-    SessionLog::write("decklink", QStringLiteral("Desktop Video %1: %2").arg(kept.version,
-                                  said.isEmpty() ? QStringLiteral("no outputs found") : said.join(QStringLiteral("; "))));
+    SessionLog::write("decklink", QStringLiteral("Desktop Video %1: %2%3").arg(kept.version,
+                                  said.isEmpty() ? QStringLiteral("no outputs found") : said.join(QStringLiteral("; ")),
+                                  left.isEmpty() ? QString() : QStringLiteral("; left out: ") + left.join(QStringLiteral("; "))));
 }
 
 const Found &looked()
@@ -257,7 +303,7 @@ public:
             m_deckLink = byName;
         if (!m_deckLink)
             return QStringLiteral("there is no Blackmagic output \"%1\" on this computer now").arg(name);
-        if (m_deckLink->QueryInterface(IID_IDeckLinkOutput, reinterpret_cast<void **>(&m_output)) != S_OK)
+        if (m_deckLink->QueryInterface(iidOutput, reinterpret_cast<void **>(&m_output)) != S_OK)
             return QStringLiteral("\"%1\" does not send video").arg(name);
         bool supported = false;
         if (m_output->DoesSupportVideoMode(bmdVideoConnectionUnspecified, format.mode, bmdFormat8BitBGRA, bmdNoVideoOutputConversion,
@@ -288,8 +334,8 @@ public:
             result = m_output->CreateVideoFrame(format.width, format.height, row, bmdFormat8BitBGRA, bmdFrameFlagDefault, &frame);
             if (result != S_OK)
                 return QStringLiteral("\"%1\" had no frames to give: %2").arg(name, said(result));
-            IDeckLinkVideoBuffer *buffer = nullptr;
-            if (frame->QueryInterface(IID_IDeckLinkVideoBuffer, reinterpret_cast<void **>(&buffer)) != S_OK) {
+            DeckLinkBuffer *buffer = nullptr;
+            if (frame->QueryInterface(iidBuffer, reinterpret_cast<void **>(&buffer)) != S_OK) {
                 frame->Release();
                 return QStringLiteral("\"%1\" gave a frame that cannot be drawn into").arg(name);
             }
@@ -333,7 +379,7 @@ public:
         if (m_output && m_enabled)
             m_output->DisableVideoOutput();
         m_enabled = false;
-        for (IDeckLinkVideoBuffer *buffer : m_buffers)
+        for (DeckLinkBuffer *buffer : m_buffers)
             buffer->Release();
         m_buffers.clear();
         for (IDeckLinkMutableVideoFrame *frame : m_frames)
@@ -349,12 +395,12 @@ public:
 
 private:
     IDeckLink *m_deckLink = nullptr;
-    IDeckLinkOutput *m_output = nullptr;
+    DeckLinkOutput *m_output = nullptr;
     IDeckLinkKeyer *m_keyer = nullptr;
     bool m_enabled = false;
     int m_rowBytes = 0;
     std::vector<IDeckLinkMutableVideoFrame *> m_frames;
-    std::vector<IDeckLinkVideoBuffer *> m_buffers;
+    std::vector<DeckLinkBuffer *> m_buffers;
 };
 
 // The tests' card: frames in memory, taken as soon as they are handed over
@@ -707,6 +753,7 @@ bool DeckLinkScreen::start()
     m_sending = true;
     ++m_run;
     m_sendingAs = wanted(this);
+    m_sentName = m_outputName;
     m_sentSize = m_size;
     m_framesSent = 0;
     m_lastSlot = -1;
@@ -737,7 +784,7 @@ void DeckLinkScreen::stop()
     m_free.clear();
     m_sending = false;
     m_lastSlot = -1;
-    SessionLog::write("decklink", QStringLiteral("the screen sent through \"%1\" has stopped, after %2 frames").arg(m_outputName).arg(m_framesSent));
+    SessionLog::write("decklink", QStringLiteral("the screen sent through \"%1\" has stopped, after %2 frames").arg(m_sentName).arg(m_framesSent));
     emit statusChanged();
 }
 

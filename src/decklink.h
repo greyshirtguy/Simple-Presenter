@@ -60,8 +60,10 @@ class Card;
 // with a card has installed; it is not in the app's package. It is looked for the first
 // time an output is asked about (the settings' screens, or a screen set to go out
 // through a card), never at start otherwise, so a computer with no card pays nothing.
-// The headers it is built against (third_party/decklink) want Desktop Video 14.3 or
-// later.
+// The headers it is built against (third_party/decklink) are SDK 16.0's, but what it
+// asks the driver for are the SDK's interfaces of Desktop Video 14.3 to 15.3.1, which
+// every driver from 14.3 on answers to (decklink.cpp says why: 16.0's own were not
+// known to a 15.0 driver, and no output was found).
 //
 // For the tests, which cannot have a card: with SP_TEST_DECKLINK set, two outputs are
 // pretended (one that can key, as a linked pair is, and one that cannot), and a screen
@@ -225,6 +227,9 @@ private:
     QList<int> m_free;
     bool m_sending = false;
     QString m_sendingAs;
+    // The name of the output it was started on, for the log when it stops (by then the
+    // settings may already name another)
+    QString m_sentName;
     // The size it was started at, which is the size of the card's frames: a format
     // changed is the size changed at once, and the card a moment later
     QSize m_sentSize;

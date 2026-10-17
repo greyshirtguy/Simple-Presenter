@@ -14,6 +14,8 @@ downloaded it.
 The library that does the work, `libDeckLinkAPI.so`, is not here and not in the app's
 package either. It comes with Blackmagic's Desktop Video software, which a computer with
 a DeckLink card has installed for the card, and the app looks for it only when a screen
-is set to go out through a card. These headers ask for Desktop Video 14.3 or later.
+is set to go out through a card. The app asks it for the interfaces of Desktop Video
+14.3 to 15.3.1, which these headers keep beside 16.0's own (the files with `_v15_3_1`
+in their names), so it works with Desktop Video 14.3 or later, not only 16.0.
 
 DeckLink and Desktop Video are Blackmagic Design's. This app has nothing to do with them.
