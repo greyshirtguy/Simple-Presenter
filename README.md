@@ -542,9 +542,10 @@ the top of this page.
       beside the first; other sources online (the ESV's own, among them); and the
       flow's weights tried on real passages.
 - [ ] **Blackmagic DeckLink**: a screen can go out through a card's output, keyed or
-      not (see [Blackmagic DeckLink](#blackmagic-decklink)), and has not been tried
-      with a card. Still to come: the video coming in (see Video input, below); sound,
-      in and out, the first two channels to begin with; and more formats.
+      not (see [Blackmagic DeckLink](#blackmagic-decklink)), and has been tried on one
+      card; keying not yet. Still to come: the video coming in (see Video input,
+      below); sound, in and out, the first two channels to begin with; and more
+      formats.
 - [ ] **The audio bin**: it is there (see [Audio](#audio)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, how loud it
       is, and its own fades, which ProPresenter's inspector sets and which are kept
