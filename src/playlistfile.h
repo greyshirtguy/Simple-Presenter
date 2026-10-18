@@ -131,6 +131,14 @@ struct PlaylistFile
                             const QString &targetId = {}, bool after = false);
     // Makes a row a background or a foreground (see workspace::MediaBehaviour).
     static QString setMediaForeground(const QString &root, const QString &itemId, bool foreground);
+    // What the Media Inspector sets of a row's media, as mediasettings::apply takes
+    // changes; and the row's media replaced by another file, keeping what
+    // mediasettings::carryOver keeps (and the row's name, if it was given one).
+    static QString setMediaSettings(const QString &root, const QString &itemId, const QVariantMap &changes);
+    // All of those settings, as mediasettings::describe gives them (empty if the row is
+    // not there): what the row has only for media set to anything.
+    static QVariantMap mediaSettings(const QString &root, const QString &itemId);
+    static QString replaceMediaFile(const QString &root, const QString &itemId, const QString &file);
     // Audio only:
 
     // Adds sound files to a playlist of the audio bin, in the order given, where

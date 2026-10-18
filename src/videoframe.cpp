@@ -270,7 +270,7 @@ int rotationOf(const AVStream *stream)
 
 } // namespace
 
-QImage grabVideoFrame(const QString &path, int width)
+QImage grabVideoFrame(const QString &path, int width, double at, QSize *upright)
 {
     QElapsedTimer started;
     started.start();
@@ -330,12 +330,14 @@ QImage grabVideoFrame(const QString &path, int width)
             return av_rescale_q(int64_t(seconds * AV_TIME_BASE), AV_TIME_BASE_Q, units);
         };
         const double length = duration / double(AV_TIME_BASE);
-        const double wanted = qMin(wantedAt, length / 2);
+        const bool chosen = at > 0;
+        const double wanted = chosen ? qMin(at, length) : qMin(wantedAt, length / 2);
         const int64_t first = av_rescale_q(start, AV_TIME_BASE_Q, units);
         const int64_t target = first + inUnits(wanted);
-        const int64_t last = first + inUnits(qMax(wanted, qMin(wanted + window, length * latestShare)));
+        // (At a chosen moment, the first frame from it is the one, however dark.)
+        const int64_t last = chosen ? target : first + inUnits(qMax(wanted, qMin(wanted + window, length * latestShare)));
 
-        got = keyframeFrom(&video, target, last, inUnits(1));
+        got = !chosen && keyframeFrom(&video, target, last, inUnits(1));
         if (!got) {
             avcodec_flush_buffers(video.decoder);
             // Frames that nothing after them is built from can be passed over.
@@ -370,6 +372,8 @@ QImage grabVideoFrame(const QString &path, int width)
     const double scale = qMin(1.0, width / (sideways ? double(frame->height) : shownWidth));
     const int scaledWidth = qMax(1, qRound(shownWidth * scale));
     const int scaledHeight = qMax(1, qRound(frame->height * scale));
+    if (upright)
+        *upright = sideways ? QSize(frame->height, qRound(shownWidth)) : QSize(qRound(shownWidth), frame->height);
 
     // Averaging over the area each new pixel covers is the right way to make a picture
     // much smaller, and quick.

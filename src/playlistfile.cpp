@@ -1,6 +1,7 @@
 #include "playlistfile.h"
 
 #include "audiocue.h"
+#include "mediasettings.h"
 #include "prodocument.h"
 #include "sessionlog.h"
 #include "workspacefiles.h"
@@ -282,6 +283,9 @@ void addMediaNode(const rv::data::Playlist &node, const QString &parent, int dep
                 {"video", media.has_video()},
                 {"missing", file.isEmpty()},
             };
+            // What its Media Inspector sets, for media set to anything (mediasettings.h)
+            if (mediasettings::isSet(media))
+                row.insert("settings", mediasettings::describe(media));
             workspace::mediaBehaviour(action).describe(&row);
             rows.append(row);
             break;
@@ -440,6 +444,76 @@ QString PlaylistFile::setMediaForeground(const QString &root, const QString &ite
         }
     }
     return QStringLiteral("That entry has no media");
+}
+
+namespace {
+
+// The action of a media row that its media is read from: the first with an image or a
+// video; null if it has none.
+rv::data::Action *mediaActionOf(rv::data::PlaylistItem *item)
+{
+    for (rv::data::Action &action : *item->mutable_cue()->mutable_actions()) {
+        if (action.has_media() && (action.media().element().has_video() || action.media().element().has_image()))
+            return &action;
+    }
+    return nullptr;
+}
+
+} // namespace
+
+QString PlaylistFile::setMediaSettings(const QString &root, const QString &itemId, const QVariantMap &changes)
+{
+    const Kind kind = Media;
+    rv::data::PlaylistDocument document;
+    QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    if (!item || !item->has_cue())
+        return QStringLiteral("The playlist no longer has that entry");
+    rv::data::Action *action = mediaActionOf(item);
+    if (!action)
+        return QStringLiteral("That entry has no media");
+    error = mediasettings::apply(action->mutable_media()->mutable_element(), changes);
+    return error.isEmpty() ? write(root, kind, document) : error;
+}
+
+QVariantMap PlaylistFile::mediaSettings(const QString &root, const QString &itemId)
+{
+    rv::data::PlaylistDocument document;
+    if (!readForChange(root, Media, &document).isEmpty())
+        return {};
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    rv::data::Action *action = item && item->has_cue() ? mediaActionOf(item) : nullptr;
+    return action ? mediasettings::describe(action->media().element()) : QVariantMap();
+}
+
+QString PlaylistFile::replaceMediaFile(const QString &root, const QString &itemId, const QString &file)
+{
+    const Kind kind = Media;
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    if (!item || !item->has_cue())
+        return QStringLiteral("The playlist no longer has that entry");
+    rv::data::Action *action = mediaActionOf(item);
+    if (!action)
+        return QStringLiteral("That entry has no media");
+    // A row named after its file, as one is when the file is added, is named after the
+    // new one; a name of the row's own is kept.
+    const std::string oldName = QFileInfo(workspace::fileNameOf(action->media().element().url())).completeBaseName().toStdString();
+    const std::string newName = QFileInfo(file).completeBaseName().toStdString();
+    if (item->name() == oldName)
+        item->set_name(newName);
+    if (item->cue().name() == oldName)
+        item->mutable_cue()->set_name(newName);
+    rv::data::Media made = workspace::mediaElement(file, root);
+    mediasettings::carryOver(action->media().element(), &made);
+    *action->mutable_media()->mutable_element() = std::move(made);
+    action->clear_duration();
+    return write(root, kind, document);
 }
 
 QString PlaylistFile::createNode(const QString &root, Kind kind, const QString &name, const QString &parentId,

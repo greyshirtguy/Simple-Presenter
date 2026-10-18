@@ -974,6 +974,35 @@ private slots:
         QCOMPARE(show.media.value("name").toString(), "fire.mp4");
     }
 
+    // The same file, set otherwise in its Media Inspector since it was started, is
+    // started again as it is now set: a picture as much as a video.
+    void mediaSetOtherwiseIsStartedAgain()
+    {
+        State show;
+        QVariantMap waves = video("waves.mp4");
+        waves.insert("settings", QVariantMap {{"flipH", false}});
+        QCOMPARE(outside(show.showMedia(waves, "bin1")), "media");
+        QCOMPARE(outside(show.showMedia(waves, "bin1")), "");
+        waves.insert("settings", QVariantMap {{"flipH", true}});
+        QCOMPARE(outside(show.showMedia(waves, "bin1")), "media");
+        // The same file in another place, set to look the same, but with another moment
+        // for its thumbnail, its length said in its file and a crop that is switched
+        // off: the same media, playing on
+        QVariantMap there = waves;
+        there.insert("settings", QVariantMap {{"flipH", true}, {"thumbnail", 3.0}, {"endPoint", 30.0}, {"cropLeft", 40.0}});
+        QCOMPARE(outside(show.showMedia(there, "bin2")), "");
+        QVariantMap still = picture("sky.jpg");
+        QCOMPARE(outside(show.showMedia(still, "bin1")), "media");
+        QCOMPARE(outside(show.showMedia(still, "bin1")), "");
+        still.insert("settings", QVariantMap {{"rotation", 90}});
+        QCOMPARE(outside(show.showMedia(still, "bin1")), "media");
+        // Media with no settings is media set to nothing.
+        QVariantMap plain = video("fire.mp4");
+        QCOMPARE(outside(show.showMedia(plain, "bin1")), "media");
+        plain.insert("settings", QVariantMap {{"scale", 0}, {"flipH", false}, {"effects", QVariantList()}});
+        QCOMPARE(outside(show.showMedia(plain, "bin1")), "");
+    }
+
     void mediaFromTheBinLeavesTheSlideLayerAlone()
     {
         State show;

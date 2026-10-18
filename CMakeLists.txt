@@ -69,6 +69,10 @@ qt_add_executable(SimplePresenter
     src/proconvert.h
     src/linejoin.cpp
     src/linejoin.h
+    src/mediaeffects.cpp
+    src/mediaeffects.h
+    src/mediasettings.cpp
+    src/mediasettings.h
     src/colortriggers.cpp
     src/colortriggers.h
     src/prodocument.cpp
@@ -169,6 +173,10 @@ qt_add_qml_module(SimplePresenter
         qml/Slide.qml
         qml/SlideElement.qml
         qml/MediaContent.qml
+        qml/MediaEffects.qml
+        qml/MediaInspector.qml
+        qml/MediaLook.qml
+        qml/MediaPicture.qml
         qml/MessagesPanel.qml
         qml/NewPresentation.qml
         qml/NumberField.qml
@@ -369,8 +377,10 @@ qt_add_resources(SimplePresenter "icons"
         icons/TransportPlay.png
 )
 
-# The transitions. Compiled by qsb for every graphics backend Qt can draw with, and loaded
-# as qrc:/shaders/<name>.frag.qsb. shaders/dissolve.frag says what a transition is.
+# The transitions, and the effects a piece of media can be given in its Media Inspector
+# (shaders/effects/). Compiled by qsb for every graphics backend Qt can draw with, and
+# loaded as qrc:/shaders/<name>.frag.qsb. shaders/dissolve.frag says what a transition
+# is, and qml/MediaEffects.qml what an effect is given.
 qt_add_shaders(SimplePresenter "shaders"
     PREFIX "/"
     FILES
@@ -403,6 +413,43 @@ qt_add_shaders(SimplePresenter "shaders"
         shaders/swap.frag
         shaders/wipe.frag
         shaders/zoomIn.frag
+        shaders/effects/adjustColor.frag
+        shaders/effects/alphaAdjust.frag
+        shaders/effects/colorBlobs.frag
+        shaders/effects/colorFilter.frag
+        shaders/effects/colorInvert.frag
+        shaders/effects/colorKey.frag
+        shaders/effects/colorPosterize.frag
+        shaders/effects/colorSwap.frag
+        shaders/effects/crtMonitor.frag
+        shaders/effects/dots.frag
+        shaders/effects/edgeBlur.frag
+        shaders/effects/edgeOutline.frag
+        shaders/effects/emboss.frag
+        shaders/effects/grayInvert.frag
+        shaders/effects/halftone.frag
+        shaders/effects/heatSignature.frag
+        shaders/effects/hexagon.frag
+        shaders/effects/imageDistortion.frag
+        shaders/effects/kaleidoscope1.frag
+        shaders/effects/kaleidoscope2.frag
+        shaders/effects/lensDistortion.frag
+        shaders/effects/oldFilm.frag
+        shaders/effects/picasso.frag
+        shaders/effects/pixelize.frag
+        shaders/effects/plasma.frag
+        shaders/effects/radialBlur.frag
+        shaders/effects/rgbAdjust.frag
+        shaders/effects/rippleCenter.frag
+        shaders/effects/rippleSide.frag
+        shaders/effects/sepia.frag
+        shaders/effects/shake.frag
+        shaders/effects/stars.frag
+        shaders/effects/strobe.frag
+        shaders/effects/tile.frag
+        shaders/effects/toon.frag
+        shaders/effects/twoColor.frag
+        shaders/effects/vignette.frag
         shaders/gl-transitions/circleopen.frag
         shaders/gl-transitions/crosshatch.frag
         shaders/gl-transitions/crosswarp.frag

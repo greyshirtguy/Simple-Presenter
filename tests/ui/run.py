@@ -1675,6 +1675,34 @@ def prepare_red_picture(workspace, test_dir):
         out.write(tiny_png((255, 0, 0), 320, 180))
 
 
+def quarters_png(width, height, colours):
+    """A picture of four colours, one in each quarter (top left, top right, bottom left, bottom right), as the bytes of
+    a PNG file."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+
+    rows = b""
+    for y in range(height):
+        top = y < height // 2
+        left, right = (colours[0], colours[1]) if top else (colours[2], colours[3])
+        rows += b"\x00" + bytes(left) * (width // 2) + bytes(right) * (width - width // 2)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+
+
+def prepare_quarters_picture(workspace, test_dir):
+    """A picture the shape of a screen in four colours, red, green, blue and white from the top left, for the Media
+    Inspector's test to turn, flip, crop and give effects to, and to tell which way it has gone by the colours: in the
+    test's own folder and NOT under the workspace's Media (see prepare_red_picture)."""
+    folder = os.path.join(test_dir, "media")
+    os.makedirs(folder)
+    path = os.path.join(folder, "Quarters.png")
+    if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("a test's picture was about to be written outside the test's folder: %s" % os.path.realpath(path))
+    with open(path, "wb") as out:
+        out.write(quarters_png(320, 180, [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255)]))
+
+
 def prepare_messages(workspace, test_dir):
     """The workspace is given a file of messages as ProPresenter might have left one (MESSAGES_FILE). Nothing is
     written but that one file, in the copy's Configuration."""
@@ -2084,6 +2112,7 @@ TESTS = {
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
     "quickedit": test("Act"),
+    "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),
     "shapes": test("Shapes", SHELL, 120),

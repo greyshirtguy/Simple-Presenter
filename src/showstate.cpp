@@ -124,12 +124,45 @@ bool State::announcementAt(const QString &key, const QString &playlistId) const
 
 namespace {
 
+// What of a piece of media's Media Inspector settings (as mediasettings::describe has
+// them) changes how it looks or plays. The same file in two places can differ in the
+// rest, the moment its thumbnail is taken from or the size and length its file says it
+// has, and still be the same media playing. Read as plain values, so that media with no
+// settings at all is media set to nothing.
+QVariantMap lookOf(const QVariantMap &settings)
+{
+    QVariantMap look {
+        {"scale", settings.value("scale").toInt()},
+        {"blurred", settings.value("blurred").toBool()},
+        {"rotation", settings.value("rotation").toInt()},
+        {"flipH", settings.value("flipH").toBool()},
+        {"flipV", settings.value("flipV").toBool()},
+        {"inPoint", settings.value("inPoint").toDouble()},
+        {"outPoint", settings.value("trimmedOut").toBool() ? settings.value("outPoint").toDouble() : 0.0},
+    };
+    if (settings.value("cropOn").toBool()) {
+        for (const char *edge : {"cropLeft", "cropRight", "cropTop", "cropBottom"})
+            look.insert(edge, settings.value(edge).toDouble());
+    }
+    QVariantList effects;
+    for (const QVariant &effect : settings.value("effects").toList()) {
+        const QVariantMap map = effect.toMap();
+        if (map.value("on").toBool())
+            effects.append(QVariantList {map.value("renderId"), map.value("numbers"), map.value("colors")});
+    }
+    look.insert("effects", effects);
+    return look;
+}
+
 // Whether media that is asked for is a background that is the one playing on a layer
 // already, and so is left to play on: see State::alreadyPlaying, which says when.
 bool playsOn(const QVariantMap &asked, bool has, const QVariantMap &playing)
 {
+    // (The same file set to look or play otherwise, in its Media Inspector, is other
+    // media: what is asked for is shown as it is set.)
     if (!has || playing.value("foreground").toBool() || asked.value("foreground").toBool() || asked.value("retriggers").toBool()
-        || asked.value("path") != playing.value("path"))
+        || asked.value("path") != playing.value("path")
+        || lookOf(asked.value("settings").toMap()) != lookOf(playing.value("settings").toMap()))
         return false;
     if (!asked.value("video").toBool())
         return true;

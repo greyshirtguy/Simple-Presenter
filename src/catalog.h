@@ -186,6 +186,12 @@ public:
     // Makes a media playlist's row a background or a foreground. It is the row's own:
     // the same file on a slide, or in another row, keeps the behaviour it has there.
     Q_INVOKABLE QString setMediaItemForeground(const QString &item, bool foreground);
+    // What a row's Media Inspector sets (src/mediasettings.h), and the row's media
+    // replaced by another file, keeping what mediasettings::carryOver keeps.
+    Q_INVOKABLE QString setMediaItemSettings(const QString &item, const QVariantMap &changes);
+    // All of a row's settings, which the row has only when its media is set to anything
+    Q_INVOKABLE QVariantMap mediaItemSettings(const QString &item) const;
+    Q_INVOKABLE QString replaceMediaItemFile(const QString &item, const QString &file);
     Q_INVOKABLE QString moveMediaItem(const QString &item, const QString &target, bool after);
 
     // The same again for the audio bin: its playlists and folders, and its rows, which
@@ -238,6 +244,23 @@ public:
     // How the slide's video plays on from its end: 0 it stops, 1 it goes round, 2 it
     // plays `loopCount` times, 3 it goes round for `loopSeconds`.
     Q_INVOKABLE QString setSlideMediaPlayback(const QString &path, const QString &slideId, int playback, int loopCount, double loopSeconds);
+    // What the Media Inspector sets of the media a slide triggers (src/mediasettings.h),
+    // and that media replaced by another file, keeping what mediasettings::carryOver
+    // keeps. Both save the presentation file.
+    Q_INVOKABLE QString setSlideMediaSettings(const QString &path, const QString &slideId, const QVariantMap &changes);
+    // All of the settings of the media a slide triggers, which the slide's map has only
+    // when the media is set to anything
+    Q_INVOKABLE QVariantMap slideMediaSettings(const QString &path, const QString &slideId) const;
+    Q_INVOKABLE QString replaceSlideMediaFile(const QString &path, const QString &slideId, const QString &file);
+    // The effects media can be given, for the Media Inspector's list of them (see
+    // src/mediaeffects.h): [{ renderId, name, description, drawn }], in the order of
+    // their names; and a new one of them, as mediasettings::newEffect makes it.
+    Q_INVOKABLE QVariantList mediaEffects() const;
+    Q_INVOKABLE QVariantMap newMediaEffect(const QString &renderId) const;
+    // Opens the folder a file is in, in the desktop's file manager, with the file picked
+    // out where the file manager can do that (its FileManager1 service, which GNOME's
+    // Files and most others have), and otherwise the folder alone.
+    Q_INVOKABLE void showInFolder(const QString &path) const;
     // The actions a slide has besides showing itself and its media (see src/actions.h
     // for what one is): gives it another, changes one by its id, takes one away.
     Q_INVOKABLE QString addSlideAction(const QString &path, const QString &slideId, const QVariantMap &action);

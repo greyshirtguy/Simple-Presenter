@@ -225,10 +225,27 @@ Rectangle {
 
                     Image {
                         anchors.fill: parent
-                        source: mediaCell.modelData.missing ? ""
-                              : bin.win.thumbnailUrl(mediaCell.modelData.path)
+                        visible: !lookedMedia.active
+                        source: mediaCell.modelData.missing || lookedMedia.active ? "" : bin.win.thumbnailUrl(mediaCell.modelData.path)
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
+                    }
+
+                    // Media set to anything in its Media Inspector, drawn as it is set:
+                    // cropped, turned and flipped in its thumbnail, and fitted, blurred and
+                    // given its effects over it. Made only for such media.
+                    Loader {
+                        id: lookedMedia
+
+                        anchors.fill: parent
+                        active: !mediaCell.modelData.missing && mediaCell.modelData.settings !== undefined
+
+                        sourceComponent: MediaPicture {
+                            source: bin.win.thumbnailUrl(mediaCell.modelData.path, mediaCell.modelData.settings)
+                            settings: mediaCell.modelData.settings
+                            shaped: true
+                            animated: false
+                        }
                     }
 
                     // A media playlist can name a file that is not on this machine.

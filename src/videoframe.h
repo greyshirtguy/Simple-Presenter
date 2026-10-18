@@ -36,5 +36,11 @@
 // a 4K clip and no gain at 1080p, which is not worth depending on a video driver for
 // something done once for each file.
 //
+// A picture from a moment chosen for it (`at`, in seconds, as a video's Media Inspector
+// chooses one: see mediasettings.h) is from that moment, dark or not: it is decoded from
+// the keyframe before it, within the same two and a half seconds. 0 or less is no
+// moment chosen. `upright`, if given, is set to the size the video is shown at, turned
+// upright, before it was scaled down: what a crop in its pixels is measured against.
+//
 // Safe to call from any thread, and from several at once.
-QImage grabVideoFrame(const QString &path, int width);
+QImage grabVideoFrame(const QString &path, int width, double at = -1, QSize *upright = nullptr);

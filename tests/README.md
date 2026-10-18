@@ -28,6 +28,7 @@ So far there are twenty-eight:
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
 | `tst_decklinkformats` | What a screen sent out through a Blackmagic DeckLink card is sent as (`src/decklinkformats.h`): the formats offered, in the menu's order, each with its size, its rate and the code Blackmagic's SDK gives it; pictures made straight from premultiplied, rounded, never past white, and a pixel with nothing on it left alone; and the beat the screens are drawn on together: when a pass is due, which screens it takes, when each is next, and, played through a second of a transition, three outputs of one format drawn in every pass together, one that fell out of step back with them at the next, and outputs of two rates each drawn no oftener than its own frames come |
 | `tst_httpapi` | The rules of the HTTP API (`src/httpapi.h`): requests read as they come, whole or in pieces, with their query and body, and what is not HTTP refused; responses, JSON with CR LF CR LF after it, and chunks written as ProPresenter writes them; paths matched to ProPresenter's routes, words before parts; what `status/updates` takes, every stream Companion's module asks for among it; an id found by UUID, name or index in ProPresenter's order |
+| `tst_mediasettings` | What a piece of media's Media Inspector sets (`src/mediasettings.h`, `src/mediaeffects.h`), on media laid out as ProPresenter writes it with fields the app does not know: read as the inspector shows it; a change that changes the fields it names and nothing else, byte for byte; a value that cannot be changing nothing at all; trimming, and an out point at the end being none; effects kept by their ids, added from the catalogue and taken off, and added and taken off again leaving the media as it was; what a new effect is and what its shader is given; ProPresenter's forty, each once; another file keeping what still makes sense |
 | `tst_httpapijson` | What the HTTP API's answers are made of (`src/httpapijson.h`): ids and colours; the slides now and next; where the show is, and nowhere; times as ProPresenter writes them; how a timer stands, and timers of each kind; a look for each audience screen; props and messages with their tokens; clear groups and macros in ProPresenter's words; libraries' UUIDs made from their names; playlist trees, and the media and audio ones |
 | `tst_screenfile` | The list of a workspace's screens in ProPresenter's set-up file (`src/screenfile.h`): what a workspace with no file has, what adding, renaming and removing a screen write, and that the rest of a file ProPresenter wrote goes back as it came |
 | `tst_groupedit` | Putting slides into another group as ProPresenter does (`src/groupedit.h`): the whole group from its first slide, a split from a later one, what becomes of the arrangements, and that nothing else of the presentation is touched |
@@ -118,7 +119,16 @@ darkened, with its text box being typed in, words typed where the caret was put,
 doing nothing, a drag not moving the box, and Esc keeping it all, with the file holding
 the words in the box's own formatting and nothing else of the slide changed, while the
 output keeps what it had; a click outside writing nothing; and between boxes, Delete
-and the arrows doing nothing and Tab going back to typing.
+and the arrows doing nothing and Tab going back to typing. And `mediainspector` works
+the Media Inspector on a picture of four colours, made for it, and on a short video:
+each setting (flipped, turned, cropped, stretched, an effect) told by the colours at
+known points of its preview, in the file at once, then on the output and in the
+operator's preview when the slide is shown again, and in the thumbnails, effect and
+all; every one of
+the effects drawn; another file in its place; a video's trim and picture set from the
+inspector's player, and the video then starting at its in point and stopping at its out
+point; a row of the media bin; and an element's picture fill turned in the editor,
+drawn so there, and undone.
 
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two

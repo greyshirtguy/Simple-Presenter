@@ -429,10 +429,27 @@ Item {
                     // without it.)
                     Image {
                         anchors.fill: parent
-                        visible: cell.modelData.media !== undefined && !Cursors.altHeld
+                        visible: cell.modelData.media !== undefined && !Cursors.altHeld && !lookedMedia.active
                         source: visible ? slides.win.thumbnailUrl(cell.modelData.media.path) : ""
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
+                    }
+
+                    // Media set to anything in its Media Inspector, drawn as it is set:
+                    // cropped, turned and flipped in its thumbnail, and fitted, blurred and
+                    // given its effects over it. Made only for such media.
+                    Loader {
+                        id: lookedMedia
+
+                        anchors.fill: parent
+                        active: cell.modelData.media !== undefined && cell.modelData.media.settings !== undefined && !Cursors.altHeld
+
+                        sourceComponent: MediaPicture {
+                            source: slides.win.thumbnailUrl(cell.modelData.media.path, cell.modelData.media.settings)
+                            settings: cell.modelData.media.settings
+                            shaped: true
+                            animated: false
+                        }
                     }
 
                     Slide {

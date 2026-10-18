@@ -3,6 +3,7 @@
 #include "clocktext.h"
 #include "fontresolver.h"
 #include "linejoin.h"
+#include "mediasettings.h"
 #include "rtf.h"
 #include "rtfwriter.h"
 #include "sessionlog.h"
@@ -514,7 +515,15 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     map.insert("fillMediaPath", mediaPath);
     map.insert("fillMediaSource", mediaPath.isEmpty() || mediaIsVideo ? QUrl() : QUrl::fromLocalFile(mediaPath));
     map.insert("fillMediaVideo", mediaIsVideo);
+    // (A video's file as a url, for what plays it: the Media Inspector)
+    if (mediaIsVideo && !mediaPath.isEmpty())
+        map.insert("fillMediaUrl", QUrl::fromLocalFile(mediaPath));
     map.insert("fillMediaScale", fill.has_media() ? qMin(2, int(fillDrawing(fill.media()).scale_behavior())) % 3 : 0);
+    // And all of what its Media Inspector sets (src/mediasettings.h), of which the scale
+    // above is one, for media set to more than that (and only then, the map being every
+    // element's: see mediasettings::isSet)
+    if (fill.has_media() && mediasettings::isSet(fill.media(), false))
+        map.insert("fillMediaSettings", mediasettings::describe(fill.media()));
     // Whether there is a fill that is drawn: on, and a colour, a gradient or a picture
     map.insert("fillShown", fill.enable() && (fill.has_color() || fill.has_gradient()
                                               || (fill.has_media() && !mediaIsVideo && !mediaPath.isEmpty())));
@@ -1332,14 +1341,14 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
     }
     if (changes.contains("fillGradientAngle"))
         gradient()->set_angle(std::fmod(std::fmod(number("fillGradientAngle"), 360) + 360, 360));
-    // A picture or a video to fill it with, by its path; how it was scaled is kept.
+    // A picture or a video to fill it with, by its path; how the one before was scaled,
+    // turned and flipped, and its effects, are kept (mediasettings::carryOver).
     if (changes.contains("fillMediaPath")) {
         rv::data::Graphics::Fill *fill = element->mutable_fill();
-        const auto scale = fill->has_media() ? fillDrawing(fill->media()).scale_behavior() : rv::data::Media::SCALE_BEHAVIOR_FIT;
-        *fill->mutable_media() = workspace::mediaElement(changes.value("fillMediaPath").toString(), workspace::openWorkspace());
-        rv::data::Media *media = fill->mutable_media();
-        (media->has_video() ? media->mutable_video()->mutable_drawing() : media->mutable_image()->mutable_drawing())
-            ->set_scale_behavior(scale);
+        rv::data::Media made = workspace::mediaElement(changes.value("fillMediaPath").toString(), workspace::openWorkspace());
+        if (fill->has_media())
+            mediasettings::carryOver(fill->media(), &made);
+        *fill->mutable_media() = std::move(made);
         fill->set_enable(true);
     }
     // A Screen Preview: the link names the screen, by id and by name as ProPresenter's
@@ -1365,6 +1374,10 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
     } else if (changes.contains("fillKind") || changes.contains("fillMediaPath")) {
         removeLinks(slideElement, [](const DataLink &link) { return link.has_output_screen(); });
     }
+    // What the Media Inspector sets of the fill's media, by the keys mediasettings has
+    // (A value it cannot have changes nothing of the media; the other keys still do.)
+    if (changes.contains("fillMediaSettings") && element->fill().has_media())
+        mediasettings::apply(element->mutable_fill()->mutable_media(), changes.value("fillMediaSettings").toMap());
     if (changes.contains("fillMediaScale") && element->fill().has_media()) {
         rv::data::Media *media = element->mutable_fill()->mutable_media();
         (media->has_video() ? media->mutable_video()->mutable_drawing() : media->mutable_image()->mutable_drawing())

@@ -4,6 +4,7 @@
 
 #include "elementorder.h"
 #include "labelfile.h"
+#include "mediasettings.h"
 #include "proconvert.h"
 #include "reflow.h"
 #include "richtext.h"
@@ -369,6 +370,16 @@ void PresentationEditor::close()
 QVariantMap PresentationEditor::slideAt(int row) const
 {
     return row >= 0 && row < m_slides.size() ? m_slides.at(row).toMap() : QVariantMap();
+}
+
+QVariantMap PresentationEditor::fillMediaSettings(int row, const QString &element) const
+{
+    const rv::data::Slide *slide = const_cast<PresentationEditor *>(this)->slideIn(row);
+    const int at = slide ? indexOfElement(*slide, element) : -1;
+    if (at < 0)
+        return {};
+    const rv::data::Graphics::Fill &fill = slide->elements(at).element().fill();
+    return fill.has_media() ? mediasettings::describe(fill.media()) : QVariantMap();
 }
 
 int PresentationEditor::rowOf(const QString &slideId) const

@@ -104,6 +104,10 @@ public:
     Q_INVOKABLE void close();
 
     Q_INVOKABLE QVariantMap slideAt(int row) const;
+    // All that the Media Inspector sets of an element's media fill, as
+    // mediasettings::describe gives it (empty for an element with none): the element's
+    // map has it only for media set to anything.
+    Q_INVOKABLE QVariantMap fillMediaSettings(int row, const QString &element) const;
     // The row of the slide with this id, or -1.
     Q_INVOKABLE int rowOf(const QString &slideId) const;
 

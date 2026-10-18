@@ -64,6 +64,8 @@ Rectangle {
     property var backdropFor: (slideId) => ""
     // Opens a menu of rows, as the operator window's menu takes them, at a point of an item
     property var showMenu: (items, item, x, y) => {}
+    // Brings up the Media Inspector, as the operator window's inspectMedia()
+    property var inspectMedia: (media, about, keeper, after) => {}
     // A timer link's Color Triggers kept as the default, and how one is kept (the
     // window's, in the app's own settings): for the inspector
     property var colorTriggerDefault: []
@@ -205,6 +207,29 @@ Rectangle {
     // folder such a dialog starts in
     property string mediaFilter: "All files (*)"
     property string mediaFolder: ""
+
+    // The Media Inspector on the picked element's media fill (MediaInspector.qml). Its
+    // changes are the editor's, kept and undone as the rest are.
+    function inspectFill() {
+        finish()
+        const element = canvas.selected
+        if (!element || element.fillKind !== "media")
+            return
+        const row = canvas.row
+        const id = element.id
+        const mediaOf = () => {
+            const e = row < editor.count ? editor.slideAt(row).elements.find(candidate => candidate.id === id) : undefined
+            return e && e.fillKind === "media" ? { name: e.fillMediaName, path: e.fillMediaPath, source: e.fillMediaUrl ?? e.fillMediaSource,
+                                                   video: e.fillMediaVideo, missing: e.fillMediaPath === "",
+                                                   settings: editor.fillMediaSettings(row, id), box: { width: e.width, height: e.height } }
+                                               : null
+        }
+        inspectMedia(mediaOf(), "The fill of " + (element.name !== "" ? "“" + element.name + "”" : "an element") + ", slide " + (row + 1), {
+            save: (changes) => { const error = editor.setProperties(row, id, { fillMediaSettings: changes }); canvas.reload(); return error },
+            replace: (file) => { const error = editor.setProperties(row, id, { fillMediaPath: file, fillOn: true }); canvas.reload(); return error },
+            reread: mediaOf
+        }, () => screen.takeFocus())
+    }
 
     // Asks for a media file: to "add" as an element of its own, or to "fill" the picked
     // element with.
@@ -1221,6 +1246,7 @@ Rectangle {
         setProperties: (changes, interim) => canvas.setProperties(changes, interim)
         showMenu: (items, item, x, y) => screen.showMenu(items, item, x, y)
         chooseMedia: () => screen.chooseMedia("fill")
+        inspectMedia: () => screen.inspectFill()
         setFormat: (format, interim) => canvas.setFormat(format, interim)
         settle: () => canvas.settle()
         colorTriggerDefault: screen.colorTriggerDefault

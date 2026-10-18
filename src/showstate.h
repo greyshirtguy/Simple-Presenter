@@ -280,7 +280,9 @@ public:
     // its end and stops is started again, there being nothing of it to play on. And it
     // holds only for a video that is to play as the one playing does: one that has
     // been set to play another way since is started again, which is how a change to
-    // the way a slide's video plays takes effect when the slide is next triggered.
+    // the way a slide's video plays takes effect when the slide is next triggered. The
+    // same goes for a picture or a video that its Media Inspector has set otherwise
+    // since (its `settings`: cropped, turned, trimmed, given an effect).
     bool alreadyPlaying(const QVariantMap &media) const;
 
     // Plays a piece of audio: `audio` is a row of the audio bin, and `playlist` the

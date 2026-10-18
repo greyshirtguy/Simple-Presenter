@@ -359,27 +359,32 @@ Item {
                 }
 
                 // A picture: made to fit inside the element, to fill it and be cut off
-                // at its edges, or stretched to it. In a shape that is not a rectangle
-                // it is cut to the shape by a mask. (A Screen Preview is cut by the same,
-                // and is put in after this, by placeScreen().)
-                Image {
+                // at its edges, or stretched to it, and cropped, turned, flipped and
+                // given effects as its Media Inspector sets it (MediaLook). In a shape
+                // that is not a rectangle it is cut to the shape by a mask. (A Screen
+                // Preview is cut by the same, and is put in after this, by placeScreen().)
+                // (Made only for an element that is filled with media: every element has
+                // this, and most are not pictures. See MediaPicture.qml.)
+                Loader {
                     id: picture
 
                     anchors.fill: parent
-                    visible: rich.kind === "media"
-                    source: rich.kind === "media" ? element.source.fillMediaSource : ""
-                    asynchronous: true
-                    clip: true
-                    fillMode: element.source.fillMediaScale === 2 ? Image.Stretch
-                            : element.source.fillMediaScale === 1 ? Image.PreserveAspectCrop : Image.PreserveAspectFit
-                    // No larger in memory than it is shown
-                    sourceSize: Qt.size(Math.max(1, Math.ceil(width * Screen.devicePixelRatio)),
-                                        Math.max(1, Math.ceil(height * Screen.devicePixelRatio)))
+                    active: rich.kind === "media"
 
                     layer.enabled: rich.cut && rich.kind === "media"
                     layer.effect: MultiEffect {
                         maskEnabled: true
                         maskSource: mask.item
+                    }
+
+                    sourceComponent: MediaPicture {
+                        source: element.source.fillMediaSource
+                        settings: element.source.fillMediaSettings ?? null
+                        fitting: element.source.fillMediaScale
+                        clip: true
+                        // No larger in memory than it is shown
+                        readSize: Qt.size(Math.max(1, Math.ceil(width * Screen.devicePixelRatio)),
+                                          Math.max(1, Math.ceil(height * Screen.devicePixelRatio)))
                     }
                 }
 

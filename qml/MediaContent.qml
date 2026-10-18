@@ -3,14 +3,17 @@ import QtQuick.Window
 import QtMultimedia
 import SimplePresenterApp
 
-// What the media layer shows: an image or a video, scaled to fit. A video goes round
-// again at its end if the media says it loops, as a background mostly does: for good,
-// or a number of times, or for a length of time, after which it stays on the frame it
-// has reached. Otherwise it plays once and stays on its last frame, as a foreground
-// mostly does. And it is played with
-// its sound if the media gives it a volume, and silently if not. How a piece of media
-// is to play is all decided where it is read (workspace::MediaBehaviour in
-// src/workspacefiles.h), and what is here only does as it is told.
+// What the media layer shows: an image or a video, drawn as its Media Inspector sets it
+// (fitted, cropped, turned, flipped, with its effects: see MediaLook.qml), which for
+// media with no settings is scaled to fit. A video goes round again at its end if the
+// media says it loops, as a background mostly does: for good, or a number of times, or
+// for a length of time, after which it stays on the frame it has reached. Otherwise it
+// plays once and stays on its last frame, as a foreground mostly does. A video that is
+// trimmed plays from its in point to its out point, which are then its start and its
+// end. And it is played with its sound if the media gives it a volume, and silently if
+// not. How a piece of media is to play is all decided where it is read
+// (workspace::MediaBehaviour in src/workspacefiles.h, and src/mediasettings.h), and
+// what is here only does as it is told.
 //
 // A video's sound goes to the system's own audio output. It rises and falls with the
 // picture: the layer says how much of this instance is on show (`level`), which a
@@ -44,8 +47,9 @@ import SimplePresenterApp
 Item {
     id: root
 
-    // { source, video, loops, volume, playback, loopCount, loopSeconds }, or null for
-    // nothing (the last three as workspace::MediaBehaviour has them)
+    // { source, video, loops, volume, playback, loopCount, loopSeconds, settings }, or
+    // null for nothing (the behaviour as workspace::MediaBehaviour has it, the settings
+    // as mediasettings::describe has them)
     property var content: null
     // Whether this plays a video itself, or is fed the frames of the scene that does
     property bool leads: true
@@ -71,10 +75,16 @@ Item {
         id: image
 
         Item {
-            // Once the file has been read, or has turned out not to be readable
-            readonly property bool ready: picture.status !== Image.Loading
+            // Once the file has been read, or has turned out not to be readable. (Not as
+            // "not loading": while the picture is being made there is a moment when it
+            // is not loading yet, and a transition started then had the picture decoded
+            // half way through it, which the benchmark's dissolves showed as a stall.)
+            readonly property bool ready: picture.status === Image.Ready || picture.status === Image.Error
 
-            Image {
+            // Where the picture goes, and how large, is worked out there (in the middle,
+            // on a whole pixel, when it is fitted) and not left to fillMode, which would
+            // also have a small picture decoded *up* to the size below.
+            MediaPicture {
                 id: picture
 
                 onStatusChanged: {
@@ -82,25 +92,16 @@ Item {
                         Log.problem("The picture \"" + (root.content?.name ?? source) + "\" could not be read")
                 }
 
-                // What the picture is scaled by to fit, keeping its shape. Worked out here
-                // and not left to fillMode, which would also have a small picture decoded
-                // *up* to the size below.
-                readonly property real fit: implicitWidth > 0 && implicitHeight > 0
-                                            ? Math.min(parent.width / implicitWidth, parent.height / implicitHeight) : 0
-
-                // In the middle, on a whole pixel.
-                x: Math.floor((parent.width - width) / 2)
-                y: Math.floor((parent.height - height) / 2)
-                width: implicitWidth * fit
-                height: implicitHeight * fit
+                anchors.fill: parent
                 source: root.content?.source ?? ""
-                asynchronous: true
+                settings: root.content?.settings ?? null
+                fitsHere: true
                 // A picture larger than a 4K output could show (or than this one, if it
                 // is larger still) is scaled down as it is read. A photograph straight
                 // from a camera would otherwise sit in memory, and in the graphics chip's,
                 // at several times the size of anything it will be shown at.
-                sourceSize: Qt.size(Math.max(3840, Math.ceil(root.width * Screen.devicePixelRatio)),
-                                    Math.max(2160, Math.ceil(root.height * Screen.devicePixelRatio)))
+                readSize: Qt.size(Math.max(3840, Math.ceil(root.width * Screen.devicePixelRatio)),
+                                  Math.max(2160, Math.ceil(root.height * Screen.devicePixelRatio)))
             }
         }
     }
@@ -124,6 +125,48 @@ Item {
             readonly property double askedAt: Date.now()
             // How loud its sound is to be, 0 being not at all
             readonly property real volume: Math.max(0, Math.min(1, Number(root.content?.volume ?? 0)))
+            // The part of it that plays, if it is trimmed (see mediasettings.h): from the
+            // in point, in milliseconds, to the out point, which is its end then; -1 for
+            // the end of the file. A trimmed video is taken round by hand, from its out
+            // point back to its in point, rather than by the player, which only goes
+            // round the whole of it.
+            readonly property real inAt: Math.max(0, Number(root.content?.settings?.inPoint ?? 0)) * 1000
+            readonly property real outAt: root.content?.settings?.trimmedOut ? Number(root.content.settings.outPoint) * 1000 : -1
+            readonly property bool trimmed: inAt > 0 || outAt > 0
+            // How many more times it is to go round from its out point (for one that goes
+            // round a number of times), and whether it has reached its end
+            property int roundsLeft: root.content?.playback === 2 ? Math.max(1, root.content.loopCount) - 1 : 0
+            property bool atEnd: false
+            // Set once it has been started: at once, or once the file is open, for one
+            // that starts at an in point (the player can only be sent there then)
+            property bool started: false
+
+            // Starts it, from its in point if it has one.
+            function start() {
+                if (started)
+                    return
+                if (inAt > 0)
+                    mediaPlayer.setPosition(inAt)
+                started = true
+                mediaPlayer.play()
+            }
+
+            // At the out point: round again, or to an end, as at the end of the file.
+            function reachedOut() {
+                const loops = root.content?.loops === true && !(root.content?.playback === 2 && roundsLeft <= 0)
+                if (loops && !lapse.lapsed) {
+                    if (root.content?.playback === 2)
+                        --roundsLeft
+                    mediaPlayer.setPosition(inAt)
+                    // (At the end of its file the player has stopped.)
+                    if (mediaPlayer.playbackState !== MediaPlayer.PlayingState)
+                        mediaPlayer.play()
+                    return
+                }
+                atEnd = true
+                mediaPlayer.pause()
+                Log.note("media", "video \"" + movie.name + "\" has played to its out point")
+            }
 
             MediaPlayer {
                 id: mediaPlayer
@@ -132,18 +175,41 @@ Item {
                 videoOutput: output
                 audioOutput: sound.item ? sound.item.output : null
                 audioBufferOutput: sound.item ? sound.item.tap.output : null
-                loops: root.content?.loops === false ? 1
+                loops: root.content?.loops === false || movie.trimmed ? 1
                      : root.content?.playback === 2 ? Math.max(1, root.content.loopCount) : MediaPlayer.Infinite
                 onErrorOccurred: (error, errorString) => {
                     Log.problem("The video \"" + movie.name + "\" will not play: " + errorString)
                     movie.failed = true
                 }
-                // Only a video that plays once comes to an end.
+                // Only a video that plays once comes to an end. (One that is trimmed only
+                // comes to the end of its file when its out point is the end, and goes
+                // round from there by hand.)
                 onMediaStatusChanged: {
-                    if (mediaStatus === MediaPlayer.EndOfMedia)
-                        Log.note("media", "video \"" + movie.name + "\" has played to its end")
+                    if (mediaStatus === MediaPlayer.LoadedMedia || mediaStatus === MediaPlayer.BufferedMedia)
+                        movie.start()
+                    if (mediaStatus === MediaPlayer.EndOfMedia) {
+                        if (movie.trimmed && !movie.atEnd)
+                            movie.reachedOut()
+                        else
+                            Log.note("media", "video \"" + movie.name + "\" has played to its end")
+                    }
                 }
-                Component.onCompleted: play()
+                Component.onCompleted: {
+                    if (movie.inAt <= 0)
+                        movie.start()
+                }
+            }
+
+            // Where it has got to, looked at only for a video with an out point before its
+            // end: nothing is asked of the others as they play.
+            Connections {
+                target: mediaPlayer
+                enabled: movie.outAt > 0
+
+                function onPositionChanged() {
+                    if (!movie.atEnd && mediaPlayer.position >= movie.outAt && mediaPlayer.playbackState === MediaPlayer.PlayingState)
+                        movie.reachedOut()
+                }
             }
 
             // The other screens' scenes take their frames from here.
@@ -154,6 +220,8 @@ Item {
             // A video that goes round for a length of time stops where it is when the
             // time is up.
             Timer {
+                id: lapse
+
                 interval: Math.max(1, (root.content?.loopSeconds ?? 0) * 1000)
                 running: root.content?.playback === 3 && mediaPlayer.playbackState === MediaPlayer.PlayingState
                          && interval > 1 && !lapsed
@@ -193,20 +261,31 @@ Item {
                 }
             }
 
-            VideoOutput {
-                id: output
+            MediaLook {
+                id: movieLook
 
                 anchors.fill: parent
-                fillMode: VideoOutput.PreserveAspectFit
-                // A video that has played once stays on its last frame until it is
-                // cleared or something replaces it.
-                endOfStreamPolicy: VideoOutput.KeepLastFrame
+                settings: root.content?.settings ?? null
+                sourceWidth: output.sourceRect.width
+                sourceHeight: output.sourceRect.height
+
+                VideoOutput {
+                    id: output
+
+                    anchors.fill: parent
+                    fillMode: movieLook.videoFill
+                    // A video that has played once stays on its last frame until it is
+                    // cleared or something replaces it.
+                    endOfStreamPolicy: VideoOutput.KeepLastFrame
+                }
             }
 
             FirstFrame {
                 id: firstFrame
 
-                sink: output.videoSink
+                // (From when it is started: a video with an in point may show its first
+                // frame as its file is opened, before it has been sent to the in point.)
+                sink: movie.started ? output.videoSink : null
                 // What the video turned out to be, which is what there is to go on when
                 // one stutters: how large it is, how it is encoded, and whether the
                 // graphics chip is decoding it.
@@ -243,12 +322,21 @@ Item {
             // this screen is not left showing what was there before.
             readonly property bool ready: firstFrame.arrived || waited.lapsed
 
-            VideoOutput {
-                id: output
+            MediaLook {
+                id: fedLook
 
                 anchors.fill: parent
-                fillMode: VideoOutput.PreserveAspectFit
-                endOfStreamPolicy: VideoOutput.KeepLastFrame
+                settings: root.content?.settings ?? null
+                sourceWidth: output.sourceRect.width
+                sourceHeight: output.sourceRect.height
+
+                VideoOutput {
+                    id: output
+
+                    anchors.fill: parent
+                    fillMode: fedLook.videoFill
+                    endOfStreamPolicy: VideoOutput.KeepLastFrame
+                }
             }
 
             FrameRelay {

@@ -4,6 +4,7 @@
 #include "arrangementedit.h"
 #include "groupedit.h"
 #include "labelfile.h"
+#include "mediasettings.h"
 
 #include "themefile.h"
 
@@ -39,6 +40,9 @@ QVariantMap toMedia(const rv::data::Action &action, workspace::FileFinder *finde
         {"source", QUrl::fromLocalFile(path)},
         {"video", media.has_video()},
     };
+    // What its Media Inspector sets, for media set to anything (src/mediasettings.h)
+    if (mediasettings::isSet(media))
+        map.insert("settings", mediasettings::describe(media));
     workspace::mediaBehaviour(action).describe(&map);
     return map;
 }
@@ -636,6 +640,52 @@ QString ProDocument::setCueMediaPlayback(const QString &path, const QString &cue
                 if (!action.media().element().has_video())
                     return QStringLiteral("Only a video has a way of playing on from its end");
                 workspace::setMediaPlayback(&action, playback, loopCount, loopSeconds);
+                return QString();
+            }
+        }
+        return QStringLiteral("That slide has no media");
+    });
+}
+
+QString ProDocument::setCueMediaSettings(const QString &path, const QString &cueId, const QVariantMap &changes)
+{
+    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
+        for (rv::data::Action &action : *cue->mutable_actions()) {
+            if (action.isenabled() && isVisualMedia(action))
+                return mediasettings::apply(action.mutable_media()->mutable_element(), changes);
+        }
+        return QStringLiteral("That slide has no media");
+    });
+}
+
+QVariantMap ProDocument::cueMediaSettings(const QString &path, const QString &cueId)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return {};
+    for (const rv::data::Cue &cue : presentation.cues()) {
+        if (QString::fromStdString(cue.uuid().string()) != cueId)
+            continue;
+        for (const rv::data::Action &action : cue.actions()) {
+            if (action.isenabled() && isVisualMedia(action))
+                return mediasettings::describe(action.media().element());
+        }
+    }
+    return {};
+}
+
+QString ProDocument::replaceCueMediaFile(const QString &path, const QString &cueId, const QString &mediaPath,
+                                         const QString &workspace)
+{
+    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
+        for (rv::data::Action &action : *cue->mutable_actions()) {
+            if (action.isenabled() && isVisualMedia(action)) {
+                rv::data::Media made = workspace::mediaElement(mediaPath, workspace);
+                mediasettings::carryOver(action.media().element(), &made);
+                *action.mutable_media()->mutable_element() = std::move(made);
+                // It described the old file's length.
+                action.clear_duration();
                 return QString();
             }
         }

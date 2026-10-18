@@ -130,7 +130,7 @@ Item {
                 click(centre(cell("slideGrid", 2)), Qt.RightButton)
             },
             () => {
-                smokeCheck("a slide's menu", menu.opened && /^Edit, Quick Edit, Add Action, Remove Action(\(off\))?, Go To Next Timer…, Theme(\(off\))?, Label, Group(\(off\))?, \[Media\], Background, Foreground, Remove Media, \[Slide\], Copy, Paste(\(off\))?, Copy Text Style(\(off\))?, Paste Text Style(\(off\))?, Delete Slide…$/.test(labels()), labels())
+                smokeCheck("a slide's menu", menu.opened && /^Edit, Quick Edit, Add Action, Remove Action(\(off\))?, Go To Next Timer…, Theme(\(off\))?, Label, Group(\(off\))?, \[Media\], Background, Foreground, Remove Media, Inspector, \[Slide\], Copy, Paste(\(off\))?, Copy Text Style(\(off\))?, Paste Text Style(\(off\))?, Delete Slide…$/.test(labels()), labels())
                 testInput.key(Qt.Key_Escape)
                 click(centre(row("playlistList", p => p.name === "Sunday Morning")), Qt.RightButton)
             },
@@ -145,7 +145,7 @@ Item {
                 click(centre(cell("mediaGrid", 1)), Qt.RightButton)
             },
             () => {
-                smokeCheck("a media file's menu", menu.opened && labels() === "[Behaviour], Background, Foreground, [Playlist], Remove from Playlist", labels())
+                smokeCheck("a media file's menu", menu.opened && labels() === "[Behaviour], Background, Foreground, Inspector, [Playlist], Remove from Playlist", labels())
                 testInput.key(Qt.Key_Escape)
                 // ---- a new playlist, from the + menu
                 before = catalog.playlists.length

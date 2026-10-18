@@ -22,7 +22,10 @@
 //   (src/decklink.h). Every screen has a scene of its own, drawn by itself; a video is
 //   played once for all of them. A picture of a screen, which the operator's preview is
 //   and a shape filled with a Screen Preview has, is the screen drawn again, small, from
-//   the same things it is told (qml/ScreenPicture.qml).
+//   the same things it is told (qml/ScreenPicture.qml). Media is drawn as its Media
+//   Inspector (qml/MediaInspector.qml) sets it, fitted, turned, cropped and with its
+//   effects, wherever it is shown (qml/MediaLook.qml); what that is is read from and
+//   written to ProPresenter's own fields (src/mediasettings.h).
 //
 //   And ProPresenter's own network API can be switched on (src/httpapiserver.h), so that
 //   what follows and operates ProPresenter over the network (Bitfocus Companion) can

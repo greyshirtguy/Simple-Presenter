@@ -4,9 +4,21 @@
 #include <QStringList>
 
 // Serves "image://thumbnail/<percent-encoded file path>": a small picture of an image
-// file, or of a frame from early in a video file. Anything after a "?" in the id is
-// ignored: callers put a counter there and change it to make the views ask again once
-// thumbnails have been discarded.
+// file, or of a frame from early in a video file. After a "?" in the id come a counter,
+// which callers change to make the views ask again once thumbnails have been discarded,
+// and then how the piece of media is set to look in its Media Inspector (see
+// mediasettings.h), if it has been, each part only if it is set:
+//
+//   &t=<seconds>          a video's picture taken at that moment (see videoframe.h)
+//   &c=<l>,<r>,<t>,<b>    cropped by so many pixels of the media at its own size from its
+//                         left, right, top and bottom
+//   &r=<90|180|270>       turned clockwise by that much
+//   &f=<h|v|hv>           flipped, across or up and down, as it is shown once turned
+//
+// so that a thumbnail shows the media as it is set to be shown. How it is fitted (which
+// depends on what it is shown in), its blur and its effects are drawn over it where it
+// is shown (qml/MediaPicture.qml). Each different set of these has a picture of its own
+// in the cache.
 //
 // How it works. Every view that shows a media file as a small picture (the media bin,
 // the slide grid, the preview, the editor) is an Image with such a url. Making the

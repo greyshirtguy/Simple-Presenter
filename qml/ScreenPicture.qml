@@ -141,32 +141,42 @@ Item {
         // ---- An audience screen: its layers, in the order the screen has them
 
         // A still picture: its thumbnail, or its file at this size where the thumbnail
-        // is too small for it (the thumbnails are a few hundred pixels across)
-        Image {
+        // is too small for it (the thumbnails are a few hundred pixels across). Each is
+        // drawn as the media layer draws it, as its Media Inspector sets it (MediaPicture,
+        // MediaLook): the thumbnail is made cropped, turned and flipped already.
+        MediaPicture {
             anchors.fill: parent
             visible: area.still && frame.width <= 400
-            source: visible ? picture.win.thumbnailUrl(picture.win.liveMedia.path) : ""
-            fillMode: Image.PreserveAspectFit
-            asynchronous: true
+            source: visible ? picture.win.thumbnailUrl(picture.win.liveMedia.path, picture.win.liveMedia.settings) : ""
+            settings: visible ? picture.win.liveMedia.settings ?? null : null
+            shaped: true
         }
 
-        Image {
+        MediaPicture {
             anchors.fill: parent
             visible: area.still && frame.width > 400
             source: visible ? picture.win.liveMedia.source : ""
-            sourceSize: Qt.size(Math.max(1, Math.ceil(frame.width * Screen.devicePixelRatio)),
-                                Math.max(1, Math.ceil(frame.height * Screen.devicePixelRatio)))
-            fillMode: Image.PreserveAspectFit
-            asynchronous: true
+            settings: visible ? picture.win.liveMedia.settings ?? null : null
+            readSize: Qt.size(Math.max(1, Math.ceil(frame.width * Screen.devicePixelRatio)),
+                              Math.max(1, Math.ceil(frame.height * Screen.devicePixelRatio)))
         }
 
-        VideoOutput {
-            id: video
+        MediaLook {
+            id: videoLook
 
-            objectName: picture.name("Video")
             anchors.fill: parent
             visible: !picture.stage && picture.look.media && picture.win.liveMedia !== null && picture.win.liveMedia.video
-            fillMode: VideoOutput.PreserveAspectFit
+            settings: visible ? picture.win.liveMedia.settings ?? null : null
+            sourceWidth: video.sourceRect.width
+            sourceHeight: video.sourceRect.height
+
+            VideoOutput {
+                id: video
+
+                objectName: picture.name("Video")
+                anchors.fill: parent
+                fillMode: videoLook.videoFill
+            }
         }
 
         // (No frames are borrowed for a video the look keeps from the screen, nor for a
@@ -174,7 +184,7 @@ Item {
         FrameRelay {
             id: frames
 
-            source: video.visible && picture.win.output ? picture.win.output.liveVideoSink : null
+            source: videoLook.visible && picture.win.output ? picture.win.output.liveVideoSink : null
             target: video.videoSink
             interval: picture.videoInterval
         }

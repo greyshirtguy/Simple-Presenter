@@ -113,8 +113,11 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 //     fillGradientTo and fillGradientAngle (the first and last of its colours, and the
 //     way it runs, in degrees anticlockwise from pointing right); fillMediaName,
 //     fillMediaPath and fillMediaSource (the file, the last two empty if it cannot be
-//     found or, the source, if it is a video, which is not drawn), fillMediaVideo and
-//     fillMediaScale (0 to fit, 1 to fill, 2 stretched). A fill that is a Screen
+//     found or, the source, if it is a video, which is not drawn), fillMediaUrl (a
+//     video's file as a url), fillMediaVideo, fillMediaScale (0 to fit, 1 to fill, 2
+//     stretched) and fillMediaSettings (all that its Media Inspector sets, as
+//     mediasettings::describe has it, for media set to anything: see
+//     mediasettings::isSet). A fill that is a Screen
 //     Preview, a picture of what one of the workspace's screens is showing, is kind
 //     "screen", with fillScreenId and fillScreenName (the screen, found by id or failing
 //     that by name): ProPresenter keeps it as a link of the element's, beside a fill of
@@ -208,7 +211,9 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 //   x, y, width, height, opacity, name, locked, hidden
 //   fillOn, fillColor (which also makes the fill a plain colour), fillLinesOnly
 //   fillKind ("color", "gradient" or "screen"), fillGradientFrom, fillGradientTo,
-//     fillGradientAngle, fillMediaPath (which makes the fill that file), fillMediaScale,
+//     fillGradientAngle, fillMediaPath (which makes the fill that file, keeping what
+//     mediasettings::carryOver keeps), fillMediaScale, fillMediaSettings (changes in
+//     mediasettings::apply's terms, all left out if one is a value that cannot be),
 //     fillScreenId and fillScreenName (the screen a Screen Preview is of). Making the
 //     fill a Screen Preview adds the link, and leaves the fill the file has as the
 //     stand-in it is for ProPresenter; making it anything else takes the link away.

@@ -1294,7 +1294,8 @@ Window {
         menu.show([
             { header: "Media" },
             { label: "Background", current: !slide.mediaForeground, run: () => setSlideMediaForeground(index, false) },
-            { label: "Foreground", current: slide.mediaForeground, run: () => setSlideMediaForeground(index, true) }
+            { label: "Foreground", current: slide.mediaForeground, run: () => setSlideMediaForeground(index, true) },
+            { label: "Inspector", disabled: !slide.media, run: () => inspectSlideMedia(index) }
         ], item, 0, item.height + 2)
     }
 
@@ -1753,8 +1754,27 @@ Window {
     }
 
     // The url of the thumbnail of a media file.
-    function thumbnailUrl(path) {
-        return "image://thumbnail/" + encodeURIComponent(path) + "?" + catalog.thumbnailRevision
+    // The address of a media file's thumbnail; with the media's settings (as
+    // mediasettings::describe has them, if there are any), of the media as it is set to
+    // look: at the moment chosen for its picture, cropped, turned and flipped (see
+    // src/thumbnailprovider.h).
+    function thumbnailUrl(path, settings) {
+        return "image://thumbnail/" + encodeURIComponent(path) + "?" + catalog.thumbnailRevision + thumbnailLook(settings)
+    }
+
+    function thumbnailLook(s) {
+        if (!s)
+            return ""
+        let look = ""
+        if (s.thumbnail > 0)
+            look += "&t=" + s.thumbnail
+        if (s.cropOn && (s.cropLeft > 0 || s.cropRight > 0 || s.cropTop > 0 || s.cropBottom > 0))
+            look += "&c=" + [s.cropLeft, s.cropRight, s.cropTop, s.cropBottom].join(",")
+        if (s.rotation)
+            look += "&r=" + s.rotation
+        if (s.flipH || s.flipV)
+            look += "&f=" + (s.flipH ? "h" : "") + (s.flipV ? "v" : "")
+        return look
     }
 
     // The media files the slides of a presentation trigger, as paths.
@@ -2320,6 +2340,8 @@ Window {
             { label: "Foreground", current: !none && slide.mediaForeground, disabled: none,
               run: () => setSlideMediaForeground(index, true) },
             { label: "Remove Media", disabled: none, run: () => assignMedia(index, "") },
+            // All that can be set about it: see inspectSlideMedia
+            { label: "Inspector", disabled: !slide.media, run: () => inspectSlideMedia(index) },
             { header: "Slide" },
             // A copy goes after the slide whose menu Paste is chosen from, in this
             // presentation or another.
@@ -2536,6 +2558,7 @@ Window {
             { header: "Behaviour" },
             { label: "Background", current: !media.foreground, run: () => setMediaItemForeground(media.id, false) },
             { label: "Foreground", current: media.foreground, run: () => setMediaItemForeground(media.id, true) },
+            { label: "Inspector", disabled: media.missing, run: () => inspectMediaItem(media) },
             { header: "Playlist" },
             { label: "Remove from Playlist", run: () => report(catalog.removeMediaItem(media.id)) }
         ], item)
@@ -2647,6 +2670,72 @@ Window {
             announcementFresh = document
     }
 
+    // ---- The Media Inspector (qml/MediaInspector.qml), for a slide's media, a row of the
+    // media bin, or an element filled with media (from the editor: see Editor.inspectFill).
+    // `keeper` says how its changes are kept, and `after` is called when it is put away.
+    property var afterInspector: null
+
+    function inspectMedia(media, about, keeper, after) {
+        if (!media)
+            return
+        mediaInspectorLoader.active = true
+        afterInspector = after ?? null
+        mediaInspectorLoader.item.show(media, about, keeper)
+    }
+
+    // What a slide's media, or a row's, is shown in, for the inspector's preview: the
+    // first audience screen, or a 1080p one
+    function mediaBox() {
+        const screen = Screens.audience.length > 0 ? Screens.audience[0] : null
+        return screen && screen.width > 0 && screen.height > 0 ? { width: screen.width, height: screen.height } : { width: 1920, height: 1080 }
+    }
+
+    function inspectSlideMedia(index) {
+        const slide = document.slides[index]
+        if (!slide.media)
+            return
+        const file = document.path
+        const id = slide.id
+        const box = mediaBox()
+        // (The slide's map has the media's settings only when it is set to anything: the
+        // inspector has them all, as the file has them.)
+        const mediaOf = () => {
+            const again = catalog.open(file).slides.find(s => s.id === id)
+            return again && again.media ? Object.assign({}, again.media, { box: box, missing: false, settings: catalog.slideMediaSettings(file, id) })
+                                        : null
+        }
+        inspectMedia(mediaOf(), "Slide " + (index + 1) + " of “" + document.name + "”", {
+            save: (changes) => catalog.setSlideMediaSettings(file, id, changes),
+            replace: (path) => catalog.replaceSlideMediaFile(file, id, path),
+            reread: mediaOf
+        }, () => {
+            // The grid shows the media as it is now set: its thumbnail, and what it is.
+            if (document && document.path === file)
+                reloadDocument()
+        })
+    }
+
+    function inspectMediaItem(media) {
+        const playlist = mediaPlaylistId
+        const id = media.id
+        const box = mediaBox()
+        const node = catalog.mediaPlaylists.find(p => p.path === playlist)
+        const mediaOf = () => {
+            const row = catalog.mediaIn(playlist).find(r => r.id === id)
+            return row ? Object.assign({}, row, { box: box, settings: catalog.mediaItemSettings(id) }) : null
+        }
+        inspectMedia(mediaOf(), "The media bin" + (node ? ": " + node.name : ""), {
+            save: (changes) => catalog.setMediaItemSettings(id, changes),
+            replace: (path) => catalog.replaceMediaItemFile(id, path),
+            reread: mediaOf
+        }, () => {
+            const scrolledTo = mediaBin.contentY
+            if (mediaPlaylistId === playlist)
+                mediaFiles = catalog.mediaIn(playlist)
+            mediaBin.contentY = scrolledTo
+        })
+    }
+
     // Quick Edit: the words of a slide of the grid put right over its thumbnail (`cell`,
     // the grid's item for it, if there is one), without the editor (see
     // qml/QuickEdit.qml). When it is put away the presentation is read again, as after
@@ -2675,7 +2764,7 @@ Window {
     // triggers, or "": what the editor shows behind that slide.
     function slideBackdrop(slideId) {
         const slide = document ? document.slides.find(s => s.id === slideId) : undefined
-        return slide && slide.media ? thumbnailUrl(slide.media.path) : ""
+        return slide && slide.media ? thumbnailUrl(slide.media.path, slide.media.settings) : ""
     }
 
     // For the self-test: steps through bringing the editor up, picking the first
@@ -4039,12 +4128,16 @@ Window {
 
     readonly property var countedPlayer: Clocks.videoWatched && !clocksHeld && output ? output.livePlayer : null
 
+    // (A video trimmed in its Media Inspector ends at its out point.)
     function tellVideoClock() {
         const player = countedPlayer
-        if (player && player.duration > 0 && liveMedia !== null)
-            Clocks.setVideo((player.duration - player.position) / 1000, liveMedia.loops === true)
-        else
+        if (player && player.duration > 0 && liveMedia !== null) {
+            const end = liveMedia.settings && liveMedia.settings.trimmedOut ? Math.min(player.duration, liveMedia.settings.outPoint * 1000)
+                                                                          : player.duration
+            Clocks.setVideo(Math.max(0, end - player.position) / 1000, liveMedia.loops === true)
+        } else {
             Clocks.noVideo()
+        }
     }
 
     onCountedPlayerChanged: tellVideoClock()
@@ -4515,7 +4608,7 @@ Window {
                 Image {
                     anchors.fill: parent
                     anchors.margins: 2
-                    source: mediaDrag.media ? win.thumbnailUrl(mediaDrag.media.path) : ""
+                    source: mediaDrag.media ? win.thumbnailUrl(mediaDrag.media.path, mediaDrag.media.settings) : ""
                     fillMode: Image.PreserveAspectFit
                     asynchronous: true
                 }
@@ -4671,6 +4764,7 @@ Window {
         groupColor: (slide) => win.groupColor(slide)
         backdropFor: (slideId) => win.slideBackdrop(slideId)
         showMenu: (items, item, x, y) => menu.show(items, item, x, y)
+        inspectMedia: (media, about, keeper, after) => win.inspectMedia(media, about, keeper, after)
         colorTriggerDefault: win.colorTriggerDefault
         onColorTriggerDefaultKept: (list) => win.colorTriggerDefault = list
         mediaFilter: win.catalog.mediaDialogFilter
@@ -4827,6 +4921,32 @@ Window {
 
         sourceComponent: GoToNextPanel {
             onClosed: win.takeFocus()
+        }
+    }
+
+    Loader {
+        id: mediaInspectorLoader
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 40
+        active: false
+
+        sourceComponent: MediaInspector {
+            owner: win
+            effectChoices: win.catalog.mediaEffects()
+            mediaFilter: win.catalog.mediaDialogFilter
+            mediaFolder: win.catalog.mediaDirectory
+            onClosed: {
+                const after = win.afterInspector
+                win.afterInspector = null
+                if (after)
+                    after()
+                if (win.editing)
+                    editScreen.takeFocus()
+                else
+                    win.takeFocus()
+            }
         }
     }
 

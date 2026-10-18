@@ -393,7 +393,7 @@ check("a new macro is added to the collection, with its name ready to be typed",
                 return 300
             },
             () => {
-                check("a right click on the other icon is the media's behaviour", labels() === "[Media], *Background, Foreground", labels())
+                check("a right click on the other icon is the media's behaviour", labels() === "[Media], *Background, Foreground, Inspector", labels())
                 click(menuRow("Foreground"))
                 return 600
             },

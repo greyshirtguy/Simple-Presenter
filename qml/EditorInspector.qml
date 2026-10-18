@@ -26,6 +26,8 @@ Rectangle {
     property var showMenu: (items, item, x, y) => {}
     // Asks for a media file to fill the element with
     property var chooseMedia: () => {}
+    // Brings up the Media Inspector on the picked element's media
+    property var inspectMedia: () => {}
     property var setFormat: (format, interim) => {}
     property var settle: () => {}
     // The Color Triggers kept as the default ([{ time, color }]), in the app's own
@@ -566,6 +568,23 @@ Rectangle {
                     font.pixelSize: 12
                     text: "Choose…"
                     onClicked: inspector.chooseMedia()
+                }
+            }
+
+            // All that can be set about the media, ProPresenter's Media Inspector
+            // (MediaInspector.qml), of which the scale below is one
+            Line {
+                caption: "Media"
+                visible: fillLine.kind === "media"
+
+                AppButton {
+                    objectName: "fillInspector"
+                    height: 26
+                    font.pixelSize: 12
+                    text: "Inspector…"
+                    enabled: inspector.element !== null && inspector.element.fillMediaPath !== ""
+                    opacity: enabled ? 1 : 0.45
+                    onClicked: inspector.inspectMedia()
                 }
             }
 

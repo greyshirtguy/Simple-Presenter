@@ -1,6 +1,8 @@
 #include "catalog.h"
 
 #include "audioprobe.h"
+#include "mediaeffects.h"
+#include "mediasettings.h"
 #include "songimport.h"
 
 #include "playlistimport.h"
@@ -9,6 +11,10 @@
 #include "thumbnailprovider.h"
 #include "workspacefiles.h"
 
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusPendingCallWatcher>
+#include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
 #include <QThread>
@@ -458,6 +464,61 @@ QString Catalog::setSlideMediaPlayback(const QString &path, const QString &slide
     return ProDocument::setCueMediaPlayback(path, slideId, playback, loopCount, loopSeconds);
 }
 
+QString Catalog::setSlideMediaSettings(const QString &path, const QString &slideId, const QVariantMap &changes)
+{
+    return ProDocument::setCueMediaSettings(path, slideId, changes);
+}
+
+QVariantMap Catalog::slideMediaSettings(const QString &path, const QString &slideId) const
+{
+    return ProDocument::cueMediaSettings(path, slideId);
+}
+
+QString Catalog::replaceSlideMediaFile(const QString &path, const QString &slideId, const QString &file)
+{
+    return ProDocument::replaceCueMediaFile(path, slideId, file, m_root);
+}
+
+QVariantList Catalog::mediaEffects() const
+{
+    QVariantList list;
+    for (const mediaeffects::Effect &effect : mediaeffects::all()) {
+        list.append(QVariantMap {
+            {"renderId", effect.renderId},
+            {"name", effect.name},
+            {"description", effect.description},
+            {"drawn", !effect.shader.isEmpty()},
+        });
+    }
+    return list;
+}
+
+QVariantMap Catalog::newMediaEffect(const QString &renderId) const
+{
+    return mediasettings::newEffect(renderId);
+}
+
+void Catalog::showInFolder(const QString &path) const
+{
+    QDBusMessage call = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.FileManager1"),
+                                                       QStringLiteral("/org/freedesktop/FileManager1"),
+                                                       QStringLiteral("org.freedesktop.FileManager1"),
+                                                       QStringLiteral("ShowItems"));
+    call << QStringList {QUrl::fromLocalFile(path).toString()} << QString();
+    // Not waited for: a file manager that is not running is started by the bus first,
+    // which can take a second, and the window goes on meanwhile. The folder alone is
+    // the answer if there is none.
+    auto *watcher = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(call, 5000));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished, watcher, [path](QDBusPendingCallWatcher *answer) {
+        if (answer->isError()) {
+            SessionLog::write("media", QStringLiteral("no file manager would pick out %1 (%2); its folder is opened")
+                                           .arg(QFileInfo(path).fileName(), answer->error().name()));
+            QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
+        }
+        answer->deleteLater();
+    });
+}
+
 QString Catalog::addSlideAction(const QString &path, const QString &slideId, const QVariantMap &action)
 {
     return ProDocument::addCueAction(path, slideId, action);
@@ -620,6 +681,21 @@ QString Catalog::removeMediaItem(const QString &item)
 QString Catalog::setMediaItemForeground(const QString &item, bool foreground)
 {
     return afterChange(PlaylistFile::setMediaForeground(m_root, item, foreground));
+}
+
+QString Catalog::setMediaItemSettings(const QString &item, const QVariantMap &changes)
+{
+    return afterChange(PlaylistFile::setMediaSettings(m_root, item, changes));
+}
+
+QVariantMap Catalog::mediaItemSettings(const QString &item) const
+{
+    return PlaylistFile::mediaSettings(m_root, item);
+}
+
+QString Catalog::replaceMediaItemFile(const QString &item, const QString &file)
+{
+    return afterChange(PlaylistFile::replaceMediaFile(m_root, item, file));
 }
 
 QString Catalog::moveMediaItem(const QString &item, const QString &target, bool after)

@@ -159,7 +159,7 @@ always wished ProPresenter had them. The list will grow.
   whether it stops at its end, loops, or loops for a count or a time, under the icon
   for its being a background or a foreground. See [Media](#media).
 - **Changing a slide's media from the slide.** A right click on either of those icons
-  changes what it shows, there and then, with no inspector to go to.
+  changes what it shows, there and then, without going to the inspector.
 - **Playing a slide's media by itself.** The Media caption in a slide's menu is
   something to click: it plays the slide's media and leaves the slide layer as it is.
   (The other way about, a slide without its media, is ProPresenter's: a click with Alt
@@ -209,6 +209,14 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **The Media Inspector.** A right click on a slide's media, on a row of the media bin,
+  or the Fill section of the editor for an element filled with a picture, brings up
+  ProPresenter's Media Inspector: where the file is, Show in Folder, another file in
+  its place, and a video's picture taken from any moment of it; how the media is
+  fitted (Scale to Fit, Scale to Fill, Stretch to Fill, Scale + Blur), turned a
+  quarter at a time, flipped and cropped; whether a video stops or loops, and the
+  part of it that plays; and ProPresenter's effects. It has a player of its own to
+  move through a video with. See [The Media Inspector](#the-media-inspector).
 - **Quick Edit.** A slide's words put right without the editor: Quick Edit in the
   slide's menu puts the slide up on its own, over its thumbnail at about twice the
   size, with its text boxes to type in, and Esc puts it away, keeping what was typed.
@@ -508,10 +516,15 @@ the top of this page.
       and run, their rows added, reordered and removed, and playlists exported from
       ProPresenter brought in. Still to do: headers, media rows, and a continuous view
       of a whole playlist, one presentation under another.
-- [ ] **Media inspector**: somewhere to see and set how one piece of media plays: how
-      loud, whether it goes round again, where it starts and stops. For now that is
-      settled by a rule: a background video is silent and loops, a foreground one
-      plays once with its sound.
+- [ ] **Media inspector**: it is there (see
+      [The Media Inspector](#the-media-inspector)), with the file, the thumbnail, the
+      fitting, turning, flipping and cropping, the way a video plays on, its trim and
+      ProPresenter's effects. Still to come: how
+      loud (for now a rule: a background video is silent, a foreground one has its
+      sound), its alignment, delay and play rate, a transition of its own, effect
+      presets, the two effects drawn from what is behind, the audio tab and playback
+      markers; for the audio bin's music as well as for media; and the inspector for
+      several pieces of media at once.
 - [ ] **Show controls**: the timers, the props, the stage layouts and the macros are
       there, for as many stage screens as are wanted. Still to come: more of what a
       stage layout can show (pictures of the slides and of the output); a prop's own
@@ -867,8 +880,8 @@ shows, with the way it is now ticked: Background or Foreground for the one; Stop
 Loop, Loop for Play Count or Loop for Time for the other, the last two leading to a
 few counts and times to pick from. Changing the one leaves the other as it is. A
 plain click on an icon is a click on the slide, as anywhere else on it. (This is the
-app's own shortcut. In ProPresenter these are set in the media inspector, which is
-not here yet.)
+app's own shortcut. In ProPresenter these are set in the Media Inspector, which is
+here too: see below.)
 
 In the files this is what ProPresenter keeps: the layer a media action is on, and how
 its video plays on. Media set up there behaves here as it was set there.
@@ -905,7 +918,11 @@ can show is left out.
 A video's thumbnail is a picture from about five seconds into it (or from the middle of
 one shorter than ten seconds), and a little later than that if the picture there is
 nearly black: a great many videos fade in from black, and their first frame says
-nothing about which video it is.
+nothing about which video it is. Unless a moment has been chosen for it, in its
+[Media Inspector](#the-media-inspector): then it is the picture from that moment. A
+thumbnail also shows the media as it is set to be shown: cropped, turned and flipped,
+fitted to the thumbnail as to the screen, blurred, and with its effects, those that move
+by themselves held still.
 
 Under the previews are the **clears**, in two rows. The first is the layers: the slide
 (F2), the media (F3), the props (F4), the audio (F5) and the messages (F6), each red
@@ -915,6 +932,76 @@ begin with that is Clear All. Under those is
 the **transport**, for the video on the output: how far in it is and how much is left, a
 slider that can be dragged to move it, and buttons to go back to the start, to play or
 pause, and to skip fifteen seconds back or on.
+
+### The Media Inspector
+
+**Inspector** in the right-click menu of a slide that has media (and in the menu of its
+media icon), or of a row of the media bin, brings up ProPresenter's Media Inspector over
+the window, for that piece of media; for an element filled with a picture it is the
+**Inspector…** button in the editor's Fill section. On the left is the media as it will
+be shown, in the shape of the screen (or of the element), with every setting as it is
+set, effects and all; for a video, under it, a player of its own, silent, with play and
+pause (and the space bar), a bar to move through the video on, the time gone and the
+time left, the part of it that plays marked in blue under the bar and the moment its
+picture is taken from as a white mark over it. On the right are three tabs:
+
+- **Information**: where the file is, with **Show in Folder** (which opens the folder in
+  the desktop's file manager, the file picked out where the file manager can do that)
+  and **Choose…**, for another file in its place; for a video, its thumbnail, with
+  **Set to Current Frame** to take it from where the player is and **Automatic** to
+  leave it to the app; and what the file is.
+- **Properties**: **Scaling** (Scale to Fit, Scale to Fill, Stretch to Fill, Scale +
+  Blur, as [ProPresenter names
+  them](https://support.renewedvision.com/hc/en-us/articles/360011694174-Media-Scaling-Options):
+  fitted whole, filling the screen and cut off at its edges, stretched to it, or fitted
+  on a blurred copy of itself that fills it); **Rotation**, a quarter at a time;
+  **Flip**, across and up and down; **Cropping**, by so many pixels of the media at its
+  own size from each edge. For a video, **Playback** (Stop or Loop; a loop for a count
+  or for a time is set from the slide's playback icon, and is a Loop here), and
+  **Trim**: the in point and the out point, each typed or set from where the player is,
+  with **Reset Trim**. A trimmed video plays from its in point to its out point, which
+  are its start and its end: it loops between them, or stops at the out point, and the
+  Video Countdown counts to it.
+- **Effects**: the media's effects, in order, each switched on and off, taken off, and
+  adjusted (a slider for each number, a swatch for each colour, and **Reset Effect**).
+  **Add Effect** lists ProPresenter's, by its names: Adjust Color, Blur, Color Blobs,
+  CRT Monitor, Kaleidoscope, Old Film, Ripple Center, Sepia, Vignette and the rest,
+  thirty-eight of them. Each is a pass over the media's pixels as it is drawn, which
+  costs only media that has one; those that move by themselves (ripples, stars, an old
+  film's flicker) are drawn at every frame while they are shown.
+
+Every change is saved to the file as it is made, as the menus' changes are, and is in
+the fields ProPresenter keeps it in, so the media looks the same in ProPresenter (and
+media set up in ProPresenter's inspector looks here as it was set there). In the editor
+the inspector's changes are the editor's, undone as the rest are. What is on the screens
+is left as it is: a slide or a row shows its media as now set the next time it is shown,
+as after the editor. **Done**, Esc or a click outside put it away.
+
+The names, what each effect can be adjusted by, and the ids the files know them by are
+ProPresenter's. The drawing is not: as with the [transitions](#transitions), each effect
+is drawn by a shader written for this app to give the same kind of change, so they are
+equivalents and not copies, and will not match ProPresenter's pixel for pixel.
+
+**What is a guess, or not done:**
+
+- How the panel is laid out and what its buttons say; that its player is silent; and
+  that what is on the screens is not changed as the media is set (ProPresenter's may).
+- That Scale + Blur is kept as Scale to Fit with the blur switched on, the field beside
+  it in the file; that a crop is of the media as it is in its file, before it is turned
+  or flipped; that the flips are of the media as it is shown, once turned; that the
+  sizes of the effects that are sizes in pixels are of a 1080-line screen; and that an
+  effect a file does not say is on is off (the user's own files have such effects).
+- A moment of nought chosen for a video's picture is no moment chosen: the very first
+  frame cannot be its picture. ProPresenter writes -1 for none, and Automatic does too.
+- Not there: how loud a piece of media is, its alignment, delay and play rate, its own
+  transition, effect presets, Background Blur and Background Invert (known, so that a
+  file keeps them, but not drawn: they work on what is behind the media), the audio tab,
+  playback markers, the inspector for the audio bin, and several pieces of media at
+  once. The editor's own thumbnails show media cropped, turned and flipped, but without
+  its effects.
+- Another file in its place keeps how the media was fitted, turned and flipped, its
+  effects and how a video plays on, but not its crop, its trim or its picture's moment,
+  which were the other file's.
 
 ## Audio
 
@@ -1706,7 +1793,9 @@ choose between three ways of working. **Slides** is everything described here.
 - **Shape.** Position and size, opacity, fill, stroke and shadow. A fill is a colour
   (optionally only behind the lines of the text), a gradient from one colour to another
   along an angle, a picture, which is made to fit inside the element, to fill it and
-  be cut off at its edges, or stretched to it, or a [Screen Preview](#screen-preview) of
+  be cut off at its edges, or stretched to it (and turned, flipped, cropped and given
+  effects in its [Media Inspector](#the-media-inspector), behind **Inspector…**), or a
+  [Screen Preview](#screen-preview) of
   one of the workspace's screens, chosen under it. A rounded rectangle has one handle more
   than the others, a round one on its top edge, which is dragged to make its corners
   more round or less. A rectangle, a rounded rectangle and an ellipse can have their
@@ -3445,7 +3534,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/textlayout.*` | Lays text out, the same for drawing it and for editing it in place, and finds the size at which text fits a box |
 | `src/strokedtext.*` | Draws slide text with stroke and fill |
 | `src/richtextbridge.*` | Lets a text box on the slide be typed into |
-| `src/thumbnailprovider.*`, `src/videoframe.*` | Thumbnails of images and videos, made on worker threads and cached |
+| `src/thumbnailprovider.*`, `src/videoframe.*` | Thumbnails of images and videos, made on worker threads and cached, at the moment and in the crop, turn and flip a Media Inspector sets |
+| `src/mediasettings.*`, `src/mediaeffects.*` | What a piece of media's Media Inspector sets, read from and written to ProPresenter's fields, and ProPresenter's effects |
 | `src/framerelay.*` | Feeds the preview from the output's video frames |
 | `src/firstframe.*` | Says when a video has its first picture, so that it is not put on the output before |
 | `src/fontresolver.*` | Finds fonts by PostScript name through fontconfig |
@@ -3486,13 +3576,15 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/ScreensSettings.qml` | The Screens section of the settings |
 | `src/windowlists.*` | Keeps the windows of the screens out of Alt+Tab where the app can see to that itself (through X11) |
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
+| `qml/MediaLook.qml`, `qml/MediaEffects.qml` | A piece of media drawn as its Media Inspector sets it, and its effects |
+| `qml/MediaInspector.qml`, `qml/QuickEdit.qml` | The Media Inspector, and Quick Edit of a slide's words |
 | `qml/PropsLayer.qml` | The props that are on, over the other layers; and, over those, the messages that are shown |
 | `qml/AnnouncementLayer.qml` | The announcements layer of a screen: a slide over media of its own |
 | `qml/GoToNextPanel.qml` | The panel the seconds of a Go To Next Timer, or of a Slide Show, are typed in |
 | `qml/MessagesPanel.qml` | The messages, a tab of the show controls |
 | `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
-| `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions |
+| `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions; and in `shaders/effects` the effects media can be given, written for this app |
 | `packaging/` | The launcher, icon and description that an installed copy has, and the GNOME Shell extension that keeps the output and stage windows out of Alt+Tab through Wayland |
 | `third_party/ProPresenter7-Proto` | The descriptions of ProPresenter's file formats, as a submodule |
 | `AGENTS.md`, `CLAUDE.md`, `docs/agent-playbook.md` | What an AI coding agent is told before it works here, and its guide to helping someone who uses the app |

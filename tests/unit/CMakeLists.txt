@@ -297,3 +297,14 @@ qt_add_executable(tst_clocktext
 target_include_directories(tst_clocktext PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_clocktext PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME clocktext COMMAND tst_clocktext)
+
+qt_add_executable(tst_mediasettings
+    tst_mediasettings.cpp
+    ${PROJECT_SOURCE_DIR}/src/mediaeffects.h
+    ${PROJECT_SOURCE_DIR}/src/mediaeffects.cpp
+    ${PROJECT_SOURCE_DIR}/src/mediasettings.h
+    ${PROJECT_SOURCE_DIR}/src/mediasettings.cpp
+)
+target_include_directories(tst_mediasettings PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_mediasettings PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
+add_test(NAME mediasettings COMMAND tst_mediasettings)

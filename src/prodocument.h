@@ -150,6 +150,16 @@ struct ProDocument
     // Sets how the video the cue triggers plays on from its end (see
     // workspace::MediaBehaviour), and writes the file back.
     static QString setCueMediaPlayback(const QString &path, const QString &cueId, int playback, int loopCount, double loopSeconds);
+    // What the Media Inspector sets of the media the cue triggers (the same media its
+    // slide's `media` is read from), as mediasettings::apply takes changes; and that
+    // media replaced by another file, keeping what mediasettings::carryOver keeps. Each
+    // writes the file back and returns an error message, empty on success.
+    static QString setCueMediaSettings(const QString &path, const QString &cueId, const QVariantMap &changes);
+    // All of those settings, as mediasettings::describe gives them (empty if the cue has
+    // no media): what the slide's map has only for media set to anything.
+    static QVariantMap cueMediaSettings(const QString &path, const QString &cueId);
+    static QString replaceCueMediaFile(const QString &path, const QString &cueId, const QString &mediaPath,
+                                       const QString &workspace);
     // Gives the cue another action, changes one it has, by the action's id, and takes
     // one away. The action is a map as src/actions.h describes. Each writes the file
     // back and returns an error message, empty on success.
