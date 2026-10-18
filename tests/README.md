@@ -112,6 +112,14 @@ once and a chunked GET, what a slide taken live through it draws on the output a
 what a click on it drew, and a presentation, a timer, the stage message and the
 audience screens worked through it. Switched off, it lets its clients go.
 
+And `quickedit` puts a slide's words right with Quick Edit: the panel up from the slide's
+menu, over the slide's thumbnail at about twice its size and the window behind not
+darkened, with its text box being typed in, words typed where the caret was put, Ctrl+B
+doing nothing, a drag not moving the box, and Esc keeping it all, with the file holding
+the words in the box's own formatting and nothing else of the slide changed, while the
+output keeps what it had; a click outside writing nothing; and between boxes, Delete
+and the arrows doing nothing and Tab going back to typing.
+
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two
 outputs, one that can key as a linked pair of connectors can, and one that cannot, and

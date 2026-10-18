@@ -2295,6 +2295,8 @@ Window {
         const target = { slide: index }
         menu.show([
             { label: "Edit", run: () => startEditing(currentEntry(), slide.id) },
+            // Its words alone, put right over its thumbnail: see quickEdit
+            { label: "Quick Edit", run: () => quickEdit(index, item) },
             // What else the slide does when it is shown: see src/actions.h
             { label: "Add Action", items: () => addActionItems(target) },
             { label: "Remove Action", disabled: slide.actions.length === 0, items: [{ header: "Remove Action" }].concat(
@@ -2627,16 +2629,46 @@ Window {
             slidesRearranged = false
             reloadDocument()
         } else if (changed && entry) {
-            // The same slides in the same order, so the grid can stay where it is.
-            const scrolledTo = grid.contentY
-            document = load(entry)
-            grid.contentY = scrolledTo
-            // (And a slide of it that goes live by itself is to be the slide as edited.)
-            if (viewingLive)
-                liveFresh = document
-            if (viewingAnnouncements)
-                announcementFresh = document
+            reloadEdited(entry)
         }
+    }
+
+    // Reads the presentation being viewed again after an editor has changed it and left
+    // the same slides in the same order, so the grid can stay where it is. What is on
+    // the output is left as it is until a slide is next shown.
+    function reloadEdited(entry) {
+        const scrolledTo = grid.contentY
+        document = load(entry)
+        grid.contentY = scrolledTo
+        // (And a slide of it that goes live by itself is to be the slide as edited.)
+        if (viewingLive)
+            liveFresh = document
+        if (viewingAnnouncements)
+            announcementFresh = document
+    }
+
+    // Quick Edit: the words of a slide of the grid put right over its thumbnail (`cell`,
+    // the grid's item for it, if there is one), without the editor (see
+    // qml/QuickEdit.qml). When it is put away the presentation is read again, as after
+    // the editor.
+    function quickEdit(index, cell) {
+        const entry = currentEntry()
+        if (editing || !entry || !openable(entry))
+            return
+        const slide = document.slides[index]
+        quickEditLoader.active = true
+        const panel = quickEditLoader.item
+        const about = "Slide " + (index + 1) + " of “" + document.name + "”"
+        const at = cell ? cell.mapToItem(quickEditLoader, 0, 0) : null
+        const near = at ? { x: at.x, y: at.y, width: cell.width, height: cell.width * 9 / 16 } : null
+        if (!report(panel.show(entry.file, catalog.workspacePath, slide.id, about, slideBackdrop(slide.id), near, (changed) => {
+            Log.note("edit", "quick edit of slide " + (index + 1) + " of " + quoted(entry.name) + " put away; "
+                     + (changed ? "what was typed was saved as it was typed" : "nothing was changed"))
+            if (changed && currentEntry() && currentEntry().path === entry.path)
+                reloadEdited(entry)
+        })))
+            return
+        Log.note("edit", "quick edit opened on slide " + (index + 1) + " of " + quoted(entry.name))
     }
 
     // The url of the thumbnail of the media a slide of the presentation being viewed
@@ -4794,6 +4826,19 @@ Window {
         active: false
 
         sourceComponent: GoToNextPanel {
+            onClosed: win.takeFocus()
+        }
+    }
+
+    Loader {
+        id: quickEditLoader
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 30
+        active: false
+
+        sourceComponent: QuickEdit {
             onClosed: win.takeFocus()
         }
     }

@@ -47,6 +47,12 @@ Item {
     property var dragTurn: null
     // The lines snapped to: [{ vertical, at }], in slide units
     property var guides: []
+    // Set for Quick Edit (qml/QuickEdit.qml): only the words of the slide's text boxes
+    // can be changed. A click on one starts typing in it, where it was clicked, and Tab
+    // goes on to the next one; nothing can be picked, moved, sized, turned, formatted,
+    // added or deleted, and the keys that would do those do nothing. Esc ends it all:
+    // what was typed is kept, and `dismissed` is sent.
+    property bool textOnly: false
 
     readonly property var elements: slide ? slide.elements : []
     // The last element there was: see elementAt()
@@ -75,7 +81,8 @@ Item {
     readonly property real slideHeight: slide ? slide.height : 1080
     // Canvas pixels per slide unit, and where the slide's corner is
     readonly property real u: Math.max(0.01, Math.min((width - 2 * margin) / slideWidth, (height - 2 * margin) / slideHeight))
-    readonly property real margin: 36
+    // The room round the slide, in canvas pixels (Quick Edit has little)
+    property real margin: 36
     readonly property real originX: Math.round((width - slideWidth * u) / 2)
     readonly property real originY: Math.round((height - slideHeight * u) / 2)
     readonly property real smallest: 20
@@ -91,6 +98,8 @@ Item {
     signal menuRequested(real x, real y)
     // A key asked for the slide before (-1) or after (1) this one
     signal slideStepRequested(int delta)
+    // Esc, in Quick Edit (see textOnly)
+    signal dismissed()
 
     function report(error) {
         if (error !== "")
@@ -272,6 +281,38 @@ Item {
                 return e
         }
         return null
+    }
+
+    // Whether an element's words can be typed in Quick Edit: one that is shown, is not
+    // locked and is not linked to something else, and that either has words already or
+    // is not a picture. (ProPresenter lets any element hold text; a box that is filled
+    // with media or a Screen Preview and has none is taken not to be a text box.)
+    function typable(element) {
+        return !element.hidden && !element.locked && element.linkKind === "none"
+            && (!bridge.isEmpty(element.text) || (element.fillKind !== "media" && element.fillKind !== "screen"))
+    }
+
+    // The text box in front at a point of the canvas, among those that can be typed in
+    function typableAt(x, y) {
+        const sx = (x - originX) / u
+        const sy = (y - originY) / u
+        for (let i = elements.length - 1; i >= 0; --i) {
+            const e = elements[i]
+            if (typable(e) && inside(e, sx, sy))
+                return e
+        }
+        return null
+    }
+
+    // Goes on to type in the next text box (or the one before, for -1), in the order
+    // the slide has them, with all of its words selected.
+    function typeNext(delta) {
+        const boxes = elements.filter(e => typable(e))
+        if (boxes.length === 0)
+            return
+        const index = boxes.findIndex(e => e.id === editingId)
+        const next = index < 0 ? (delta > 0 ? 0 : boxes.length - 1) : (index + delta + boxes.length) % boxes.length
+        editText(boxes[next].id)
     }
 
     function holds(element, x, y) {
@@ -592,6 +633,31 @@ Item {
     // The keys, while no text is being edited. Arrows move the picked element a unit
     // at a time, ten with Shift, and with nothing picked go from slide to slide.
     Keys.onPressed: (event) => {
+        if (textOnly) {
+            // Quick Edit. What comes here is pressed between text boxes, or is a key
+            // the text being edited had no use for; only these do anything.
+            const control = event.modifiers & Qt.ControlModifier
+            if (event.key === Qt.Key_Escape) {
+                finishText()
+                dismissed()
+            } else if (event.key === Qt.Key_Tab) {
+                typeNext(1)
+            } else if (event.key === Qt.Key_Backtab) {
+                typeNext(-1)
+            } else if (control && event.key === Qt.Key_Z) {
+                if (event.modifiers & Qt.ShiftModifier)
+                    redo()
+                else
+                    undo()
+            } else if (control && event.key === Qt.Key_Y) {
+                redo()
+            } else {
+                event.accepted = editingId !== "" && (event.key < Qt.Key_F1 || event.key > Qt.Key_F35)
+                return
+            }
+            event.accepted = true
+            return
+        }
         // A key the text being edited had no use for, such as Up on its first line,
         // comes here next. It is not for the element.
         if (editingId !== "") {
@@ -799,11 +865,24 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         preventStealing: true
         hoverEnabled: true
-        cursorShape: moving || overPicked ? Qt.SizeAllCursor : Qt.ArrowCursor
+        cursorShape: canvas.textOnly ? (hovered !== "" ? Qt.IBeamCursor : Qt.ArrowCursor)
+                   : moving || overPicked ? Qt.SizeAllCursor : Qt.ArrowCursor
         onPressed: (mouse) => {
             canvas.forceActiveFocus()
             canvas.finishText()
             canvas.settle()
+            if (canvas.textOnly) {
+                // Quick Edit: a click on a text box types in it, where it was clicked;
+                // anywhere else, typing stops.
+                const box = mouse.button === Qt.LeftButton ? canvas.typableAt(mouse.x, mouse.y) : null
+                canvas.selectedId = ""
+                moving = false
+                from = null
+                clicked = ""
+                if (box)
+                    canvas.editText(box.id, mouse.x, mouse.y)
+                return
+            }
             const hit = canvas.elementAt(mouse.x, mouse.y)
             pressedAt = Qt.point(mouse.x, mouse.y)
             moving = false
@@ -829,7 +908,7 @@ Item {
         onPositionChanged: (mouse) => {
             const picked = canvas.selected
             overPicked = picked !== null && !picked.locked && !picked.hidden && canvas.holds(picked, mouse.x, mouse.y)
-            const under = pressed ? null : canvas.elementAt(mouse.x, mouse.y)
+            const under = pressed ? null : canvas.textOnly ? canvas.typableAt(mouse.x, mouse.y) : canvas.elementAt(mouse.x, mouse.y)
             hovered = under ? under.id : ""
             if (!(pressedButtons & Qt.LeftButton) || !from)
                 return
@@ -861,7 +940,7 @@ Item {
             hovered = ""
         }
         onDoubleClicked: (mouse) => {
-            if (mouse.button !== Qt.LeftButton)
+            if (mouse.button !== Qt.LeftButton || canvas.textOnly)
                 return
             const hit = canvas.elementAt(mouse.x, mouse.y)
             if (hit)
@@ -883,7 +962,7 @@ Item {
             y: canvas.originY + modelData.y * canvas.u
             width: modelData.width * canvas.u
             height: modelData.height * canvas.u
-            visible: !modelData.hidden && modelData.id !== canvas.selectedId
+            visible: !modelData.hidden && modelData.id !== canvas.selectedId && (!canvas.textOnly || canvas.typable(modelData))
             rotation: modelData.rotation
             color: "transparent"
             border.width: 1
@@ -956,7 +1035,7 @@ Item {
 
         readonly property var box: canvas.dragBox ?? canvas.selected
 
-        visible: canvas.selected !== null
+        visible: canvas.selected !== null && (!canvas.textOnly || canvas.editing !== null)
         x: box ? canvas.originX + box.x * canvas.u : 0
         y: box ? canvas.originY + box.y * canvas.u : 0
         width: box ? box.width * canvas.u : 0
@@ -1008,7 +1087,7 @@ Item {
         }
 
         Repeater {
-            model: canvas.selected && !canvas.selected.locked && !canvas.editing
+            model: canvas.selected && !canvas.selected.locked && !canvas.editing && !canvas.textOnly
                    ? [[0, 0], [0.5, 0], [1, 0], [0, 0.5], [1, 0.5], [0, 1], [0.5, 1], [1, 1]] : []
 
             delegate: MouseArea {
@@ -1126,7 +1205,7 @@ Item {
             property real from: 0
 
             visible: element !== null && element.shape === "roundedRectangle" && !element.locked && !canvas.editing
-                     && frame.width > 60
+                     && !canvas.textOnly && frame.width > 60
             x: Math.max(16, (dragged >= 0 ? dragged : element ? element.roundness : 0) * shorter * canvas.u) - width / 2
             y: -height / 2
             width: 18
@@ -1214,7 +1293,9 @@ Item {
                 canvas.liveText = canvas.bridge.save(textDocument)
             }
             // What the keys do while typing: Esc ends it, and the usual keys set bold,
-            // italic and underline. Undo first undoes typing, then earlier changes.
+            // italic and underline. Undo first undoes typing, then earlier changes. (In
+            // Quick Edit, Esc puts it all away, Tab goes on to the next text box, and
+            // nothing is formatted: see textOnly.)
             //
             // A paste is always a paste and match style, Ctrl+V and Ctrl+Shift+V alike
             // (Shift+Insert too): the words of what was copied, without its formatting,
@@ -1226,7 +1307,15 @@ Item {
                 const control = event.modifiers & Qt.ControlModifier
                 if (event.key === Qt.Key_Escape) {
                     canvas.finishText()
-                    canvas.forceActiveFocus()
+                    if (canvas.textOnly)
+                        canvas.dismissed()
+                    else
+                        canvas.forceActiveFocus()
+                } else if (canvas.textOnly && (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)) {
+                    canvas.typeNext(event.key === Qt.Key_Tab ? 1 : -1)
+                } else if (canvas.textOnly && control && (event.key === Qt.Key_B || event.key === Qt.Key_I
+                                                          || event.key === Qt.Key_U)) {
+                    // Quick Edit changes words, not how they look.
                 } else if (control && event.key === Qt.Key_B) {
                     canvas.setFormat({ bold: !canvas.format.bold }, false)
                 } else if (control && event.key === Qt.Key_I) {

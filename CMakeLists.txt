@@ -165,6 +165,7 @@ qt_add_qml_module(SimplePresenter
         qml/ProIcon.qml
         qml/PropsLayer.qml
         qml/PropsPanel.qml
+        qml/QuickEdit.qml
         qml/Slide.qml
         qml/SlideElement.qml
         qml/MediaContent.qml

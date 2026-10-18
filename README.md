@@ -209,6 +209,10 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Quick Edit.** A slide's words put right without the editor: Quick Edit in the
+  slide's menu puts the slide up on its own, over its thumbnail at about twice the
+  size, with its text boxes to type in, and Esc puts it away, keeping what was typed.
+  See [Quick Edit](#quick-edit).
 - **ProPresenter's API, over the network.** Switched on in Settings → Network, the
   app answers ProPresenter's own HTTP API, as ProPresenter does: its state and its
   streams of changes, and what operates the show (slides, next and previous, clears,
@@ -1801,6 +1805,29 @@ twenty most recent for each presentation are kept.
 Fonts are recorded by name, so text set in a font that is not installed here keeps its
 font unless another is chosen for it; the editor marks such a font as missing, and a
 substitute is used to draw it.
+
+### Quick Edit
+
+**Quick Edit**, beside Edit in a slide's right-click menu, is for putting a slide's
+words right without the editor, as ProPresenter's is: for the typo seen in the middle of
+a service. It puts the slide up on its own, over its thumbnail and about twice its size,
+with a border of a pixel and a slim line along its top, so as to hide as little of the
+other slides as it can (ProPresenter's is the size of the thumbnail itself). The slide
+is drawn as the editor draws it, with its first text box being typed in. A click on a
+text box types in it, where the click was; **Tab** goes on to the next one (and
+Shift+Tab back). Nothing can be moved, sized or formatted there, and the keys that would
+do those do nothing: it is for the words alone, and they keep the formatting they had.
+Ctrl+Z undoes typing. **Esc**, the **✕** at its top right or a click anywhere outside it
+put it away, keeping what was typed.
+
+What is typed is saved to the file as the editor saves it, the file as it was being
+kept with the editor's backups first. Nothing of it goes to the output: the slide is
+not shown by being edited, and one that is live stays as it is on the screens until it
+is next shown, as after the editor. A text box that is locked, or linked to something
+else (a timer, the slide that is live), is not one to type in there.
+
+A GUESS: how ProPresenter's looks, beyond its being a small editor of the slide's words
+the size of its thumbnail; Tab; and that a click outside it keeps what was typed.
 
 ## Reflow
 
