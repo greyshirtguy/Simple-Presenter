@@ -39,6 +39,18 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.100" date="2026-10-19">
+      <description>
+        <p>
+          ProPresenter's Media Inspector, for a slide's media, a row of the media bin and
+          an element filled with a picture: the file, another in its place and a video's
+          thumbnail from any moment; scaling, turning, flipping and cropping; how a video
+          plays on and the part of it that plays; and ProPresenter's effects, drawn by
+          shaders written for this app. And Quick Edit, for a slide's words put right
+          over its thumbnail without the editor.
+        </p>
+      </description>
+    </release>
     <release version="0.99" date="2026-10-18">
       <description>
         <p>
