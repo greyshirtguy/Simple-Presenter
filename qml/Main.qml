@@ -364,6 +364,13 @@ Window {
     // and the media bin away. The pane then stays where it is while the others slide
     // off, and has the height of the window once the toolbar has gone.
     property bool simpleKeepsSidePanel: false
+    // The HTTP API (src/httpapiserver.h), as the settings' Network section sets it:
+    // whether it listens, the Network Name it gives ("" for the computer's name), and
+    // its port. This computer's, kept with the app's own settings. Off until switched
+    // on, as ProPresenter's is.
+    property bool networkEnabled: false
+    property string networkName: ""
+    property int networkPort: HttpApi.defaultPort
     // Whether the pane at the right is there, in its place or on its way
     readonly property bool sidePanelShown: chromeShown || simpleKeepsSidePanel
     // How far the panes round the slides are in their places: 1 when they are, 0 when
@@ -2951,19 +2958,29 @@ Window {
     function goLive(index, withoutMedia) {
         if (!document || index < 0 || index >= document.slides.length)
             return
-        // A presentation that is sent to the announcements goes to their layer, and
-        // the show stays at the slide it was at (see show::State::announcement).
-        if (document.destination === "announcements") {
-            announcementDocument = document
-            announcementFresh = null
-        } else {
-            liveDocument = document
-            liveFresh = null
-        }
         // (The Bible's slides are no row of a playlist being browsed: stepping on from
         // their last goes nowhere.)
-        Show.goLive(cueAt(document, documentKey, viewedPlaylistId, index), withoutMedia === true)
+        goLiveIn(document, documentKey, viewedPlaylistId, index, withoutMedia)
         grid.positionViewAtIndex(index, GridView.Contain)
+    }
+
+    // The same for a slide of any presentation, open here or not (as catalog.open
+    // reads it), by the row it is listed in and that row's playlist: what the HTTP API
+    // triggers a presentation with (see HttpApiControl), which leaves what is open here
+    // as it is.
+    function goLiveIn(presentation, key, playlist, index, withoutMedia) {
+        if (!presentation || index < 0 || index >= presentation.slides.length)
+            return
+        // A presentation that is sent to the announcements goes to their layer, and
+        // the show stays at the slide it was at (see show::State::announcement).
+        if (presentation.destination === "announcements") {
+            announcementDocument = presentation
+            announcementFresh = null
+        } else {
+            liveDocument = presentation
+            liveFresh = null
+        }
+        Show.goLive(cueAt(presentation, key, playlist, index), withoutMedia === true)
     }
 
     function alreadyPlaying(media) {
@@ -3218,6 +3235,10 @@ Window {
         videoDecoding = ["processor", "hardware"].includes(decoding) ? decoding : "auto"
         decodingNoticeSeen = String(saved("decodingNoticeSeen", false)) === "true"
         simpleKeepsSidePanel = String(saved("simpleKeepsSidePanel", false)) === "true"
+        // (The port and name before the switch, so that it listens once, on the right port.)
+        networkPort = Number(saved("networkPort", HttpApi.defaultPort)) || HttpApi.defaultPort
+        networkName = String(saved("networkName", ""))
+        networkEnabled = String(saved("networkEnabled", false)) === "true"
         // By name, so the choice survives transitions being added or reordered.
         selectTransition(String(saved("transition", "")))
         try {
@@ -3410,6 +3431,9 @@ Window {
     }
     onActionIconOpacityChanged: save("actionIconOpacity", actionIconOpacity)
     onSimpleKeepsSidePanelChanged: save("simpleKeepsSidePanel", simpleKeepsSidePanel)
+    onNetworkEnabledChanged: save("networkEnabled", networkEnabled)
+    onNetworkNameChanged: save("networkName", networkName)
+    onNetworkPortChanged: save("networkPort", networkPort)
     onSimpleChanged: {
         if (simple)
             simpleToggle.announce()
@@ -4857,6 +4881,12 @@ Window {
         onApiBibleKeyEdited: (key) => win.apiBibleKey = key
         simpleKeepsSidePanel: win.simpleKeepsSidePanel
         onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
+        networkEnabled: win.networkEnabled
+        networkName: win.networkName
+        networkPort: win.networkPort
+        onNetworkEnabledEdited: (on) => win.networkEnabled = on
+        onNetworkNameEdited: (name) => win.networkName = name
+        onNetworkPortEdited: (port) => win.networkPort = port
         onLabelEdited: (index) => win.editLabelPreset(index)
         onLabelRemoved: (index) => win.report(Labels.remove(index))
         senders: win.senders
@@ -4864,6 +4894,30 @@ Window {
         onClosed: {
             win.settingsOpen = false
             win.takeFocus()
+        }
+    }
+
+    // The HTTP API: the settings it is given, and the window's answers to it while it
+    // listens (made only then: qml/HttpApiControl.qml)
+    Binding {
+        target: HttpApi
+        property: "port"
+        value: win.networkPort
+    }
+    Binding {
+        target: HttpApi
+        property: "name"
+        value: win.networkName
+    }
+    Binding {
+        target: HttpApi
+        property: "enabled"
+        value: win.networkEnabled
+    }
+    Loader {
+        active: HttpApi.listening
+        sourceComponent: HttpApiControl {
+            window: win
         }
     }
 

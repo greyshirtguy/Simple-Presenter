@@ -20,6 +20,7 @@
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QTcpSocket>
 #include <QTextStream>
 #include <QTimer>
 #include <QUrl>
@@ -381,6 +382,43 @@ public:
         data = nullptr;
         return result;
     }
+
+    // A client of the app's HTTP API (src/httpapiserver.h), as one on the network would
+    // be: sends a request's bytes as they are to a port of this computer and keeps all
+    // that comes back, for the script to look at a moment later. (The server is on this
+    // same thread: nothing here waits for it.) Returns the connection's number.
+    Q_INVOKABLE int httpSend(int port, const QString &request)
+    {
+        const int id = ++m_lastHttp;
+        auto *socket = new QTcpSocket(this);
+        m_http.insert(id, socket);
+        const QByteArray bytes = request.toUtf8();
+        connect(socket, &QTcpSocket::connected, socket, [socket, bytes] { socket->write(bytes); });
+        connect(socket, &QTcpSocket::readyRead, this, [this, id, socket] { m_httpReceived[id] += socket->readAll(); });
+        socket->connectToHost(QStringLiteral("127.0.0.1"), quint16(port));
+        return id;
+    }
+    // What has come back on that connection so far, a character for each byte (so that
+    // a chunk's length, which is in bytes, can be counted off: its words are UTF-8 still,
+    // for the script to read as such); and whether the connection is still open
+    Q_INVOKABLE QString httpReceived(int id) const { return QString::fromLatin1(m_httpReceived.value(id)); }
+    Q_INVOKABLE bool httpOpen(int id) const
+    {
+        const QTcpSocket *socket = m_http.value(id);
+        return socket && socket->state() == QAbstractSocket::ConnectedState;
+    }
+    Q_INVOKABLE void httpClose(int id)
+    {
+        if (QTcpSocket *socket = m_http.take(id)) {
+            socket->abort();
+            socket->deleteLater();
+        }
+    }
+
+private:
+    int m_lastHttp = 0;
+    QHash<int, QTcpSocket *> m_http;
+    QHash<int, QByteArray> m_httpReceived;
 };
 
 TestInput *input()

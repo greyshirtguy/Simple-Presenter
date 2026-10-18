@@ -24,6 +24,10 @@
 //   and a shape filled with a Screen Preview has, is the screen drawn again, small, from
 //   the same things it is told (qml/ScreenPicture.qml).
 //
+//   And ProPresenter's own network API can be switched on (src/httpapiserver.h), so that
+//   what follows and operates ProPresenter over the network (Bitfocus Companion) can
+//   follow and operate this: the operator window answers it (qml/HttpApiControl.qml).
+//
 // The two halves of the code.
 //
 //   src/ is C++, and does the things QML cannot: reading and writing ProPresenter's

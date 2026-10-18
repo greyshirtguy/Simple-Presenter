@@ -42,6 +42,11 @@ Rectangle {
 
     // Whether Simple View leaves the pane at the right where it is: see Main.qml
     property bool simpleKeepsSidePanel: false
+    // The HTTP API (the Network section): whether it listens, its Network Name ("" for
+    // the computer's name) and its port. See src/httpapiserver.h.
+    property bool networkEnabled: false
+    property string networkName: ""
+    property int networkPort: 50001
 
     // What sends each screen that goes over NDI, by the screen's id: see ScreensSettings
     property var senders: ({})
@@ -60,6 +65,9 @@ Rectangle {
     signal chordSignsEdited(bool on)
     signal apiBibleKeyEdited(string key)
     signal simpleKeepsSidePanelEdited(bool keeps)
+    signal networkEnabledEdited(bool on)
+    signal networkNameEdited(string name)
+    signal networkPortEdited(int port)
     // A label kept ready is to be made (index -1) or changed, in the panel a label is
     // made in; or taken out of the list
     signal labelEdited(int index)
@@ -215,10 +223,11 @@ Rectangle {
     readonly property var sections: Qt.platform.os === "linux"
         ? [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
            { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
-           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Windows", path: "windows" }, { name: "About", path: "about" }]
+           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Network", path: "network" }, { name: "Windows", path: "windows" },
+           { name: "About", path: "about" }]
         : [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
            { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
-           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "About", path: "about" }]
+           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Network", path: "network" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -1439,6 +1448,129 @@ Rectangle {
                             screen.apiBibleKeyEdited("")
                         }
                     }
+                }
+            }
+        }
+
+        // Network: ProPresenter's network API, for clients on the same network
+        // (src/httpapiserver.h), as ProPresenter's own Network preferences have it: a
+        // switch, the Network Name a client is told, and the port. Then where it can be
+        // reached, or why it cannot. (Made when the section is turned to, as the settings
+        // are made at start.)
+        Loader {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            active: screen.section === "network"
+            visible: active
+
+            sourceComponent: Column {
+                spacing: 14
+
+                Row {
+                    spacing: 12
+
+                    // A switch
+                    Rectangle {
+                        objectName: "networkSwitch"
+                        width: 44
+                        height: 24
+                        radius: 12
+                        color: screen.networkEnabled ? "#ff8a1f" : "#45484e"
+
+                        Rectangle {
+                            x: screen.networkEnabled ? parent.width - width - 3 : 3
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 18
+                            height: 18
+                            radius: 9
+                            color: "#e6e6e6"
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: screen.networkEnabledEdited(!screen.networkEnabled)
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: "#e6e6e6"
+                        font.pixelSize: 15
+                        text: "Enable Network"
+                    }
+                }
+
+                Row {
+                    spacing: 10
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 110
+                        color: "#b0b3b8"
+                        font.pixelSize: 13
+                        text: "Network Name"
+                    }
+
+                    AppTextField {
+                        objectName: "networkName"
+                        width: 260
+                        height: 30
+                        font.pixelSize: 13
+                        placeholderText: HttpApi.computerName()
+                        text: screen.networkName
+                        onEditingFinished: screen.networkNameEdited(text.trim())
+                    }
+                }
+
+                Row {
+                    spacing: 10
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 110
+                        color: "#b0b3b8"
+                        font.pixelSize: 13
+                        text: "Port"
+                    }
+
+                    NumberField {
+                        objectName: "networkPort"
+                        width: 90
+                        from: 1024
+                        to: 65535
+                        value: screen.networkPort
+                        onEdited: (value) => screen.networkPortEdited(Math.round(value))
+                    }
+                }
+
+                Text {
+                    objectName: "networkStatus"
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    color: HttpApi.problem !== "" ? "#ff8a80" : "#e6e6e6"
+                    font.pixelSize: 13
+                    text: HttpApi.problem !== "" ? "Not listening: " + HttpApi.problem
+                        : !HttpApi.listening ? "Off."
+                        : HttpApi.addresses.length === 0 ? "Listening on port " + HttpApi.port + ", but this computer is on no network."
+                        : "Listening at " + HttpApi.addresses.map(a => a + ":" + HttpApi.port).join(", ")
+                          + (HttpApi.streams > 0 ? ". " + HttpApi.streams + (HttpApi.streams === 1 ? " client is" : " clients are") + " following the show." : ".")
+                }
+
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    color: "#9a9da3"
+                    font.pixelSize: 13
+                    text: "ProPresenter's network API, as ProPresenter offers it: programs on this network that work "
+                        + "with ProPresenter, such as Bitfocus Companion's ProPresenter module, can follow the show and "
+                        + "operate it through it, by this computer's address and the port. Anyone on the network can, "
+                        + "as with ProPresenter: there is no password.\n\n"
+                        + "Only what this app has is there: much of what ProPresenter offers through it is not. "
+                        + "The README says what is."
                 }
             }
         }

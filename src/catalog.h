@@ -102,8 +102,8 @@ public:
     Q_INVOKABLE QVariantList audioIn(const QString &playlist) const;
     // The rows of the playlist with this id, as PlaylistFile describes them.
     Q_INVOKABLE QVariantList playlistItems(const QString &playlist) const;
-    // Returns { name, path, slides, arrangements, arrangement, error }; error is empty on
-    // success. Follows the arrangement the presentation has selected.
+    // Returns { name, path, uuid, slides, arrangements, arrangement, error }; error is
+    // empty on success. Follows the arrangement the presentation has selected.
     Q_INVOKABLE QVariantMap open(const QString &path) const;
     // The same, following the named arrangement; "" is every group in stored order.
     Q_INVOKABLE QVariantMap openArranged(const QString &path, const QString &arrangement) const;

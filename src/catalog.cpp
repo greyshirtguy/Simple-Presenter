@@ -300,6 +300,7 @@ QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arr
     return {
         {"name", QFileInfo(path).completeBaseName()},
         {"path", path},
+        {"uuid", document.uuid},
         {"slides", document.slides},
         {"arrangements", document.arrangements},
         {"arrangement", document.arrangement},

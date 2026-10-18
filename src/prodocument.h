@@ -46,6 +46,9 @@ class Slide;
 struct ProDocument
 {
     QString name;
+    // The presentation's own UUID, as its file has it ("" if it has none): what
+    // ProPresenter's API knows it by (see httpapi.h)
+    QString uuid;
     QVariantList slides;
     // Names of the arrangements the document defines, and the one `slides` follows;
     // empty means every group in stored order.

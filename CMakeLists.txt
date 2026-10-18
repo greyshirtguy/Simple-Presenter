@@ -177,6 +177,7 @@ qt_add_qml_module(SimplePresenter
         qml/SectionTitle.qml
         qml/ScreenPicture.qml
         qml/ScreensSettings.qml
+        qml/HttpApiControl.qml
         qml/SearchPanel.qml
         qml/SettingsScreen.qml
         qml/SimpleViewToggle.qml
@@ -319,6 +320,14 @@ qt_add_qml_module(SimplePresenter
         src/decklink.cpp
         src/decklinkformats.h
         src/decklinkformats.cpp
+        src/httpapi.h
+        src/httpapi.cpp
+        src/httpapiserver.h
+        src/httpapiserver.cpp
+        src/httpapijson.h
+        src/httpapijson.cpp
+        src/httpapifiles.h
+        src/httpapifiles.cpp
         src/showstate.h
         src/showstate.cpp
         src/slidenumber.h

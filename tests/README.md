@@ -27,6 +27,8 @@ So far there are twenty-eight:
 | `tst_searchindex` | Finding presentations by their names and words (`src/searchindex.h`): capitals, punctuation and accents, the order of what is found, the line that is shown; and a list on the screen narrowed to the names that have what was typed, a playlist's headings with it |
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
 | `tst_decklinkformats` | What a screen sent out through a Blackmagic DeckLink card is sent as (`src/decklinkformats.h`): the formats offered, in the menu's order, each with its size, its rate and the code Blackmagic's SDK gives it; pictures made straight from premultiplied, rounded, never past white, and a pixel with nothing on it left alone; and the beat the screens are drawn on together: when a pass is due, which screens it takes, when each is next, and, played through a second of a transition, three outputs of one format drawn in every pass together, one that fell out of step back with them at the next, and outputs of two rates each drawn no oftener than its own frames come |
+| `tst_httpapi` | The rules of the HTTP API (`src/httpapi.h`): requests read as they come, whole or in pieces, with their query and body, and what is not HTTP refused; responses, JSON with CR LF CR LF after it, and chunks written as ProPresenter writes them; paths matched to ProPresenter's routes, words before parts; what `status/updates` takes, every stream Companion's module asks for among it; an id found by UUID, name or index in ProPresenter's order |
+| `tst_httpapijson` | What the HTTP API's answers are made of (`src/httpapijson.h`): ids and colours; the slides now and next; where the show is, and nowhere; times as ProPresenter writes them; how a timer stands, and timers of each kind; a look for each audience screen; props and messages with their tokens; clear groups and macros in ProPresenter's words; libraries' UUIDs made from their names; playlist trees, and the media and audio ones |
 | `tst_screenfile` | The list of a workspace's screens in ProPresenter's set-up file (`src/screenfile.h`): what a workspace with no file has, what adding, renaming and removing a screen write, and that the rest of a file ProPresenter wrote goes back as it came |
 | `tst_groupedit` | Putting slides into another group as ProPresenter does (`src/groupedit.h`): the whole group from its first slide, a split from a later one, what becomes of the arrangements, and that nothing else of the presentation is touched |
 | `tst_arrangementedit` | A presentation's arrangements (`src/arrangementedit.h`), on a presentation built as ProPresenter writes one: a new one of every group once in Master's order, a copy straight after what it is a copy of, a name made free with a number, renaming and the names that are refused, removing the one selected and another, a group put in at each kind of gap, every move of every place against the list worked the long way, one coming up of a group taken out; and after each, the groups, the slides and the other arrangements as they were to the byte |
@@ -102,6 +104,13 @@ once the library is in place. It does not download anything: it is pointed at a 
 of NDI's installer kept on this computer (`third_party/ndi-sdk/download/`, which is not
 in the repository), and where there is no such copy it tries what the app says when
 the download fails instead.
+
+And `httpapi` switches the HTTP API on in the settings and is a client of it on the
+network, as Companion would be, writing its requests and reading what comes back as
+bytes: the head and body as ProPresenter writes them, a stream of several things at
+once and a chunked GET, what a slide taken live through it draws on the output against
+what a click on it drew, and a presentation, a timer, the stage message and the
+audience screens worked through it. Switched off, it lets its clients go.
 
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two

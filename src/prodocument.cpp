@@ -125,6 +125,7 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
     ProDocument document;
     document.name = presentation.name().empty() ? QFileInfo(path).completeBaseName()
                                                  : QString::fromStdString(presentation.name());
+    document.uuid = QString::fromStdString(presentation.uuid().string());
     for (const auto &candidate : presentation.arrangements())
         document.arrangements << QString::fromStdString(candidate.name());
     // For the arrangement editor: the groups as Master has them, and each
