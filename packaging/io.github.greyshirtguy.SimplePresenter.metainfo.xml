@@ -39,6 +39,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.99" date="2026-10-18">
+      <description>
+        <p>
+          ProPresenter's HTTP API can be switched on, in the settings' Network section,
+          so that what follows and operates ProPresenter over the network can be
+          pointed at this instead: its state, its streams of changes, and what operates
+          the show. What makes or changes things in the workspace's files is not there
+          yet.
+        </p>
+      </description>
+    </release>
     <release version="0.98" date="2026-10-17">
       <description>
         <p>
