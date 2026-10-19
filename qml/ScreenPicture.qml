@@ -197,7 +197,10 @@ Item {
             objectName: picture.name("Slide")
             anchors.fill: parent
             visible: !picture.stage && picture.look.slide
-            slide: picture.screen === null || picture.stage ? null : picture.win.slideFor(picture.screen.id, picture.win.liveSlide)
+            // (Handed the look, which follows the live look: asked for inside slideFor,
+            // it is no part of the binding, and a look giving the screen another theme
+            // while a slide is on show went unseen here until the next slide.)
+            slide: picture.screen === null || picture.stage ? null : picture.win.slideFor(picture.screen.id, picture.win.liveSlide, picture.look)
             effects: picture.effects
             pictures: picture.pictures
         }

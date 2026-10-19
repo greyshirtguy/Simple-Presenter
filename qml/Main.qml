@@ -2965,11 +2965,13 @@ Window {
 
     // A slide as an audience screen shows it: as it is, or, where the look that is live
     // gives that screen a theme, dressed in the theme (see Themes), with nothing about
-    // the presentation changed.
-    function slideFor(screenId, slide) {
+    // the presentation changed. `given` is what the live look gives the screen, for a
+    // binding that has read it, and so follows it (see ScreenPicture); left out, it is
+    // asked for.
+    function slideFor(screenId, slide, given) {
         if (!slide || !liveDocument)
             return slide
-        const look = Looks.liveOf(screenId)
+        const look = given ?? Looks.liveOf(screenId)
         if (look.theme === "")
             return slide
         const dressed = Themes.dressed(liveDocument.path, slide.id, look.theme, look.themeSlide)
