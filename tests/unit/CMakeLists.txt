@@ -308,3 +308,14 @@ qt_add_executable(tst_mediasettings
 target_include_directories(tst_mediasettings PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_mediasettings PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
 add_test(NAME mediasettings COMMAND tst_mediasettings)
+
+qt_add_executable(tst_builds
+    tst_builds.cpp
+    ${PROJECT_SOURCE_DIR}/src/builds.h
+    ${PROJECT_SOURCE_DIR}/src/builds.cpp
+    ${PROJECT_SOURCE_DIR}/src/transitionkinds.h
+    ${PROJECT_SOURCE_DIR}/src/transitionkinds.cpp
+)
+target_include_directories(tst_builds PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_builds PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
+add_test(NAME builds COMMAND tst_builds)

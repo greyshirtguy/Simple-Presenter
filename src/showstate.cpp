@@ -331,6 +331,7 @@ Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &worksp
     next = cue.next;
     cleared = false;
     clearedByCue = false;
+    buildStep = 0;
 
     const bool playing = brings && alreadyPlaying(cueMedia);
     QString said = QStringLiteral("slide %1 of %2 of %3").arg(cue.index + 1).arg(cue.count).arg(quoted(cue.presentation));
@@ -392,6 +393,21 @@ int State::stepTarget(const QString &key, const QString &playlistId, int delta, 
     if (cleared && !clearedByCue)
         return index;
     return index + delta;
+}
+
+Effects State::stepBuild(const QString &key, const QString &playlistId, int index, bool *ran)
+{
+    Effects effects;
+    *ran = false;
+    const int steps = slide.value("buildSteps").toInt();
+    if (!at(key, playlistId) || cleared || (index >= 0 && index != this->index) || buildStep >= steps)
+        return effects;
+    ++buildStep;
+    *ran = true;
+    effects << note("live", QStringLiteral("build %1 of %2 of slide %3 of %4").arg(buildStep).arg(steps).arg(this->index + 1)
+                                .arg(quoted(presentation)));
+    effects << plain(Effect::Build);
+    return effects;
 }
 
 Effects State::follow(const Cue &cue)

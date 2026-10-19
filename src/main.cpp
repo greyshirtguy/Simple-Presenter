@@ -65,7 +65,14 @@
 //      (src/strokedtext.h).
 //   4. If a transition is chosen, the layer blends the old slide into the new with a
 //      fragment shader (shaders/; qml/TransitionCatalogue.qml lists them, with what
-//      can be adjusted about each).
+//      can be adjusted about each): the one chosen, or the slide's own, or its
+//      presentation's, as in ProPresenter.
+//   5. A slide whose elements have builds (ProPresenter's Build In and Build Out,
+//      src/builds.h) has a plan of them in its map, and the operator window hands the
+//      screens the times its steps began; each screen's Slide then runs them by the
+//      clock (qml/BuildRun.qml), each element drawn through a transition's shader as it
+//      comes and goes. Next runs an On Click build before it goes to the next slide
+//      (show::State::stepBuild).
 //
 //   A slide's cue may do more than show the slide. It may trigger media, which goes to
 //   the media layer as a background that stays or as a foreground that plays once (see

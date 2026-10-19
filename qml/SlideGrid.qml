@@ -734,7 +734,7 @@ Item {
                         // window was being typed in.
                         slides.win.takeFocus()
                         // With Alt held, the slide without the media it brings
-                        slides.win.goLive(cell.index, (mouse.modifiers & Qt.AltModifier) !== 0)
+                        slides.win.clickSlide(cell.index, (mouse.modifiers & Qt.AltModifier) !== 0)
                     } else {
                         // A right click on one of the icons in the corner is for that
                         // icon, which has a menu of its own; anywhere else it is for

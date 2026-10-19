@@ -23,6 +23,15 @@ Item {
     // screens show; null for a slide that is only being looked at (a thumbnail, the
     // editor), which draws none (see SlideElement and ScreenPicture)
     property var pictures: null
+    // When the slide's builds are run (see BuildRun): the moment each of its steps
+    // began, as Date.now() has it, which the screens and the operator's preview are
+    // handed. Null to draw every element as it is, which is what a slide is everywhere
+    // else: a thumbnail, the editor. A slide without builds is drawn as it is either way.
+    property var buildTimes: null
+    // What the log calls where the builds run; "" for not to put them in it
+    property string logName: ""
+    // What runs them, while there are any to run; null otherwise
+    readonly property var run: runner.item
     readonly property real slideWidth: slide?.width ?? 1920
     readonly property real slideHeight: slide?.height ?? 1080
     readonly property real u: Math.min(width / slideWidth, height / slideHeight)
@@ -90,6 +99,8 @@ Item {
         // only what differs is worked out again, where making the items again would lay
         // out every text and load every picture afresh.
         Repeater {
+            id: elementItems
+
             model: root.elements.length
 
             delegate: SlideElement {
@@ -101,8 +112,29 @@ Item {
                 effects: root.effects
                 pictures: root.pictures
                 // Reading the tick is what has a rule about a timer asked again. (And
-                // one about the stage message reads that, where it is asked.)
-                visible: modelData.visibilityTimed ? Timers.tick >= 0 && root.showsNow(modelData) : modelData.visible
+                // one about the stage message reads that, where it is asked.) While
+                // builds run, an element is not there before its Build In or after its
+                // Build Out.
+                visible: (modelData.visibilityTimed ? Timers.tick >= 0 && root.showsNow(modelData) : modelData.visible)
+                         && (root.run === null || root.run.shows(modelData.id))
+                // In order, while builds run, so that an element that is building is drawn
+                // just over it (see BuildRun)
+                z: root.run !== null ? index : 0
+            }
+        }
+
+        // The builds, run: only for a slide that has them, where they are to be run
+        Loader {
+            id: runner
+
+            anchors.fill: parent
+            active: root.buildTimes !== null && root.slide?.builds !== undefined
+            sourceComponent: BuildRun {
+                plan: root.slide?.builds ?? ({})
+                times: root.buildTimes ?? []
+                items: elementItems
+                elements: root.elements
+                logName: root.logName
             }
         }
     }

@@ -69,6 +69,8 @@ qt_add_executable(SimplePresenter
     src/proconvert.h
     src/linejoin.cpp
     src/linejoin.h
+    src/builds.cpp
+    src/builds.h
     src/mediaeffects.cpp
     src/mediaeffects.h
     src/mediasettings.cpp
@@ -91,6 +93,8 @@ qt_add_executable(SimplePresenter
     src/selftest.h
     src/textlayout.cpp
     src/textlayout.h
+    src/transitionkinds.cpp
+    src/transitionkinds.h
     src/thumbnailprovider.cpp
     src/thumbnailprovider.h
     src/videoframe.cpp
@@ -154,6 +158,8 @@ qt_add_qml_module(SimplePresenter
         qml/ChordSheet.qml
         qml/HintLine.qml
         qml/BiblePanel.qml
+        qml/BuildRun.qml
+        qml/EditorBuilds.qml
         qml/ImportSong.qml
         qml/LooksPanel.qml
         qml/MacroGlyph.qml
@@ -209,6 +215,7 @@ qt_add_qml_module(SimplePresenter
         qml/TransitionCatalogue.qml
         qml/TransitionControls.qml
         qml/TransitionLayer.qml
+        qml/TransitionOptionRows.qml
         qml/TransitionOptions.qml
         qml/TypedNumber.qml
         qml/ZoomButtons.qml

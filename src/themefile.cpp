@@ -1,5 +1,6 @@
 #include "themefile.h"
 
+#include "builds.h"
 #include "proconvert.h"
 #include "richtext.h"
 #include "thememath.h"
@@ -166,7 +167,7 @@ void restyle(Element *element, const Element &styled, double across, double down
 
 }
 
-void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QString> &themeElements)
+void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QString> &themeElements, bool withBuilds)
 {
     // The slide's things: its words, which are matched with the theme's text boxes;
     // what an earlier dressing brought, which goes; and whatever else is its own.
@@ -178,10 +179,23 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
         else if (!themeElements.contains(QString::fromStdString(element.element().uuid().string())))
             own << element;
     }
+    // The theme's text boxes: those with words in them, which stand for the words to
+    // come; and those with none that are named as one of the slide's text boxes is,
+    // which are for that box's words. A theme made to bring a name in on one screen has
+    // its boxes "Name" and "Role" empty, with builds, for the words of the slide's boxes
+    // of those names (the maintainer's "L3rd Name - Animated" is one). (A GUESS at
+    // ProPresenter, from such a theme: that it matches an empty box by its name.)
+    QSet<QString> wordedNames;
+    for (const Element &element : std::as_const(worded))
+        wordedNames.insert(QString::fromStdString(element.element().name()).trimmed().toLower());
+    const auto namedForWords = [&wordedNames](const Element &element) {
+        const QString name = QString::fromStdString(element.element().name()).trimmed().toLower();
+        return element.element().has_text() && !name.isEmpty() && wordedNames.contains(name);
+    };
     QList<int> themeBoxes;
     QList<thememath::Box> themeSizes;
     for (int i = 0; i < theme.elements_size(); ++i) {
-        if (isTextBox(theme.elements(i))) {
+        if (isTextBox(theme.elements(i)) || namedForWords(theme.elements(i))) {
             themeBoxes << i;
             themeSizes << boxOf(theme.elements(i));
         }
@@ -197,6 +211,8 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
 
     QList<Element> made = own;
     QList<bool> used(worded.size(), false);
+    // Which of the slide's text boxes took which theme text box's look, by their ids
+    QHash<QString, QString> tookLook;
     for (int i = 0; i < theme.elements_size(); ++i) {
         const Element &themed = theme.elements(i);
         const int box = themeBoxes.indexOf(i);
@@ -206,6 +222,7 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
             // The slide's own text box, with its words, in the theme's look
             restyle(&element, themed, across, down);
             used[from] = true;
+            tookLook.insert(QString::fromStdString(element.element().uuid().string()), QString::fromStdString(themed.element().uuid().string()));
         } else {
             fit(element.mutable_element(), across, down);
             // A text box of the theme's that gets no words is left empty
@@ -222,6 +239,8 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
     slide->clear_elements();
     for (const Element &element : std::as_const(made))
         *slide->add_elements() = element;
+    if (withBuilds)
+        builds::takeThemeBuilds(slide, theme, tookLook);
     slide->set_draws_background_color(theme.draws_background_color());
     if (theme.has_background_color())
         *slide->mutable_background_color() = theme.background_color();

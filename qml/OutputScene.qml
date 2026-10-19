@@ -61,14 +61,29 @@ Item {
     property var messages: []
     // A slide held back until the media that goes with it can be shown: see
     // showSlideWithMedia(). Undefined when none is; null is a slide layer to be cleared.
+    // And how it is to be shown when it is: { transition, times } (see showSlide).
     property var heldSlide: undefined
+    property var heldHow: ({})
     // The operator window, for the Screen Previews on the slides here (see Slide)
     property var pictures: null
 
-    // `slide` is a slide map from Catalog.open(); null clears the layer.
-    function showSlide(slide) {
+    // `slide` is a slide map from Catalog.open(); null clears the layer. `transition`
+    // is the slide's own, or its presentation's, to be made in place of the one above
+    // (as TransitionCatalogue.drawn gives it), and `times` when the slide's builds run
+    // (see Slide.buildTimes); either can be left out, for the one above and for a
+    // slide shown whole.
+    function showSlide(slide, transition, times) {
         heldSlide = undefined
-        slideLayer.show(slide)
+        slideLayer.show(slide, { buildTimes: times ?? null }, transition)
+    }
+
+    // The slide on show has begun another step of its builds: `times` are its steps'
+    // times as they are now (see Slide.buildTimes).
+    function stepBuilds(times) {
+        if (heldSlide !== undefined)
+            heldHow = Object.assign({}, heldHow, { times: times })
+        else if (slideLayer.currentItem)
+            slideLayer.currentItem.buildTimes = times
     }
 
     // `media` is { source, video, loops, volume }; null clears the layer.
@@ -80,24 +95,28 @@ Item {
     // moment to have a picture to show (see MediaContent); while the media layer waits
     // for it the slide waits as well, and the two layers then make their change in the
     // same frame.
-    function showSlideWithMedia(slide, media) {
+    function showSlideWithMedia(slide, media, transition, times) {
         // A slide still held for other media has been passed over.
         heldSlide = undefined
         mediaLayer.show(media)
-        if (mediaLayer.waiting)
-            heldSlide = slide
-        else
-            showSlide(slide)
+        hold(slide, transition, times)
     }
 
     // A slide whose media is the media already there, which is left as it is. If that
     // media is still being waited for, having only just been asked for, the slide waits
     // with it as the slide that asked for it would have.
-    function showSlideOverMedia(slide) {
-        if (mediaLayer.waiting)
+    function showSlideOverMedia(slide, transition, times) {
+        hold(slide, transition, times)
+    }
+
+    // A slide shown now, or held for the media layer if it is waiting
+    function hold(slide, transition, times) {
+        if (mediaLayer.waiting) {
             heldSlide = slide
-        else
-            showSlide(slide)
+            heldHow = { transition: transition, times: times }
+        } else {
+            showSlide(slide, transition, times)
+        }
     }
 
     // The announcements layer (see AnnouncementLayer): a slide of the presentation
@@ -144,7 +163,7 @@ Item {
         // given something else to show: either way a slide held for it goes now.
         onWaitingChanged: {
             if (!waiting && scene.heldSlide !== undefined)
-                scene.showSlide(scene.heldSlide)
+                scene.showSlide(scene.heldSlide, scene.heldHow.transition, scene.heldHow.times)
         }
     }
 
@@ -167,6 +186,7 @@ Item {
         duration: scene.duration
         delegate: Slide {
             pictures: scene.pictures
+            logName: "slide layer"
         }
     }
 

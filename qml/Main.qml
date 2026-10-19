@@ -509,6 +509,15 @@ Window {
 
     // The slide on the slide layer and the one after it, or null
     readonly property var liveSlide: !cleared && liveDocument ? liveDocument.slides[liveIndex] : null
+    // When the builds of the slide on the slide layer run (ProPresenter's, see
+    // src/builds.h): the moment each of its steps began, as Date.now() has it, which
+    // every screen and the preview draw them by (see Slide.buildTimes); null for a
+    // slide with none, either of its own or in the theme a screen's look gives it, and
+    // for none. (A screen can have them begin later: see buildStarts.) The first is as the slide's transition ends: the
+    // builds that go with the slide are timed from then. (A GUESS at ProPresenter, which
+    // the maintainer describes as making the slide's transition "first".) Each On Click
+    // build that Next runs adds one, the moment it was asked for.
+    property var liveBuildTimes: null
     readonly property var nextSlide: liveDocument && liveIndex + 1 < liveDocument.slides.length
                                      ? liveDocument.slides[liveIndex + 1] : null
     readonly property string stageCurrentText: liveSlide ? liveSlide.plainText : ""
@@ -2965,9 +2974,10 @@ Window {
 
     // A slide as an audience screen shows it: as it is, or, where the look that is live
     // gives that screen a theme, dressed in the theme (see Themes), with nothing about
-    // the presentation changed. `given` is what the live look gives the screen, for a
-    // binding that has read it, and so follows it (see ScreenPicture); left out, it is
-    // asked for.
+    // the presentation changed. Dressed, it has the theme's builds (see
+    // builds::takeThemeBuilds) in place of its own. `given` is what the live look gives
+    // the screen, for a binding that has read it, and so follows it (see ScreenPicture);
+    // left out, it is asked for.
     function slideFor(screenId, slide, given) {
         if (!slide || !liveDocument)
             return slide
@@ -2976,13 +2986,59 @@ Window {
             return slide
         const dressed = Themes.dressed(liveDocument.path, slide.id, look.theme, look.themeSlide)
         return dressed.elements !== undefined ? Object.assign({}, slide, { elements: dressed.elements, backgroundColor: dressed.backgroundColor,
-                                                                           drawsBackground: dressed.drawsBackground }) : slide
+                                                                           drawsBackground: dressed.drawsBackground, builds: dressed.builds,
+                                                                           buildSteps: dressed.buildSteps }) : slide
     }
 
-    // The slide that is live, shown again on a screen whose theme has changed.
+    // When the builds of the slide on show began on each screen where that is not when
+    // they began on the rest (see liveBuildTimes): a screen the live look gave a theme
+    // with builds while the slide was on show, which runs them from then. By the screens'
+    // ids, as Date.now() has it; empty again when the next slide is shown.
+    property var buildStarts: ({})
+
+    // The times of the slide's steps on a screen: those of all of them, but for one that
+    // began later (a step can be no earlier than the slide is there)
+    function buildTimesFor(screenId) {
+        const own = buildStarts[screenId]
+        if (own === undefined)
+            return liveBuildTimes
+        return [own].concat((liveBuildTimes ?? []).slice(1).map(time => Math.max(time, own)))
+    }
+
+    // The slide that is live, shown again on a screen whose theme has changed. In a
+    // theme with builds, they run from now there, as they would have had the slide come
+    // on in that theme: a name in a lower third is wiped in when the look gives the
+    // stream that theme, and not found already wiped away. (A GUESS at ProPresenter, and
+    // what the maintainer's use of such a theme wants.) Otherwise its builds go on where
+    // they are, with the other screens': their times are the screens' clock, not the
+    // change's.
     function redress(screenId) {
-        if (liveSlide && scenes[screenId])
-            scenes[screenId].showSlide(slideFor(screenId, liveSlide))
+        if (!liveSlide || !scenes[screenId])
+            return
+        const dressed = slideFor(screenId, liveSlide)
+        const starts = Object.assign({}, buildStarts)
+        if (Looks.liveOf(screenId).theme !== "" && dressed.builds !== undefined)
+            starts[screenId] = Date.now() + (transitionCatalogue.shaderUrl(transition) !== "" ? Math.round(transitionDuration * 1000) : 0)
+        else
+            delete starts[screenId]
+        buildStarts = starts
+        scenes[screenId].showSlide(dressed, null, buildTimesFor(screenId))
+    }
+
+    // The transition a slide of the presentation on show is brought in with, where it
+    // is not the one in use: its own, or failing that its presentation's, as
+    // TransitionCatalogue.drawn gives it (with `from`, whose it is); null for the one in
+    // use. ProPresenter goes by them in that order: the slide's, the presentation's,
+    // and the one for every presentation.
+    function slideTransitionOf(slide) {
+        if (!slide)
+            return null
+        const own = slide.transition
+        const presentation = liveDocument ? liveDocument.transition : undefined
+        const asked = own !== undefined ? own : presentation !== undefined && presentation.renderId !== undefined ? presentation : undefined
+        if (asked === undefined)
+            return null
+        return Object.assign(transitionCatalogue.drawn(asked), { from: own !== undefined ? "slide" : "presentation" })
     }
 
     // Media as the scenes are told to play it: with a number for this playing of it.
@@ -3008,7 +3064,7 @@ Window {
         if (lastPlayed !== null)
             scene.showMedia(lastPlayed)
         if (liveSlide)
-            scene.showSlide(slideFor(id, liveSlide))
+            scene.showSlide(slideFor(id, liveSlide), null, buildTimesFor(id))
         if (announcementSlide || lastAnnouncementPlayed !== null)
             scene.showAnnouncement(announcementSlide, Show.WithMedia, lastAnnouncementPlayed)
     }
@@ -3207,8 +3263,21 @@ Window {
     // it brings the current slide back (unless that slide is one that clears itself,
     // which would only clear itself again); from another presentation it starts at
     // the top.
+    //
+    // Next on a slide on show that has an On Click build still to run runs that build
+    // instead (see show::State::stepBuild).
     function step(delta) {
+        if (delta > 0 && !viewedGoesToAnnouncements && Show.stepBuild(documentKey, viewedPlaylistId, -1))
+            return
         goLive(Show.stepTarget(documentKey, viewedPlaylistId, delta, viewedGoesToAnnouncements))
+    }
+
+    // A click on a slide of the presentation being viewed: it goes live, unless it is
+    // the slide on show and has an On Click build still to run, which is run instead.
+    function clickSlide(index, withoutMedia) {
+        if (!viewedGoesToAnnouncements && Show.stepBuild(documentKey, viewedPlaylistId, index))
+            return
+        goLive(index, withoutMedia)
     }
 
     function clearSlide() {
@@ -4035,19 +4104,50 @@ Window {
         function onSlideShown(showing, media) {
             const slide = win.liveDocument.slides[Show.liveIndex]
             const played = showing === Show.WithMedia ? win.playing(media) : null
+            const transition = win.slideTransitionOf(slide)
+            // The slide as each screen has it: as it is, or in the theme its look gives it
+            const dressings = {}
+            win.eachAudienceScene((scene, id) => dressings[id] = win.slideFor(id, slide))
+            // (Only a slide with builds, here or in a screen's theme, has times: one
+            // without draws as it always has.)
+            const built = slide.builds !== undefined || Object.keys(dressings).some(id => dressings[id].builds !== undefined)
+            const shader = transition !== null ? transition.shader : transitionCatalogue.shaderUrl(win.transition)
+            const length = transition !== null ? transition.duration : Math.round(win.transitionDuration * 1000)
+            // (Each only when there is something to change: a new value is a change to
+            // what the previews are bound to, which they would work out again for
+            // nothing at every slide of a show without builds.)
+            if (Object.keys(win.buildStarts).length > 0)
+                win.buildStarts = ({})
+            if (built || win.liveBuildTimes !== null)
+                win.liveBuildTimes = built ? [Date.now() + (shader !== "" ? length : 0)] : null
             win.eachAudienceScene((scene, id) => {
-                const dressed = win.slideFor(id, slide)
+                const dressed = dressings[id]
                 if (showing === Show.WithMedia)
-                    scene.showSlideWithMedia(dressed, played)
+                    scene.showSlideWithMedia(dressed, played, transition, win.liveBuildTimes)
                 else if (showing === Show.OverMedia)
-                    scene.showSlideOverMedia(dressed)
+                    scene.showSlideOverMedia(dressed, transition, win.liveBuildTimes)
                 else
-                    scene.showSlide(dressed)
+                    scene.showSlide(dressed, transition, win.liveBuildTimes)
             })
         }
 
         function onSlideCleared() {
+            if (win.liveBuildTimes !== null)
+                win.liveBuildTimes = null
+            if (Object.keys(win.buildStarts).length > 0)
+                win.buildStarts = ({})
             win.eachAudienceScene(scene => scene.showSlide(null))
+        }
+
+        // The next of its steps, from now: never before the one before it, which may not
+        // have begun, the slide's transition still running
+        function onBuildStepped(step) {
+            if (win.liveBuildTimes === null)
+                return
+            const times = win.liveBuildTimes.slice(0, step)
+            times.push(Math.max(Date.now(), times[times.length - 1]))
+            win.liveBuildTimes = times
+            win.eachAudienceScene((scene, id) => scene.stepBuilds(win.buildTimesFor(id)))
         }
 
         function onMediaShown(media) {

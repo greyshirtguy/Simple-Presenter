@@ -30,20 +30,24 @@ AuxWindow {
     readonly property var livePlayer: scene.livePlayer
     readonly property var heldSlide: scene.heldSlide
 
-    function showSlide(slide) {
-        scene.showSlide(slide)
+    function showSlide(slide, transition, times) {
+        scene.showSlide(slide, transition, times)
+    }
+
+    function stepBuilds(times) {
+        scene.stepBuilds(times)
     }
 
     function showMedia(media) {
         scene.showMedia(media)
     }
 
-    function showSlideWithMedia(slide, media) {
-        scene.showSlideWithMedia(slide, media)
+    function showSlideWithMedia(slide, media, transition, times) {
+        scene.showSlideWithMedia(slide, media, transition, times)
     }
 
-    function showSlideOverMedia(slide) {
-        scene.showSlideOverMedia(slide)
+    function showSlideOverMedia(slide, transition, times) {
+        scene.showSlideOverMedia(slide, transition, times)
     }
 
     function showAnnouncement(slide, showing, media) {

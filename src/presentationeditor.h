@@ -154,6 +154,30 @@ public:
     // go where it already is, nothing is changed and no step to undo is left.
     Q_INVOKABLE QString place(int row, const QString &element, int landing);
 
+    // ---- Builds: ProPresenter's Build In and Build Out of an element, the order they
+    // run in, and the slide's own transition (see builds.h). A presentation's slides
+    // and a theme's have builds here (a theme's are what a screen dressed in it by a
+    // look runs: see builds::takeThemeBuilds); only a presentation's slide has a
+    // transition of its own. Each change is one step to undo, like any other, and
+    // returns an error message, empty on success; on an error nothing has changed.
+
+    // The slide's builds in the order they run, as builds::describe gives them; none
+    // for a row that is not a presentation's slide or a theme's.
+    Q_INVOKABLE QVariantList builds(int row) const;
+    // The transition the presentation's slides come in with where they have none of
+    // their own, as builds::describeTransition gives it (empty for none: the one in use).
+    Q_INVOKABLE QVariantMap presentationTransition() const;
+    // A Build In (or Out) for an element that has none: On Click, the transition
+    // described (as builds::describeTransition gives one). Returns { id, error }.
+    Q_INVOKABLE QVariantMap addBuild(int row, const QString &element, bool out, const QVariantMap &transition);
+    Q_INVOKABLE QString removeBuild(int row, const QString &build);
+    // `changes` is any of { start, delay, transition } (see builds::change).
+    Q_INVOKABLE QString changeBuild(int row, const QString &build, const QVariantMap &changes);
+    // Moves a build to that place in the order they run.
+    Q_INVOKABLE QString moveBuild(int row, const QString &build, int index);
+    // The slide's own transition, set as described, or taken off with an empty map.
+    Q_INVOKABLE QString setSlideTransition(int row, const QVariantMap &transition);
+
     // ---- Chords (see chords.h, and proconvert::readChords for how they are kept)
 
     // The presentation as one song: every text box that has words of its own, slide

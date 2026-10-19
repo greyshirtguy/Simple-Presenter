@@ -1,5 +1,6 @@
 #include "prodocument.h"
 
+#include "builds.h"
 #include "chords.h"
 #include "arrangementedit.h"
 #include "groupedit.h"
@@ -167,6 +168,8 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
     }
     document.destination = destinationOf(presentation);
     document.slideShow = presentation.has_slide_show_duration() ? presentation.slide_show_duration() : 0;
+    if (presentation.has_transition())
+        document.transition = builds::describeTransition(presentation.transition());
 
     // Which arrangement: the one asked for by name, or the one the document has selected.
     const rv::data::Presentation::Arrangement *chosen = nullptr;
@@ -220,6 +223,10 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                                                            QString::fromStdString(action.label().text()));
                 // The colour of its label, which the label has beside its words
                 slide.insert("labelColor", labelfile::read(action.label()).color);
+                // Its own transition, if it has one (see builds.h): what it is brought
+                // in with, in place of the presentation's or the one in use
+                if (action.slide().presentation().has_transition())
+                    slide.insert("transition", builds::describeTransition(action.slide().presentation().transition()));
                 // Its notes, if it has any: for a text box that shows the live slide's
                 proconvert::addNotes(action.slide().presentation(), &slide);
                 slides.append(slide);
@@ -767,7 +774,8 @@ QVariantMap ProDocument::dressedSlide(const QString &path, const QString &cueId,
             if (!action.isenabled() || !action.has_slide() || !action.slide().has_presentation())
                 continue;
             rv::data::Slide *slide = action.mutable_slide()->mutable_presentation()->mutable_base_slide();
-            themefile::dress(slide, theme, themeElements);
+            // (For a screen: with the theme's builds, see themefile::dress.)
+            themefile::dress(slide, theme, themeElements, true);
             return proconvert::toSlideMap(*slide, QString::fromStdString(action.label().text()));
         }
     }

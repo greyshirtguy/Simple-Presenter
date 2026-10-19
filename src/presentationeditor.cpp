@@ -1,5 +1,6 @@
 #include "presentationeditor.h"
 
+#include "builds.h"
 #include "chords.h"
 
 #include "elementorder.h"
@@ -493,6 +494,8 @@ QVariantMap PresentationEditor::describe(int row) const
         slide.insert("id", QString::fromStdString(cue.uuid().string()));
         if (!prop)
             proconvert::addNotes(action.slide().presentation(), &slide);
+        if (!prop && action.slide().presentation().has_transition())
+            slide.insert("transition", builds::describeTransition(action.slide().presentation().transition()));
     }
     slide.insert("group", place.group);
     slide.insert("groupColor", place.groupColor);
@@ -968,6 +971,77 @@ QVariantList PresentationEditor::reflow() const
         });
     }
     return rows;
+}
+
+QVariantList PresentationEditor::builds(int row) const
+{
+    if (row < 0 || row >= m_rows.size())
+        return {};
+    if (m_kind == Kind::Theme)
+        return builds::describe(m_theme.slides(m_rows.at(row).unit).base_slide());
+    if (m_kind != Kind::Presentation)
+        return {};
+    const rv::data::Cue &cue = m_presentation.cues(m_rows.at(row).unit);
+    const int action = slideAction(cue);
+    return action < 0 ? QVariantList() : builds::describe(cue.actions(action).slide().presentation().base_slide());
+}
+
+QVariantMap PresentationEditor::presentationTransition() const
+{
+    if (m_kind != Kind::Presentation || !m_presentation.has_transition())
+        return {};
+    return builds::describeTransition(m_presentation.transition());
+}
+
+QVariantMap PresentationEditor::addBuild(int row, const QString &element, bool out, const QVariantMap &transition)
+{
+    if (m_kind != Kind::Presentation && m_kind != Kind::Theme)
+        return {{"id", QString()}, {"error", QStringLiteral("Only the slides of a presentation or a theme have builds here.")}};
+    QString made;
+    const QString error = change(row, [&](rv::data::Slide *slide) { return builds::add(slide, element, out, transition, &made); });
+    return {{"id", error.isEmpty() ? made : QString()}, {"error", error}};
+}
+
+QString PresentationEditor::removeBuild(int row, const QString &build)
+{
+    if (m_kind != Kind::Presentation && m_kind != Kind::Theme)
+        return gone;
+    return change(row, [&](rv::data::Slide *slide) { return builds::remove(slide, build); });
+}
+
+QString PresentationEditor::changeBuild(int row, const QString &build, const QVariantMap &changes)
+{
+    if (m_kind != Kind::Presentation && m_kind != Kind::Theme)
+        return gone;
+    return change(row, [&](rv::data::Slide *slide) { return builds::change(slide, build, changes); });
+}
+
+QString PresentationEditor::moveBuild(int row, const QString &build, int index)
+{
+    if (m_kind != Kind::Presentation && m_kind != Kind::Theme)
+        return gone;
+    // Where it already is, nothing is changed and no step to undo is left.
+    const QVariantList now = builds(row);
+    for (int i = 0; i < now.size(); ++i) {
+        if (now.at(i).toMap().value("id").toString() == build && i == index)
+            return {};
+    }
+    return change(row, [&](rv::data::Slide *slide) { return builds::move(slide, build, index); });
+}
+
+QString PresentationEditor::setSlideTransition(int row, const QVariantMap &transition)
+{
+    if (m_kind != Kind::Presentation || row < 0 || row >= m_rows.size())
+        return gone;
+    rv::data::Cue *cue = m_presentation.mutable_cues(m_rows.at(row).unit);
+    const int action = slideAction(*cue);
+    if (action < 0)
+        return gone;
+    // (The slide's transition is beside the slide, in the cue's action, which is what a
+    // change keeps the way back to.)
+    return change(row, [&](rv::data::Slide *) {
+        return builds::setSlideTransition(cue->mutable_actions(action)->mutable_slide()->mutable_presentation(), transition);
+    });
 }
 
 QString PresentationEditor::pasteTextStyle(int row, const QByteArray &style)

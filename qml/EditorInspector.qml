@@ -4,7 +4,10 @@ import SimplePresenterApp
 
 // The properties of the element picked in the editor, in two parts as ProPresenter has
 // them: its shape (where it is, its fill, stroke and shadow, and when it shows) and its
-// text (font, colour, alignment, outline, shadow, and where the text comes from).
+// text (font, colour, alignment, outline, shadow, and where the text comes from). And,
+// for a presentation's slides and a theme's, a third, Build: the element's builds, or
+// with nothing picked the slide's (EditorBuilds, which is made only while the tab is
+// chosen).
 // Nothing here changes anything itself: each control reports what it was set to through
 // setProperties or setFormat. Sliders and colours being dragged report as they go, with
 // `interim` set, and settle() when they stop.
@@ -35,6 +38,21 @@ Rectangle {
     property var colorTriggerDefault: []
     property var saveColorTriggerDefault: (list) => {}
     property string tab: "shape"
+    // Whether the slides have builds here (a presentation's and a theme's do), and
+    // whether they can have a transition of their own (a presentation's can); and, while
+    // the Build tab is chosen, what EditorBuilds is handed: the slide's builds, its own
+    // transition and its presentation's, and the calls that change them
+    property bool buildable: false
+    property bool ownTransition: true
+    property var builds: []
+    property var slideTransition: undefined
+    property var presentationTransition: ({})
+    property var addBuild: (element, out, transition) => ""
+    property var removeBuild: (id) => {}
+    property var changeBuild: (id, changes) => {}
+    property var moveBuild: (id, index) => {}
+    property var setSlideTransition: (transition) => {}
+    property var pickElement: (id) => {}
 
     // A value was typed in; whoever had the keyboard can have it back.
     signal finished
@@ -236,21 +254,30 @@ Rectangle {
         }
     }
 
-    // Shape and Text
+    onBuildableChanged: {
+        if (!buildable && tab === "build")
+            tab = "shape"
+    }
+
+    // Shape and Text, and Build
     Row {
         id: tabs
+
+        readonly property var shown: inspector.buildable ? [{ name: "Shape", tab: "shape" }, { name: "Text", tab: "text" }, { name: "Build", tab: "build" }]
+                                                         : [{ name: "Shape", tab: "shape" }, { name: "Text", tab: "text" }]
 
         x: 12
         y: 10
         spacing: 6
 
         Repeater {
-            model: [{ name: "Shape", tab: "shape" }, { name: "Text", tab: "text" }]
+            model: tabs.shown
 
             delegate: Rectangle {
                 required property var modelData
 
-                width: (inspector.width - 30) / 2
+                objectName: "tab" + modelData.name
+                width: (inspector.width - 24 - 6 * (tabs.shown.length - 1)) / tabs.shown.length
                 height: 28
                 radius: 6
                 color: inspector.tab === modelData.tab ? "#ff8a1f" : tabMouse.containsMouse ? "#45484e" : "#3a3c42"
@@ -277,7 +304,7 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         width: parent.width - 48
-        visible: inspector.element === null
+        visible: inspector.element === null && inspector.tab !== "build"
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.Wrap
         color: "#9a9da3"
@@ -291,10 +318,10 @@ Rectangle {
         anchors.top: tabs.bottom
         anchors.bottom: parent.bottom
         anchors.topMargin: 8
-        contentHeight: (inspector.tab === "shape" ? shapeTab.height : textTab.height) + 24
+        contentHeight: (inspector.tab === "shape" ? shapeTab.height : inspector.tab === "build" ? buildTab.height : textTab.height) + 24
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        visible: inspector.element !== null
+        visible: inspector.element !== null || inspector.tab === "build"
 
         ScrollBar.vertical: ScrollBar {}
 
@@ -865,6 +892,34 @@ Rectangle {
                 Note {
                     text: "Conditions are checked when the slide is shown. Here the element stays in view so that it can be worked on."
                 }
+            }
+        }
+
+        // The builds (EditorBuilds), made while the tab is chosen
+        Loader {
+            id: buildTab
+
+            x: 12
+            width: parent.width - 26
+            active: inspector.tab === "build"
+            visible: active
+
+            sourceComponent: EditorBuilds {
+                width: buildTab.width
+                element: inspector.element
+                elements: inspector.elements
+                buildList: inspector.builds
+                slideTransition: inspector.slideTransition
+                presentationTransition: inspector.presentationTransition
+                ownTransition: inspector.ownTransition
+                showMenu: inspector.showMenu
+                addBuild: inspector.addBuild
+                removeBuild: inspector.removeBuild
+                changeBuild: inspector.changeBuild
+                moveBuild: inspector.moveBuild
+                setSlideTransition: inspector.setSlideTransition
+                pickElement: inspector.pickElement
+                onFinished: inspector.finished()
             }
         }
 

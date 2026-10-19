@@ -78,6 +78,10 @@ struct ProDocument
     // triggered, going round to the first after the last; 0 for none. (A slide with a
     // Go To Next Timer of its own, which is in its map as "goToNext", goes by that.)
     double slideShow = 0;
+    // The transition the presentation's slides are brought in with, where a slide has
+    // none of its own (see builds.h): as builds::describeTransition has it, empty for
+    // none, when the one in use is used
+    QVariantMap transition;
 
     // Reads a ProPresenter 7 .pro file. `arrangement` names the arrangement to follow,
     // "" (or a name the file does not have) being every group in stored order; without
@@ -235,6 +239,8 @@ struct ProDocument
                              const QSet<QString> &themeElements, int *dressed);
     // The slide of a cue as it would be dressed in a theme slide, as a map of the kind
     // `slides` holds for drawing: empty if the cue is not there. The file is not changed.
+    // It is for a screen the live look dresses in the theme, and so has the theme's
+    // builds (see themefile::dress).
     static QVariantMap dressedSlide(const QString &path, const QString &cueId, const rv::data::Slide &theme,
                                     const QSet<QString> &themeElements);
     // The slide a cue shows, as the file has it, to take the look of its text from

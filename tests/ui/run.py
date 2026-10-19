@@ -1472,6 +1472,155 @@ def prepare_announce(workspace, test_dir):
         out.write(tiny_png((255, 0, 255), 64))
 
 
+def builds_presentation():
+    """The text of a presentation called "Builds", with ProPresenter's builds as it writes them (src/builds.h), on
+    blocks of colour 660 by 340 in the four quarters of a slide of 1920 by 1080 (red top left, green top right, blue
+    bottom left, white bottom right). Its own transition is a Dissolve of a second and a half.
+
+      1. "Timed": the red block builds in with the slide (a Dissolve of 0.4 s); the green one after it, a second on
+         (a Wipe from the left of 0.8 s); the blue one, there from the start, builds out a second after that (a
+         Dissolve of 0.4 s); the white one has no builds.
+      2. "Clicks": the red block builds in On Click (a Dissolve of 0.3 s), the green one with it 0.3 s on (the
+         same), the blue one out On Click (the same). Its own transition is a Cut.
+      3. "Own": a white block, no builds; its own transition a Wipe from the top of half a second."""
+    def new():
+        return str(uuid.uuid4()).upper()
+
+    def effect(name, render, category, variables=""):
+        return ('effect {\n  uuid {\n    string: "%s"\n  }\n  name: "%s"\n  render_id: "%s"\n  behavior_description: "%s"\n'
+                '  category: "%s"\n%s}\n' % (new(), name, render, name, category, variables))
+
+    def transition(kind, seconds):
+        if kind == "dissolve":
+            made = effect("Dissolve", "EC52A828-AD85-4602-B70C-1DEE7C904DB6", "Dissolves")
+        elif kind == "cut":
+            made = effect("Cut", "AB29D07B-E9E2-4E0A-93BD-AD3EA58120FA", "")
+        else:
+            direction = {"wipe-left": "EFFECT_DIRECTION_LEFT", "wipe-top": "EFFECT_DIRECTION_TOP"}[kind]
+            made = effect("Wipe", "7084A71F-C12C-4EEA-8D90-A2D30FB0B256", "Wipes",
+                          '  variables {\n    name: "Direction"\n    description: "Direction of Wipe"\n    direction {\n'
+                          '      direction: %s\n      default_direction: EFFECT_DIRECTION_TOP\n      available_directions: 495\n'
+                          '    }\n  }\n' % direction)
+        return "transition {\n  duration: %s\n%s}\n" % (seconds, "".join("  " + line + "\n" for line in made.rstrip("\n").split("\n")))
+
+    def build(field, element, start, delay, kind, seconds):
+        build_id = new()
+        text = ('%s {\n  uuid {\n    string: "%s"\n  }\n  elementUUID {\n    string: "%s"\n  }\n' % (field, build_id, element)
+                + ("  start: %s\n" % start if start != "START_ON_CLICK" else "")
+                + ("  delayTime: %s\n" % delay if delay else "")
+                + "".join("  " + line + "\n" for line in transition(kind, seconds).rstrip("\n").split("\n")) + "}\n")
+        return build_id, text
+
+    # One block: the element of BLOCK_CUE, with its builds
+    block_cue = BLOCK_CUE
+    element_text = block_cue[block_cue.index("\n          elements {\n") + 1:block_cue.index("\n          size {\n") + 1]
+    places = {"red": (100, 100, 1, 0, 0), "green": (1160, 100, 0, 1, 0), "blue": (100, 640, 0, 0, 1), "white": (1160, 640, 1, 1, 1)}
+
+    def slide(blocks, own=None):
+        elements, order = [], []
+        for colour, builds in blocks:
+            x, y, red, green, blue = places[colour]
+            element = new()
+            made = element_text % {"element": element, "x": x, "y": y, "red": red, "green": green, "blue": blue}
+            made = made.replace('name: "Block"', 'name: "%s"' % colour.capitalize())
+            extra = ""
+            for field, start, delay, kind, seconds in builds:
+                build_id, text = build(field, element, start, delay, kind, seconds)
+                order.append(build_id)
+                extra += "".join("            " + line + "\n" for line in text.rstrip("\n").split("\n"))
+            made = made.replace("            info: 3\n", extra + "            info: 3\n")
+            elements.append(made)
+        cue, action, slide_id = new(), new(), new()
+        orders = "".join('          element_build_order {\n            string: "%s"\n          }\n' % i for i in order)
+        own_text = "".join("        " + line + "\n" for line in transition(*own).rstrip("\n").split("\n")) if own else ""
+        return cue, ('cues {\n  uuid {\n    string: "%s"\n  }\n  completion_action_type: COMPLETION_ACTION_TYPE_LAST\n  hot_key {\n  }\n'
+                     '  actions {\n    uuid {\n      string: "%s"\n    }\n    isEnabled: true\n    type: ACTION_TYPE_PRESENTATION_SLIDE\n'
+                     '    slide {\n      presentation {\n        base_slide {\n' % (cue, action)
+                     + "".join(elements) + orders
+                     + '          size {\n            width: 1920\n            height: 1080\n          }\n          uuid {\n'
+                     '            string: "%s"\n          }\n        }\n' % slide_id + own_text
+                     + '      }\n    }\n  }\n  isEnabled: true\n}\n')
+
+    slides = [
+        slide([("red", [("build_in", "START_WITH_SLIDE", 0, "dissolve", 0.4)]),
+               ("green", [("build_in", "START_AFTER_PREVIOUS", 1, "wipe-left", 0.8)]),
+               ("blue", [("build_out", "START_AFTER_PREVIOUS", 1, "dissolve", 0.4)]),
+               ("white", [])]),
+        slide([("red", [("build_in", "START_ON_CLICK", 0, "dissolve", 0.3)]),
+               ("green", [("build_in", "START_WITH_PREVIOUS", 0.3, "dissolve", 0.3)]),
+               ("blue", [("build_out", "START_ON_CLICK", 0, "dissolve", 0.3)])], own=("cut", 0)),
+        slide([("white", [])], own=("wipe-top", 0.5)),
+    ]
+    labels = ["Timed", "Clicks", "Own"]
+    for (cue, text), label in zip(slides, labels):
+        assert text.count("    isEnabled: true\n    type: ACTION_TYPE_PRESENTATION_SLIDE\n") == 1
+    cues = "".join(text.replace("    isEnabled: true\n    type: ACTION_TYPE_PRESENTATION_SLIDE\n",
+                                '    label {\n      text: "%s"\n    }\n    isEnabled: true\n    type: ACTION_TYPE_PRESENTATION_SLIDE\n' % label)
+                   for (cue, text), label in zip(slides, labels))
+    group = ('cue_groups {\n  group {\n    uuid {\n      string: "%s"\n    }\n    name: "Builds"\n    hotKey {\n    }\n  }\n' % new()
+             + "".join('  cue_identifiers {\n    string: "%s"\n  }\n' % cue for cue, text in slides) + "}\n")
+    return ('application_info {\n  platform: PLATFORM_MACOS\n  application: APPLICATION_PROPRESENTER\n}\n'
+            'uuid {\n  string: "%s"\n}\nname: "Builds"\n' % new() + cues + group + transition("dissolve", 1.5))
+
+
+def prepare_builds(workspace, test_dir):
+    """The presentation of builds (builds_presentation) in the copy's library, kept as it was given (builds-before).
+    Nothing is written outside the test's folder, and nothing under the copy's Media."""
+    library = os.path.join(workspace, "Libraries", "Demo")
+    target = os.path.join(library, "Builds.pro")
+    if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("the test of builds would write outside its own folder: " + os.path.realpath(target))
+    with open(target, "wb") as out:
+        out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", builds_presentation().encode()))
+    shutil.copy(target, os.path.join(test_dir, "builds-before"))
+
+
+def after_builds(workspace, test_dir):
+    """The editor's Build tab: what the presentation's file holds, read with protoc and not by the app. The test kept
+    the file as it was given it (builds-before) and as it was when the editor was left (builds-edited): the first two
+    slides, and the presentation's own transition, are as they were; the third has a Build In of its block, a Wipe from
+    the top as ProPresenter makes one, With Previous after a second and a half, in the slide's order of builds; it has
+    no Build Out, and no transition of its own; and nothing else of it was changed."""
+    import difflib
+
+    frames = os.path.join(os.path.dirname(test_dir), "frames", os.path.basename(test_dir))
+
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    def cues(text):
+        return re.findall(r"^cues \{\n.*?^\}\n", text, re.S | re.M)
+
+    before = decoded(os.path.join(test_dir, "builds-before"))
+    edited = decoded(os.path.join(frames, "builds-edited"))
+    now = decoded(os.path.join(workspace, "Libraries", "Demo", "Builds.pro"))
+    was, made = cues(before), cues(edited)
+    third = made[2] if len(made) == 3 else ""
+    build = re.search(r"^ {12}build_in \{\n.*?^ {12}\}\n", third, re.S | re.M)
+    build = build.group(0) if build else ""
+    build_id = re.search(r'uuid \{\n\s*string: "([^"]+)"', build)
+    changed = [line[0] + line[1:].strip() for line in difflib.ndiff(was[2].split("\n"), third.split("\n")) if line[:1] in "+-"] if len(was) == 3 else []
+    allowed = re.compile(r"^[+-](build_in \{|uuid \{|string: |elementUUID \{|start: |delayTime: |transition \{|duration: |effect \{|name: "
+                         r"|render_id: |behavior_description: |category: |variables \{|description: |direction \{|direction: "
+                         r"|default_direction: |available_directions: |element_build_order \{|\})")
+    return [
+        said(edited == now, "the file is as the editor left it", "it was changed again after"),
+        said(len(made) == 3 and made[0] == was[0] and made[1] == was[1], "the first two slides are as they were"),
+        said(before[before.rindex("\ntransition {"):] == edited[edited.rindex("\ntransition {"):], "the presentation's own transition is as it was"),
+        said(build != "" and "start: START_WITH_PREVIOUS" in build and "delayTime: 1.5" in build and 'render_id: "7084A71F-C12C-4EEA-8D90-A2D30FB0B256"' in build
+             and "direction: EFFECT_DIRECTION_TOP\n" in build and "available_directions: 495" in build and 'description: "Direction of Wipe"' in build
+             and 'category: "Wipes"' in build,
+             "in the file: the block's Build In, a Wipe from the top as ProPresenter makes one, With Previous after 1.5 s", build.replace("\n", " ")[:600]),
+        said(build_id is not None and ('element_build_order {\n            string: "%s"' % build_id.group(1)) in third
+             and third.count("element_build_order {") == 1,
+             "and in the slide's order of builds, alone"),
+        said("build_out" not in third and not re.search(r"^ {8}transition \{", third, re.M), "it has no Build Out, and no transition of its own"),
+        said(all(allowed.match(line) for line in changed), "and nothing else of that slide was changed",
+             "; ".join(line for line in changed if not allowed.match(line))),
+    ]
+
+
 def prepare_advance(workspace, test_dir):
     """The two presentations of blocks the announcements test has (prepare_announce), and a third, "Timed", whose first
     slide has a Go To Next Timer of three seconds as ProPresenter writes one: the cue's target is the next cue, after a
@@ -2112,6 +2261,8 @@ TESTS = {
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
     "quickedit": test("Act"),
+    "builds": test("Demo", timeout=300, prepare=prepare_builds, after=after_builds),
+    "themebuilds": test("Act", timeout=240),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

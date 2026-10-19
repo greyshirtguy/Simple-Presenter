@@ -25,12 +25,15 @@ class Template_Slide;
 //   - The slide's text boxes that have words in them are matched with the theme's text
 //     boxes (see thememath.h: by name, then by size, then in order). A theme's text
 //     boxes are the things on it with words in them, which stand for the words to come
-//     ("Verse", "Lyrics").
+//     ("Verse", "Lyrics"); and those with none that are named as one of the slide's text
+//     boxes is, which take that box's words ("Name" and "Role" in a theme made to bring
+//     a name in on one screen: a GUESS at ProPresenter, from such a theme).
 //   - A matched text box takes everything from the theme's: its name, where it is and
 //     how large, its fill, its outline, its shadow, and the one format the theme's text
 //     is in (font, size, colour, alignment, capitals, how it fits its box). It keeps its
 //     words and the chords over them, and what else is its own (what its text is
-//     linked to, how it comes on).
+//     linked to, how it comes on: but on a screen the look dresses in the theme, it
+//     comes on as the theme's box does, as the last point says).
 //     The name matters more than it looks: a stage layout can be set to show only the
 //     text boxes of a given name ("Lyrics"), and shows nothing of a slide that has none
 //     of that name. Dressing a song in a theme is how its text boxes, whatever they
@@ -46,6 +49,10 @@ class Template_Slide;
 //     the ids of things in the workspace's themes, which what a theme brings keeps.
 //   - The slide's background colour becomes the theme slide's. What media the slide's
 //     cue triggers, and its other actions, are not the slide's look and are not touched.
+//   - For a screen whose look gives it the theme, the theme's builds come too: the text
+//     boxes that took the theme's look take its builds, and its order of them (see
+//     builds::takeThemeBuilds). A theme applied to slides in their file does not
+//     change their builds.
 //
 // ProPresenter does not say how it does this; the above is this app's reading of what
 // it is for, and may differ from ProPresenter's in the corners.
@@ -67,8 +74,13 @@ const rv::data::Template_Slide *slideOf(const rv::data::Template_Document &theme
 // something on a slide as having come from a theme
 QSet<QString> elementIds(const QString &workspace);
 
-// Dresses a slide in a theme slide (see above).
-void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QString> &themeElements);
+// Dresses a slide in a theme slide (see above). With `withBuilds`, which is for a slide shown
+// on a screen the live look dresses in the theme, the theme's builds come too (see
+// builds::takeThemeBuilds); without, which is for a theme applied to slides in their
+// file, the builds of the slide's own text boxes are left as they were, as they always
+// have been here (whether ProPresenter's Apply Theme brings a theme's builds is not
+// known).
+void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QString> &themeElements, bool withBuilds = false);
 
 // Gives a slide's text boxes the look of another slide's, which is what Paste Text
 // Style in a slide's menu does: the other slide is taken as a theme slide would be, and

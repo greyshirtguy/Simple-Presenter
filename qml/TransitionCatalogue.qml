@@ -185,4 +185,49 @@ QtObject {
         }
         return { options: Qt.vector4d(numbers[0], numbers[1], numbers[2], numbers[3]), tint: tint, direction: direction }
     }
+
+    // The transition with the id ProPresenter knows it by, or undefined for one the app
+    // does not have (ProPresenter's text animations, which build a text a part at a
+    // time, are the ones it has that this has not).
+    function byPro(id) {
+        const wanted = (id ?? "").toUpperCase()
+        return wanted === "" ? undefined : transitions.find(transition => transition.pro === wanted)
+    }
+
+    // What was chosen for a transition's options, by their names here, from what a file
+    // has for them, which goes by their labels (see builds::describeTransition):
+    // ProPresenter's names for them are the labels here. A colour is written as a
+    // colour is here; a direction the file has none of keeps its own.
+    function chosenFrom(transition, values) {
+        const chosen = {}
+        for (const option of transition.options) {
+            const value = values !== undefined ? values[option.label] : undefined
+            if (value === undefined || (option.kind === "direction" && value < 0))
+                continue
+            chosen[option.name] = option.kind === "color" ? String(value) : value
+        }
+        return chosen
+    }
+
+    // A transition as a file has it ({ renderId, duration, values }: a build's, or a
+    // slide's or a presentation's own) as it is drawn: { name, shader, options, tint,
+    // direction, duration }, the duration in milliseconds. One the app does not have is
+    // drawn as a dissolve of its length (a GUESS that a dissolve says more of what was
+    // meant than a cut would).
+    function drawn(described) {
+        const transition = byPro(described.renderId) ?? transitions[1]
+        const shown = uniforms(transition, chosenFrom(transition, described.values))
+        return { name: transition.name, shader: shaderUrl(transition), options: shown.options, tint: shown.tint,
+                 direction: shown.direction, duration: Math.round(Math.max(0, described.duration ?? 0) * 1000) }
+    }
+
+    // And the other way: a transition of this catalogue, with what was chosen for its
+    // options and its length in seconds, as it is written into a file. Only one that
+    // ProPresenter has (`pro`) can be.
+    function described(transition, chosen, seconds) {
+        const values = {}
+        for (const option of transition.options)
+            values[option.label] = valueOf(option, chosen)
+        return { renderId: transition.pro, duration: seconds, values: values }
+    }
 }

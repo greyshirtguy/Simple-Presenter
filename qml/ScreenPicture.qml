@@ -201,6 +201,8 @@ Item {
             // it is no part of the binding, and a look giving the screen another theme
             // while a slide is on show went unseen here until the next slide.)
             slide: picture.screen === null || picture.stage ? null : picture.win.slideFor(picture.screen.id, picture.win.liveSlide, picture.look)
+            // Its builds run as the screen's do, from the same times
+            buildTimes: picture.screen !== null ? picture.win.buildTimesFor(picture.screen.id) : null
             effects: picture.effects
             pictures: picture.pictures
         }

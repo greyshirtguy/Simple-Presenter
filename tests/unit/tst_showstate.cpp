@@ -200,7 +200,7 @@ QString outside(const Effects &effects)
 {
     static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia",
                                   "announcement", "announcementovermedia", "announcementwithmedia", "noannouncements",
-                                  "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem"};
+                                  "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem", "build"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -467,6 +467,51 @@ private slots:
         QVERIFY(!show.cueLive());
         QCOMPARE(show.stepTarget("song.pro", "", 1), 2);
         QCOMPARE(show.stepTarget("song.pro", "", -1), 2);
+    }
+
+    // A slide with On Click builds: Next runs them, one at a time, and then goes on; a
+    // click on the slide does the same; going live again starts them again; and a
+    // cleared slide, or another presentation, is not stepped so.
+    void nextRunsOnClickBuildsFirst()
+    {
+        State show;
+        Presentation song = plainSong();
+        QVariantMap built = song.slides.at(1).toMap();
+        built.insert("buildSteps", 2);
+        song.slides[1] = built;
+        bool ran = false;
+        show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(show.buildStep, 0);
+        Effects effects = show.stepBuild("song.pro", "", -1, &ran);
+        QVERIFY(ran);
+        QCOMPARE(outside(effects), "build");
+        QVERIFY(noted(effects, "build 1 of 2 of slide 2"));
+        QCOMPARE(show.buildStep, 1);
+        // Another presentation's Next, or a click on another slide, is not this one's
+        QVERIFY(show.stepBuild("other.pro", "", -1, &ran).isEmpty());
+        QVERIFY(!ran);
+        QVERIFY(show.stepBuild("song.pro", "", 3, &ran).isEmpty());
+        QVERIFY(!ran);
+        // A click on the slide itself is
+        QCOMPARE(outside(show.stepBuild("song.pro", "", 1, &ran)), "build");
+        QVERIFY(ran);
+        QCOMPARE(show.buildStep, 2);
+        // None left: Next goes to the next slide
+        QVERIFY(show.stepBuild("song.pro", "", -1, &ran).isEmpty());
+        QVERIFY(!ran);
+        QCOMPARE(show.stepTarget("song.pro", "", 1), 2);
+        // Triggered again, it starts again
+        show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(show.buildStep, 0);
+        // Cleared, it is not stepped, and Next brings it back
+        show.clearSlide();
+        QVERIFY(show.stepBuild("song.pro", "", -1, &ran).isEmpty());
+        QVERIFY(!ran);
+        QCOMPARE(show.stepTarget("song.pro", "", 1), 1);
+        // A slide without builds never is
+        show.goLive(song.cue(2), false, workspace());
+        QVERIFY(show.stepBuild("song.pro", "", -1, &ran).isEmpty());
+        QVERIFY(!ran);
     }
 
     // ---- clearing

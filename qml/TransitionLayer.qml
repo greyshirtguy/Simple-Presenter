@@ -59,6 +59,11 @@ Item {
     property vector2d direction
     // Milliseconds; 0 also cuts.
     property int duration: 0
+    // A transition to make for the change under way in place of the one above, as
+    // TransitionCatalogue.drawn() gives one ({ name, shader, options, tint, direction,
+    // duration }, and `from`, whose it is, for the log): a slide's own transition, or its
+    // presentation's. Null for the above.
+    property var asked: null
 
     property bool aIsFront: true
     property real progress: 0
@@ -104,8 +109,11 @@ Item {
     }
 
     // Transitions to `content`, or to nothing if it is null: at once if the content can
-    // be shown at once, and otherwise when it can.
-    function show(content) {
+    // be shown at once, and otherwise when it can. `given` is more of the delegate's
+    // properties to be set with the content, by name (a slide's build times: see Slide),
+    // and `instead` is a transition to make in place of the layer's own (see `asked`);
+    // either can be left out.
+    function show(content, given, instead) {
         if (transition.running) {
             transition.stop()
             commit("cut short at " + Math.round(progress * 100) + "% by the next change")
@@ -114,7 +122,12 @@ Item {
         patience.stop()
         waiting = false
         const incoming = (aIsFront ? holderB : holderA).item
+        if (given) {
+            for (const name in given)
+                incoming[name] = given[name]
+        }
         incoming.content = content
+        asked = instead ?? null
         if (incoming.ready === false) {
             waiting = true
             patience.start()
@@ -126,7 +139,8 @@ Item {
     // Brings in what the incoming instance has been given.
     function begin() {
         patience.stop()
-        const animated = shader !== "" && duration > 0
+        const chosen = asked ?? { name: shaderName, shader: shader, options: options, tint: tint, direction: direction, duration: duration }
+        const animated = chosen.shader !== "" && chosen.duration > 0
         // Before the incoming instance is let be seen, or it would be drawn straight
         // over the outgoing one.
         blending = animated
@@ -137,21 +151,21 @@ Item {
             return
         }
         // Into the log first, and only then to the graphics driver.
-        activeName = shaderName !== "" ? shaderName : "a transition"
+        activeName = chosen.name !== "" ? chosen.name : "a transition"
         beganAt = Date.now()
         framesBefore = Log.frames(Window.window)
-        Log.note("transition", name + ": " + activeName + " over " + (duration / 1000).toFixed(2) + " s, " + shader.replace("qrc:/", "")
-                 + adjustments())
-        activeShader = shader
-        activeOptions = options
-        activeTint = tint
-        activeDirection = direction
-        transition.duration = duration
+        Log.note("transition", name + ": " + activeName + (asked && asked.from ? ", the " + asked.from + "'s own," : "") + " over " + (chosen.duration / 1000).toFixed(2)
+                 + " s, " + chosen.shader.replace("qrc:/", "") + adjustments(chosen.options, chosen.tint, chosen.direction))
+        activeShader = chosen.shader
+        activeOptions = chosen.options
+        activeTint = chosen.tint
+        activeDirection = chosen.direction
+        transition.duration = chosen.duration
         transition.start()
     }
 
     // What the transition has been set to, where that is anything but nothing, for the log
-    function adjustments() {
+    function adjustments(options, tint, direction) {
         const plain = (numbers) => numbers.map(number => +number.toFixed(3)).join(", ")
         const parts = []
         if (options.x !== 0 || options.y !== 0 || options.z !== 0 || options.w !== 0)

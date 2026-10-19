@@ -146,6 +146,9 @@ void Show::change(const std::function<show::Effects()> &what)
             fprintf(stderr, "SimplePresenter: %s\n", qPrintable(effect.text));
             SessionLog::write("PROBLEM", effect.text);
             break;
+        case show::Effect::Build:
+            emit buildStepped(m_state.buildStep);
+            break;
         }
     }
 }
@@ -274,6 +277,13 @@ QTimer *Show::advanceTimer(bool announcements)
 int Show::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements) const
 {
     return m_state.stepTarget(key, playlistId, delta, announcements);
+}
+
+bool Show::stepBuild(const QString &key, const QString &playlistId, int index)
+{
+    bool ran = false;
+    change([&] { return m_state.stepBuild(key, playlistId, index, &ran); });
+    return ran;
 }
 
 void Show::follow(const QVariantMap &cue)

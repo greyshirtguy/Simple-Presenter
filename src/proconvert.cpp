@@ -1,3 +1,4 @@
+#include "builds.h"
 #include "proconvert.h"
 
 #include "clocktext.h"
@@ -1223,7 +1224,7 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
     }
 
     const bool hasSize = slide.size().width() > 0 && slide.size().height() > 0;
-    return {
+    QVariantMap map {
         {"width", hasSize ? slide.size().width() : 1920.0},
         {"height", hasSize ? slide.size().height() : 1080.0},
         {"drawsBackground", slide.draws_background_color()},
@@ -1242,6 +1243,18 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)
         {"plainText", texts.join(u'\n')},
         {"elements", elements},
     };
+    // Its builds (see builds.h), as what draws the slide runs them: when each element
+    // comes and goes, by its id, and how many On Click steps there are. Only for a slide
+    // that has any, which few have: every slide's map is read again at every change of
+    // slide, and a key that is there costs that reading something each time.
+    int steps = 0;
+    const QVariantMap planned = builds::describePlan(slide, &steps);
+    if (!planned.isEmpty()) {
+        map.insert("builds", planned);
+        if (steps > 0)
+            map.insert("buildSteps", steps);
+    }
+    return map;
 }
 
 bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVariantMap &changes)

@@ -218,6 +218,9 @@ public:
     // Where a step of `delta` slides takes the show, for whoever is looking at that
     // presentation (see show::State::stepTarget).
     Q_INVOKABLE int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false) const;
+    // Runs the next On Click build of the slide on show, if Next (`index` -1) or a click
+    // on slide `index` of that presentation is to: true if it did (see State::stepBuild).
+    Q_INVOKABLE bool stepBuild(const QString &key, const QString &playlistId, int index);
     // The presentation the show is at was read again or put in another order: `cue` is
     // the slide it is at now. Nothing on the output changes.
     Q_INVOKABLE void follow(const QVariantMap &cue);
@@ -343,6 +346,9 @@ signals:
     // be started under the slide, for WithMedia.
     void slideShown(int showing, const QVariantMap &media);
     void slideCleared();
+    // The slide on show has run another of its On Click builds: `step` is how many it
+    // has run (see State::buildStep)
+    void buildStepped(int step);
     void mediaShown(const QVariantMap &media);
     void mediaCleared();
     // The same for the announcements layer: the slide the announcements are at is to

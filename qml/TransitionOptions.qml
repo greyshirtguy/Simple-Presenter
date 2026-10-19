@@ -4,8 +4,8 @@ import QtQuick.Effects
 
 // What can be adjusted about the chosen transition, as a panel that opens from the
 // button for it (see TransitionControls): a slider for each number, a swatch for a
-// colour, and a pad of nine for a direction (see TransitionCatalogue for what an option
-// is).
+// colour, and a pad of nine for a direction (TransitionOptionRows; see
+// TransitionCatalogue for what an option is).
 //
 // A change takes effect with the next transition and is remembered for that transition;
 // nothing here stores anything itself. Reset puts the transition back as it comes.
@@ -62,104 +62,11 @@ Popup {
             text: panel.transition.name
         }
 
-        Repeater {
-            model: panel.transition.options
-
-            delegate: Column {
-                id: row
-
-                required property var modelData
-                // What it is set to, which is the catalogue's value until it is changed
-                readonly property var chosen: panel.win.transitionOption(modelData)
-
-                width: parent.width
-                spacing: 5
-
-                Text {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    textFormat: Text.StyledText
-                    color: "#e6e6e6"
-                    font.pixelSize: 13
-                    text: row.modelData.label
-                        + (row.modelData.note ? " <font color=\"#9a9da3\">· " + row.modelData.note + "</font>" : "")
-                }
-
-                Loader {
-                    width: parent.width
-                    sourceComponent: row.modelData.kind === "number" ? number
-                                   : row.modelData.kind === "color" ? colour : direction
-                }
-
-                Component {
-                    id: number
-
-                    Row {
-                        spacing: 8
-
-                        AppSlider {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - field.width - parent.spacing
-                            from: row.modelData.from
-                            to: row.modelData.to
-                            value: row.chosen
-                            onMoved: panel.win.setTransitionOption(row.modelData, Math.round(value * 100) / 100)
-                        }
-
-                        NumberField {
-                            id: field
-
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 62
-                            decimals: 2
-                            from: row.modelData.from
-                            to: row.modelData.to
-                            step: (row.modelData.to - row.modelData.from) / 100
-                            value: row.chosen
-                            onEdited: (value) => panel.win.setTransitionOption(row.modelData, value)
-                        }
-                    }
-                }
-
-                // In a row of its own, or the swatch would be stretched to the panel's width.
-                Component {
-                    id: colour
-
-                    Row {
-                        ColorButton {
-                            value: row.chosen
-                            onChanging: (value) => panel.win.setTransitionOption(row.modelData, value.toString())
-                            onPicked: (value) => panel.win.setTransitionOption(row.modelData, value.toString())
-                        }
-                    }
-                }
-
-                // Nine places, set out as the sides and corners of the picture they stand
-                // for: the one chosen is where what is coming comes from, and its arrow the
-                // way it travels.
-                Component {
-                    id: direction
-
-                    Grid {
-                        columns: 3
-                        spacing: 3
-
-                        Repeater {
-                            model: ["↘", "↓", "↙", "→", "•", "←", "↗", "↑", "↖"]
-
-                            delegate: IconButton {
-                                required property string modelData
-                                required property int index
-
-                                text: modelData
-                                on: row.chosen === index
-                                available: (row.modelData.allowed & (1 << index)) !== 0
-                                onClicked: panel.win.setTransitionOption(row.modelData, index)
-                            }
-                        }
-                    }
-                }
-            }
+        TransitionOptionRows {
+            width: parent.width
+            options: panel.transition.options
+            valueOf: (option) => panel.win.transitionOption(option)
+            choose: (option, value) => panel.win.setTransitionOption(option, value)
         }
 
         AppButton {

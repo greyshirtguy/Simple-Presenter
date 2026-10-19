@@ -1251,6 +1251,24 @@ Rectangle {
         settle: () => canvas.settle()
         colorTriggerDefault: screen.colorTriggerDefault
         saveColorTriggerDefault: (list) => screen.colorTriggerDefaultKept(list)
+        // Builds, for a presentation's slides and a theme's: read only while the Build
+        // tab is chosen, and again whenever the slide is (each change to it is a new
+        // map). Only a presentation's slide has a transition of its own.
+        buildable: screen.kind === "presentation" || screen.kind === "theme"
+        ownTransition: screen.kind === "presentation"
+        builds: inspector.tab === "build" && buildable && canvas.slide ? editor.builds(canvas.row) : []
+        slideTransition: inspector.tab === "build" && ownTransition && canvas.slide ? canvas.slide.transition : undefined
+        presentationTransition: inspector.tab === "build" && ownTransition ? editor.presentationTransition() : ({})
+        addBuild: (element, out, transition) => {
+            const made = editor.addBuild(canvas.row, element, out, transition)
+            screen.report(made.error)
+            return made.id
+        }
+        removeBuild: (id) => screen.report(editor.removeBuild(canvas.row, id))
+        changeBuild: (id, changes) => screen.report(editor.changeBuild(canvas.row, id, changes))
+        moveBuild: (id, index) => screen.report(editor.moveBuild(canvas.row, id, index))
+        setSlideTransition: (transition) => screen.report(editor.setSlideTransition(canvas.row, transition))
+        pickElement: (id) => canvas.pick(id)
         onFinished: screen.takeFocus()
     }
 

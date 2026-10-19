@@ -100,6 +100,7 @@ struct Effect
         MessageTime,    // the message whose id is `text` goes by itself in `seconds`; 0 for no such time (any it had is off)
         Note,           // tell the log `text`, under `topic`
         Problem,        // tell the log, and whoever is running the show, that `text` went wrong
+        Build,          // run the live slide's next On Click build: the step it is at now is State::buildStep
     };
     Kind kind = Note;
     QVariantMap media;
@@ -128,6 +129,11 @@ public:
     // The slide the show is at took itself off: its cue has an action that clears the
     // slide, or everything. It is still the slide the show is at.
     bool clearedByCue = false;
+    // How far the slide the show is at has got with its builds (ProPresenter's, see
+    // builds.h): 0 as it goes live, which runs the builds that start with it, and one
+    // more for each On Click build run since. Its map says how many On Click builds
+    // it has, as "buildSteps" (none if it has no key).
+    int buildStep = 0;
 
     // The media layer: what is on it, and the media playlist it was triggered from (""
     // if a slide triggered it).
@@ -259,6 +265,16 @@ public:
     // another presentation, to its first slide.
     // With `announcements`, the same for the announcements: from where they are.
     int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false) const;
+    // Next, for whoever is looking at the presentation `key` of `playlistId`; or a click
+    // on its slide `index` (-1 for Next, which means the slide the show is at). If that
+    // is the slide on show, and it has an On Click build that has not been run, the
+    // build is run and `*ran` is set; otherwise nothing is done, and Next goes to the
+    // next slide (stepTarget) and the click triggers the slide again, as they always
+    // have. As the maintainer has ProPresenter step through a slide's builds before
+    // the next slide. (A GUESS: that a click on the live slide runs its next build as
+    // Next does, rather than starting it again.) The announcements' slides are not
+    // stepped so: see builds.h.
+    Effects stepBuild(const QString &key, const QString &playlistId, int index, bool *ran);
     // The presentation the show is at was read again, or put in another order: this is
     // the slide it is at now. Nothing on the output changes. (A going on that is
     // waiting there is off if the slide no longer asks for one: see `advance`.)
