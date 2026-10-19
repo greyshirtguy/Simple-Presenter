@@ -39,6 +39,18 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.101" date="2026-10-19">
+      <description>
+        <p>
+          ProPresenter's builds: the elements of a slide coming on one after another
+          and going again, each with a transition of its own, With Slide, After
+          Previous, With Previous or On Click, Next running the On Click ones before it
+          goes on; the editor's Build tab for them, and for a theme's slides, whose
+          builds a look runs on the screen it gives the theme; and a slide's own
+          transition, or its presentation's, made in place of the one chosen.
+        </p>
+      </description>
+    </release>
     <release version="0.100" date="2026-10-19">
       <description>
         <p>
