@@ -862,7 +862,7 @@ Rectangle {
                         + (VideoDecoding.guarded
                            ? "\n\n" + (VideoDecoding.inWords.includes(VideoDecoding.guardReason) ? "" : "On this computer " + VideoDecoding.guardReason + ". ")
                              + "Trying that decoder has been seen to hang such a computer, which is why Automatically leaves it alone "
-                             + "here. With the firmware put in (the README says where that is explained), it is tried again without "
+                             + "here. With the firmware put in (how is linked from the README), it is tried again without "
                              + "anything being changed here."
                            : "")
                 }
@@ -1572,7 +1572,7 @@ Rectangle {
                         + "operate it through it, by this computer's address and the port. Anyone on the network can, "
                         + "as with ProPresenter: there is no password.\n\n"
                         + "Only what this app has is there: much of what ProPresenter offers through it is not. "
-                        + "The README says what is."
+                        + "What is there is linked from the README."
                 }
             }
         }
@@ -1662,7 +1662,7 @@ Rectangle {
                 text: "Alt+Tab. The output and stage windows are there to be looked at, not switched to, so "
                     + "they are kept out of the desktop's window switcher. Through X11 the app sees to that "
                     + "itself. Through Wayland only the desktop can: on GNOME, switch on the extension "
-                    + "“Simple Presenter windows”, which comes with the app (the README says how)."
+                    + "“Simple Presenter windows”, which comes with the app (how to switch it on is linked from the README)."
             }
         }
 
