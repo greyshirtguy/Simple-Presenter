@@ -209,6 +209,11 @@ something non-trivial that way. It has three goals.
 
 The big things lately, the newest first.
 
+- **Devices.** MIDI, RossTalk and HTTP Requests, set up in Settings → Devices: a slide
+  or a macro can send a MIDI note, a RossTalk Custom Control or an HTTP request, and a
+  MIDI device's notes work the show by ProPresenter's MIDI Map. ProPresenter's own
+  devices for the workspace are offered, and its actions for them are sent. See
+  [Devices](#devices).
 - **Builds.** The elements of a slide can come on one after another, and go again:
   ProPresenter's Build In and Build Out, each a transition of the element's own, run
   with the slide, after one another, or on each Next, as the file says. The editor has
@@ -566,8 +571,9 @@ the top of this page.
       a look's fade for a mask that comes or goes.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
       stage, props, macros, looks and audio, and those are run; so is one that shows a
-      message, which cannot be made here yet. Still to come: the rest
-      of ProPresenter's kinds (communications, capture and more, which
+      message, which cannot be made here yet, and communication with a MIDI, RossTalk
+      or HTTP device (see [Devices](#devices)). Still to come: the rest
+      of ProPresenter's kinds (capture and more, which
       are kept in the files and shown, and not done), an action's delay, putting a
       slide's or a macro's actions in another order, and the clear layer the app
       does not have yet (video inputs).
@@ -1472,12 +1478,14 @@ is marked as the live one, and the arrow keys go on from it.)
 - **Audience Look**: make one of the workspace's [looks](#looks) the live one.
 - **Audio**: play a piece of the [audio bin](#audio), music or a sound effect. It is
   made by dragging the piece onto the slide.
+- **Communication**: send a MIDI note, a RossTalk Custom Control or an HTTP request to
+  one of the workspace's [devices](#devices).
 
 Each action a slide has is a small icon in the top left corner of its thumbnail, after
 the icons for its hotkey and its media. A right click on a slide offers **Add Action**,
 which leads to the kinds above: Clear, Clear Group, Prop, Macro and Audience Look to
 lists to pick from (a prop by its collection, then Trigger or Clear; a macro by its
-collection), Timer and Stage to a small panel to fill in. Under it is **Remove Action**,
+collection), Timer, Stage and Communication to a small panel to fill in. Under it is **Remove Action**,
 which lists the actions the slide has. A right click on an action's icon says what the
 action is and offers to change it, for a timer or a stage action, or to remove it;
 for one that plays audio it has Stop or Loop, and Music or Sound Effect.
@@ -3025,6 +3033,82 @@ It has been tried with requests made by hand and by the app's own tests; not yet
 Companion itself. The log says when it listened, who streamed what, and each request
 that operated the show, with who sent it.
 
+## Devices
+
+A **device** is something outside the app that a slide or a macro sends to, as in
+ProPresenter's Devices: notes to a **MIDI** port, a Custom Control to a Ross switcher
+over **RossTalk**, or a request to a web address (**HTTP Requests**, which is this
+app's own and not ProPresenter's). A MIDI device's sources also work the show, by the
+**MIDI Map**.
+
+They are set up in **Settings → Devices**, as ProPresenter's page has them: a row for
+each, with a green edge when it is connected, what it is, and **Connect**; a click on
+the row opens what it is set to, and **+ Add a Device** adds one of the three kinds.
+
+- **MIDI**: its **Sources**, the ports whose notes work the show, and its
+  **Destinations**, the ports the notes its actions send go to, ticked from the MIDI
+  ports there are (through ALSA, so a USB MIDI device, a program's port and network
+  MIDI's are all there). A port it names that is not here is shown, and said, and the
+  device goes on with the rest.
+- **RossTalk**: the switcher's **Address** and **Port** (7788 is RossTalk's). It keeps
+  a connection to it open.
+- **HTTP Requests**: a **Base address** (`http://192.168.1.20:8080/api`), and
+  **Headers** that every request has (an `Authorization`, say). There is nothing to
+  connect.
+- **Auto Reconnect**, for MIDI and RossTalk: a device that drops, or whose port goes,
+  is connected again when it can be (RossTalk tries every few seconds); and one that was
+  connected when the workspace was last left is connected again when it is next opened.
+
+The devices are this computer's, kept for each workspace in this app's own settings
+(`~/.config/SimplePresenter/Devices.json`). ProPresenter keeps its own list in the
+workspace (its `Configuration/CommunicationDevices`), which is read and never written:
+its MIDI and RossTalk devices that are not here yet are offered under the list, to be
+added with ProPresenter's names and ids, so that the actions ProPresenter made for them
+send through them. Their ports and addresses are this computer's to set.
+
+**The actions.** Once there is a device, **Add Action → Communication** has it, by kind
+and then by device where there are several of a kind, as ProPresenter's menu has them:
+
+- **MIDI Note On…** and **MIDI Note Off…**: the note (0 to 127, with its name: 60 is
+  C3), the velocity and the channel.
+- **Custom Control…**: which, as the switcher numbers it. It is sent as `CC` and that.
+- **HTTP Request…**: the method (GET, POST, PUT or DELETE), the path under the base
+  address (or a whole address of its own), a body, and headers of its own, which win
+  over the device's. A body with no Content-Type of its own is said to be JSON if it
+  looks like it, and plain words otherwise.
+
+A MIDI note and a Custom Control are written into the presentation or the macro exactly
+as ProPresenter writes them, so that ProPresenter's own work here and this app's there.
+An HTTP request, which ProPresenter does not have, is written in the general form
+ProPresenter's communication actions have (a format and named values) and nothing else:
+to ProPresenter it is an action for a device it does not have. What each sent, and how
+it went (an HTTP request's answer and how long it took), is in the log.
+
+**The MIDI Map**, from the button beside + on the Devices page: ProPresenter's map of
+the notes that work the show, with its 33 commands and its notes to begin with (Clear
+All is 0, Next Slide 12, and so on), under its headings. A note heard from a connected
+device's sources, on any channel, does what its note is set to; for those under
+**Select by Index** the note's velocity says which one, from 1: Select Playlist with a
+velocity of 4 opens the 4th playlist, Toggle Prop On/Off with 2 the 2nd prop of the
+collection selected. **Auto Fill** gives the notes one after another from the note
+typed. Bail to Logo and the timelines are greyed: this app has neither. The last note
+heard is shown at the top, with what it did. The map is this computer's, for every
+workspace.
+
+What is a GUESS, or not done:
+
+- That a RossTalk command ends with a carriage return and a line feed, as RossTalk's
+  published form has it (ProPresenter's help does not say); what ProPresenter's Auto
+  Reconnect covers; what each of the MIDI Map's commands does in ProPresenter beyond
+  its name (a playlist "selected" is opened here, a playlist item opened, Next Playlist
+  Item takes the next presentation live at its first slide); and the order Auto Fill
+  goes in.
+- Not done: ProPresenter's other kinds of device (DMX, Global Cache, the Sony and GVG
+  switchers, the scoreboards), RossTalk's other commands (Fade To Black, Key Cut, Key
+  Trans, Trigger GPI: one ProPresenter made is sent as it is, but none can be made
+  here), MIDI that ProPresenter's key mappings name, and a picture for a communication
+  action (ProPresenter has one; the pack of its pictures here does not).
+
 ## Keys
 
 | Key | Action |
@@ -3184,7 +3268,7 @@ sudo apt install git cmake ninja-build g++ pkg-config \
     qml6-module-qtquick-controls qml6-module-qtquick-effects qml6-module-qtmultimedia \
     qml6-module-qtquick-dialogs qml6-module-qtquick-shapes qt6-image-formats-plugins \
     protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev libxcb1-dev \
-    libavformat-dev libavcodec-dev libswscale-dev libavutil-dev
+    libavformat-dev libavcodec-dev libswscale-dev libavutil-dev libasound2-dev
 ```
 
 | These | are for |
@@ -3198,6 +3282,7 @@ sudo apt install git cmake ninja-build g++ pkg-config \
 | `zlib1g-dev` | Unpacking exported playlists, which are zip archives |
 | `libav…-dev`, `libswscale-dev` | FFmpeg, for taking a frame from a video as its thumbnail |
 | `libxcb1-dev` | X11's own library, for keeping the output and stage windows out of Alt+Tab when the app is run through X11 |
+| `libasound2-dev` | ALSA, which a Linux desktop has MIDI through, for MIDI devices |
 
 **2. Get the code.**
 
@@ -3573,7 +3658,7 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: fifty-nine scripts and some two
+and look at what its windows then hold and show: sixty scripts and some two
 thousand eight hundred checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come

@@ -2,8 +2,10 @@ import QtQuick
 import SimplePresenterApp
 
 // The small panel in which an action that needs more than a click is set up: one for
-// a timer (which timer, what is done to it, and whether it is set up anew first), and
-// one for the stage (which layout each stage screen is given, if any).
+// a timer (which timer, what is done to it, and whether it is set up anew first), one
+// for the stage (which layout each stage screen is given, if any), and one for what a
+// communication device is to be sent (a MIDI note, a Custom Control, an HTTP request:
+// see src/communications.h), which is made only when it is opened.
 //
 // It is opened for something to give the action to, a slide or a macro (the `target`
 // that commitAction() in Main.qml takes), and for an action of theirs that is to be
@@ -13,7 +15,7 @@ Rectangle {
     id: dialog
 
     required property var win
-    // "" while it is shut, else "timer" or "stage"
+    // "" while it is shut, else "timer", "stage" or "communication"
     property string mode: ""
     property var target: null
     // The action being changed, or null for a new one
@@ -53,6 +55,21 @@ Rectangle {
         if (Screens.stage.length > 0 && (layoutIds[Screens.stage[0].id] ?? "") !== layoutId)
             giveLayout(Screens.stage[0].id, layoutId)
     }
+
+    // ---- a communication action
+    // The device it is sent to ({ id, name, kind }, as Devices has it), what it sends
+    // ("midi", "customControl" or "http"), and what it says, as the action map has it
+    property var device: ({})
+    property string command: ""
+    property bool noteOn: true
+    property int channel: 1
+    property int note: 0
+    property int intensity: 127
+    property string controlValue: ""
+    property string method: "GET"
+    property string path: ""
+    property string body: ""
+    property string headers: ""
 
     readonly property var timerActions: ["Start", "Stop", "Reset", "Reset and Start", "Stop and Reset"]
     readonly property var kinds: ["countdown", "countdownTo", "elapsed"]
@@ -102,6 +119,31 @@ Rectangle {
         forceActiveFocus()
     }
 
+    // `device` is the connection it is for; `command` what it sends; `on` whether a MIDI
+    // note is a note on. An action that is there says the rest.
+    function openCommunication(target, existing, device, command, on) {
+        dialog.target = target
+        dialog.existing = existing
+        dialog.device = device
+        dialog.command = command
+        noteOn = existing ? existing.on !== false : on !== false
+        channel = existing && existing.channel > 0 ? existing.channel : 1
+        note = existing ? existing.note ?? 0 : 0
+        intensity = existing ? existing.intensity ?? 127 : 127
+        controlValue = existing ? existing.value ?? "" : ""
+        method = existing && existing.method ? existing.method : "GET"
+        path = existing ? existing.path ?? "" : ""
+        body = existing ? existing.body ?? "" : ""
+        headers = existing && existing.headers ? existing.headers.join("\n") : ""
+        mode = "communication"
+        forceActiveFocus()
+    }
+
+    // What the panel says it is
+    readonly property string title: mode === "stage" ? "Stage Action" : mode === "timer" ? "Timer Action"
+                                  : command === "midi" ? (noteOn ? "MIDI Note On" : "MIDI Note Off")
+                                  : command === "customControl" ? "Custom Control" : "HTTP Request"
+
     function close() {
         mode = ""
         closed()
@@ -110,7 +152,18 @@ Rectangle {
     // The action as it is set up, as a map of the kind src/actions.h describes.
     function accept() {
         let action
-        if (mode === "timer") {
+        if (mode === "communication") {
+            action = { kind: "communication", command: command, deviceId: device.id ?? "", deviceName: device.name ?? "" }
+            if (command === "midi")
+                Object.assign(action, { on: noteOn, channel: channel, note: note, intensity: intensity })
+            else if (command === "customControl")
+                Object.assign(action, { value: controlValue.trim() })
+            else
+                Object.assign(action, { method: method, path: path.trim(), body: body,
+                                        headers: headers.split("\n").map(line => line.trim()).filter(line => line !== "") })
+            if (command === "customControl" && action.value === "")
+                return
+        } else if (mode === "timer") {
             if (timerName === "" && timerId === "")
                 return
             action = { kind: "timer", action: timerAction, timerId: timerId, timerName: timerName, amount: 0, set: timerSet,
@@ -198,7 +251,160 @@ Rectangle {
                 color: "#e6e6e6"
                 font.pixelSize: 16
                 bottomPadding: 6
-                text: (dialog.existing ? "" : "Add a ") + (dialog.mode === "stage" ? "Stage Action" : "Timer Action")
+                text: (dialog.existing ? "" : dialog.title.startsWith("HTTP") ? "Add an " : "Add a ") + dialog.title
+                      + (dialog.mode === "communication" ? ", to " + (dialog.device.name ?? "") : "")
+            }
+
+            // ---- A communication action, made only while one is being set up
+            Loader {
+                width: parent.width
+                active: dialog.mode === "communication"
+                visible: active
+
+                sourceComponent: Column {
+                    spacing: 6
+
+                    Line {
+                        caption: "Note"
+                        visible: dialog.command === "midi"
+
+                        NumberField {
+                            objectName: "actionNote"
+                            width: 70
+                            from: 0
+                            to: 127
+                            value: dialog.note
+                            onEdited: (value) => dialog.note = Math.round(value)
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#9a9da3"
+                            font.pixelSize: 13
+                            text: Devices.noteName(dialog.note)
+                        }
+                    }
+
+                    Line {
+                        caption: "Velocity"
+                        visible: dialog.command === "midi"
+
+                        NumberField {
+                            objectName: "actionVelocity"
+                            width: 70
+                            from: 0
+                            to: 127
+                            value: dialog.intensity
+                            onEdited: (value) => dialog.intensity = Math.round(value)
+                        }
+                    }
+
+                    Line {
+                        caption: "Channel"
+                        visible: dialog.command === "midi"
+
+                        NumberField {
+                            objectName: "actionChannel"
+                            width: 70
+                            from: 1
+                            to: 16
+                            value: dialog.channel
+                            onEdited: (value) => dialog.channel = Math.round(value)
+                        }
+                    }
+
+                    Line {
+                        caption: "Control"
+                        visible: dialog.command === "customControl"
+
+                        AppTextField {
+                            objectName: "actionControl"
+                            width: content.width - 92
+                            height: 26
+                            font.pixelSize: 13
+                            placeholderText: "Which, as the switcher numbers it"
+                            text: dialog.controlValue
+                            onTextEdited: dialog.controlValue = text
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: dialog.command === "customControl"
+                        wrapMode: Text.WordWrap
+                        color: "#9a9da3"
+                        font.pixelSize: 12
+                        text: "Sent to the switcher as CC and this."
+                    }
+
+                    Line {
+                        caption: "Method"
+                        visible: dialog.command === "http"
+
+                        AppComboBox {
+                            objectName: "actionMethod"
+                            width: 110
+                            height: 26
+                            font.pixelSize: 13
+                            model: ["GET", "POST", "PUT", "DELETE"]
+                            currentIndex: Math.max(0, model.indexOf(dialog.method))
+                            onActivated: (index) => {
+                                dialog.method = model[index]
+                                dialog.forceActiveFocus()
+                            }
+                        }
+                    }
+
+                    Line {
+                        caption: "Path"
+                        visible: dialog.command === "http"
+
+                        AppTextField {
+                            objectName: "actionPath"
+                            width: content.width - 92
+                            height: 26
+                            font.pixelSize: 13
+                            placeholderText: "/path, under " + (Devices.find(dialog.device.id ?? "", dialog.device.name ?? "").baseUrl ?? "the base address")
+                            text: dialog.path
+                            onTextEdited: dialog.path = text
+                        }
+                    }
+
+                    Text {
+                        visible: dialog.command === "http"
+                        color: "#9a9da3"
+                        font.pixelSize: 11
+                        font.capitalization: Font.AllUppercase
+                        text: "Body"
+                    }
+
+                    AppTextArea {
+                        objectName: "actionBody"
+                        width: parent.width
+                        visible: dialog.command === "http"
+                        placeholderText: "None, or what is sent: JSON, or words"
+                        text: dialog.body
+                        onTextChanged: dialog.body = text
+                    }
+
+                    Text {
+                        visible: dialog.command === "http"
+                        color: "#9a9da3"
+                        font.pixelSize: 11
+                        font.capitalization: Font.AllUppercase
+                        text: "Headers"
+                    }
+
+                    AppTextArea {
+                        objectName: "actionHeaders"
+                        width: parent.width
+                        visible: dialog.command === "http"
+                        maximumLines: 4
+                        placeholderText: "None, or one to a line: Name: value"
+                        text: dialog.headers
+                        onTextChanged: dialog.headers = text
+                    }
+                }
             }
 
             // ---- A timer action

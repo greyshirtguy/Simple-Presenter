@@ -149,6 +149,9 @@ void Show::change(const std::function<show::Effects()> &what)
         case show::Effect::Build:
             emit buildStepped(m_state.buildStep);
             break;
+        case show::Effect::Communicate:
+            emit communicate(effect.action);
+            break;
         }
     }
 }

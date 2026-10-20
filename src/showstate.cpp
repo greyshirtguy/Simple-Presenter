@@ -1006,6 +1006,16 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
         effects << note("action", title + (message.isEmpty() ? QStringLiteral(": there is no such message here") : QString()));
         if (!message.isEmpty())
             showMessage(message, effects);
+    } else if (kind == QLatin1String("communication")) {
+        // Sent by whatever has the devices (see Devices), which says in the log what
+        // became of it: the device may not be there, or not connected.
+        effects << note("action", title + (action.value("done").toBool() ? QString() : QStringLiteral(": not done here")));
+        if (action.value("done").toBool()) {
+            Effect made;
+            made.kind = Effect::Communicate;
+            made.action = action;
+            effects << made;
+        }
     } else if (kind == QLatin1String("macro")) {
         const QVariantMap macro = findMacro(action.value("macroId").toString(), action.value("macroName").toString(), workspace);
         if (macro.isEmpty()) {

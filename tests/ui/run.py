@@ -1621,6 +1621,195 @@ def after_builds(workspace, test_dir):
     ]
 
 
+class DeviceStandIns:
+    """What the devices test sends to, on this computer: a web server that notes every request (its method, path,
+    headers and body) and a RossTalk switcher that notes every line, each written to a file in the test's folder as it
+    comes (http-requests.json, rosstalk.txt) for the script to read; and aseqdump, ALSA's own tool, listening on Midi
+    Through from outside the app (aseqdump.txt). Midi Through is the kernel's own loop, which every Linux computer
+    has: what is sent to it comes back from it, which is how the test has the app hear the notes it sends."""
+
+    def __init__(self, test_dir):
+        import http.server
+        import threading
+        self.http_port = free_port()
+        self.ross_port = free_port()
+        self.requests = []
+        self.lines = []
+        requests_file = os.path.join(test_dir, "http-requests.json")
+        lines_file = os.path.join(test_dir, "rosstalk.txt")
+        stand_in = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def answer(self):
+                length = int(self.headers.get("Content-Length") or 0)
+                body = self.rfile.read(length).decode("utf-8", "replace") if length else ""
+                stand_in.requests.append({"method": self.command, "path": self.path, "headers": dict(self.headers.items()), "body": body})
+                with open(requests_file, "w") as out:
+                    json.dump(stand_in.requests, out)
+                data = b'{"ok": true}'
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            do_GET = do_POST = do_PUT = do_DELETE = answer
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", self.http_port), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.listener = socket.socket()
+        self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.listener.bind(("127.0.0.1", self.ross_port))
+        self.listener.listen(4)
+
+        def read(connection):
+            buffer = b""
+            while True:
+                try:
+                    chunk = connection.recv(1024)
+                except OSError:
+                    return
+                if not chunk:
+                    return
+                buffer += chunk
+                while b"\r\n" in buffer:
+                    line, buffer = buffer.split(b"\r\n", 1)
+                    stand_in.lines.append(line.decode("utf-8", "replace"))
+                    with open(lines_file, "w") as out:
+                        out.write("\n".join(stand_in.lines) + "\n")
+
+        def serve():
+            while True:
+                try:
+                    connection, _ = self.listener.accept()
+                except OSError:
+                    return
+                threading.Thread(target=read, args=(connection,), daemon=True).start()
+
+        threading.Thread(target=serve, daemon=True).start()
+        self.dump_file = open(os.path.join(test_dir, "aseqdump.txt"), "w")
+        self.dump = subprocess.Popen(["aseqdump", "-p", "Midi Through"], stdout=self.dump_file, stderr=subprocess.STDOUT)
+
+    def stop(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.listener.close()
+        self.dump.terminate()
+        self.dump.wait(timeout=5)
+        self.dump_file.close()
+
+
+DEVICE_STAND_INS = None
+# ProPresenter's devices for the test's workspace, as its CommunicationDevices file has them (seen in a file of the
+# maintainer's): a MIDI device on Midi Through, a RossTalk switcher with no address (as ProPresenter's file had), and
+# a kind this app does not have
+SHOW_MIDI_ID = "0C9FC689-0000-4B33-A8F2-FAC5CF89A30A"
+SWITCHER_ID = "3224F612-0000-4821-9066-A3627C596F21"
+
+
+def pro_device(name, device_id, reconnect, xml):
+    import base64
+    return {"name": name, "reconnect": reconnect, "was_connected": False, "id": device_id,
+            "parser": base64.b64encode(b"\xff\xfe" + xml.encode("utf-16-le")).decode()}
+
+
+def communication_action(device_id, device_name, inner, name):
+    """A communication action, as ProPresenter writes one, in the text of a cue"""
+    return ('  actions {\n    uuid {\n      string: "%s"\n    }\n    name: "%s"\n    isEnabled: true\n'
+            '    type: ACTION_TYPE_COMMUNICATION\n    communication {\n      device_identification {\n        parameter_uuid {\n'
+            '          string: "%s"\n        }\n        parameter_name: "%s"\n      }\n%s    }\n  }\n'
+            % (str(uuid.uuid4()).upper(), name, device_id, device_name, inner))
+
+
+def prepare_devices(workspace, test_dir):
+    """ProPresenter's devices for the copy of the workspace (its CommunicationDevices file, kept as it was given:
+    devices-before), a presentation "Devices" of three blocks whose first slide sends a MIDI note On and whose second a
+    RossTalk Custom Control, both as ProPresenter writes them (kept as given: devices-pro-before), the stand-ins they
+    are sent to, started, and where the stand-ins are, for the script (devices-ports.json). Nothing is written outside
+    the test's folder, and nothing under the copy's Media."""
+    global DEVICE_STAND_INS
+    configuration = os.path.join(workspace, "Configuration")
+    library = os.path.join(workspace, "Libraries", "MainHall")
+    for target in (configuration, library):
+        if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("the devices test would write outside its own folder: " + os.path.realpath(target))
+    midi = ('<RVProtocolParserMIDI bundleName="ProPresenter 21.4.app" bundleIdentifier="com.renewedvision.propresenter" behavior="2">'
+            '<RVMIDIHardwareCommunicator sources="Midi Through Port-0" destinations="Midi Through Port-0"></RVMIDIHardwareCommunicator>'
+            '</RVProtocolParserMIDI>')
+    ross = ('<RVProtocolParserRossTalk bundleName="ProPresenter 21.4.app" bundleIdentifier="com.renewedvision.propresenter" behavior="2">'
+            '<RVTCPNetworkHardwareCommunicator interface="" port="7788" address="" mode="1"></RVTCPNetworkHardwareCommunicator>'
+            '</RVProtocolParserRossTalk>')
+    dmx = '<RVProtocolParserDMX behavior="2"></RVProtocolParserDMX>'
+    devices = [pro_device("Show MIDI", SHOW_MIDI_ID, True, midi), pro_device("Carbonite", SWITCHER_ID, False, ross),
+               pro_device("Lights", "11111111-0000-3333-4444-555555555555", False, dmx)]
+    with open(os.path.join(configuration, "CommunicationDevices"), "w") as out:
+        json.dump(devices, out)
+    shutil.copy(os.path.join(configuration, "CommunicationDevices"), os.path.join(test_dir, "devices-before"))
+    text = blocks_presentation("Devices", [(1, 0, 0), (0, 1, 0), (0, 0, 1)], 100, 100)
+    cues = re.findall(r"^cues \{\n.*?^\}\n", text, re.S | re.M)
+    assert len(cues) == 3 and all(cue.endswith("  isEnabled: true\n}\n") for cue in cues)
+    note = communication_action(SHOW_MIDI_ID, "Show MIDI", "      midi_command {\n        channel: 1\n        note: 12\n        intensity: 100\n      }\n",
+                                "MIDI Note On")
+    control = communication_action(SWITCHER_ID, "Carbonite", '      format: "CC x"\n      description: "Executes the specified custom control."\n'
+                                   '      commands {\n        name: "Custom Control"\n        value: "1:3"\n        replacement_range {\n'
+                                   '          start: 3\n          end: 4\n        }\n      }\n', "Custom Control")
+    given = cues[0][:-len("  isEnabled: true\n}\n")] + note + "  isEnabled: true\n}\n"
+    given2 = cues[1][:-len("  isEnabled: true\n}\n")] + control + "  isEnabled: true\n}\n"
+    text = text.replace(cues[0], given).replace(cues[1], given2)
+    target = os.path.join(library, "Devices.pro")
+    with open(target, "wb") as out:
+        out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+    shutil.copy(target, os.path.join(test_dir, "devices-pro-before"))
+    DEVICE_STAND_INS = DeviceStandIns(test_dir)
+    with open(os.path.join(test_dir, "devices-ports.json"), "w") as out:
+        json.dump({"http": DEVICE_STAND_INS.http_port, "rosstalk": DEVICE_STAND_INS.ross_port}, out)
+
+
+def after_devices(workspace, test_dir):
+    """What reached the stand-ins, and what the files hold, read with protoc and not by the app: the MIDI note seen by
+    ALSA's own tool as the app sent it; ProPresenter's devices file as it was given; the presentation's two actions of
+    ProPresenter's as they were, to the byte; and the third slide's HTTP request in ProPresenter's general form, with
+    nothing in it that ProPresenter does not define."""
+    stand_ins = DEVICE_STAND_INS
+    stand_ins.stop()
+    with open(os.path.join(test_dir, "aseqdump.txt")) as dump:
+        heard = dump.read()
+
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    def cues(text):
+        return re.findall(r"^cues \{\n.*?^\}\n", text, re.S | re.M)
+
+    with open(os.path.join(test_dir, "devices-before"), "rb") as was, \
+         open(os.path.join(workspace, "Configuration", "CommunicationDevices"), "rb") as now:
+        same_devices = was.read() == now.read()
+    before, after = cues(decoded(os.path.join(test_dir, "devices-pro-before"))), cues(decoded(os.path.join(workspace, "Libraries", "MainHall", "Devices.pro")))
+    third = after[2] if len(after) == 3 else ""
+    http = re.search(r"^  actions \{\n(?:(?!^  actions \{).)*?type: ACTION_TYPE_COMMUNICATION.*?^  \}\n", third, re.S | re.M)
+    http = http.group(0) if http else ""
+    # Every field ProPresenter's communication action has, and nothing else
+    known = re.compile(r"^\s*(actions \{|uuid \{|string: |name: |isEnabled: |type: |communication \{|device_identification \{|parameter_uuid \{"
+                       r"|parameter_name: |format: |description: |commands \{|value: |possible_values: |\})")
+    return [
+        said("Note on" in heard and "note 12, velocity 100" in heard, "ALSA's own tool saw the note go out to Midi Through, as sent",
+             " / ".join(line.strip() for line in heard.splitlines() if "Note" in line)[:300]),
+        said(same_devices, "ProPresenter's devices file is as it was given: it is read, and never written"),
+        said(len(after) == 3 and after[0] == before[0] and after[1] == before[1], "the two slides' actions of ProPresenter's are as they were"),
+        said(http != "" and 'name: "HTTP Request"' in http and 'format: "HTTP"' in http and 'value: "POST"' in http
+             and http.count("possible_values:") == 4 and 'value: "/v1/go"' in http and 'value: "X-Slide: 3"' in http
+             and 'parameter_name: "Webhooks"' in http,
+             "in the file: the HTTP request as a communication action, its method, path, body and header as named values",
+             http.replace("\n", " ")[:600]),
+        said(http != "" and all(known.match(line) for line in http.split("\n") if line.strip()),
+             "and nothing in it that ProPresenter's format does not have", "; ".join(line.strip() for line in http.split("\n") if line.strip() and not known.match(line))),
+    ]
+
+
 def prepare_advance(workspace, test_dir):
     """The two presentations of blocks the announcements test has (prepare_announce), and a third, "Timed", whose first
     slide has a Go To Next Timer of three seconds as ProPresenter writes one: the cue's target is the next cue, after a
@@ -2263,6 +2452,7 @@ TESTS = {
     "quickedit": test("Act"),
     "builds": test("Demo", timeout=300, prepare=prepare_builds, after=after_builds),
     "themebuilds": test("Act", timeout=240),
+    "devices": test("Act", timeout=300, env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_devices, after=after_devices),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

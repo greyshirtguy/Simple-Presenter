@@ -200,7 +200,7 @@ QString outside(const Effects &effects)
 {
     static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia",
                                   "announcement", "announcementovermedia", "announcementwithmedia", "noannouncements",
-                                  "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem", "build"};
+                                  "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem", "build", "communicate"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -1137,6 +1137,25 @@ private slots:
         QVERIFY(show.props.isEmpty() && !show.hasMedia);
         QVERIFY(noted(effects, "\"Tidy\" run by hand: 2 actions"));
         QVERIFY(show.runMacro("no such", w).isEmpty());
+    }
+
+    // A slide's communication actions are handed out to be sent, in their order with
+    // its other actions; one of a kind not sent here is only said in the log
+    void communicationActionsAreHandedOut()
+    {
+        State show;
+        Presentation song;
+        const QVariantMap note {{"kind", "communication"}, {"command", "midi"}, {"title", "Send MIDI note on 6"}, {"done", true},
+                                {"deviceName", "MIDI"}, {"note", 6}};
+        const QVariantMap other {{"kind", "communication"}, {"command", "other"}, {"title", "Fade To Black, to “Sony”"}, {"done", false}};
+        song.slides = {slide("a", {}, {note, clearAction(4), other})};
+        const Effects effects = show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(outside(effects), "slide communicate");
+        for (const Effect &effect : effects) {
+            if (effect.kind == Effect::Communicate)
+                QCOMPARE(effect.action.value("note").toInt(), 6);
+        }
+        QVERIFY(noted(effects, "Fade To Black, to “Sony”: not done here"));
     }
 
     void aSlideClearedByAMacroRunByHandIsNotMarked()

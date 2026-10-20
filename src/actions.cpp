@@ -1,6 +1,7 @@
 #include "actions.h"
 
 #include "audiocue.h"
+#include "communications.h"
 #include "playlistfile.h"
 #include "timers.pb.h"
 #include "workspacefiles.h"
@@ -295,6 +296,11 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("groupName", text(group.parameter_name()));
         map.insert("picture", QStringLiteral("Clear"));
         map.insert("title", QStringLiteral("Clear the group %1").arg(quoted(text(group.parameter_name()))));
+    } else if (action.has_communication()) {
+        // Something to tell a device: a MIDI note, a Custom Control to a Ross switcher,
+        // or an HTTP request (see communications.h)
+        map.insert(communications::describe(action));
+        map.insert("id", text(action.uuid().string()));
     } else if (action.has_message()) {
         // A message of the workspace's, to be shown: found by its id, or failing that
         // by its name, when the action is run (see show::State).
@@ -392,6 +398,8 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
             return QStringLiteral("That is not a way audio can be played");
         if (wanted.contains("effect"))
             audiocue::setEffect(action, wanted.value("effect").toBool());
+    } else if (kind == QLatin1String("communication")) {
+        return communications::build(wanted, action);
     } else {
         return QStringLiteral("That kind of action cannot be made here");
     }

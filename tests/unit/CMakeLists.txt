@@ -319,3 +319,12 @@ qt_add_executable(tst_builds
 target_include_directories(tst_builds PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_builds PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
 add_test(NAME builds COMMAND tst_builds)
+
+qt_add_executable(tst_communications
+    tst_communications.cpp
+    ${PROJECT_SOURCE_DIR}/src/communications.h
+    ${PROJECT_SOURCE_DIR}/src/communications.cpp
+)
+target_include_directories(tst_communications PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_communications PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME communications COMMAND tst_communications)

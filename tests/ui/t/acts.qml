@@ -89,7 +89,8 @@ QtObject {
             () => {
                 const panes = Lib.findAll(menu.contentItem, i => i.px !== undefined && i.rows !== undefined)
                 kept.panes = panes
-                check("resting the pointer on Add Action opens its menu, of seven kinds", labels() === "[Add Action], Timer…, Clear, Clear Group, Stage…, Audience Look, Prop, Macro", labels())
+                check("resting the pointer on Add Action opens its menu, of eight kinds (Communication off, there being no devices)",
+                      labels() === "[Add Action], Timer…, Clear, Clear Group, Stage…, Audience Look, Prop, Macro, Communication(off)", labels())
                 check("beside the slide's menu, which stays where it is", panes.length === 2 && menu.opened && near(panes[1].x, panes[0].x + panes[0].width - 4)
                       && panes[1].y >= panes[0].y && panes[1].x + panes[1].width <= win.width, panes.map(p => p.x + "," + p.y).join(" "))
                 const row = menuRow("Clear")

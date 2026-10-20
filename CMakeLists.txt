@@ -22,6 +22,10 @@ pkg_check_modules(FFmpeg REQUIRED IMPORTED_TARGET libavformat libavcodec libswsc
 # X11's own library, for the one thing Qt has no setting for: keeping the output and stage
 # windows out of the desktop's lists of windows (src/windowlists.cpp).
 pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
+# ALSA's library, which a Linux desktop has MIDI through: its sequencer, for MIDI devices
+# (src/alsamidi.cpp). A dependency the maintainer agreed to on 2026-10-20; every Ubuntu
+# desktop has the library, and building needs libasound2-dev.
+pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
 qt_standard_project_setup(REQUIRES 6.9)
 
 # ProPresenter 7 document schema: the presentation and playlist documents and everything
@@ -77,6 +81,10 @@ qt_add_executable(SimplePresenter
     src/mediasettings.h
     src/colortriggers.cpp
     src/colortriggers.h
+    src/communications.cpp
+    src/communications.h
+    src/alsamidi.cpp
+    src/alsamidi.h
     src/prodocument.cpp
     src/prodocument.h
     src/richtext.cpp
@@ -127,6 +135,7 @@ qt_add_qml_module(SimplePresenter
         qml/AudioPanel.qml
         qml/ActionIcon.qml
         qml/AppSlider.qml
+        qml/AppTextArea.qml
         qml/AnnouncementLayer.qml
         qml/GoToNextPanel.qml
         qml/ArrangementBar.qml
@@ -141,6 +150,7 @@ qt_add_qml_module(SimplePresenter
         qml/DecodingNotice.qml
         qml/Divider.qml
         qml/DragSource.qml
+        qml/DevicesSettings.qml
         qml/Editor.qml
         qml/EditorCanvas.qml
         qml/EditorInspector.qml
@@ -183,6 +193,7 @@ qt_add_qml_module(SimplePresenter
         qml/MediaInspector.qml
         qml/MediaLook.qml
         qml/MediaPicture.qml
+        qml/MidiControl.qml
         qml/MessagesPanel.qml
         qml/NewPresentation.qml
         qml/NumberField.qml
@@ -224,6 +235,8 @@ qt_add_qml_module(SimplePresenter
         src/catalog.cpp
         src/clocks.h
         src/clocks.cpp
+        src/devices.h
+        src/devices.cpp
         src/clocktext.h
         src/clocktext.cpp
         src/audiolayer.h
@@ -486,7 +499,7 @@ qt_add_shaders(SimplePresenter "shaders"
 )
 
 target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia Qt6::DBus Qt6::OpenGL Qt6::Network proproto Fontconfig::Fontconfig ZLIB::ZLIB
-                      PkgConfig::FFmpeg PkgConfig::XCB)
+                      PkgConfig::FFmpeg PkgConfig::XCB PkgConfig::ALSA)
 # NDI's header files, which say how its library is talked to. They are NDI's, under the
 # MIT licence (each says so at its top); the library itself is not here, and is looked
 # for when the app runs (see src/ndi.h).

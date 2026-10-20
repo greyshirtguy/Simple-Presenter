@@ -11,7 +11,9 @@ import QtQuick.Shapes
 // in brackets. An action can say which picture is its own more exactly than its kind
 // does, in `picture`: one that clears the media has ProPresenter's picture of clearing
 // the media and not the plain crossed circle (see actions::describe, which chooses).
-// "other" is three dots.
+// "other" is three dots, and so, for now, is "communication": ProPresenter has a picture
+// for an action that tells a device something (a mast sending out its rings), but the
+// pack of its pictures here does not (see icons/README.md).
 //
 // And, for how a video or a piece of audio plays on from its end, "stop" (a square),
 // "loop" (an arrow going round) or "next" (an arrowhead against a bar: the next of its
@@ -52,7 +54,7 @@ Item {
 
     Text {
         anchors.centerIn: parent
-        visible: glyph.kind === "other"
+        visible: glyph.kind === "other" || glyph.kind === "communication"
         color: glyph.ink
         font.pixelSize: 11
         font.bold: true

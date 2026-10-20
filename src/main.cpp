@@ -30,6 +30,9 @@
 //   And ProPresenter's own network API can be switched on (src/httpapiserver.h), so that
 //   what follows and operates ProPresenter over the network (Bitfocus Companion) can
 //   follow and operate this: the operator window answers it (qml/HttpApiControl.qml).
+//   Communication devices (src/devices.h: MIDI through ALSA, RossTalk, HTTP requests)
+//   are sent what slides' and macros' actions say (src/communications.h), and a MIDI
+//   device's notes work the show by ProPresenter's MIDI Map (qml/MidiControl.qml).
 //
 // The two halves of the code.
 //

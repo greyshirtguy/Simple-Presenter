@@ -349,6 +349,8 @@ signals:
     // The slide on show has run another of its On Click builds: `step` is how many it
     // has run (see State::buildStep)
     void buildStepped(int step);
+    // A communication device is to be told what `action` says (see Devices)
+    void communicate(const QVariantMap &action);
     void mediaShown(const QVariantMap &media);
     void mediaCleared();
     // The same for the announcements layer: the slide the announcements are at is to

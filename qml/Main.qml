@@ -1431,8 +1431,31 @@ Window {
                     label: prop.name, items: propActionItems(target, prop, collection) }))) }))) },
             { label: "Macro", glyph: "macro", disabled: macros.length === 0, items: [{ header: "Macro" }].concat(macros.map(collection => ({
                 label: collection.name, items: [{ header: collection.name }].concat(collection.macros.map(macro => ({
-                    label: macro.name, run: () => add(macroAction(macro, collection)) }))) }))) }
+                    label: macro.name, run: () => add(macroAction(macro, collection)) }))) }))) },
+            { label: "Communication", glyph: "other", disabled: Devices.connections.length === 0, items: communicationItems(target) }
         ]
+    }
+
+    // The communication devices' commands, as ProPresenter's menu has them: a kind of
+    // device, then the device (only where there is more than one of the kind), then
+    // what it can be sent. Each opens the panel that sets it up (ActionDialog).
+    function communicationItems(target) {
+        const items = [{ header: "Communication" }]
+        const commands = device => device.kind === "midi"
+            ? [{ label: "MIDI Note On…", run: () => actionDialog.openCommunication(target, null, device, "midi", true) },
+               { label: "MIDI Note Off…", run: () => actionDialog.openCommunication(target, null, device, "midi", false) }]
+            : device.kind === "rosstalk"
+            ? [{ label: "Custom Control…", run: () => actionDialog.openCommunication(target, null, device, "customControl") }]
+            : [{ label: "HTTP Request…", run: () => actionDialog.openCommunication(target, null, device, "http") }]
+        for (const kind of ["midi", "rosstalk", "http"]) {
+            const devices = Devices.connections.filter(device => device.kind === kind)
+            if (devices.length === 0)
+                continue
+            const name = devices[0].kindName
+            items.push({ label: name, items: [{ header: name }].concat(devices.length === 1 ? commands(devices[0])
+                : devices.map(device => ({ label: device.name, items: [{ header: device.name }].concat(commands(device)) }))) })
+        }
+        return items
     }
 
     function showAddActionMenu(target, item, x, y) {
@@ -1467,6 +1490,15 @@ Window {
             items.push({ label: "Change…", run: () => actionDialog.openTimer(target, action, "") })
         if (action.kind === "stage")
             items.push({ label: "Change…", run: () => actionDialog.openStage(target, action) })
+        // A communication action this app makes: its panel, for the device it names (or,
+        // where that is not here, as the action has it)
+        if (action.kind === "communication" && (action.command === "midi" || action.command === "http" || action.customControl)) {
+            const device = Devices.find(action.deviceId, action.deviceName)
+            const known = device.id !== undefined ? device : { id: action.deviceId, name: action.deviceName,
+                                                               kind: action.command === "midi" ? "midi" : action.command === "http" ? "http" : "rosstalk" }
+            items.push({ label: "Change…", run: () => actionDialog.openCommunication(target, action, known,
+                                                                                    action.command === "words" ? "customControl" : action.command) })
+        }
         // A piece of audio: how it plays on from its end (there is no playlist here
         // for a next to follow), and whether it is music or a sound effect.
         if (action.kind === "audio") {
@@ -3346,6 +3378,7 @@ Window {
     // its stage layouts.
     function openShowControls(path) {
         Screens.remember = remember
+        Devices.remember = remember
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
                              Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path), ClearGroups.open(path),
@@ -3354,6 +3387,9 @@ Window {
                 report(error)
         }
         Themes.open(path)
+        // The communication devices (see src/devices.h): the workspace's, as this
+        // computer keeps them
+        Devices.open(path)
         followScreens()
         readGroupKeys()
     }
@@ -4214,6 +4250,11 @@ Window {
 
         function onTimerAction(action) {
             Timers.act(action)
+        }
+
+        // A slide's or a macro's action for a communication device
+        function onCommunicate(action) {
+            Devices.send(action)
         }
     }
 
@@ -5151,6 +5192,7 @@ Window {
         networkEnabled: win.networkEnabled
         networkName: win.networkName
         networkPort: win.networkPort
+        midiNotHere: midiControl.notHere
         onNetworkEnabledEdited: (on) => win.networkEnabled = on
         onNetworkNameEdited: (name) => win.networkName = name
         onNetworkPortEdited: (port) => win.networkPort = port
@@ -5186,6 +5228,13 @@ Window {
         sourceComponent: HttpApiControl {
             window: win
         }
+    }
+
+    // What a MIDI note heard from a device's sources does, by the MIDI Map
+    MidiControl {
+        id: midiControl
+
+        window: win
     }
 
     // The themes, let down from the toolbar's button; a click anywhere else puts them away.

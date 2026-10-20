@@ -101,6 +101,7 @@ struct Effect
         Note,           // tell the log `text`, under `topic`
         Problem,        // tell the log, and whoever is running the show, that `text` went wrong
         Build,          // run the live slide's next On Click build: the step it is at now is State::buildStep
+        Communicate,    // tell a communication device what `action` says (see communications.h)
     };
     Kind kind = Note;
     QVariantMap media;
