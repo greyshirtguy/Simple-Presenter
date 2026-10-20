@@ -1,7 +1,16 @@
 # Simple Presenter
 
 **A fun in-progress EXPERIMENT: A vibe coded "ProPresenter" clone for Linux that works natively with ProPresenter's own
-files.  It can run a pro file, a full exported playlist - even an entire copied workspace.**
+files.** It can run:
+
+- a single presentation (a `.pro` file),
+- a full exported playlist,
+- even an entire copied workspace.
+
+> [!WARNING]
+> A personal experiment, shared as an example of what vibe coding can do in the hands of a hobby programmer:
+> **not a product for use.** Nobody supports it, it comes with no warranty, and it has nothing to do with Renewed
+> Vision. It changes the files it opens: give it a copy of your ProPresenter folder, never your only one.
 
 Simple Presenter on Linux runs a show from a ProPresenter 7 folder as it is. Copy a whole
 ProPresenter workspace onto a Linux computer and it is all there, in a window that
@@ -13,32 +22,29 @@ This is one person's quick experiment in "vibe coding": it was built entirely by
 
 ![The Simple Presenter operator window: a toolbar across the top, with the workspace picker and the Search, Themes, Show, Edit and Reflow buttons at its left and the buttons for Simple View, the media bin, the look that is live, the output and stage screens and the settings at its right; libraries and playlists at the top left with the selected playlist's presentations below them; in the middle a line with the key the chords are shown in, the name of the presentation, the megaphone that says whether it goes to the announcements, the Slide Show button and the arrangement, over a grid of its slides, framed in their group colours, some marked with the hotkey that goes to them or with icons for the media and the macro they bring, and the live one ringed in orange, with the transition and the size of the thumbnails in a bar under them and the media bin under that; and down the right the output preview, with the words over a video that is playing, the stage preview with the words and their chords, the next slide's words and its clocks, the six clear buttons, the transport for the video and the show controls, on their tab of macros, each macro with its coloured icon and small icons for its actions](docs/screenshot.png)
 
-> [!WARNING]
-> **This is a personal experiment, not a product.**
->
-> Simple Presenter is one person's hobby project, and it is *vibe coded*: I describe
-> what it should do to an AI model (Claude), and the model writes the code. It exists
-> to find out how far that goes.
->
-> So please take it for what it is:
->
-> - **Nobody supports it.** There is no one to answer questions, fix bugs or add
->   features, and no promise that anything here works, or will go on working.
-> - **It comes with no warranty** of any kind. It is not made to be relied on, and
->   anything done with it is at your own risk.
-> - **It has been tried on one laptop**, with one person's ProPresenter files.
-> - **It changes the files it opens.** If you run it to see what it does, give it a
->   copy of your ProPresenter folder, never your only one.
-> - **It has nothing to do with Renewed Vision**, the makers of ProPresenter.
->
-> I am sharing it as an example of what vibe coding can do in the hands of a hobby
-> programmer. It is not a product for use.
+## On this page
 
-**On this page:** [what it can do](#what-it-can-do) · [what's new](#whats-new) ·
-[what it cannot do yet](#todo) · [installing it](#installing) ·
-[getting help](#helping-yourself-with-an-ai) ·
-[how each part is used](#workspaces) · [how it is built and tested](#building-from-source) ·
-[the licence](#licence)
+- [What it can do](#what-it-can-do), and the [custom features](#custom-features) ProPresenter has not
+- [What's new](#whats-new)
+- [What it cannot do yet](#todo)
+- [Installing it](#installing)
+- [Getting help, from an AI](#helping-yourself-with-an-ai)
+- How each part is used:
+  - **The show:** [Workspaces](#workspaces) · [Simple View](#simple-view) · [Media](#media) · [Audio](#audio) ·
+    [Timers](#timers) · [Props](#props) · [Messages](#messages) · [Announcements](#announcements) ·
+    [Go To Next timers and the Slide Show](#go-to-next-timers-and-the-slide-show) · [Clear groups](#clear-groups) ·
+    [Actions](#actions) · [Groups and labels](#groups-and-labels) · [Arrangements](#arrangements) ·
+    [Macros](#macros) · [Stage layouts](#stage-layouts)
+  - **The slides:** [Editing](#editing) · [Reflow](#reflow) · [Bibles](#bibles) · [Chords](#chords) ·
+    [Transitions](#transitions) · [Builds](#builds) · [Themes](#themes) · [Search](#search)
+  - **The screens and beyond:** [Screens](#screens) · [Looks](#looks) · [Masks](#masks) · [NDI](#ndi) ·
+    [Blackmagic DeckLink](#blackmagic-decklink) · [The API](#the-api) · [Devices](#devices)
+  - **And:** [Keys](#keys) · [Log](#log)
+- How it is built and tested: [Building from source](#building-from-source) ·
+  [Built for modest hardware](#built-for-modest-hardware) · [How it works](#how-it-works) ·
+  [Hardware video decoding](#hardware-video-decoding) · [Benchmark](#benchmark) · [Self-test](#self-test) ·
+  [Tests](#tests) · [Layout](#layout)
+- [The licence](#licence)
 
 ## What it can do
 
@@ -71,11 +77,12 @@ the slides until it is cleared, what the people on the stage are shown, a list o
 things to do at one click, music and sound effects, and things to say over everything
 else, with a name or a room put in as they are shown. A slide or a macro can carry [actions](#actions) that work them: start a timer,
 clear a layer, give the stage another layout, put a prop on, run a macro, go over to
-another look.
+another look, or send a MIDI note, a RossTalk command or a web request to one of the
+workspace's [devices](#devices), whose MIDI notes can work the show in their turn.
 
 | [Timers](#timers) | [Props](#props) | [Stage layouts](#stage-layouts) |
 |:---:|:---:|:---:|
-| <img src="docs/timers.png" width="240" alt="The timers tab: a countdown of five minutes with its settings open, and a second timer under it"> | <img src="docs/props.png" width="240" alt="The props tab: the default collection, with one prop in it"> | <img src="docs/stage-layouts.png" width="236" alt="The stage tab: the stage screen, with the layout it shows picked from a list and a button to edit it"> |
+| <img src="docs/timers.png" width="240" alt="The timers tab, under the row of the show controls' six tabs (timers, props, stage, macros, audio and messages): a countdown of five minutes with its settings open, a countdown to a time of day, and an elapsed timer that is running"> | <img src="docs/props.png" width="240" alt="The props tab: a collection called Service, with two props in it, a logo and a lower third, each with its picture; the lower third is on"> | <img src="docs/stage-layouts.png" width="240" alt="The stage tab: the stage screen, with the layout it shows, Band, picked from a list and a button to edit it, and under it the box for a message to the stage"> |
 
 **It runs a second presentation over the first, and a presentation by itself.** A
 presentation can be sent to the [announcements](#announcements) layer instead of the
@@ -98,7 +105,8 @@ can be pointed at this instead.
 
 **Yes, it has an editor, and it edits ProPresenter's files.** Text boxes, shapes and
 pictures are added to a slide, moved, sized, turned and styled; words are edited where
-they stand; slides are added, copied and deleted. Props, stage layouts, themes and
+they stand; slides are added, copied and deleted; the things on a slide are given
+[builds](#builds), to come on one after another and go again. Props, stage layouts, themes and
 masks are edited in it too. Every change is saved as it is made, can be undone, and touches
 nothing in the file but what was changed. More under [Editing](#editing).
 
@@ -144,7 +152,7 @@ a slide is up, and plays a 4K video under the words with most of the machine to 
 see [Built for modest hardware](#built-for-modest-hardware).
 
 **What it cannot do** is a longer list. ProPresenter does a great deal more than this:
-there are no video inputs and no network API here yet, among much else. See
+there are no video inputs here yet, no timelines and no capture, among much else. See
 [TODO](#todo).
 
 ### Custom features
@@ -177,6 +185,9 @@ always wished ProPresenter had them. The list will grow.
   the next; here the words can be shared out across the slides, broken at a full stop
   or a comma where there is one near, with no slide left holding a scrap. See
   [How the words are flowed](#how-the-words-are-flowed).
+- **HTTP Requests**, a kind of [device](#devices) ProPresenter has not: a slide or a
+  macro sends a GET, POST, PUT or DELETE, with a body and headers, to a web address,
+  for whatever on the network is to be told the show has got there.
 
 ### What it is trying to be
 
@@ -586,6 +597,10 @@ the top of this page.
       card; keying not yet. Still to come: the video coming in (see Video input,
       below); sound, in and out, the first two channels to begin with; and more
       formats.
+- [ ] **Devices**: MIDI, RossTalk's Custom Control and HTTP requests are there (see
+      [Devices](#devices)). Still to come: ProPresenter's other kinds of device
+      (DMX, Global Cache, the Sony and GVG switchers, the scoreboards), RossTalk's other
+      commands made here, and MIDI notes in the key mappings.
 - [ ] **The API**: ProPresenter's HTTP API answers what the app has (see
       [The API](#the-api)). Still to come: what makes, changes or deletes things in the
       workspace's files through it (looks, messages, timers, props, playlists, macros,
@@ -608,7 +623,6 @@ experiment.
 - [ ] **Video input**: from a Blackmagic card's input first, on a video input layer
       under the media, with its clear button and its place in the clear groups
 - [ ] **Clear to logo**
-- [ ] **Communication devices**: MIDI, RossTalk, custom HTTP requests
 - [ ] **Playback markers**
 - [ ] **Timer markers** (an idea of my own)
 - [ ] **Text formatter**
@@ -1505,8 +1519,8 @@ An action that shows a [message](#messages), which a slide or a macro may have f
 ProPresenter, is run too: the message is shown, with what its tokens were last given
 here. One cannot be made here yet.
 
-ProPresenter has many more kinds of action than these (communications, capture and so
-on). A slide or a macro that has one keeps it: it is shown as a
+ProPresenter has many more kinds of action than these (capture, and others for the
+features this app does not have). A slide or a macro that has one keeps it: it is shown as a
 fainter icon, said for what it is, written back untouched and not done. An action for
 a timer, a prop, a macro, a layout, a look or a clear group that is not in the
 workspace does nothing, and the [log](#log) says so; so does one that plays a sound
