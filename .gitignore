@@ -19,3 +19,7 @@ CMakeLists.txt.user*
 # The key api.bible gives this app, built in where it is there (see CMakeLists.txt): a
 # key is its holder's, not something to publish with the source
 /packaging/api-bible-key.txt
+
+# What Python makes of the test scripts when it runs them: the computer's, not the
+# repository's
+__pycache__/
