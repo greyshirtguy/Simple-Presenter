@@ -39,6 +39,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.103" date="2026-10-20">
+      <description>
+        <p>
+          More actions for slides and macros, as ProPresenter has them: a playlist of the
+          media bin or of the audio bin played from its start, left to play on when it is
+          playing already unless the action's Always Retrigger is on; and a message shown
+          with words of the action's own for its tokens. Each is picked from Add Action or
+          dragged out of its list onto a slide or a macro.
+        </p>
+      </description>
+    </release>
     <release version="0.102" date="2026-10-20">
       <description>
         <p>

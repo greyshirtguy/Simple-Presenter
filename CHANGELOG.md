@@ -6,6 +6,15 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.103](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.103) · 2026-10-20
+
+- [Media Playlist and Audio Playlist actions](docs/features/actions.md): a playlist of the
+  media bin or of the audio bin played from its first row, and left to play on when it is
+  playing already, unless the action's Always Retrigger is on.
+- [Message actions](docs/features/actions.md) made here: a message shown with words of the
+  action's own for its tokens, set in a small panel.
+- Each picked from Add Action, or dragged onto a slide or a macro out of its list.
+
 ## [0.102](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.102) · 2026-10-20
 
 - [Communication devices](docs/features/devices.md): a slide or a macro sends a MIDI note
