@@ -76,7 +76,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 
 #### Screens and connections
 
-- <a id="screens"></a>**[Screens](docs/features/screens.md)**: up to sixteen, for the audience and for the stage, each in a window or on a display, over NDI or out of a DeckLink card. On GNOME, an extension that comes with the app [keeps them out of Alt+Tab](docs/features/screens.md#a-screen-in-a-window).
+- <a id="screens"></a>**[Screens](docs/features/screens.md)**: up to sixteen, for the audience and for the stage, each in a window or on a display, over NDI or out of a DeckLink card, and any one of them in the operator's preview. On GNOME, an extension that comes with the app [keeps them out of Alt+Tab](docs/features/screens.md#a-screen-in-a-window).
 - <a id="looks"></a>**[Looks](docs/features/looks.md)**: which layers each audience screen gets, so that the room has the words over the video while a stream has the words alone.
 - <a id="masks"></a>**[Masks](docs/features/masks.md)**: a slide laid over everything else a screen shows, to give it another outline or to keep a projector off a doorway.
 - <a id="ndi"></a>**[NDI](docs/features/ndi.md)**: a screen sent over the network for a vision mixer or OBS to pick up. NDI's library is not included: the app offers to fetch it, under NDI's own licence.

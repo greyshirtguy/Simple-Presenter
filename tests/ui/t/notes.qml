@@ -114,6 +114,8 @@ QtObject {
     function run() {
         steps = [
             () => {
+                // (The stage in the operator's preview, which is what these look at: the first audience screen is what it shows otherwise.)
+                pickPreviewScreen(Screens.stage[0].id)
                 openLibrary(catalog.libraries.find(l => l.name === "MainHall").path)
                 kept.path = entry("Notes Song").path
                 kept.hash = testInput.fileHash(kept.path)

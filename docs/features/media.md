@@ -92,12 +92,14 @@ thumbnail also shows the media as it is set to be shown: cropped, turned and fli
 fitted to the thumbnail as to the screen, blurred, and with its effects, those that move
 by themselves held still.
 
-Under the previews are the **clears**, in two rows. The first is the layers: the slide
-(F2), the media (F3), the props (F4), the audio (F5) and the messages (F6), each red
-while there is something there for it to clear. The second is the workspace's
-[clear groups](clear-groups.md), a button each, the first of which is what F1 clears: to
-begin with that is Clear All. Under those is
-the **transport**, for the video on the output: how far in it is and how much is left, a
+Beside the preview, against the window's right edge, are the **clears**, in two columns
+as ProPresenter has them, each button a picture and no words. The first column is the
+workspace's [clear groups](clear-groups.md), a button each, sharing the column's height,
+the first of which is what F1 clears: to begin with that is Clear All, as high as the
+preview. The second is the layers, in ProPresenter's order down it: the audio (F5), the
+messages (F6), the props (F4), the announcements, the slide (F2) and the media (F3),
+each red while there is something there for it to clear. Under the preview is the
+**transport**, for the video on the output: how far in it is and how much is left, a
 slider that can be dragged to move it, and buttons to go back to the start, to play or
 pause, and to skip fifteen seconds back or on.
 

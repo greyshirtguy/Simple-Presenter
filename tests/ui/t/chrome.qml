@@ -95,20 +95,30 @@ QtObject {
                 const inPane = texts(sidePanel)
                 check("the previews have no titles", !inPane.some(x => x.toLowerCase() === "output" || x.toLowerCase() === "stage") && !inPane.some(x => x.toLowerCase() === "timers"),
                       inPane.join(" | "))
-                const clears = ["clearSlide", "clearMedia", "clearProps", "clearAudio", "clearMessages", "clearAnnouncements"].map(name => named(name))
-                check("there are six clear buttons for the layers, across the whole width", clears.every(c => c !== null) && near(clears[0].width, clears[1].width)
-                      && near(clears[1].width, clears[2].width) && near(clears[2].width, clears[3].width) && near(clears[3].width, clears[4].width)
-                      && near(clears[4].width, clears[5].width)
-                      && near(clears[0].mapToItem(sidePanel, 0, 0).x, 12) && near(clears[5].mapToItem(sidePanel, clears[5].width, 0).x, sidePanel.width - 12),
-                      clears.map(c => c ? c.width.toFixed(1) : "none").join(", ") + " in " + sidePanel.width)
+                // In ProPresenter's order down their column
+                const clears = ["clearAudio", "clearMessages", "clearProps", "clearAnnouncements", "clearSlide", "clearMedia"].map(name => named(name))
+                const at = (item) => item.mapToItem(sidePanel, 0, 0)
+                check("there are six clear buttons for the layers, one over another in a column at the pane's right edge, as high as each other",
+                      clears.every(c => c !== null) && clears.every(c => near(c.height, clears[0].height) && near(c.width, clears[0].width) && near(at(c).x, at(clears[0]).x))
+                      && clears.every((c, i) => i === 0 || at(c).y > at(clears[i - 1]).y) && near(at(clears[0]).x + clears[0].width, sidePanel.width - 12),
+                      clears.map(c => c ? Math.round(at(c).x) + "," + Math.round(at(c).y) + " " + c.width.toFixed(1) + "x" + c.height.toFixed(1) : "none").join("; ") + " in " + sidePanel.width)
                 const pictureOf = (item) => { const found = Lib.find(item, i => i.inkName !== undefined && i.name !== undefined && i.name !== "" && i.visible === true); return found ? found.name : "none" }
-                check("with pictures on them and no words: ProPresenter's own, of clearing each layer", clears.every(c => texts(c).length === 0)
-                      && clears.map(pictureOf).join() === "ClearPresentation,ClearMedia,ClearProps,ClearAudio,ClearMessages,ClearAnnouncements", clears.map(pictureOf).join())
+                check("with pictures on them and no words: ProPresenter's own, of clearing each layer, in its order (audio, messages, props, announcements, slide, media)",
+                      clears.every(c => texts(c).length === 0)
+                      && clears.map(pictureOf).join() === "ClearAudio,ClearMessages,ClearProps,ClearAnnouncements,ClearPresentation,ClearMedia", clears.map(pictureOf).join())
                 const groups = Lib.findAll(sidePanel, i => i.objectName === "clearGroup")
-                check("and under them the button of the workspace's clear group, as wide as the six together, with ProPresenter's picture of clearing and its name",
-                      groups.length === 1 && near(groups[0].mapToItem(sidePanel, 0, 0).x, 12) && near(groups[0].mapToItem(sidePanel, groups[0].width, 0).x, sidePanel.width - 12)
-                      && groups[0].mapToItem(sidePanel, 0, 0).y > clears[0].mapToItem(sidePanel, 0, clears[0].height).y && pictureOf(groups[0]) === "Clear"
-                      && texts(groups[0]).join() === "Clear All", groups.length + " of them: " + (groups.length ? pictureOf(groups[0]) + " " + texts(groups[0]).join() : ""))
+                const columnBottom = at(clears[5]).y + clears[5].height
+                check("and beside them, in a column of its own, the button of the workspace's clear group, as high as the six together, with ProPresenter's picture of clearing and no words",
+                      groups.length === 1 && at(groups[0]).x + groups[0].width < at(clears[0]).x && near(at(groups[0]).y, at(clears[0]).y)
+                      && near(at(groups[0]).y + groups[0].height, columnBottom) && groups[0].width < clears[0].width
+                      && pictureOf(groups[0]) === "Clear" && texts(groups[0]).length === 0,
+                      groups.length + " of them: " + (groups.length ? pictureOf(groups[0]) + " " + texts(groups[0]).join() + " " + groups[0].width + "x" + groups[0].height : ""))
+                const shown = Lib.find(sidePanel, i => i.namePrefix === "preview" && i.screenId !== undefined)
+                const picker = named("previewScreenPicker")
+                check("the preview is at their left, its area as high as theirs, and under it the name of the screen it shows, which is the first audience screen",
+                      shown !== null && shown.mapToItem(sidePanel, shown.width, 0).x < at(groups[0]).x && shown.screenId === Screens.audience[0].id
+                      && picker !== null && texts(picker).includes(Screens.audience[0].name) && at(picker).y > columnBottom,
+                      (shown ? shown.screenId : "no preview") + " / " + (picker ? texts(picker).join() : "no picker"))
                 check("that group is the one every workspace starts with: this workspace has no file of clear groups, and is not given one for being shown it",
                       ClearGroups.groups.length === 1 && ClearGroups.groups[0].layers.length === 8 && !testInput.exists(catalog.workspacePath + "/Configuration/ClearGroups"))
                 const tabs = Lib.findAll(sidePanel, i => i.chosen !== undefined && i.modelData !== undefined && i.modelData.picture !== undefined)
@@ -123,7 +133,7 @@ QtObject {
                       pictures.length + " asked for; not had: " + pictures.filter(p => p.status !== Image.Ready).map(p => p.name).join())
                 check("grey while there is nothing to clear, the group's button too", clears.concat(groups).every(c => !c.live && Qt.colorEqual(c.color, "#2b2d31")))
                 // The group's button, which clears everything, and then those of the slide, the media and the props
-                kept.clears = groups.concat(clears)
+                kept.clears = groups.concat([named("clearSlide"), named("clearMedia"), named("clearProps")])
                 goLive(6)
                 return 3000
             },
@@ -354,6 +364,32 @@ QtObject {
                 check("with the media bin hidden the line goes too", !line.visible)
                 mediaBinVisible = true
                 return 200
+            },
+            // ---- the preview's picker
+            () => {
+                click(centre(named("previewScreenPicker")))
+                return 300
+            },
+            () => {
+                const want = "[Audience Screens], " + Screens.audience.map((s, i) => (i === 0 ? "*" : "") + s.name).join(", ")
+                             + ", [Stage Screens], " + Screens.stage.map(s => s.name).join(", ")
+                check("the name under the preview opens the screens there are, audience and stage, the one shown ticked", labels() === want, labels() + " / " + want)
+                click(menuRow(Screens.stage[0].name))
+                return 800
+            },
+            () => {
+                const shown = Lib.find(sidePanel, i => i.namePrefix === "preview" && i.screenId !== undefined)
+                check("picked, the stage screen is what the preview shows, and the name under it says so", shown.screenId === Screens.stage[0].id && shown.stage
+                      && texts(named("previewScreenPicker")).includes(Screens.stage[0].name), shown.screenId + " " + texts(named("previewScreenPicker")).join())
+                check("the log says what the preview shows", testInput.readText(Log.path).split("\n").some(l => /preview +the preview shows .*a stage screen/.test(l)))
+                testInput.grab("8-preview-of-the-stage")
+                pickPreviewScreen(Screens.audience[0].id)
+                return 300
+            },
+            () => {
+                const shown = Lib.find(sidePanel, i => i.namePrefix === "preview" && i.screenId !== undefined)
+                check("and back to the audience screen", shown.screenId === Screens.audience[0].id && !shown.stage)
+                return 100
             }
         ]
         next()

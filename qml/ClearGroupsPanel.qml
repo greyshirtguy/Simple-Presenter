@@ -19,7 +19,7 @@ import SimplePresenterApp
 //     TO COME: when this app gains that layer it is switched on here by being marked
 //     as one of ours in src/clearfile.cpp, which is all this window goes by; the show
 //     is then to clear it (State::clearGroup in src/showstate.cpp), and it wants a
-//     clear button of its own in the row of the layers (PreviewPanel.qml).
+//     clear button of its own in the column of the layers (PreviewPanel.qml).
 //   - The picture is one of ProPresenter's thirty-two (ClearGroupGlyph says how each is
 //     drawn here). A group that has a picture of the user's own, given it in
 //     ProPresenter, shows that; one cannot be given here.
@@ -458,7 +458,7 @@ Rectangle {
                 color: "#9a9da3"
                 font.pixelSize: 12
                 text: panel.group
-                      ? "What its button clears, all at one click. The buttons of the groups are under the clears of the layers, in the order "
+                      ? "What its button clears, all at one click. The buttons of the groups are in a column of their own beside the preview, in the order "
                         + "of the list; the first group is the one F1 clears."
                       : "A clear group is a set of layers that are cleared together, at one click. The + makes one."
             }
@@ -620,7 +620,7 @@ Rectangle {
 
                     AppCheck {
                         objectName: "clearShown"
-                        text: "Show its button under the clears"
+                        text: "Show its button with the clears"
                         checked: panel.group !== null && !panel.group.hidden
                         onToggled: (checked) => panel.setHidden(!checked)
                     }

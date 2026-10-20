@@ -10,7 +10,7 @@ import SimplePresenterApp
 // Below it are libraries, playlists and their presentations on the left (Sidebar); the
 // slides of the presentation being viewed as a grid of thumbnails in the middle
 // (SlideGrid), with the media bin under those two (MediaBin); and down the whole of the
-// right the previews, the clear buttons, the transport and the show controls
+// right the preview of a screen with the clear buttons beside it, the transport and the show controls
 // (PreviewPanel). In editor mode everything below the toolbar gives way to the editor
 // (Editor). The output and stage windows belong to this one too.
 //
@@ -42,7 +42,7 @@ import SimplePresenterApp
 // Going live is small. goLive(index) records which slide of which presentation is live
 // and hands that slide's map to the output window's slide layer; showMedia() does the
 // same for the media layer. The output draws what it is handed (Output.qml,
-// TransitionLayer.qml); the previews here draw the same maps again, small.
+// TransitionLayer.qml); the preview here draws the same maps again, small.
 //
 // What a slide's cue does besides showing the slide happens in goLive() too. Its media
 // goes to the media layer as a background, which stays while other slides come and go
@@ -3003,6 +3003,20 @@ Window {
     // the media, and is what the preview and the transport go by.
     property var scenes: ({})
     readonly property var output: scenes[audienceIds[0]] ?? null
+    // The screen the preview at the top right shows (see PreviewPanel), by id: the one
+    // picked under it, kept for each workspace; with none picked, or one picked that is
+    // no longer there, the first audience screen that is drawn, which is what the
+    // preview always was.
+    property string pickedPreviewScreen: ""
+    readonly property string previewScreenId: Screens.screens.some(screen => screen.id === pickedPreviewScreen) ? pickedPreviewScreen
+                                            : audienceIds[0] ?? (Screens.audience.length > 0 ? Screens.audience[0].id : "")
+
+    function pickPreviewScreen(id) {
+        const screen = Screens.screens.find(candidate => candidate.id === id)
+        Log.note("preview", "the preview shows " + (screen ? quoted(screen.name) + ", " + (screen.kind === "stage" ? "a stage screen" : "an audience screen") : "nothing"))
+        pickedPreviewScreen = id
+        saveSelection("previewScreen", id)
+    }
     // What the preview in this window shows of the look: what the live look gives the
     // screen the preview stands for, which is that first screen. So the preview has
     // the layers that screen has, and its slide in the theme the look gives that
@@ -3660,6 +3674,8 @@ Window {
         const firstMediaPlaylist = catalog.mediaPlaylists.find(p => !p.folder)
         openMediaPlaylist(catalog.mediaPlaylists.some(p => p.path === mediaPlaylist && !p.folder) ? mediaPlaylist
                           : firstMediaPlaylist ? firstMediaPlaylist.path : "")
+        // (A screen that is not there now is the first audience screen: see previewScreenId.)
+        pickedPreviewScreen = savedSelection("previewScreen")
         const audioPlaylist = savedSelection("audioPlaylist")
         const firstAudioPlaylist = catalog.audioPlaylists.find(p => !p.folder)
         openAudioPlaylist(catalog.audioPlaylists.some(p => p.path === audioPlaylist && !p.folder) ? audioPlaylist

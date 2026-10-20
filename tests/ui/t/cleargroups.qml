@@ -41,9 +41,10 @@ QtObject {
         return [0, 1, 2].every(i => Math.abs(part(a, i) - part(b, i)) <= slack)
     }
 
-    // The colour the window draws at the left of a button, clear of what is on it: red while it has something to clear
+    // The colour the window draws just inside the top of a button, clear of what is on it: red while it has something
+    // to clear. (Its picture is in the middle of it, as wide as a slim column lets it be.)
     function ground(button) {
-        const at = button.mapToItem(null, 6, button.height / 2)
+        const at = button.mapToItem(null, button.width / 2, 2.5)
         return String(testInput.windowPixel(at.x, at.y))
     }
 
@@ -117,13 +118,16 @@ QtObject {
                       === "Clear All:audio+audioEffects+messages+props+announcements+slide+media+videoInput | Words:messages+slide | Out Of Sight:props | Own:media",
                       ClearGroups.groups.map(g => g.name + ":" + g.layers.join("+")).join(" | "))
                 const buttons = groupButtons()
-                const layerRow = named("clearSlide")
-                check("each has a button under the clears of the layers, but the one that is kept out of sight", buttons.map(b => b.modelData.name).join("|") === "Clear All|Words|Own"
-                      && buttons.every(b => b.visible && b.mapToItem(sidePanel, 0, 0).y > layerRow.mapToItem(sidePanel, 0, layerRow.height).y),
+                const layers = named("clearAudio")
+                const top = layers.mapToItem(sidePanel, 0, 0).y
+                const bottom = named("clearMedia").mapToItem(sidePanel, 0, named("clearMedia").height).y
+                check("each has a button, in a column beside the clears of the layers, but the one that is kept out of sight", buttons.map(b => b.modelData.name).join("|") === "Clear All|Words|Own"
+                      && buttons.every(b => b.visible && b.mapToItem(sidePanel, b.width, 0).x < layers.mapToItem(sidePanel, 0, 0).x),
                       buttons.map(b => b.modelData.name).join("|"))
-                check("the buttons share the width of the pane between them", near(buttons[0].width, buttons[1].width) && near(buttons[1].width, buttons[2].width)
-                      && near(buttons[0].mapToItem(sidePanel, 0, 0).x, 12) && near(buttons[2].mapToItem(sidePanel, buttons[2].width, 0).x, sidePanel.width - 12),
-                      buttons.map(b => b.width.toFixed(1)).join(", ") + " in " + sidePanel.width)
+                check("the buttons share the height of their column between them, which is the layers' column's", near(buttons[0].height, buttons[1].height)
+                      && near(buttons[1].height, buttons[2].height) && near(buttons[0].mapToItem(sidePanel, 0, 0).y, top)
+                      && near(buttons[2].mapToItem(sidePanel, 0, buttons[2].height).y, bottom) && buttons.every((b, i) => i === 0 || b.mapToItem(sidePanel, 0, 0).y > buttons[i - 1].mapToItem(sidePanel, 0, 0).y),
+                      buttons.map(b => b.height.toFixed(1)).join(", ") + " from " + top + " to " + bottom)
                 check("with nothing on the output none of them has anything to clear, and they are grey", cleared && liveMedia === null && liveProps.length === 0
                       && buttons.every(b => !b.live && !red(ground(b))), buttons.map(ground).join())
                 check("a group's picture is drawn in its tint, the bell of the second in its blue (faint, there being nothing to clear), and the first in none",
@@ -142,7 +146,7 @@ QtObject {
                 const buttons = groupButtons()
                 check("(a slide, its video and a prop are on the output)", !cleared && liveMedia !== null && liveProps.length === 1)
                 check("each group that has a layer with something on it is red: all three, for the slide, its media and the props among them",
-                      buttons.every(b => b.live && red(ground(b))), buttons.map(ground).join())
+                      buttons.every(b => b.live && red(ground(b))), buttons.map(b => b.modelData.name + ":" + b.live + ":" + ground(b)).join())
                 check("and a tint is drawn at its full colour on a button that has something to clear", inked(pictureOf(buttons[1]), "#1e88e5"))
                 testInput.grab("1-buttons")
                 click(centre(buttonOf("Words")))
@@ -258,9 +262,10 @@ QtObject {
                 return 500
             },
             () => {
+                const bottom = named("clearMedia").mapToItem(sidePanel, 0, named("clearMedia").height).y
                 check("ticked, it has a button with the others, which make room for it", !group("Out Of Sight").hidden && groupButtons().length === 4
-                      && groupButtons().map(b => b.modelData.name).join("|") === "Clear All|Words|Out Of Sight|Own" && near(groupButtons()[0].width, groupButtons()[3].width)
-                      && near(groupButtons()[3].mapToItem(sidePanel, groupButtons()[3].width, 0).x, sidePanel.width - 12), groupButtons().map(b => b.width.toFixed(1)).join())
+                      && groupButtons().map(b => b.modelData.name).join("|") === "Clear All|Words|Out Of Sight|Own" && near(groupButtons()[0].height, groupButtons()[3].height)
+                      && near(groupButtons()[3].mapToItem(sidePanel, 0, groupButtons()[3].height).y, bottom), groupButtons().map(b => b.height.toFixed(1)).join())
                 click(centre(named("clearShown")))
                 return 500
             },
@@ -343,8 +348,8 @@ QtObject {
                 const changed = pictureOf(buttonOf("Words"))
                 check("the group that was changed has its new picture on its button, in its new tint", changed.icon === 18 && inked(changed, "#43a047")
                       && !inked(changed, "#1e88e5"))
-                check("and the new group its digit, and its name where there is no room for it left out", pictureOf(buttonOf("Offering")).icon === 1
-                      && !Lib.find(buttonOf("Offering"), item => item.objectName === "clearGroupName").visible)
+                check("and the new group its digit, and not its name, as none of the buttons has", pictureOf(buttonOf("Offering")).icon === 1
+                      && Lib.findAll(buttonOf("Offering"), item => item.text === "Offering").length === 0)
                 testInput.grab("5-buttons-after")
                 click(centre(buttonOf("Offering")))
                 return 500

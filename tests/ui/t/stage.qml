@@ -95,6 +95,8 @@ QtObject {
         const lyrics = slide => slide.elements.filter(e => e.name === "Lyrics" && e.visible).map(e => testInput.plain(e.displayText).trim()).filter(x => x !== "").join("\n")
         steps = [
             () => {
+                // (The stage in the operator's preview, which is what these look at: the first audience screen is what it shows otherwise.)
+                pickPreviewScreen(Screens.stage[0].id)
                 openLibrary(catalog.libraries.find(l => l.name === "MainHall").path)
                 openEntry(entry("Build My Life"))
                 check("ProPresenter's stage layouts are read", StageLayouts.layouts.map(l => l.name).join("|") === "Singing|Slide Notes|Live Slides|Triple Preview",

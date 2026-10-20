@@ -8,10 +8,10 @@ They are ProPresenter's, kept in the workspace where ProPresenter keeps them
 it with: **Clear All**, which clears every layer. A workspace that has no such file is
 shown that group too, and the file is not written until something is changed.
 
-Each group has a button, in a row of its own under the clears of the layers, in the
-order the groups are in. The buttons share the width between them, so the one group a
-workspace starts with has a button as wide as the six above it, with its picture and
-its name; several have room for their pictures alone. A button is red while any of the
+Each group has a button, in a column of its own beside the preview, next to the column
+of the layers' clears, in the order the groups are in. The buttons share the column's
+height between them, as ProPresenter's do, so the one group a workspace starts with has
+a button as high as the preview's area; each has its picture and no words. A button is red while any of the
 group's layers has something on it, and a click clears them. **F1 clears the first
 group**, which is Clear All unless the list has been put in another order. A group's
 button can be dragged onto a slide or a macro, as the clears of the layers can, to give

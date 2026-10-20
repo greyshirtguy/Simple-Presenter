@@ -50,7 +50,7 @@ Whatever is listed in the show controls can also be **dragged onto a slide**: a 
 or the stage screen, which bring up their panel; a prop, which asks whether it is to
 be triggered or cleared; a macro, which needs nothing more; a piece of audio, which
 needs nothing more either; and a message, out of the list on its tab. So can the
-**clear buttons** under the previews, each of which gives the slide the action that
+**clear buttons** beside the preview, each of which gives the slide the action that
 clears its layer, or its group; and a playlist, out of the list of either bin (a folder
 of playlists is not taken). Each of those can be dropped on a macro as well.
 

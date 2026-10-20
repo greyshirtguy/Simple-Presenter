@@ -6,7 +6,7 @@
 #include <QtQml/qqmlregistration.h>
 
 // The workspace's clear groups: the list in ProPresenter's Configuration/ClearGroups,
-// for the buttons under the clears, the window they are set up in, and the show (which
+// for their buttons beside the preview, the window they are set up in, and the show (which
 // is told of them, so that a group can be cleared by its button, by F1 and by an action
 // on a slide or in a macro). What a group is, how the file is read and how it is
 // changed are clearfile's (see clearfile.h); this is only what QML talks to.

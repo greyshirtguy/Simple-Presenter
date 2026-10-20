@@ -40,8 +40,8 @@ meant to stay quick on a slow machine. The editor and the settings screen need t
 toolbar, and bring it back for as long as they are up.
 
 **Keeping the right pane.** The settings have a part for Simple View with one box in
-it: *Keep the previews and controls at the right*. With it ticked, Simple View takes
+it: *Keep the preview and controls at the right*. With it ticked, Simple View takes
 the toolbar, the lists and the media bin away and leaves the pane at the right where it
-is, with the previews of the output and the stage, the clears and the show controls,
+is, with the preview of a screen, the clears and the show controls,
 for whoever wants the room without losing sight of what is live. The pane then has the
 height of the window, and can still be made wider or narrower by its edge.

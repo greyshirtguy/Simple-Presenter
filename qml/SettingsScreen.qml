@@ -735,13 +735,13 @@ Rectangle {
                 wrapMode: Text.WordWrap
                 color: "#b0b3b8"
                 font.pixelSize: 13
-                text: "Simple View takes away what is round the slides, so that more of them can be seen at once: the toolbar, the lists at the left, the media bin, and the previews and controls at the right. It is switched from the toolbar, or by holding the ~ key."
+                text: "Simple View takes away what is round the slides, so that more of them can be seen at once: the toolbar, the lists at the left, the media bin, and the preview and controls at the right. It is switched from the toolbar, or by holding the ~ key."
             }
 
             AppCheck {
                 objectName: "simpleKeepsSidePanel"
                 checked: screen.simpleKeepsSidePanel
-                text: "Keep the previews and controls at the right"
+                text: "Keep the preview and controls at the right"
                 onToggled: (checked) => screen.simpleKeepsSidePanelEdited(checked)
             }
 
@@ -750,7 +750,7 @@ Rectangle {
                 wrapMode: Text.WordWrap
                 color: "#8d9097"
                 font.pixelSize: 12
-                text: "With this on, Simple View leaves the pane at the right where it is: the previews of the output and the stage, the clears, and the timers, props, stage layouts and macros. The slides have the rest of the window."
+                text: "With this on, Simple View leaves the pane at the right where it is: the preview of a screen, the clears, and the timers, props, stage layouts and macros. The slides have the rest of the window."
             }
         }
 

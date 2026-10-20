@@ -31,7 +31,7 @@ ProPresenter's megaphone on it; by **Clear All**; by a [clear group](clear-group
 that has the announcements among its layers; and by a slide or a macro with the
 [action](actions.md) that clears them (Add Action, Clear, The Announcements, or the
 button dragged onto a slide). A [look](looks.md) says which screens get the layer, and
-the operator's preview shows it as the first screen has it.
+the operator's preview shows it as the screen it is of has it.
 
 To leave a set of notices running by itself, give the presentation a Slide Show, or
 its slides Go To Next timers: the next section.

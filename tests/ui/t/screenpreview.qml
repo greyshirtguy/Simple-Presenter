@@ -83,6 +83,8 @@ QtObject {
         steps = [
             () => {
                 // ---- ProPresenter's own, in its stage layouts
+                // (The stage in the operator's preview, which is what these look at: the first audience screen is what it shows otherwise.)
+                pickPreviewScreen(Screens.stage[0].id)
                 let previews = []
                 for (const layout of StageLayouts.layouts)
                     previews = previews.concat(Array.from(layout.slide.elements).filter(e => e.fillKind === "screen"))
@@ -276,7 +278,8 @@ QtObject {
             },
             () => {
                 // ---- On the output: a slide with a picture of the output itself. (Under a look that gives the output
-                // no theme: a theme's boxes are drawn in place of the slide's own.)
+                // no theme: a theme's boxes are drawn in place of the slide's own.) And the output in the operator's preview.
+                pickPreviewScreen(Screens.audience[0].id)
                 const plain = Looks.looks.find(look => Looks.of(look.id, Screens.audience[0].id).theme === "")
                 check("(a look that gives the output no theme)", plain !== undefined, Looks.looks.map(look => look.name).join(", "))
                 Show.lookId = plain.id

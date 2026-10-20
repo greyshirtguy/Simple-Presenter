@@ -40,6 +40,16 @@ Each screen is drawn by itself, at its own size. A video is still played only on
 however many screens show it, by the first audience screen, and the others are handed
 its frames, so they cannot drift apart and its sound is heard once.
 
+**The preview.** The operator window has one preview, at its top right, of one screen
+at a time: the first audience screen to begin with, or whichever is picked from the
+name under it, which lists the audience screens and then the stage screens, as
+ProPresenter's picker under its preview does. What is picked is kept for the workspace;
+a screen that is no longer there gives way to the first audience screen again. A stage
+screen is previewed with its layout, Screen Previews and all, so a stage screen that is
+sent to **Nothing**, with a layout of shapes filled with Screen Previews of other
+screens, is a way to look at several screens at once. (Until 0.103 there were two
+previews, of the first audience screen and of the first stage screen.)
+
 ## A screen in a window
 
 The small window with a slim title bar that floats over the operator window, or

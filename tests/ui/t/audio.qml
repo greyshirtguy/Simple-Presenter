@@ -398,7 +398,14 @@ QtObject {
                 check("files that are no sound files are turned away", catalog.addAudio(audioPlaylistId, ["file://" + sounds + "/notes.txt"]) !== "" && audioFiles.length === kept.before + 1)
                 check("and so the count says", named("audioCount").text === "6 items", named("audioCount").text)
 
-                // ---- The list stays where it is
+                // ---- The list stays where it is. (The playlists given most of the height, as the line between the two
+                // drags it, so that the pieces are more than their list has room for: the show controls have the room of
+                // the window under the preview, which is more than six pieces need.)
+                kept.splitBefore = audioSplit
+                audioSplit = named("audioPlaylistArea").parent.height - 118
+                return 300
+            },
+            () => {
                 const list = named("audioList")
                 kept.furthest = list.count * 29 - 2 - list.height
                 list.contentY = kept.furthest
@@ -460,6 +467,7 @@ QtObject {
                 const list = named("audioList")
                 check("and made music that the next follows again, the same", piece("Extra Tune").effect === false && piece("Extra Tune").playback === "next"
                       && Math.abs(list.contentY - kept.scrolled) < 1, list.contentY + " from " + kept.scrolled)
+                audioSplit = kept.splitBefore
                 // Words in the box are another list, which starts at its top
                 audioFilter = "tune"
                 return 300

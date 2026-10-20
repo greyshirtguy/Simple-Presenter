@@ -12,7 +12,7 @@ ProPresenter. The **Masks** row there has, for each screen, the mask the look gi
 it, and a click on it has the menu: **None**, the workspace's masks by name, **Add New
 Mask** and **Edit Masks…**. Choosing one for the live look puts it on that screen at
 once; a saved look keeps its own choice, for when it is made live. The operator's
-preview has the mask of the first screen over it, as that screen has.
+preview of an audience screen has that screen's mask over it, as the screen has.
 
 **Add New Mask** and **Edit Masks…** bring up the [editor](editing.md) on the masks,
 which are edited as slides are: the list at the left is of the masks, each with its

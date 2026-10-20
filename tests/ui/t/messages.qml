@@ -123,6 +123,8 @@ QtObject {
         steps = [
             // ---- The stage message
             () => {
+                // (The stage in the operator's preview, which is what these look at: the first audience screen is what it shows otherwise.)
+                pickPreviewScreen(Screens.stage[0].id)
                 click(centre(tab("stage")))
                 return 500
             },
@@ -383,7 +385,8 @@ QtObject {
                 const m = onDisk("Parent Wanted")
                 check("after five seconds, say", m.clear === 1 && m.seconds === 5 && named("messageHide").says === "After 5 seconds", m.clear + " " + m.seconds + " " + named("messageHide").says)
                 testInput.grab("5-message-made")
-                // ---- Shown
+                // ---- Shown (and the audience screen in the operator's preview again, which is what this looks at)
+                pickPreviewScreen(Screens.audience[0].id)
                 kept.outputDark = testInput.lit(false, 0, 0, 1, 1)
                 click(centre(named("messageShow")))
                 return 900

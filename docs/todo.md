@@ -109,7 +109,7 @@ the top of the [README](../README.md).
       is, and its own fades, which ProPresenter's inspector sets and which are kept
       in the file and, but for how loud, not gone by; going round a number of times
       or for a length of time, which is played and cannot be set; and a transport for
-      the music (the one under the previews is the video's).
+      the music (the one under the preview is the video's).
 
 ## To try, and see what happens
 

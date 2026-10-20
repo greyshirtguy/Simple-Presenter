@@ -35,7 +35,7 @@ import SimplePresenterApp
 // the lighter for the playlists, the darker for what is in them.
 //
 // It has not much room: the show controls are what is left of the window's right side
-// under the previews, the clears and the transport, some two hundred points on a laptop.
+// under the preview and the clears beside it, and the transport: some three hundred points on a laptop.
 // So its rows are close, and the + that adds a playlist (which the show controls put
 // under the tabs for every tab) sits in the corner of the playlists and not on a line
 // of its own.

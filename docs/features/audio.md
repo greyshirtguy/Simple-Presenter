@@ -66,7 +66,7 @@ followed by the next as music clicked here is. Run again while the playlist is p
 it leaves it to play on, unless its Always Retrigger is on. It can be picked from Add
 Action as well, under Audio Playlist. See [Actions](actions.md).
 
-**How loud it is** is shown in the preview of the output: two bars up its right edge,
+**How loud it is** is shown in the operator's preview: two bars up its left edge,
 the left and the right, there while anything is sounding (a piece of audio, or a video
 with its sound) and gone when nothing is. They go by decibels as a sound desk's do:
 green, yellow for the top 12, red for the top 3. They show the sound as the app plays

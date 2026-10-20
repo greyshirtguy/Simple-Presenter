@@ -290,7 +290,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/SlideNotes.qml` | A slide's notes, in a pane under the slide in the editor |
 | `qml/SimpleViewToggle.qml` | The button that floats over the slides in Simple View, and leads back out of it |
 | `qml/TypedNumber.qml` | The panel over the slides that shows a slide's number while it is typed |
-| `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml`, `MacrosPanel.qml` | Under the previews: the transport for the video that is playing, and the show controls with their tabs of timers, props, stage screens and macros |
+| `qml/Transport.qml`, `ShowControl.qml`, `TimersPanel.qml`, `PropsPanel.qml`, `StagePanel.qml`, `MacrosPanel.qml` | Under the preview: the transport for the video that is playing, and the show controls with their tabs of timers, props, stage screens and macros |
 | `qml/ActionDialog.qml`, `qml/PopupMenu.qml` | The panel a timer action or a stage action is set up in, and the menus, which open one out of another |
 | `qml/SettingsScreen.qml` | The settings: groups, slides, Bibles, screens, looks, video, audio, windows, and what the app is |
 | `qml/Editor.qml`, `EditorCanvas.qml`, `EditorInspector.qml` | The editor: its lists and its three ways of working, the slide being worked on, and the properties panel |
