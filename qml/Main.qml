@@ -176,6 +176,10 @@ Window {
     // was left, kept with the app's settings.
     property string stageMessageText: ""
     property real messagesSplit: 62
+    // How high the preview's area at the top right has been dragged to by the line under
+    // it (see PreviewPanel), 0 for not at all, which is a 16:9 preview as wide as there
+    // is room for; kept with the app's settings, as the panes' widths are.
+    property real previewHeight: 0
 
     // The transitions there are to choose from, with what can be adjusted about each
     // (see TransitionCatalogue), the one chosen, and what has been chosen for its
@@ -3560,6 +3564,8 @@ Window {
         arrangementsShown = String(saved("arrangementsShown", false)) === "true"
         const messagesHeight = Number(saved("messagesSplit", messagesSplit))
         messagesSplit = isFinite(messagesHeight) ? Math.max(36, messagesHeight) : 62
+        const previewArea = Number(saved("previewHeight", 0))
+        previewHeight = isFinite(previewArea) ? Math.max(0, previewArea) : 0
         editorNotes = String(saved("editorNotes", false)) === "true"
         const notesHeight = Number(saved("editorNotesHeight", editorNotesHeight))
         editorNotesHeight = isFinite(notesHeight) ? Math.max(60, notesHeight) : 150
@@ -3867,6 +3873,7 @@ Window {
     onAudioSplitChanged: save("audioSplit", audioSplit)
     onStageMessageTextChanged: save("stageMessage", stageMessageText)
     onMessagesSplitChanged: save("messagesSplit", messagesSplit)
+    onPreviewHeightChanged: save("previewHeight", previewHeight)
     onArrangementsShownChanged: save("arrangementsShown", arrangementsShown)
     // What each stage screen has, as last noted in the log
     property var notedLayouts: ({})

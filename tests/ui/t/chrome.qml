@@ -163,14 +163,17 @@ QtObject {
                 check("the button of the clear group, which is of every layer, clears everything", cleared && liveMedia === null)
                 // the lines each side of the transport
                 const transport = Lib.find(sidePanel, item => item.shown !== undefined && item.working !== undefined)
+                // (The one over it is the line the preview's area is made taller or shorter by, and is drawn as the panes'
+                // edges are.)
+                const over = named("previewDivider")
                 const lines = Lib.findAll(sidePanel, item => item.height === 1 && near(item.width, sidePanel.width) && item.color !== undefined)
-                check("a line over the transport and a line under it", lines.length === 2 && bottomOf(kept.clears[0]) < topOf(lines[0]) && topOf(lines[0]) < topOf(transport)
-                      && bottomOf(transport) < topOf(lines[1]), lines.length + " lines")
+                check("a line over the transport, which can be dragged, and a line under it", over !== null && lines.length === 1
+                      && bottomOf(kept.clears[0]) < topOf(over) && topOf(over) < topOf(transport) && bottomOf(transport) < topOf(lines[0]), lines.length + " lines")
                 // the show controls
                 const tabs = Lib.findAll(sidePanel, item => item.chosen !== undefined && item.modelData !== undefined && item.modelData.id !== undefined)
                 check("the six tabs fill the width", tabs.length === 6 && near(tabs[0].mapToItem(sidePanel, 0, 0).x, 12)
                       && near(tabs[5].mapToItem(sidePanel, tabs[5].width, 0).x, sidePanel.width - 12) && near(tabs[0].width, tabs[5].width)
-                      && topOf(tabs[0]) > topOf(lines[1]), tabs.map(x => x.width.toFixed(1)).join(", "))
+                      && topOf(tabs[0]) > topOf(lines[0]), tabs.map(x => x.width.toFixed(1)).join(", "))
                 const add = named("showControlAdd")
                 check("the + is under them at the right, and small", add !== null && add.visible && topOf(add) >= bottomOf(tabs[0]) && near(add.mapToItem(sidePanel, add.width, 0).x, sidePanel.width - 12)
                       && add.width <= 24 && add.height <= 20, add ? add.width + "x" + add.height : "none")
@@ -389,6 +392,45 @@ QtObject {
             () => {
                 const shown = Lib.find(sidePanel, i => i.namePrefix === "preview" && i.screenId !== undefined)
                 check("and back to the audience screen", shown.screenId === Screens.audience[0].id && !shown.stage)
+                // ---- the preview's area made taller by the line under it
+                kept.area = sidePanel.areaHeight
+                kept.box = shown.height
+                const line = named("previewDivider")
+                const from = centre(line)
+                drag(from, Qt.point(from.x, from.y + 150))
+                return 400
+            },
+            () => {
+                const shown = Lib.find(sidePanel, i => i.namePrefix === "preview" && i.screenId !== undefined)
+                const media = named("clearMedia")
+                const groupButton = Lib.findAll(sidePanel, i => i.objectName === "clearGroup")[0]
+                const areaBottom = sidePanel.mapToItem(null, 0, 0).y
+                check("dragged down, the preview's area is as much taller, and the preview fills it, the screen fitted in", near(sidePanel.areaHeight, kept.area + 150)
+                      && previewHeight > 0 && shown.height > kept.box + 140, kept.area + " -> " + sidePanel.areaHeight + ", the picture " + kept.box + " -> " + shown.height)
+                check("the clears' columns are as tall as it, the layers' buttons taller each and the group's one tall button",
+                      near(media.mapToItem(sidePanel, 0, media.height).y - named("clearAudio").mapToItem(sidePanel, 0, 0).y, sidePanel.areaHeight)
+                      && near(groupButton.height, sidePanel.areaHeight), groupButton.height + " in " + sidePanel.areaHeight)
+                const line = named("previewDivider")
+                const from = centre(line)
+                drag(from, Qt.point(from.x, from.y + 3000))
+                return 400
+            },
+            () => {
+                check("and no taller than leaves the show controls room for two timers", near(sidePanel.areaHeight, sidePanel.mostAreaHeight)
+                      && sidePanel.mostAreaHeight < sidePanel.height - 200, sidePanel.areaHeight + " of " + sidePanel.height)
+                testInput.grab("9-tall-preview")
+                const line = named("previewDivider")
+                const from = centre(line)
+                testInput.mouse(0, from.x, from.y)
+                testInput.mouse(2, from.x, from.y)
+                testInput.mouse(3, from.x, from.y)
+                testInput.mouse(2, from.x, from.y)
+                return 400
+            },
+            () => {
+                const shown = Lib.find(sidePanel, i => i.namePrefix === "preview" && i.screenId !== undefined)
+                check("a double click on the line gives the preview back its 16:9", previewHeight === 0 && near(sidePanel.areaHeight, kept.area)
+                      && near(shown.height, kept.box), previewHeight + " " + sidePanel.areaHeight)
                 return 100
             }
         ]

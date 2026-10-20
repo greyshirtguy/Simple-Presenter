@@ -50,6 +50,14 @@ sent to **Nothing**, with a layout of shapes filled with Screen Previews of othe
 screens, is a way to look at several screens at once. (Until 0.103 there were two
 previews, of the first audience screen and of the first stage screen.)
 
+The line under the preview and its picker can be dragged up or down, to make the
+preview's area taller or shorter, as the panes are made wider by their edges: a tall
+layout of two or three Screen Previews one over another then has the room it wants.
+Dragged, the preview fills its area, as wide as the clears leave it, and the screen is
+fitted in it; the clears stretch to its height, and it stops where the show controls
+still have room for two timers. A double click on the line gives the preview back its
+16:9. How tall it was left is kept with the app's settings.
+
 ## A screen in a window
 
 The small window with a slim title bar that floats over the operator window, or

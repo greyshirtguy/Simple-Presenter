@@ -75,9 +75,19 @@ Rectangle {
     readonly property real previewWidth: Math.max(80, Math.min(
         width - 2 * gap - 8 - clearsWidth, Math.max(previewWidthLeaving(showControlRoom),
                                                     Math.min(leastUsefulPreview, previewWidthLeaving(leastShowControlRoom)))))
-    // The preview's area, which the clears are as high as: the preview, or as much as
-    // the clears need, if that is more, the preview centred in it
-    readonly property real areaHeight: Math.max(previewWidth * 9 / 16 + 2, leastClearsHeight)
+    // The preview's area, which the clears are as high as. Left as it comes, it is the
+    // preview, or as much as the clears need, if that is more, the preview centred in
+    // it. Dragged taller or shorter by the line under it (the operator's
+    // `previewHeight`), the preview fills it, as wide as there is room for, and the
+    // screen is fitted in that: a stage screen with a tall layout of Screen Previews,
+    // one over another, which is a way of seeing several screens at once, can be made
+    // as tall as it wants. It is never less than the clears need, nor more than leaves
+    // the show controls room for two timers.
+    readonly property bool sized: win.previewHeight > 0
+    readonly property real mostAreaHeight: Math.max(leastClearsHeight,
+        height - (4 + picker.height + transport.height + 2 * line.height + 6 * gap) - leastShowControlRoom)
+    readonly property real areaHeight: sized ? Math.max(leastClearsHeight, Math.min(win.previewHeight, mostAreaHeight))
+                                             : Math.max(previewWidth * 9 / 16 + 2, leastClearsHeight)
 
     // How wide the preview can be if this much height is to be left under everything
     // else for the show controls.
@@ -235,7 +245,8 @@ Rectangle {
     // screen has what the live look gives it and no more (its layers, its theme, its
     // mask), and a stage screen its layout or the plain view; its slides have the
     // Screen Previews in them. It is 16:9 whatever the screen is, as ProPresenter's is,
-    // with the screen fitted in it.
+    // with the screen fitted in it, unless its area has been made taller or shorter
+    // (see areaHeight), which it then fills.
     Item {
         id: previewArea
 
@@ -251,8 +262,8 @@ Rectangle {
             id: preview
 
             anchors.centerIn: parent
-            width: sidePanel.previewWidth
-            height: width * 9 / 16
+            width: sidePanel.sized ? previewArea.width : sidePanel.previewWidth
+            height: sidePanel.sized ? previewArea.height : width * 9 / 16
             color: "black"
             border.width: 1
             border.color: "#3a3c42"
@@ -508,10 +519,21 @@ Rectangle {
         }
     }
 
-    Rule {
+    // The line under the preview and its picker, which is dragged up or down to make the
+    // preview's area shorter or taller, as the panes are made wider or narrower by their
+    // edges; a double click gives the preview back its 16:9.
+    Divider {
         id: line
 
+        objectName: "previewDivider"
+        vertical: false
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.top: picker.bottom
+        anchors.topMargin: sidePanel.gap - 3
+        onMoved: (delta) => sidePanel.win.previewHeight = Math.max(sidePanel.leastClearsHeight,
+                                                                    Math.min(sidePanel.areaHeight + delta, sidePanel.mostAreaHeight))
+        onDoubleClicked: sidePanel.win.previewHeight = 0
     }
 
     Transport {
@@ -521,6 +543,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: line.bottom
         anchors.margins: sidePanel.gap
+        anchors.topMargin: sidePanel.gap - 3
         player: sidePanel.livePlayer
         media: sidePanel.win.liveMedia
         pulse: previewPicture.relay
