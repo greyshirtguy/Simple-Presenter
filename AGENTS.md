@@ -15,7 +15,9 @@ ProPresenter 7 folder as it is, reading and writing ProPresenter's own files. It
 person's hobby, written entirely by describing it to an AI model, and is shared as an
 example of what that can do in the hands of a hobby programmer: it is not a product
 for use, and nobody supports it.
-`README.md` says what it does, part by part, and then how it is made; `src/main.cpp`
+`README.md` says in short what it does, and leads to a page for each part
+(`docs/features/`), to `docs/installing.md`, and to how it is made
+(`docs/how-it-is-made.md`); `src/main.cpp`
 opens with a tour of the code; every source file starts by saying what it is for and
 why it is the way it is. Read the header of a file before changing the file.
 
@@ -74,7 +76,7 @@ QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
 benchmark/run.py                       # times a fixed run against a baseline
 ```
 
-`README.md` (Building from source) has what to install first. The self-test saves
+`docs/installing.md` (Building from source) has what to install first. The self-test saves
 pictures of a fixed run; run it before and after a change to anything that draws and
 compare them. Anything its log says with `qrc:` in it is a QML error: there must be none.
 
@@ -141,7 +143,7 @@ the next version" for the person: build it for them from source instead.
 - **Whether it can be relied on**: no, and say so. It is shared as an example of what
   vibe coding can do, not as a product for use, however well it seems to be working.
 - **It is not ProPresenter**, and has nothing to do with Renewed Vision. Much that
-  ProPresenter does is not here: `README.md` has the list under TODO.
+  ProPresenter does is not here: `docs/todo.md` has the list.
 - **Where things are kept**: workspaces and logs under `~/Documents/SimplePresenter/`;
   settings in `~/.config/SimplePresenter/SimplePresenter.conf`; copies of files as they
   were before an edit, imported Bibles, and NDI's library if it was fetched, under

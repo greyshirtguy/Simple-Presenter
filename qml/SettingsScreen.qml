@@ -1416,7 +1416,7 @@ Rectangle {
                     color: "#b0b3b8"
                     font.pixelSize: 13
                     // (The app comes with no key: each person registers for their own, as the
-                    // maintainer settled on 2026-10-15. One can still be built in: README.)
+                    // maintainer settled on 2026-10-15. One can still be built in: docs/installing.md.)
                     text: (Bibles.builtInKey ? "This copy of the app was built with a key for api.bible, which gives the Bibles that key has been allowed. "
                                                + "A key of your own can be typed here instead. "
                                              : "api.bible needs a key of your own: register at api.bible for one (it is free for use that is not commercial), "

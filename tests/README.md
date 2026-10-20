@@ -96,7 +96,7 @@ It needs `gnome-shell`, `pipewire`, `wireplumber` and `protoc` (which the build 
 anyway), all of which Ubuntu's desktop has.
 
 One test, `screens`, has a desktop to itself with two displays, to send screens to. It
-also sends a screen over NDI if NDI's library is there to be found (the main README says
+also sends a screen over NDI if NDI's library is there to be found ([docs/features/ndi.md](../docs/features/ndi.md) says
 where the app looks; `NDI_RUNTIME_DIR_V6=<folder> tests/ui/run.py screens` points it at
 one), and checks what the app says without it if not. While it runs with the library, a
 source called "Test Screen" is on the local network for a few seconds.
@@ -230,9 +230,10 @@ loaded in the operator window's own scope, it calls the window's functions and r
 properties by name. Then give it a line in the `TESTS` table of `run.py`, which says the
 workspace it runs on and whether it has to be really drawn.
 
-**Pictures.** The pictures of the chord editors in the main README were taken this way
-and not by hand: a script that sets a scene and calls `testInput.grab("name")`, run with
-`--keep`, leaves `frames/<test>/name.png` in the run's folder. For pictures at twice the
+**Pictures.** The pictures of the chord editors and the show controls in the README and
+in [docs/features](../docs/features) were taken this way and not by hand: a script that
+sets a scene and calls `testInput.grab("name")`, run with `--keep`, leaves
+`frames/<test>/name.png` in the run's folder. For pictures at twice the
 size, as a high-density display would show the app, give the test's line in `TESTS`
 `env={"QT_SCALE_FACTOR": "2"}` and the test desktop a display large enough for the
 window, with `SP_TEST_MONITOR=3840x2160 tests/ui/run.py <test> --keep`. Such a script
@@ -242,4 +243,4 @@ is not a test, and is not kept here.
 
 `SimplePresenter --selftest <dir>` saves pictures of a fixed run for comparing before
 and after a change to anything that draws, and `benchmark/run.py` times a fixed run
-against a baseline. The main README has both.
+against a baseline. [docs/how-it-is-made.md](../docs/how-it-is-made.md) has both.
