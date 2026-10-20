@@ -39,6 +39,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.102" date="2026-10-20">
+      <description>
+        <p>
+          Communication devices: a slide or a macro can send a MIDI note, a RossTalk
+          Custom Control to a Ross switcher, or an HTTP request, and a MIDI device's
+          notes work the show by ProPresenter's MIDI Map. They are set up in Settings,
+          Devices, where ProPresenter's own devices for the workspace are offered.
+        </p>
+      </description>
+    </release>
     <release version="0.101" date="2026-10-19">
       <description>
         <p>
