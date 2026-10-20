@@ -426,6 +426,9 @@ Item {
             baseIndent: 10
             model: Messages.messages.map(candidate => ({ path: candidate.id, name: candidate.name, live: panel.win.liveMessages.includes(candidate.id) }))
             selectedPath: panel.picked
+            // A message dragged out of the list, onto a slide or a macro, gives it the
+            // action that shows the message (see dropAction in Main.qml)
+            dragProxy: panel.win.messageDragProxy
             onPicked: (entry) => panel.pick(entry.path)
             onMenuRequested: (entry, item) => panel.showItemMenu(entry.path, item)
             onRenamed: (entry, name) => {

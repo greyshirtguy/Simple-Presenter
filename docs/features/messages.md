@@ -12,7 +12,9 @@ At the top of the tab are the workspace's messages, by name; under them, with a 
 between that is dragged to share out the height, what the one picked is made of; and at
 the bottom right the button that shows it and hides it. The `+` makes a message, with
 its name ready to be typed over. A right click on one shows or hides it, renames it or
-removes it.
+removes it. A message dragged out of the list onto a slide or a macro gives it an
+[action](actions.md) that shows the message, with words of its own for the message's
+tokens, which a small panel asks for.
 
 What a message is made of, from the top:
 

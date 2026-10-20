@@ -542,7 +542,7 @@ void State::clearMessages(Effects &effects)
     messages.clear();
 }
 
-void State::showMessage(const QVariantMap &message, Effects &effects)
+void State::showMessage(const QVariantMap &message, Effects &effects, const QVariantMap &values)
 {
     const QString id = message.value("id").toString();
     const double seconds = qMax(0.0, message.value("seconds").toDouble());
@@ -555,6 +555,7 @@ void State::showMessage(const QVariantMap &message, Effects &effects)
     Effect shown;
     shown.kind = Effect::Message;
     shown.text = id;
+    shown.action = values;
     effects << shown;
     Effect time;
     time.kind = Effect::MessageTime;
@@ -663,6 +664,77 @@ void State::startAudio(const QVariantMap &asked, const QString &playlist, Effect
         musicPlaylistId = playlist;
     }
     effects << withMedia(Effect::Audio, audio);
+}
+
+// The row a playlist is started at, by an action that plays it: the one the action
+// names, if it names one that is still there with a file to play, or else the first
+// that has a file to play; an empty map for none. A GUESS: that ProPresenter starts a
+// playlist at its first item, which it would have to for an action that names none (as
+// none of its own that have been seen does).
+static QVariantMap firstRow(const QVariantList &rows, const QString &itemId)
+{
+    const auto playable = [](const QVariantMap &row) { return !row.value("missing").toBool() && !row.value("path").toString().isEmpty(); };
+    if (!itemId.isEmpty()) {
+        for (const QVariant &entry : rows) {
+            const QVariantMap row = entry.toMap();
+            if (row.value("id").toString() == itemId && playable(row))
+                return row;
+        }
+    }
+    for (const QVariant &entry : rows) {
+        const QVariantMap row = entry.toMap();
+        if (playable(row))
+            return row;
+    }
+    return {};
+}
+
+// A playlist of the media bin or of the audio bin, played by an action as a click on
+// its first row in the bin would play it (see playlistactions.h). A playlist that is
+// playing already, which is to say whose media is on the media layer, or whose music is
+// the music, whichever of its rows that is, is left to play on: unless the action is
+// set to Always Retrigger, when it starts again from its first row, a background there
+// that is playing already being started again with it. Music played so goes on to the
+// next of its playlist as music clicked in the bin does (see audioFinished).
+//
+// GUESSES at ProPresenter: that "playing already" is the playlist, and not the row the
+// action starts at; that a sound effect at the head of an audio playlist plays over the
+// music, as any sound effect does, and so is never playing already; and that what its
+// file calls Select Playlist (which none of its own actions that have been seen has) is
+// only a matter of which playlist its bin shows, which is not done here.
+void State::playPlaylist(const QVariantMap &action, const Workspace &workspace, Effects &effects)
+{
+    const bool media = action.value("kind").toString() == QLatin1String("mediaPlaylist");
+    const QString title = action.value("title").toString();
+    const QVariantMap list = workspace.playlist ? workspace.playlist(media ? QStringLiteral("media") : QStringLiteral("audio"),
+                                                                     action.value("playlistId").toString(),
+                                                                     action.value("playlistName").toString())
+                                                : QVariantMap();
+    if (list.isEmpty()) {
+        effects << note("action", title + QStringLiteral(": there is no such playlist here"));
+        return;
+    }
+    const QString id = list.value("id").toString();
+    const bool retrigger = action.value("retrigger").toBool();
+    const bool playing = media ? hasMedia && mediaPlaylistId == id : hasMusic && musicPlaylistId == id;
+    if (playing && !retrigger) {
+        effects << note("action", title + QStringLiteral(": it is playing already, and is left to play on"));
+        return;
+    }
+    const QVariantMap row = firstRow(list.value("rows").toList(), action.value("itemId").toString());
+    if (row.isEmpty()) {
+        effects << note("action", title + QStringLiteral(": it has nothing on this computer to play"));
+        return;
+    }
+    effects << note("action", title + (playing ? QStringLiteral(", which is playing already: from its start again") : QString()));
+    if (media) {
+        QVariantMap started = row;
+        if (retrigger)
+            started.insert("retriggers", true);
+        effects << showMedia(started, id);
+    } else {
+        startAudio(row, id, effects);
+    }
 }
 
 Effects State::playAudio(const QVariantMap &audio, const QString &playlist)
@@ -999,13 +1071,22 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
             if (props.contains(id) == action.value("clear").toBool())
                 toggleProp(id, workspace, effects);
         }
+    } else if (kind == QLatin1String("mediaPlaylist") || kind == QLatin1String("audioPlaylist")) {
+        playPlaylist(action, workspace, effects);
     } else if (kind == QLatin1String("message")) {
-        // (Shown with what its tokens were last given here. An action of ProPresenter's
-        // can carry what to give them, which is not read: see actions.cpp.)
+        // Shown with what the action gives its text tokens, by the token's id; a token
+        // it gives nothing shows what it was last given on the messages' tab (see
+        // messagefile::actionValues).
         const QVariantMap message = findMessage(action.value("messageId").toString(), action.value("messageName").toString(), workspace);
         effects << note("action", title + (message.isEmpty() ? QStringLiteral(": there is no such message here") : QString()));
+        QVariantMap values;
+        for (const QVariant &entry : action.value("values").toList()) {
+            const QVariantMap value = entry.toMap();
+            if (value.value("kind").toString() == QLatin1String("text"))
+                values.insert(value.value("tokenId").toString(), value.value("value").toString());
+        }
         if (!message.isEmpty())
-            showMessage(message, effects);
+            showMessage(message, effects, values);
     } else if (kind == QLatin1String("communication")) {
         // Sent by whatever has the devices (see Devices), which says in the log what
         // became of it: the device may not be there, or not connected.

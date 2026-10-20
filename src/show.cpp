@@ -1,5 +1,6 @@
 #include "show.h"
 
+#include "catalog.h"
 #include "chords.h"
 
 #include "proconvert.h"
@@ -134,7 +135,7 @@ void Show::change(const std::function<show::Effects()> &what)
             emit lookAsked(effect.text);
             break;
         case show::Effect::Message:
-            emit messageShown(effect.text);
+            emit messageShown(effect.text, effect.action);
             break;
         case show::Effect::MessageTime:
             timeMessage(effect.text, effect.seconds);
@@ -372,6 +373,42 @@ void Show::clearGroup(const QString &id)
 void Show::toggleProp(const QString &id)
 {
     change([&] { return m_state.toggleProp(id, m_workspace); });
+}
+
+void Show::setCatalog(QObject *catalog)
+{
+    if (m_catalog == catalog)
+        return;
+    m_catalog = catalog;
+    // A playlist is found in the catalog's list of them by its id, or failing that by
+    // its name (the first of that name: a folder is no playlist), and its rows are
+    // taken as the bin shows them. (ProPresenter's own actions name a playlist by both;
+    // two of the maintainer's name the same playlist by one name and two ids, of which
+    // one is no longer the playlist's.)
+    m_workspace.playlist = [this](const QString &bin, const QString &id, const QString &name) -> QVariantMap {
+        const Catalog *lists = qobject_cast<const Catalog *>(m_catalog.data());
+        if (!lists)
+            return {};
+        const bool media = bin == QLatin1String("media");
+        const QVariantList nodes = media ? lists->mediaPlaylists() : lists->audioPlaylists();
+        QVariantMap found;
+        for (int pass = 0; pass < 2 && found.isEmpty(); ++pass) {
+            for (const QVariant &entry : nodes) {
+                const QVariantMap node = entry.toMap();
+                if (node.value("folder").toBool())
+                    continue;
+                if (pass == 0 ? !id.isEmpty() && node.value("path").toString() == id : !name.isEmpty() && node.value("name").toString() == name) {
+                    found = node;
+                    break;
+                }
+            }
+        }
+        if (found.isEmpty())
+            return {};
+        const QString path = found.value("path").toString();
+        return {{"id", path}, {"name", found.value("name")}, {"rows", media ? lists->mediaIn(path) : lists->audioIn(path)}};
+    };
+    emit catalogChanged();
 }
 
 void Show::setMessages(const QVariantList &messages)

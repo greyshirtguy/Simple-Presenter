@@ -78,6 +78,11 @@ its thumbnails where they are dropped. Files are referred to where they are on d
 never copied or moved, and anything in a drag that is not an image or a video the app
 can show is left out.
 
+A **media playlist** can be dragged out of the bin's list onto a slide or onto a macro,
+or picked from Add Action, under Media Playlist: that gives it an action that plays the
+playlist from its first row. Run again while the playlist is playing, it leaves it to
+play on, unless its Always Retrigger is on. See [Actions](actions.md).
+
 A video's thumbnail is a picture from about five seconds into it (or from the middle of
 one shorter than ten seconds), and a little later than that if the picture there is
 nearly black: a great many videos fade in from black, and their first frame says

@@ -179,9 +179,48 @@ Workspace workspace()
     return w;
 }
 
-QVariantMap messageAction(const QString &id, const QString &name = {})
+QVariantMap messageAction(const QString &id, const QString &name = {}, const QVariantList &values = {})
 {
-    return {{"kind", "message"}, {"title", "Show the message"}, {"done", true}, {"messageId", id}, {"messageName", name}};
+    return {{"kind", "message"}, {"title", "Show the message"}, {"done", true}, {"messageId", id}, {"messageName", name}, {"values", values}};
+}
+
+QVariantMap playlistAction(const QString &kind, const QString &id, const QString &name = {}, bool retrigger = false, const QString &item = {})
+{
+    return {{"kind", kind}, {"title", "Play the playlist"}, {"done", true}, {"playlistId", id}, {"playlistName", name},
+            {"retrigger", retrigger}, {"itemId", item}, {"itemName", QString()}};
+}
+
+// The workspace above, with a playlist in each bin, which an action can find: of the
+// media bin, "Loops", whose first row is not on this computer; and of the audio bin,
+// "Before", of three pieces that are each followed by the next. And an empty one, of
+// nothing that can be played.
+Workspace withPlaylists()
+{
+    Workspace w = workspace();
+    w.playlist = [](const QString &bin, const QString &id, const QString &name) -> QVariantMap {
+        QVariantMap gone = video("Gone");
+        gone.insert("id", "g");
+        gone.insert("missing", true);
+        gone.insert("path", QString());
+        QVariantMap waves = video("Waves");
+        waves.insert("id", "w");
+        QVariantMap fire = video("Fire");
+        fire.insert("id", "f");
+        const QVariantList lists = bin == QLatin1String("media")
+            ? QVariantList {QVariantMap {{"id", "loops"}, {"name", "Loops"}, {"rows", QVariantList {gone, waves, fire}}},
+                            QVariantMap {{"id", "empty"}, {"name", "Empty"}, {"rows", QVariantList {gone}}}}
+            : QVariantList {QVariantMap {{"id", "before"}, {"name", "Before"},
+                                         {"rows", QVariantList {tune("A", "next"), tune("B", "next"), tune("C", "next")}}}};
+        for (int pass = 0; pass < 2; ++pass) {
+            for (const QVariant &entry : lists) {
+                const QVariantMap list = entry.toMap();
+                if (pass == 0 ? list.value("id") == id : list.value("name") == name)
+                    return list;
+            }
+        }
+        return {};
+    };
+    return w;
 }
 
 // The times that were set going or stopped, in order: "lights:10 parent:0"
@@ -1487,6 +1526,95 @@ private slots:
         QCOMPARE(show.sounds.size(), 3);
     }
 
+    // ---- actions that play a playlist of either bin
+
+    void aMediaPlaylistActionPlaysItsFirstRowThatIsHere()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", {}, {playlistAction("mediaPlaylist", "loops", "Loops")})};
+        const Effects effects = show.goLive(song.cue(0), false, withPlaylists());
+        QVERIFY(outside(effects).contains("media"));
+        // (The first row is not on this computer, and is passed over.)
+        QCOMPARE(show.media.value("name").toString(), "Waves");
+        QCOMPARE(show.mediaPlaylistId, "loops");
+    }
+
+    void aPlaylistThatIsPlayingIsLeftToPlayOnUnlessItIsToRetrigger()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", {}, {playlistAction("mediaPlaylist", "loops", "Loops")}),
+                       slide("b", {}, {playlistAction("mediaPlaylist", "loops", "Loops")}),
+                       slide("c", {}, {playlistAction("mediaPlaylist", "loops", "Loops", true)})};
+        show.goLive(song.cue(0), false, withPlaylists());
+        // Another of its rows, clicked in the bin, is the playlist playing still.
+        QVariantMap fire = video("Fire");
+        fire.insert("id", "f");
+        show.showMedia(fire, "loops");
+        Effects effects = show.goLive(song.cue(1), false, withPlaylists());
+        QVERIFY(!outside(effects).contains("media"));
+        QVERIFY(noted(effects, "it is playing already, and is left to play on"));
+        QCOMPARE(show.media.value("name").toString(), "Fire");
+        // Always Retrigger: from its first row again, started again even where that
+        // is a background playing already.
+        effects = show.goLive(song.cue(2), false, withPlaylists());
+        QVERIFY(outside(effects).contains("media"));
+        QVERIFY(noted(effects, "from its start again"));
+        QCOMPARE(show.media.value("name").toString(), "Waves");
+        QVERIFY(show.media.value("retriggers").toBool());
+        effects = show.goLive(song.cue(2), false, withPlaylists());
+        QVERIFY(outside(effects).contains("media"));
+    }
+
+    void aPlaylistIsFoundByItsNameAndAtTheRowTheActionNames()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", {}, {playlistAction("mediaPlaylist", "an old id", "Loops", false, "f")}),
+                       slide("b", {}, {playlistAction("mediaPlaylist", "nowhere", "Nothing")}),
+                       slide("c", {}, {playlistAction("mediaPlaylist", "empty", "Empty")})};
+        show.goLive(song.cue(0), false, withPlaylists());
+        QCOMPARE(show.media.value("name").toString(), "Fire");
+        QCOMPARE(show.mediaPlaylistId, "loops");
+        show.clearMedia();
+        Effects effects = show.goLive(song.cue(1), false, withPlaylists());
+        QVERIFY(noted(effects, "there is no such playlist here"));
+        QVERIFY(!show.hasMedia);
+        effects = show.goLive(song.cue(2), false, withPlaylists());
+        QVERIFY(noted(effects, "it has nothing on this computer to play"));
+        QVERIFY(!show.hasMedia);
+        // A workspace that has no way to look a playlist up has none.
+        effects = show.goLive(song.cue(0), false, workspace());
+        QVERIFY(noted(effects, "there is no such playlist here"));
+    }
+
+    void anAudioPlaylistActionPlaysItsFirstPieceAndTheNextFollows()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", {}, {playlistAction("audioPlaylist", "before", "Before")}),
+                       slide("b", {}, {playlistAction("audioPlaylist", "before", "Before", true)})};
+        Effects effects = show.goLive(song.cue(0), false, withPlaylists());
+        QVERIFY(outside(effects).contains("audio"));
+        QCOMPARE(show.music.value("name").toString(), "A");
+        QCOMPARE(show.musicPlaylistId, "before");
+        // Again: left to play on
+        effects = show.goLive(song.cue(0), false, withPlaylists());
+        QVERIFY(!outside(effects).contains("audio"));
+        // At its end the next follows, as it does for music clicked in the bin
+        const QVariantList rows {tune("A", "next"), tune("B", "next"), tune("C", "next")};
+        effects = show.audioFinished(show.music.value("play").toInt(), rows);
+        QCOMPARE(show.music.value("name").toString(), "B");
+        // Always Retrigger: from its first piece again
+        effects = show.goLive(song.cue(1), false, withPlaylists());
+        QCOMPARE(show.music.value("name").toString(), "A");
+        // Another playlist's music playing is not this one playing.
+        show.playAudio(tune("Other"), "elsewhere");
+        effects = show.goLive(song.cue(0), false, withPlaylists());
+        QCOMPARE(show.music.value("name").toString(), "A");
+    }
+
     void audioThatIsNotOnThisComputerIsAProblemAndNothingGivesWay()
     {
         State show;
@@ -1799,6 +1927,40 @@ private slots:
         show.setMessage("parent", true, workspace());
         show.goLive(song.cue(4), false, workspace());
         QVERIFY(show.messages.isEmpty() && show.cleared);
+    }
+
+    void aMessageActionGivesTheMessagesTokensItsWords()
+    {
+        State show;
+        Presentation song;
+        const QVariantList values {QVariantMap {{"tokenId", "t1"}, {"name", "Name"}, {"kind", "text"}, {"value", "Sam"}},
+                                   QVariantMap {{"tokenId", "t2"}, {"name", "Countdown"}, {"kind", "timer"}, {"value", QString()}}};
+        song.slides = {slide("a", {}, {messageAction("parent", {}, values)}), slide("b", {}, {messageAction("lights")})};
+        Effects effects = show.goLive(song.cue(0), false, workspace());
+        Effect shown;
+        for (const Effect &effect : effects) {
+            if (effect.kind == Effect::Message)
+                shown = effect;
+        }
+        QCOMPARE(shown.text, "parent");
+        // The words of its text tokens, by the token's id: a timer's is not words
+        QCOMPARE(shown.action, (QVariantMap {{"t1", "Sam"}}));
+        // An action that gives nothing, and the messages' own tab, give nothing
+        effects = show.goLive(song.cue(1), false, workspace());
+        for (const Effect &effect : effects) {
+            if (effect.kind == Effect::Message)
+                QVERIFY(effect.action.isEmpty());
+        }
+        show.setMessage("parent", false, workspace());
+        effects = show.setMessage("parent", true, workspace());
+        int told = 0;
+        for (const Effect &effect : effects) {
+            if (effect.kind == Effect::Message) {
+                ++told;
+                QVERIFY(effect.action.isEmpty());
+            }
+        }
+        QCOMPARE(told, 1);
     }
 
     void aMessageThatIsNoLongerThereIsNoLongerShown()

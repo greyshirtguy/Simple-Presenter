@@ -2,6 +2,7 @@
 
 #include <QHash>
 #include <QObject>
+#include <QPointer>
 #include <QStringList>
 #include <QTimer>
 #include <QVariantList>
@@ -127,6 +128,10 @@ class Show : public QObject
     // Its messages, { id, name, seconds } each, as Messages lists them: what an action
     // that names a message shows, and how long one is shown before it goes by itself
     Q_PROPERTY(QVariantList messages READ messages WRITE setMessages NOTIFY workspaceChanged)
+    // The open workspace's lists (a Catalog), which an action that plays a playlist of
+    // the media bin or of the audio bin asks for that playlist's rows, when it is run
+    // and not before (see show::Workspace::playlist). Given once, by the operator window.
+    Q_PROPERTY(QObject *catalog READ catalog WRITE setCatalog NOTIFY catalogChanged)
 
     // The slide that is live and the one that would come next, as maps (see
     // proconvert), or empty maps for none
@@ -198,6 +203,8 @@ public:
     void setClearGroups(const QVariantList &groups);
     QVariantList messages() const { return m_workspace.messages; }
     void setMessages(const QVariantList &messages);
+    QObject *catalog() const { return m_catalog; }
+    void setCatalog(QObject *catalog);
     QString lookId() const { return m_state.lookId; }
     void setLookId(const QString &id);
 
@@ -330,7 +337,11 @@ signals:
     // A message has been shown, or shown again while it was shown: what it says and
     // how it looks are to be taken as they are now. (What is drawn of a message is
     // what it was when it was last shown, and not what has been typed into it since.)
-    void messageShown(const QString &id);
+    // `values` are the words an action that showed it gives its text tokens, by the
+    // token's id, which it is shown with in place of theirs; empty when it was shown
+    // from its tab.
+    void messageShown(const QString &id, const QVariantMap &values);
+    void catalogChanged();
     void stageMessageChanged();
     void stageFlashChanged();
     void screenLayoutsChanged();
@@ -385,6 +396,7 @@ private:
 
     show::State m_state;
     show::Workspace m_workspace;
+    QPointer<QObject> m_catalog;
     // What counts the time before the show, and the announcements, go on by themselves
     QTimer *m_advance = nullptr;
     QTimer *m_announcementAdvance = nullptr;

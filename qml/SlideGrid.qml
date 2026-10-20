@@ -763,8 +763,9 @@ Item {
             // beside it, it becomes a slide of its own there.
             //
             // And a timer, a prop, a macro or a stage screen dragged out of the show
-            // controls and dropped anywhere on the slide gives the slide the action
-            // that goes with it. (One drop area for both: two, one over the other,
+            // controls, or a playlist of either bin or a message dragged out of its
+            // list, and dropped anywhere on the slide gives the slide the action that
+            // goes with it. (One drop area for both: two, one over the other,
             // would each have a say in what a drag of files is taken as, and a drag
             // from the file manager must only ever be taken as a copy.)
             DropArea {
@@ -777,13 +778,14 @@ Item {
                 readonly property real edge: Math.max(16, Math.min(30, width * 0.14))
 
                 function ofAction(drag) {
-                    return drag.keys.indexOf("action") >= 0
+                    return drag.keys.some(key => slides.win.actionDragKeys.includes(key))
                 }
 
                 function follow(drag) {
                     if (ofAction(drag)) {
                         zone = "onto"
-                        drag.accepted = true
+                        // (A folder of playlists is dragged as a playlist is, and is none.)
+                        drag.accepted = slides.win.draggedAction(drag.source) !== null
                         return
                     }
                     zone = drag.x < edge ? "before" : drag.x > width - edge ? "after" : "onto"
@@ -791,13 +793,15 @@ Item {
                 }
 
                 anchors.fill: parent
-                keys: ["media", "text/uri-list", "action"]
+                // (Media, files, and the drags that stand for actions, as actionDragKeys in
+                // Main.qml lists them: a plain list, made with nothing for every slide.)
+                keys: ["media", "text/uri-list", "action", "mediaPlaylist", "audioPlaylist", "message"]
                 enabled: slides.win.takesDrops
                 onEntered: (drag) => follow(drag)
                 onPositionChanged: (drag) => follow(drag)
                 onDropped: (drop) => {
                     if (ofAction(drop))
-                        slides.win.dropActionOnSlide(cell.index, cell)
+                        slides.win.dropActionOnSlide(cell.index, cell, drop.source)
                     else
                         slides.win.dropOnSlides(cell.index, zone, drop)
                 }

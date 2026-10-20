@@ -1768,6 +1768,206 @@ def prepare_devices(workspace, test_dir):
         json.dump({"http": DEVICE_STAND_INS.http_port, "rosstalk": DEVICE_STAND_INS.ross_port}, out)
 
 
+MEDIA_ROW = """\
+        items {
+          uuid { string: "%(id)s-ITEM" }
+          name: "%(name)s"
+          cue {
+            uuid { string: "%(id)s-CUE" }
+            name: "%(name)s"
+            completion_action_type: COMPLETION_ACTION_TYPE_LAST
+            actions {
+              uuid { string: "%(id)s-ACTION" }
+              isEnabled: true
+              type: ACTION_TYPE_MEDIA
+              media {
+                element {
+                  uuid { string: "%(id)s-MEDIA" }
+                  url { absolute_string: "%(address)s" local { root: ROOT_SHOW path: "Media/Assets/%(file)s" } }
+                  metadata { format: "PNG" }
+                  image {
+                    drawing { natural_size { width: 320 height: 180 } alpha_type: ALPHA_TYPE_STRAIGHT }
+                    file { local_url { absolute_string: "%(address)s" local { root: ROOT_SHOW path: "Media/Assets/%(file)s" } } }
+                  }
+                }
+                audio { }
+              }
+            }
+            isEnabled: true
+          }
+        }
+"""
+
+# A media bin as ProPresenter might have one: a folder "Services" with a playlist "Walk In" of two pictures, and a
+# playlist "Backgrounds" of one, at the top
+MEDIA_BIN = """\
+application_info { platform: PLATFORM_MACOS application: APPLICATION_PROPRESENTER application_version { major_version: 21 minor_version: 4 } }
+type: TYPE_MEDIA
+root_node {
+  uuid { string: "0C0C0C0C-0000-0000-0000-000000000000" }
+  name: "PLAYLIST"
+  expanded: true
+  playlists {
+    playlists {
+      uuid { string: "0C0C0C0C-0000-0000-0000-00000000F01D" }
+      name: "Services"
+      expanded: true
+      playlists {
+        playlists {
+          uuid { string: "0C0C0C0C-0000-0000-0000-000000000001" }
+          name: "Walk In"
+          items {
+%(walkin)s
+          }
+        }
+      }
+    }
+    playlists {
+      uuid { string: "0C0C0C0C-0000-0000-0000-000000000002" }
+      name: "Backgrounds"
+      items {
+%(backgrounds)s
+      }
+    }
+  }
+}
+"""
+
+# Two messages: "Parent Wanted", whose two tokens are given words (Name and Room) and were last given Sam and Foyer, as
+# ProPresenter keeps a text token's value; and "Car Lights", of words alone
+PLAY_MESSAGES = """application_info { platform: PLATFORM_MACOS application: APPLICATION_PROPRESENTER application_version { major_version: 21 minor_version: 4 } }
+messages {
+  uuid { string: "7A7A7A7A-0000-0000-0000-000000000001" }
+  title: "Parent Wanted"
+  message_text: "Parent of ${7B7B7B7B-0000-0000-0000-00000000000A} to the ${7B7B7B7B-0000-0000-0000-00000000000B}"
+  tokens { uuid { string: "7B7B7B7B-0000-0000-0000-00000000000A" } text { name: "Name" } }
+  tokens { uuid { string: "7B7B7B7B-0000-0000-0000-00000000000B" } text { name: "Room" } }
+  token_values { token_id { string: "7B7B7B7B-0000-0000-0000-00000000000A" } text { value: "Sam" } token_name: "Name" }
+  token_values { token_id { string: "7B7B7B7B-0000-0000-0000-00000000000B" } text { value: "Foyer" } token_name: "Room" }
+}
+messages {
+  uuid { string: "7A7A7A7A-0000-0000-0000-000000000002" }
+  title: "Car Lights"
+  message_text: "A car has its lights on"
+}
+"""
+
+
+def media_row(key, name, file, folder):
+    return MEDIA_ROW % {"id": "0D0D0D0D-0000-0000-0000-%012d" % key, "name": name, "file": file,
+                        "address": "file://" + urllib.parse.quote(os.path.join(folder, file))}
+
+
+def prepare_playacts(workspace, test_dir):
+    """The test's own media bin (MEDIA_BIN: two pictures of one colour each, red and green, in the test's folder),
+    audio bin (AUDIO_BIN, with two short tones before the service, each followed by the next, and a sound effect),
+    messages (PLAY_MESSAGES), and a presentation "Playlists" of five blocks in the top left of the slide, so that the
+    media under a slide shows round it. Its fifth slide has two actions as ProPresenter writes them: an Audio Bin
+    Playlist by the playlist's name and an id the playlist no longer has (as two of the maintainer's do), and a
+    Message for Car Lights with nothing for its tokens. What each file was is kept (playacts-*-before). Nothing is
+    written outside the test's folder, and nothing under the copy's Media."""
+    configuration = os.path.join(workspace, "Configuration")
+    library = os.path.join(workspace, "Libraries", "MainHall")
+    playlists = os.path.join(workspace, "Playlists")
+    for target in (configuration, library, playlists):
+        if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("the playlist actions' test would write outside its own folder: " + os.path.realpath(target))
+    pictures = os.path.join(test_dir, "pictures")
+    os.makedirs(pictures)
+    for name, colour in (("Red.png", (255, 0, 0)), ("Green.png", (0, 255, 0))):
+        with open(os.path.join(pictures, name), "wb") as out:
+            out.write(quarters_png(320, 180, [colour] * 4))
+    walkin = media_row(1, "Red", "Red.png", pictures) + media_row(2, "Green", "Green.png", pictures)
+    backgrounds = media_row(3, "Green", "Green.png", pictures)
+    with open(os.path.join(playlists, "Media"), "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (MEDIA_BIN % {"walkin": walkin, "backgrounds": backgrounds}).encode()))
+    sounds = os.path.join(test_dir, "sounds")
+    os.makedirs(sounds)
+    for name in ("Walk In.wav", "Second Tune.wav", "Bell.wav"):
+        seconds, pitch, left, right = AUDIO_TONES[name]
+        write_tone(os.path.join(sounds, name), seconds, pitch, left, right, test_dir)
+    before = audio_row(1, "Walk In", "Walk In.wav", 3, sounds) + audio_row(2, "Second Tune", "Second Tune.wav", 3, sounds)
+    effects = audio_row(6, "Bell", "Bell.wav", 2, sounds, target=False, effect=True)
+    with open(os.path.join(playlists, "Audio"), "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (AUDIO_BIN % {"before": before, "effects": effects}).encode()))
+    with open(os.path.join(configuration, "Messages"), "wb") as out:
+        out.write(protoc("encode", "rv.data.MessageDocument", "messages.proto", PLAY_MESSAGES.encode()))
+    shutil.copy(os.path.join(configuration, "Messages"), os.path.join(test_dir, "playacts-messages-before"))
+    shutil.copy(os.path.join(configuration, "Macros"), os.path.join(test_dir, "playacts-macros-before"))
+    text = blocks_presentation("Playlists", [(1, 1, 1), (1, 1, 0), (0, 1, 1), (1, 0, 1), (0, 0, 1)], 100, 100)
+    cues = re.findall(r"^cues \{\n.*?^\}\n", text, re.S | re.M)
+    assert len(cues) == 5 and cues[4].endswith("  isEnabled: true\n}\n")
+    pro = ('  actions {\n    uuid {\n      string: "D2C17F20-0000-4B06-8F49-80F4994478A5"\n    }\n    isEnabled: true\n'
+           '    type: ACTION_TYPE_AUDIO_BIN_PLAYLIST\n    playlist_item {\n      playlist_uuid {\n        string: "9E98B135-0000-4A67-9450-8F86707697DC"\n'
+           '      }\n      playlist_name: "Before the Service"\n    }\n  }\n'
+           '  actions {\n    uuid {\n      string: "829AB8CE-0000-4E06-9C02-102846871ED9"\n    }\n    isEnabled: true\n'
+           '    type: ACTION_TYPE_MESSAGE\n    message {\n      message_identificaton {\n        parameter_uuid {\n'
+           '          string: "7A7A7A7A-0000-0000-0000-000000000002"\n        }\n        parameter_name: "Car Lights"\n      }\n    }\n  }\n')
+    text = text.replace(cues[4], cues[4][:-len("  isEnabled: true\n}\n")] + pro + "  isEnabled: true\n}\n")
+    target = os.path.join(library, "Playlists.pro")
+    with open(target, "wb") as out:
+        out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+    shutil.copy(target, os.path.join(test_dir, "playacts-pro-before"))
+
+
+def after_playacts(workspace, test_dir):
+    """What the presentation and the macros hold once the test has given them actions, read with protoc and not by the
+    app: each new action as ProPresenter writes its kind, with nothing in it ProPresenter does not define; Always
+    Retrigger written only where it is on; ProPresenter's own two actions as they were, to the byte; and the messages'
+    file as it was given, the words an action gave a message's tokens never written into the message."""
+    def decoded(path, message="rv.data.Presentation", proto="presentation.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def cues(text):
+        return re.findall(r"^cues \{\n.*?^\}\n", text, re.S | re.M)
+
+    def actions(cue, kind):
+        return [block for block in re.findall(r"^  actions \{\n.*?^  \}\n", cue, re.S | re.M) if "type: " + kind + "\n" in block]
+
+    # Every field ProPresenter's playlist and message actions have, and nothing else
+    known = re.compile(r"^\s*(actions \{|uuid \{|string: |isEnabled: |type: |playlist_item \{|playlist_uuid \{|playlist_name: "
+                       r"|always_retrigger: |message \{|message_identificaton \{|parameter_uuid \{|parameter_name: |content \{"
+                       r"|token_id \{|text \{|value: |token_name: |\})")
+    before = cues(decoded(os.path.join(test_dir, "playacts-pro-before")))
+    after = cues(decoded(os.path.join(workspace, "Libraries", "MainHall", "Playlists.pro")))
+    if len(after) != 5:
+        return [said(False, "the presentation still has its five slides", str(len(after)))]
+    walk = actions(after[0], "ACTION_TYPE_MEDIA_BIN_PLAYLIST")
+    audio = actions(after[1], "ACTION_TYPE_AUDIO_BIN_PLAYLIST")
+    parent = actions(after[2], "ACTION_TYPE_MESSAGE")
+    lights = actions(after[3], "ACTION_TYPE_MESSAGE")
+    backgrounds = actions(after[3], "ACTION_TYPE_MEDIA_BIN_PLAYLIST")
+    made = walk + audio + parent + lights + backgrounds
+    strange = [line.strip() for block in made for line in block.splitlines() if not known.match(line)]
+    walk, audio, parent, lights, backgrounds = (b[0] if len(b) == 1 else "" for b in (walk, audio, parent, lights, backgrounds))
+    with open(os.path.join(test_dir, "playacts-messages-before"), "rb") as was, open(os.path.join(workspace, "Configuration", "Messages"), "rb") as now:
+        messages_same = was.read() == now.read()
+    macros_now = decoded(os.path.join(workspace, "Configuration", "Macros"), "rv.data.MacrosDocument", "macros.proto")
+    macros_was = decoded(os.path.join(test_dir, "playacts-macros-before"), "rv.data.MacrosDocument", "macros.proto")
+    in_macros = macros_now.count("type: ACTION_TYPE_MEDIA_BIN_PLAYLIST") - macros_was.count("type: ACTION_TYPE_MEDIA_BIN_PLAYLIST")
+    return [
+        said('playlist_uuid {\n        string: "0C0C0C0C-0000-0000-0000-000000000001"' in walk and 'playlist_name: "Walk In"' in walk
+             and "always_retrigger: true" in walk and "item_uuid" not in walk and "select_playlist" not in walk,
+             "the first slide plays Walk In, by its id and name, Always Retrigger written as on, and no item and no Select Playlist", walk[:400]),
+        said('playlist_name: "Before the Service"' in audio and "0C0C0C0C" not in audio and "0A0A0A0A-0000-0000-0000-000000000001" in audio
+             and "always_retrigger" not in audio,
+             "the second plays the audio bin's Before the Service, as ProPresenter writes one: Always Retrigger off and so not written", audio[:400]),
+        said(audio.count("playlist_item {") == 1 and walk.count("playlist_item {") == 1, "each is one playlist item, as ProPresenter's are"),
+        said('parameter_name: "Parent Wanted"' in parent and parent.count("content {") == 2
+             and re.search(r'token_id \{\n\s*string: "7B7B7B7B-0000-0000-0000-00000000000A"\n\s*\}\n\s*text \{\n\s*value: "Alex"\n\s*\}\n\s*token_name: "Name"', parent) is not None
+             and re.search(r'value: "Hall"\n\s*\}\n\s*token_name: "Room"', parent) is not None,
+             "the third shows Parent Wanted, giving Name and Room words of its own, each as the message keeps a token's value", parent[:600]),
+        said('parameter_name: "Car Lights"' in lights and "content" not in lights,
+             "the fourth shows Car Lights, which has no tokens, and says nothing of them, as ProPresenter's own does", lights[:300]),
+        said('playlist_name: "Backgrounds"' in backgrounds, "and plays Backgrounds, dropped on it from the media bin", backgrounds[:300]),
+        said(strange == [], "nothing in them ProPresenter's actions do not have", " / ".join(strange[:6])),
+        said(after[4] == before[4], "ProPresenter's own two actions, on the fifth slide, are as they were, to the byte"),
+        said(messages_same, "the messages' file is as it was given: an action's words for a token are the action's, not the message's"),
+        said(in_macros == 1, "a macro has the playlist dropped on it", in_macros),
+    ]
+
+
 def after_devices(workspace, test_dir):
     """What reached the stand-ins, and what the files hold, read with protoc and not by the app: the MIDI note seen by
     ALSA's own tool as the app sent it; ProPresenter's devices file as it was given; the presentation's two actions of
@@ -2453,6 +2653,7 @@ TESTS = {
     "builds": test("Demo", timeout=300, prepare=prepare_builds, after=after_builds),
     "themebuilds": test("Act", timeout=240),
     "devices": test("Act", timeout=300, env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_devices, after=after_devices),
+    "playacts": test("Act", timeout=300, prepare=prepare_playacts, after=after_playacts),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

@@ -1,5 +1,6 @@
 #include "messagefile.h"
 
+#include "action.pb.h"
 #include "messages.pb.h"
 
 #include <QDir>
@@ -360,6 +361,41 @@ QString setValue(const QString &workspace, const QString &id, const QString &tok
         *changed = true;
         return QString();
     });
+}
+
+QList<ActionValue> actionValues(const rv::data::Action &action)
+{
+    QList<ActionValue> values;
+    for (const FileValue &value : action.message().content()) {
+        ActionValue read;
+        read.tokenId = text(value.token_id().string());
+        read.name = text(value.token_name());
+        read.kind = value.has_timer() ? QStringLiteral("timer") : value.has_clock() ? QStringLiteral("clock") : QStringLiteral("text");
+        if (value.has_text())
+            read.value = text(value.text().value());
+        values.append(read);
+    }
+    return values;
+}
+
+void setActionValues(rv::data::Action *action, const QList<ActionValue> &values)
+{
+    rv::data::Action::MessageType *message = action->mutable_message();
+    for (const ActionValue &wanted : values) {
+        if (wanted.kind != QLatin1String("text") || wanted.tokenId.isEmpty())
+            continue;
+        FileValue *value = nullptr;
+        for (int i = 0; i < message->content_size() && !value; ++i) {
+            if (text(message->content(i).token_id().string()) == wanted.tokenId)
+                value = message->mutable_content(i);
+        }
+        if (!value) {
+            value = message->add_content();
+            value->mutable_token_id()->set_string(wanted.tokenId.toStdString());
+        }
+        value->set_token_name(wanted.name.toStdString());
+        value->mutable_text()->set_value(wanted.value.toStdString());
+    }
 }
 
 QString setTheme(const QString &workspace, const QString &id, const QString &theme, const QString &slideId, const QString &slideName, int slideIndex)

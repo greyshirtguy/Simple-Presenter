@@ -1415,6 +1415,8 @@ Window {
         // (Not the macro itself, for an action of a macro.)
         const macros = Macros.collections.map(collection => Object.assign({}, collection, {
             macros: collection.macros.filter(macro => macro.id !== target.macro) })).filter(collection => collection.macros.length > 0)
+        const mediaLists = binPlaylistItems(catalog.mediaPlaylists, "", playlist => add(playlistAction("mediaPlaylist", playlist)))
+        const audioLists = binPlaylistItems(catalog.audioPlaylists, "", playlist => add(playlistAction("audioPlaylist", playlist)))
         return [
             { header: "Add Action" },
             { label: "Timer…", glyph: "timer", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
@@ -1432,8 +1434,79 @@ Window {
             { label: "Macro", glyph: "macro", disabled: macros.length === 0, items: [{ header: "Macro" }].concat(macros.map(collection => ({
                 label: collection.name, items: [{ header: collection.name }].concat(collection.macros.map(macro => ({
                     label: macro.name, run: () => add(macroAction(macro, collection)) }))) }))) },
+            { label: "Media Playlist", glyph: "mediaPlaylist", disabled: mediaLists.length === 0, items: [{ header: "Media Playlist" }].concat(mediaLists) },
+            { label: "Audio Playlist", glyph: "audioPlaylist", disabled: audioLists.length === 0, items: [{ header: "Audio Playlist" }].concat(audioLists) },
+            { label: "Message", glyph: "message", disabled: Messages.messages.length === 0, items: [{ header: "Message" }].concat(Messages.messages.map(message => ({
+                label: message.name + (givenWords(message) ? "…" : ""), run: () => addMessageAction(target, message) }))) },
             { label: "Communication", glyph: "other", disabled: Devices.connections.length === 0, items: communicationItems(target) }
         ]
+    }
+
+    // The playlists of a bin as the rows of a menu, in their folders, each leading to
+    // `make` with the playlist ({ path, name }, as the bin's list has it). A folder with
+    // no playlist in it, however deep, is left out.
+    function binPlaylistItems(nodes, parent, make) {
+        const items = []
+        for (const node of nodes.filter(candidate => candidate.parent === parent)) {
+            if (!node.folder) {
+                items.push({ label: node.name, run: () => make(node) })
+                continue
+            }
+            const inner = binPlaylistItems(nodes, node.path, make)
+            if (inner.length > 0)
+                items.push({ label: node.name, items: [{ header: node.name }].concat(inner) })
+        }
+        return items
+    }
+
+    // An action that plays a playlist of the media bin or of the audio bin (see
+    // src/playlistactions.h): new, it is the playlist alone, with Always Retrigger off.
+    function playlistAction(kind, playlist) {
+        return { kind: kind, playlistId: playlist.path, playlistName: playlist.name }
+    }
+
+    // The row of an action's menu that turns its Always Retrigger on or off: off, a
+    // playlist that is playing already is left to play on when the action is run again.
+    function retriggerItem(target, action) {
+        return { label: "Always Retrigger", current: action.retrigger, run: () => commitAction(target, {
+            kind: action.kind, playlistId: action.playlistId, playlistName: action.playlistName, retrigger: !action.retrigger }, action.id) }
+    }
+
+    // Whether a message has tokens that are given words (Name, Room and the like),
+    // which an action that shows it can give words of its own
+    function givenWords(message) {
+        return message.tokens.some(token => token.kind === "text")
+    }
+
+    // An action that shows a message, with the words it gives the message's text tokens
+    // (as ActionDialog sets them up: { tokenId, name, kind, value } each)
+    function messageAction(message, values) {
+        return { kind: "message", messageId: message.id, messageName: message.name, values: values }
+    }
+
+    // A message picked for an action, or dropped on a slide or a macro: one with tokens
+    // that are given words brings up the panel to give them, starting from what they
+    // were last given on the messages' tab; one with none needs nothing more.
+    function addMessageAction(target, message) {
+        if (givenWords(message))
+            actionDialog.openMessage(target, null, message)
+        else
+            commitAction(target, messageAction(message, []), "")
+    }
+
+    // The message an action shows, as Messages has it: by its id, or failing that by its
+    // name; undefined for none.
+    function messageOf(action) {
+        return Messages.messages.find(message => message.id === action.messageId)
+            ?? Messages.messages.find(message => message.name === action.messageName)
+    }
+
+    // The panel in which the words a message action gives its tokens are changed, for
+    // the macros' tab, which lists actions and has no way to it of its own.
+    function openMessageAction(target, action) {
+        const message = messageOf(action)
+        if (message)
+            actionDialog.openMessage(target, action, message)
     }
 
     // The communication devices' commands, as ProPresenter's menu has them: a kind of
@@ -1499,6 +1572,12 @@ Window {
             items.push({ label: "Change…", run: () => actionDialog.openCommunication(target, action, known,
                                                                                     action.command === "words" ? "customControl" : action.command) })
         }
+        // A playlist: whether it starts again when it is playing already
+        if (action.kind === "mediaPlaylist" || action.kind === "audioPlaylist")
+            items.push(retriggerItem(target, action))
+        // A message whose tokens are given words: the words this action gives them
+        if (action.kind === "message" && messageOf(action) && givenWords(messageOf(action)))
+            items.push({ label: "Change…", run: () => openMessageAction(target, action) })
         // A piece of audio: how it plays on from its end (there is no playlist here
         // for a next to follow), and whether it is music or a sound effect.
         if (action.kind === "audio") {
@@ -1528,6 +1607,8 @@ Window {
     // Something is being dragged that stands for an action: a timer, a prop, a macro or
     // a stage screen out of the show controls, or one of the clear buttons, to be
     // dropped on a slide or on a macro, which gives that the action that goes with it.
+    // (A playlist of either bin, and a message, are dragged as a row of their lists is,
+    // and stand for an action too: see draggedAction.)
     // `payload` says what: { kind, id, name } and, for a prop or a macro, its
     // collection, or for a clear button the layer it clears. (A prop dropped on another
     // prop of its collection is moved there instead: see PropsPanel.)
@@ -1548,17 +1629,40 @@ Window {
         actionDrag.Drag.active = false
     }
 
+    // What is being dragged, as an action, by the item that is (a drag's or a drop's
+    // `source`): the payload of a drag out of the show controls, or a playlist of either
+    // bin, or a message, being dragged out of its list ({ kind, id, name }); null for
+    // anything else. A folder of playlists is no playlist. (By the item and not by which
+    // drag is active: a drag is no longer active by the time its drop arrives.)
+    function draggedAction(source) {
+        if (!source)
+            return null
+        if (source === actionDrag)
+            return actionDrag.payload
+        const kind = source === mediaPlaylistDrag ? "mediaPlaylist" : source === audioPlaylistDrag ? "audioPlaylist"
+                   : source === messageDrag ? "message" : ""
+        return kind !== "" && source.entry && !source.entry.folder ? { kind: kind, id: source.entry.path, name: source.entry.name } : null
+    }
+
+    // The keys of the drags that stand for actions, for whatever takes them; and the
+    // drag the messages' list moves (see MessagesPanel)
+    readonly property var actionDragKeys: ["action", "mediaPlaylist", "audioPlaylist", "message"]
+    readonly property Item messageDragProxy: messageDrag
+
     // What was being dragged has been dropped on a slide, or on a macro (`target` is
-    // as commitAction takes it). A timer and a stage screen bring up the panel that
-    // says what is to be done to them; a prop asks whether it is to be put on or taken
-    // off; a macro, and one of the clear buttons (a layer's or a group's), need nothing
-    // more.
-    function dropAction(target, item) {
-        const dropped = actionDrag.payload
+    // as commitAction takes it; `source` the item that was being dragged, the drop's
+    // own, which is the show controls' drag if it is not said). A timer and a stage
+    // screen bring up the panel that says what is to be done to them; a prop asks
+    // whether it is to be put on or taken off; a message whose tokens are given words
+    // brings up the panel for them; a macro, a playlist, a message with no such tokens
+    // and one of the clear buttons (a layer's or a group's) need nothing more.
+    function dropAction(target, item, source) {
+        const dropped = draggedAction(source ?? actionDrag)
         if (!dropped || (target.slide !== undefined && !document) || (dropped.kind === "macro" && dropped.id === target.macro))
             return
         Log.note("drop", "a " + (dropped.kind === "stage" ? "stage screen" : dropped.kind === "clear" ? "clear button"
-                                 : dropped.kind === "clearGroup" ? "clear group's button" : dropped.kind) + " dropped on "
+                                 : dropped.kind === "clearGroup" ? "clear group's button" : dropped.kind === "mediaPlaylist" ? "media playlist"
+                                 : dropped.kind === "audioPlaylist" ? "audio playlist" : dropped.kind) + " dropped on "
                  + (target.macro !== undefined ? "a macro" : "slide " + (target.slide + 1) + " of " + quoted(document.name)))
         if (dropped.kind === "timer")
             actionDialog.openTimer(target, null, dropped.id)
@@ -1574,6 +1678,13 @@ Window {
             commitAction(target, clearGroupAction(dropped.id, dropped.groupName), "")
         else if (dropped.kind === "audio")
             commitAction(target, { kind: "audio", item: dropped.id }, "")
+        else if (dropped.kind === "mediaPlaylist" || dropped.kind === "audioPlaylist")
+            commitAction(target, playlistAction(dropped.kind, { path: dropped.id, name: dropped.name }), "")
+        else if (dropped.kind === "message") {
+            const message = Messages.messages.find(candidate => candidate.id === dropped.id)
+            if (message)
+                addMessageAction(target, message)
+        }
     }
 
     // The piece of audio that is being dragged out of the audio bin, as what the drag
@@ -1599,8 +1710,8 @@ Window {
         commitAction({ macro: made.id }, { kind: "audio", item: dropped.id }, "")
     }
 
-    function dropActionOnSlide(index, item) {
-        dropAction({ slide: index }, item)
+    function dropActionOnSlide(index, item, source) {
+        dropAction({ slide: index }, item, source)
     }
 
     // Reads the presentation being viewed again after a change to it that leaves the
@@ -4336,6 +4447,13 @@ Window {
         value: Props.collections
     }
 
+    // And where it finds a playlist an action plays, when one does (see Show)
+    Binding {
+        target: Show
+        property: "catalog"
+        value: win.catalog
+    }
+
     // The key the live song's chords are written in, and the one they are shown in
     Binding {
         target: Show
@@ -4392,12 +4510,18 @@ Window {
     Connections {
         target: Show
 
-        function onMessageShown(id) {
+        function onMessageShown(id, values) {
             const message = Messages.messages.find(candidate => candidate.id === id)
             if (!message)
                 return
+            // Shown by an action that gives its text tokens words of its own, it is
+            // taken with those in place of what the tokens were last given here.
+            const given = values ?? {}
+            const shown = Object.keys(given).length === 0 ? message : Object.assign({}, message, {
+                tokens: message.tokens.map(token => token.kind === "text" && given[token.id] !== undefined
+                                                    ? Object.assign({}, token, { value: given[token.id] }) : token) })
             const kept = Object.assign({}, win.messagesAsShown)
-            kept[id] = message
+            kept[id] = shown
             win.messagesAsShown = kept
         }
 
@@ -4822,6 +4946,14 @@ Window {
             id: audioPlaylistDrag
 
             Drag.keys: ["audioPlaylist"]
+        }
+
+        // A message dragged out of the messages' tab, to give a slide or a macro the
+        // action that shows it
+        RowDrag {
+            id: messageDrag
+
+            Drag.keys: ["message"]
         }
 
 

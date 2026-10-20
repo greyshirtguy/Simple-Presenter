@@ -4,6 +4,7 @@
 
 #include "messagefile.h"
 
+#include "action.pb.h"
 #include "messages.pb.h"
 
 #include <google/protobuf/unknown_field_set.h>
@@ -457,6 +458,70 @@ private slots:
         // ProPresenter's third way is not one to choose here
         QVERIFY(!setClear(workspace.path(), kBare, 2, 0).isEmpty());
         QCOMPARE(fileItself(workspace.path()), file);
+    }
+
+    // ---- what an action that shows a message gives its tokens
+
+    void anActionsValuesAreReadAsProPresenterWritesThem()
+    {
+        // As ProPresenter wrote one in a presentation of the maintainer's: the timer
+        // token's value, with the timer's setting and how its time is written, and here
+        // a text token's beside it as the messages file has one.
+        rv::data::Action action;
+        action.set_type(rv::data::Action::ACTION_TYPE_MESSAGE);
+        action.mutable_message()->mutable_message_identificaton()->set_parameter_name("Countdown");
+        rv::data::Message::TokenValue *timer = action.mutable_message()->add_content();
+        timer->mutable_token_id()->set_string("T-1");
+        timer->mutable_timer()->mutable_configuration()->mutable_countdown_to_time()->set_time_of_day(36000);
+        timer->mutable_timer()->mutable_format()->set_second(rv::data::Timer::Format::STYLE_LONG);
+        timer->set_token_name("Service CountDown");
+        rv::data::Message::TokenValue *name = action.mutable_message()->add_content();
+        name->mutable_token_id()->set_string("N-1");
+        name->mutable_text()->set_value("Sam");
+        name->set_token_name("Name");
+        const QList<ActionValue> values = actionValues(action);
+        QCOMPARE(values.size(), 2);
+        QCOMPARE(values.at(0).tokenId, "T-1");
+        QCOMPARE(values.at(0).kind, "timer");
+        QCOMPARE(values.at(0).name, "Service CountDown");
+        QCOMPARE(values.at(0).value, QString());
+        QCOMPARE(values.at(1).kind, "text");
+        QCOMPARE(values.at(1).value, "Sam");
+        // One with no tokens has none
+        rv::data::Action bare;
+        bare.mutable_message();
+        QVERIFY(actionValues(bare).isEmpty());
+    }
+
+    void givingAnActionsTokensWordsKeepsWhatElseItSays()
+    {
+        rv::data::Action action;
+        rv::data::Message::TokenValue *timer = action.mutable_message()->add_content();
+        timer->mutable_token_id()->set_string("T-1");
+        timer->mutable_timer()->mutable_configuration()->mutable_countdown_to_time()->set_time_of_day(36000);
+        timer->set_token_name("Service CountDown");
+        rv::data::Message::TokenValue *name = action.mutable_message()->add_content();
+        name->mutable_token_id()->set_string("N-1");
+        name->mutable_text()->set_value("Sam");
+        name->set_token_name("Name");
+        const std::string timerBefore = timer->SerializeAsString();
+        setActionValues(&action, {
+            {"N-1", "Name", "text", "Alex"},
+            {"R-1", "Room", "text", "Creche"},
+            // (Only words are taken: the timer's is left as it is)
+            {"T-1", "Service CountDown", "timer", "ignored"},
+        });
+        QCOMPARE(action.message().content_size(), 3);
+        QCOMPARE(action.message().content(0).SerializeAsString(), timerBefore);
+        QCOMPARE(action.message().content(1).text().value(), "Alex");
+        QCOMPARE(action.message().content(2).token_id().string(), "R-1");
+        QCOMPARE(action.message().content(2).token_name(), "Room");
+        QCOMPARE(action.message().content(2).text().value(), "Creche");
+        // Empty words are words: given, and written
+        setActionValues(&action, {{"N-1", "Name", "text", ""}});
+        QVERIFY(action.message().content(1).has_text());
+        QCOMPARE(action.message().content(1).text().value(), "");
+        QCOMPARE(action.message().content_size(), 3);
     }
 };
 

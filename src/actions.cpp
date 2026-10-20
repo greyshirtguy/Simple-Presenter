@@ -2,6 +2,8 @@
 
 #include "audiocue.h"
 #include "communications.h"
+#include "messagefile.h"
+#include "playlistactions.h"
 #include "playlistfile.h"
 #include "timers.pb.h"
 #include "workspacefiles.h"
@@ -303,18 +305,24 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("id", text(action.uuid().string()));
     } else if (action.has_message()) {
         // A message of the workspace's, to be shown: found by its id, or failing that
-        // by its name, when the action is run (see show::State).
-        //
-        // NOT READ: what the action says its tokens are to be given. ProPresenter lets
-        // an action carry words for a message's tokens (a name, say), and shows the
-        // message with those; here it is shown with what its tokens were last given in
-        // the messages' own panel.
+        // by its name, when the action is run (see show::State). And what the action
+        // says its tokens are given, { tokenId, name, kind, value } each (see
+        // messagefile::actionValues), which it is shown with: a text token the action
+        // says nothing of shows what it was last given on the messages' tab.
         const Identification &message = action.message().message_identificaton();
+        QVariantList values;
+        for (const messagefile::ActionValue &value : messagefile::actionValues(action))
+            values.append(QVariantMap {{"tokenId", value.tokenId}, {"name", value.name}, {"kind", value.kind}, {"value", value.value}});
         map.insert("kind", QStringLiteral("message"));
         map.insert("messageId", text(message.parameter_uuid().string()));
         map.insert("messageName", text(message.parameter_name()));
+        map.insert("values", values);
         map.insert("picture", QStringLiteral("Message"));
         map.insert("title", QStringLiteral("Show the message %1").arg(quoted(text(message.parameter_name()))));
+    } else if (playlistactions::isPlaylist(action)) {
+        // A playlist of the media bin or of the audio bin, to be played from its start
+        // (see playlistactions.h)
+        map.insert(playlistactions::describe(action));
     } else {
         const QString about = subject(action);
         map.insert("kind", QStringLiteral("other"));
@@ -400,6 +408,21 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
             audiocue::setEffect(action, wanted.value("effect").toBool());
     } else if (kind == QLatin1String("communication")) {
         return communications::build(wanted, action);
+    } else if (kind == QLatin1String("mediaPlaylist") || kind == QLatin1String("audioPlaylist")) {
+        return playlistactions::build(wanted, action);
+    } else if (kind == QLatin1String("message")) {
+        // As ProPresenter writes one: the message by its id and its name, and what its
+        // text tokens are given, which `values` has ({ tokenId, name, kind, value }
+        // each, as describe() puts them). What the action already says of its other
+        // tokens is kept (see messagefile::setActionValues).
+        action->set_type(Action::ACTION_TYPE_MESSAGE);
+        identify(action->mutable_message()->mutable_message_identificaton(), wanted.value("messageId").toString(), wanted.value("messageName").toString());
+        QList<messagefile::ActionValue> values;
+        for (const QVariant &entry : wanted.value("values").toList()) {
+            const QVariantMap value = entry.toMap();
+            values.append({value.value("tokenId").toString(), value.value("name").toString(), value.value("kind").toString(), value.value("value").toString()});
+        }
+        messagefile::setActionValues(action, values);
     } else {
         return QStringLiteral("That kind of action cannot be made here");
     }

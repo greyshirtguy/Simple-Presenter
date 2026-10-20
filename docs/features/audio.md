@@ -60,6 +60,12 @@ called. An action that plays audio is a copy of the piece as the bin had it then
 has its own Stop or Loop and Music or Sound Effect, in its menu; it has no playlist, so
 nothing follows it.
 
+**A playlist can be dragged** too, out of the list at the top, onto a slide or onto a
+macro: that gives it an action that plays the playlist from its first piece, which is
+followed by the next as music clicked here is. Run again while the playlist is playing,
+it leaves it to play on, unless its Always Retrigger is on. It can be picked from Add
+Action as well, under Audio Playlist. See [Actions](actions.md).
+
 **How loud it is** is shown in the preview of the output: two bars up its right edge,
 the left and the right, there while anything is sounding (a piece of audio, or a video
 with its sound) and gone when nothing is. They go by decibels as a sound desk's do:

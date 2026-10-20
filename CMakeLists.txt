@@ -83,6 +83,8 @@ qt_add_executable(SimplePresenter
     src/colortriggers.h
     src/communications.cpp
     src/communications.h
+    src/playlistactions.cpp
+    src/playlistactions.h
     src/alsamidi.cpp
     src/alsamidi.h
     src/prodocument.cpp

@@ -15,15 +15,17 @@
 //
 // What is done with them here. Some kinds are understood, which is to say shown, made,
 // changed and run: those to do with timers, clearing (a layer, or a clear group), the
-// stage, props, looks and macros, those that play a piece of audio, and those that
-// tell a communication device something (communications.h).
+// stage, props, looks and macros, those that play a piece of audio or a playlist of the
+// media bin or of the audio bin (playlistactions.h), those that show a message, and
+// those that tell a communication device something (communications.h).
 // Every other kind is shown for what it is and left alone. This is the one place that
 // turns an action into the plain map QML works with, and such a map back into an
 // action, for a slide's cue and for a macro alike.
 //
 // The map has, for every action:
 //   id, kind ("timer", "clear", "clearGroup", "stage", "prop", "look", "macro",
-//   "audio", "communication" or "other"), title (a few words saying what it does),
+//   "audio", "mediaPlaylist", "audioPlaylist", "message", "communication" or "other"),
+//   title (a few words saying what it does),
 //   done (whether this app runs it), and picture:
 //   which of ProPresenter's own pictures stands for it, by name (see iconprovider.h),
 //   where that is more than its kind says. An action that clears the media has the
@@ -48,6 +50,12 @@
 //           playlistfile.h), and playback ("stop" or "loop") and effect (whether it is
 //           a sound effect and not music) beside it. To make one, `item` is the id of
 //           the row of the audio bin it is to be a copy of (see audiocue.h)
+//   mediaPlaylist, audioPlaylist: playlistId, playlistName, itemId, itemName, selects,
+//           retrigger (Always Retrigger): see playlistactions::describe
+//   message: messageId, messageName, and values, a list of { tokenId, name, kind,
+//           value }: what the action says the message's tokens are given (see
+//           messagefile::actionValues). To make one or change one, only the text
+//           tokens' are taken.
 //   communication: deviceId, deviceName, and command ("midi", "words", "http" or
 //           "other") with what it says to send (see communications::describe)
 namespace actions {

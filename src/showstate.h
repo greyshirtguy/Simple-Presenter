@@ -7,6 +7,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <functional>
+
 // What is live, and the rules by which it changes.
 //
 // This is the show itself, with nothing of the app round it: no window, no file, no
@@ -48,6 +50,13 @@ struct Workspace
     // Its messages, { id, name, seconds } each: `seconds` is how long one is shown
     // before it goes by itself, 0 for one that stays until it is hidden
     QVariantList messages;
+    // A playlist of the media bin (`bin` "media") or of the audio bin ("audio"), by its
+    // id or failing that by its name, as { id, name, rows }, the rows as the bins have
+    // them (see playlistfile.h); an empty map for none. It is a question and not a list
+    // because it is asked only when an action names a playlist: the bins' rows are not
+    // copied about for the sake of actions that may never come. Not set, every
+    // playlist is none.
+    std::function<QVariantMap(const QString &bin, const QString &id, const QString &name)> playlist;
 };
 
 // A slide as it is triggered: where it is, and what it brings.
@@ -96,7 +105,8 @@ struct Effect
         NoSounds,       // stop every sound effect
         Timer,          // work a timer as `action` says
         Look,           // make the saved look whose id is `text` the live one (see lookfile.h)
-        Message,        // the message whose id is `text` has been shown, or shown again: as it is now is how it is to look
+        Message,        // the message whose id is `text` has been shown, or shown again: as it is now is how it is to look,
+                        // but for what `action` gives its tokens, by the token's id (words, for a text token), if an action showed it
         MessageTime,    // the message whose id is `text` goes by itself in `seconds`; 0 for no such time (any it had is off)
         Note,           // tell the log `text`, under `topic`
         Problem,        // tell the log, and whoever is running the show, that `text` went wrong
@@ -394,11 +404,12 @@ private:
     Effects goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Workspace &workspace, bool byTimer);
     void clearProps(Effects &effects);
     void clearMessages(Effects &effects);
-    void showMessage(const QVariantMap &message, Effects &effects);
+    void showMessage(const QVariantMap &message, Effects &effects, const QVariantMap &values = {});
     void hideMessage(const QString &id, const QString &name, const QString &how, Effects &effects);
     void clearMusic(Effects &effects);
     void clearSounds(Effects &effects);
     void startAudio(const QVariantMap &audio, const QString &playlist, Effects &effects);
+    void playPlaylist(const QVariantMap &action, const Workspace &workspace, Effects &effects);
     void clearGroup(const QVariantMap &group, Effects &effects);
     void toggleProp(const QString &id, const Workspace &workspace, Effects &effects);
 };

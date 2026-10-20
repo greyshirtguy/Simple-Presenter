@@ -4,6 +4,10 @@
 #include <QString>
 #include <QStringList>
 
+namespace rv::data {
+class Action;
+}
+
 // Messages: named things to say on the screens over everything else (a parent wanted at
 // the creche, a car with its lights on), each with words, places in the words for what
 // is only known when it is shown, a look, and how it goes away. Plain rules on
@@ -29,12 +33,13 @@
 //     as it is.
 // A message that has only just been made is an id and a title and nothing else.
 //
-// What that is known from: the file format (messages.proto) and one file a Mac's
-// ProPresenter of version 18 wrote, which someone published; none of the maintainer's
-// own workspaces has a message in it. So where this writes a thing that file has no
-// example of, it is A GUESS that ProPresenter writes it so:
-//   - a text token's value (the file had a timer's only): its words, with the token's
-//     name beside them, as the timer's has;
+// What that is known from: the file format (messages.proto), one file a Mac's
+// ProPresenter of version 18 wrote, which someone published, and (since 2026-10-20) a
+// workspace of the maintainer's, whose messages file has a message with a text token
+// and whose presentations have ProPresenter's own actions that show a message. A text
+// token's value is kept as this writes it: its words, with the token's name beside
+// them, as a timer's is (that was a guess, until that file). Where this writes a thing
+// neither file has an example of, it is A GUESS that ProPresenter writes it so:
 //   - a clock token's value: the time alone, the short way;
 //   - what a new timer token says of how its time is written: minutes as they come and
 //     seconds in two figures ("5:03"), which is what the one example has. Nothing is
@@ -128,5 +133,31 @@ QString setValue(const QString &workspace, const QString &id, const QString &tok
 QString setTheme(const QString &workspace, const QString &id, const QString &theme, const QString &slideId, const QString &slideName, int slideIndex);
 // How it goes away: by hand (0), or after so many seconds (1).
 QString setClear(const QString &workspace, const QString &id, int clear, double seconds);
+
+// An action that shows a message (see actions.h) can say what the message's tokens are
+// to be given, and the message is then shown with that, as ProPresenter shows it. The
+// action keeps it as the message keeps its own last values: a value for each token, by
+// the token's id, with the token's name beside it. ProPresenter's own (seen in the
+// maintainer's presentations, 2026-10-20) has one for the timer token of the message it
+// shows, with the timer's setting in it, and none for a message with no tokens.
+//
+// What an action says its tokens are given, in its order: the token's id and name, its
+// kind ("text", "timer" or "clock"), and for a text token its words. (A timer's setting
+// and the clock's format are not read: the message shows the timer as it stands, as it
+// does when it is shown from its tab, and the clock as the message says.)
+struct ActionValue
+{
+    QString tokenId;
+    QString name;
+    QString kind;
+    QString value;
+};
+QList<ActionValue> actionValues(const rv::data::Action &action);
+// Gives a message action's text tokens the words `values` have for them, by the
+// token's id: one that has a value has its words changed (a value of another kind, as
+// it was, becomes words), and one that has none is given one. Its other values, and a
+// value for a token `values` do not name, are kept as they are. Only text values are
+// taken from `values`.
+void setActionValues(rv::data::Action *action, const QList<ActionValue> &values);
 
 } // namespace messagefile

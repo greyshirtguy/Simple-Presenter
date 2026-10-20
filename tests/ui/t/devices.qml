@@ -152,7 +152,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("Add Action has Communication", /Macro, Communication$/.test(labels()), labels())
+                check("Add Action has Communication", /Message(\(off\))?, Communication$/.test(labels()), labels())
                 hover("Communication")
                 return 500
             },

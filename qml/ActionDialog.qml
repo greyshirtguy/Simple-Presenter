@@ -3,9 +3,11 @@ import SimplePresenterApp
 
 // The small panel in which an action that needs more than a click is set up: one for
 // a timer (which timer, what is done to it, and whether it is set up anew first), one
-// for the stage (which layout each stage screen is given, if any), and one for what a
+// for the stage (which layout each stage screen is given, if any), one for what a
 // communication device is to be sent (a MIDI note, a Custom Control, an HTTP request:
-// see src/communications.h), which is made only when it is opened.
+// see src/communications.h), and one for the words a message is shown with (a box for
+// each of its tokens that is given words, as the messages' tab has; its timers and the
+// clock are said and need nothing), the last two made only when they are opened.
 //
 // It is opened for something to give the action to, a slide or a macro (the `target`
 // that commitAction() in Main.qml takes), and for an action of theirs that is to be
@@ -15,7 +17,7 @@ Rectangle {
     id: dialog
 
     required property var win
-    // "" while it is shut, else "timer", "stage" or "communication"
+    // "" while it is shut, else "timer", "stage", "communication" or "message"
     property string mode: ""
     property var target: null
     // The action being changed, or null for a new one
@@ -70,6 +72,20 @@ Rectangle {
     property string path: ""
     property string body: ""
     property string headers: ""
+
+    // ---- a message action
+    // The message it shows, by id and by name; its tokens, as Messages has them; and the
+    // words each text token is to be given, by the token's id
+    property string messageId: ""
+    property string messageName: ""
+    property var messageTokens: []
+    property var tokenWords: ({})
+
+    function giveWords(tokenId, words) {
+        const all = Object.assign({}, tokenWords)
+        all[tokenId] = words
+        tokenWords = all
+    }
 
     readonly property var timerActions: ["Start", "Stop", "Reset", "Reset and Start", "Stop and Reset"]
     readonly property var kinds: ["countdown", "countdownTo", "elapsed"]
@@ -139,8 +155,31 @@ Rectangle {
         forceActiveFocus()
     }
 
+    // `message` is the one it shows, as Messages has it. Each of its text tokens starts
+    // with the words the action gives it, or, for a new action or a token the action
+    // gives nothing, what it was last given on the messages' tab.
+    function openMessage(target, existing, message) {
+        dialog.target = target
+        dialog.existing = existing
+        messageId = message.id
+        messageName = message.name
+        messageTokens = message.tokens
+        const given = {}
+        for (const token of message.tokens) {
+            if (token.kind === "text")
+                given[token.id] = token.value
+        }
+        for (const value of existing ? existing.values ?? [] : []) {
+            if (value.kind === "text" && given[value.tokenId] !== undefined)
+                given[value.tokenId] = value.value
+        }
+        tokenWords = given
+        mode = "message"
+        forceActiveFocus()
+    }
+
     // What the panel says it is
-    readonly property string title: mode === "stage" ? "Stage Action" : mode === "timer" ? "Timer Action"
+    readonly property string title: mode === "message" ? "Message Action" : mode === "stage" ? "Stage Action" : mode === "timer" ? "Timer Action"
                                   : command === "midi" ? (noteOn ? "MIDI Note On" : "MIDI Note Off")
                                   : command === "customControl" ? "Custom Control" : "HTTP Request"
 
@@ -152,7 +191,10 @@ Rectangle {
     // The action as it is set up, as a map of the kind src/actions.h describes.
     function accept() {
         let action
-        if (mode === "communication") {
+        if (mode === "message") {
+            action = win.messageAction({ id: messageId, name: messageName }, messageTokens.filter(token => token.kind === "text").map(token => ({
+                tokenId: token.id, name: token.name, kind: "text", value: tokenWords[token.id] ?? "" })))
+        } else if (mode === "communication") {
             action = { kind: "communication", command: command, deviceId: device.id ?? "", deviceName: device.name ?? "" }
             if (command === "midi")
                 Object.assign(action, { on: noteOn, channel: channel, note: note, intensity: intensity })
@@ -224,7 +266,10 @@ Rectangle {
             Text {
                 id: label
 
+                // (A message's token can have a long name of its own.)
+                width: 86
                 anchors.verticalCenter: parent.verticalCenter
+                elide: Text.ElideRight
                 color: "#9a9da3"
                 font.pixelSize: 11
                 font.capitalization: Font.AllUppercase
@@ -252,7 +297,53 @@ Rectangle {
                 font.pixelSize: 16
                 bottomPadding: 6
                 text: (dialog.existing ? "" : dialog.title.startsWith("HTTP") ? "Add an " : "Add a ") + dialog.title
-                      + (dialog.mode === "communication" ? ", to " + (dialog.device.name ?? "") : "")
+                      + (dialog.mode === "communication" ? ", to " + (dialog.device.name ?? "") : dialog.mode === "message" ? ": " + dialog.messageName : "")
+            }
+
+            // ---- A message action, made only while one is being set up: a line for
+            // each of the message's tokens, in its order
+            Loader {
+                width: parent.width
+                active: dialog.mode === "message"
+                visible: active
+
+                sourceComponent: Column {
+                    spacing: 6
+
+                    Repeater {
+                        model: dialog.messageTokens
+
+                        delegate: Line {
+                            id: tokenLine
+
+                            required property var modelData
+                            readonly property bool given: modelData.kind === "text"
+
+                            caption: given ? modelData.name : modelData.kind === "timer" ? "Timer" : "Clock"
+
+                            AppTextField {
+                                objectName: "actionToken:" + tokenLine.modelData.name
+                                visible: tokenLine.given
+                                width: content.width - 92
+                                height: 26
+                                font.pixelSize: 13
+                                placeholderText: "What it says"
+                                text: dialog.tokenWords[tokenLine.modelData.id] ?? ""
+                                onTextEdited: dialog.giveWords(tokenLine.modelData.id, text)
+                            }
+
+                            Text {
+                                visible: !tokenLine.given
+                                width: content.width - 92
+                                anchors.verticalCenter: parent.verticalCenter
+                                elide: Text.ElideRight
+                                color: "#9a9da3"
+                                font.pixelSize: 13
+                                text: tokenLine.modelData.kind === "timer" ? (tokenLine.modelData.name || "A timer") + ", as it is going" : "The time of day"
+                            }
+                        }
+                    }
+                }
             }
 
             // ---- A communication action, made only while one is being set up

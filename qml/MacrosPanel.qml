@@ -91,11 +91,14 @@ Item {
     // Whether an action is one the panel for its kind can show and change
     function changeable(action) {
         return action.kind === "stage" || (action.kind === "timer" && action.action !== Timers.Increment)
+            || (action.kind === "message" && win.messageOf(action) !== undefined && win.givenWords(win.messageOf(action)))
     }
 
     function change(row, action) {
         if (action.kind === "stage")
             win.openStageAction({ macro: row.id }, action)
+        else if (action.kind === "message")
+            win.openMessageAction({ macro: row.id }, action)
         else
             win.openTimerAction({ macro: row.id }, action)
     }
@@ -109,13 +112,15 @@ Item {
             { label: "Remove Action", disabled: row.actions.length === 0, items: [{ header: "Remove Action" }].concat(
                 row.actions.map(action => ({ label: action.title, glyph: action.kind, picture: action.picture, run: () => remove(action) }))) }
         ]
-        // Each action that has something to change, by itself
-        const changeables = row.actions.filter(action => changeable(action))
+        // Each action that has something to change, by itself: in its panel, or (a
+        // playlist's Always Retrigger) there and then
+        const playlist = action => action.kind === "mediaPlaylist" || action.kind === "audioPlaylist"
+        const changeables = row.actions.filter(action => changeable(action) || playlist(action))
         if (changeables.length > 0) {
             items.push({ header: "Actions" })
             for (const action of changeables) {
                 items.push({ label: action.title, glyph: action.kind, picture: action.picture, items: [
-                    { label: "Edit…", run: () => change(row, action) },
+                    playlist(action) ? win.retriggerItem(target, action) : { label: "Edit…", run: () => change(row, action) },
                     { label: "Remove", danger: true, run: () => remove(action) }
                 ] })
             }
@@ -295,15 +300,19 @@ Item {
             }
 
             // Something that stands for an action, dropped on a macro, gives the macro
-            // that action: one of the clear buttons, say. (Not the macro itself.)
+            // that action: one of the clear buttons, say, or a playlist or a message
+            // dragged out of its list. (Not the macro itself, nor a folder of playlists.)
             DropArea {
                 id: dropArea
 
                 anchors.fill: parent
-                keys: ["action"]
+                keys: panel.win.actionDragKeys
                 enabled: !row.heading
-                onEntered: (drag) => drag.accepted = !(drag.source && drag.source.payload && drag.source.payload.id === row.modelData.id)
-                onDropped: panel.win.dropAction({ macro: row.modelData.id }, row)
+                onEntered: (drag) => {
+                    const dragged = panel.win.draggedAction(drag.source)
+                    drag.accepted = dragged !== null && !(dragged.kind === "macro" && dragged.id === row.modelData.id)
+                }
+                onDropped: (drop) => panel.win.dropAction({ macro: row.modelData.id }, row, drop.source)
             }
 
             // The macro's picture, on a block of its colour
