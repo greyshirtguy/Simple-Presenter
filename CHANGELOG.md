@@ -6,6 +6,18 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.105](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.105) · 2026-10-21
+
+- [Video inputs](docs/features/video-inputs.md): the computer's webcams and capture
+  devices as ProPresenter's video inputs, set up in Settings → Inputs (the list kept in
+  ProPresenter's own file, the devices in this computer's settings), with their sound.
+- Shown from the media bin's Video Inputs, on a layer of their own under the media, with
+  a clear button of their own; cleared by Clear All and the clear groups, and switched
+  for each screen by a look.
+- A Video Input action for slides and macros, from Add Action or dragged out of the bin;
+  a video input as the fill of a shape, live; and the inputs in the HTTP API.
+- The README's screenshot taken again.
+
 ## [0.104](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.104) · 2026-10-21
 
 - [One preview, of any screen](docs/features/screens.md): the screen picked under it,

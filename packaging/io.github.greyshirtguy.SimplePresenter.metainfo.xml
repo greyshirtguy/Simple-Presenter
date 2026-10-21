@@ -39,6 +39,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.105" date="2026-10-21">
+      <description>
+        <p>
+          Video inputs: the computer's webcams and capture devices, live on a layer of their
+          own under the media, with their sound, as ProPresenter's video inputs are. They are
+          set up in Settings, shown from the media bin, by a slide or a macro, or as the fill
+          of a shape.
+        </p>
+      </description>
+    </release>
     <release version="0.104" date="2026-10-21">
       <description>
         <p>
