@@ -51,6 +51,12 @@ Along the bottom of the bin:
   changed. It is how long a crossing takes, and how long the audio takes to go out
   when it is cleared. With no length, clearing stops it at once.
 
+**The music has a [transport](media.md#the-transport)**, the last of the three tabs over
+the transport under the preview, with the audio bin's notes: how far in the music is and
+how much is left, a slider to move it, and buttons to go back to its start, to pause it
+and play it again, and to skip fifteen seconds. Sound effects have none: they play to
+their end over whatever else is playing.
+
 **A piece can be dragged** onto a slide, which gives the slide an [action](actions.md)
 that plays it when the slide goes live; and onto a [macro](macros.md). To get to the
 macros with a piece in hand, hold it over their tab: the tab comes forward after a

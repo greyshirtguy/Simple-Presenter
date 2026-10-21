@@ -143,6 +143,7 @@ qt_add_qml_module(SimplePresenter
         qml/AppSlider.qml
         qml/AppTextArea.qml
         qml/InputsSettings.qml
+        qml/TransportTabs.qml
         qml/VideoInputView.qml
         qml/AnnouncementLayer.qml
         qml/GoToNextPanel.qml

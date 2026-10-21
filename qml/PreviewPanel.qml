@@ -7,9 +7,10 @@ import SimplePresenterApp
 // anything is sounding, how loud that is), and under it the picker of which screen that
 // is; at its right the buttons that clear the output, in two columns up against the
 // window's edge, the workspace's clear groups and then the layers, each column as high
-// as the preview's area; then the transport for a video that is playing, and the show
-// controls (timers, props, the stage display and the rest). A line each side of the
-// transport sets the three lots of controls apart.
+// as the preview's area; then the transport, with a strip of tabs over it for whether it
+// works the media layer's video, the announcements layer's or the audio bin's music (see
+// TransportTabs), and the show controls (timers, props, the stage display and the rest).
+// A line each side of the transport sets the three lots of controls apart.
 //
 // One preview, of whichever screen is picked (an audience screen, as the live look has
 // it, or a stage screen, with its layout), and not one of the output and one of the
@@ -32,8 +33,13 @@ Rectangle {
     // Where the output's playing video delivers its frames, or null: the preview borrows
     // a few of them a second.
     property var liveVideoSink: null
-    // The player of the output's video, or null: what the transport works
+    // The player of the output's video, or null: what the transport works; and the
+    // player of the video on the announcements layer, for its tab of the transport
     property var livePlayer: null
+    property var liveAnnouncementPlayer: null
+    // Which the transport works (see TransportTabs): "media", "announcements" or
+    // "audio", the audio bin's music
+    property string transportLayer: "media"
     // Which tab of the show controls is showing
     property alias showControlTab: showControl.tab
     // What a playlist dragged out of the audio bin's list of them is carried by
@@ -85,14 +91,14 @@ Rectangle {
     // the show controls room for two timers.
     readonly property bool sized: win.previewHeight > 0
     readonly property real mostAreaHeight: Math.max(leastClearsHeight,
-        height - (4 + picker.height + transport.height + 2 * line.height + 6 * gap) - leastShowControlRoom)
+        height - (4 + picker.height + transportArea.height + 2 * line.height + 6 * gap) - leastShowControlRoom)
     readonly property real areaHeight: sized ? Math.max(leastClearsHeight, Math.min(win.previewHeight, mostAreaHeight))
                                              : Math.max(previewWidth * 9 / 16 + 2, leastClearsHeight)
 
     // How wide the preview can be if this much height is to be left under everything
     // else for the show controls.
     function previewWidthLeaving(room) {
-        const others = 4 + picker.height + transport.height + 2 * line.height + 6 * gap
+        const others = 4 + picker.height + transportArea.height + 2 * line.height + 6 * gap
         return (height - others - room) * 16 / 9
     }
 
@@ -540,23 +546,52 @@ Rectangle {
         onDoubleClicked: sidePanel.win.previewHeight = 0
     }
 
-    Transport {
-        id: transport
+    // The transport, and the tabs over it that pick which layer's it is: the video on
+    // the media layer, the video on the announcements layer, or the audio bin's music
+    // (whose player the audio layer has: see AudioLayer.musicPlayer). The video's is
+    // looked at with the preview's frames (`pulse`); the others a second apart, which is
+    // as often as their times change.
+    Column {
+        id: transportArea
 
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: line.bottom
         anchors.margins: sidePanel.gap
         anchors.topMargin: sidePanel.gap - 3
-        player: sidePanel.livePlayer
-        media: sidePanel.win.liveMedia
-        pulse: previewPicture.relay
+        spacing: 6
+
+        TransportTabs {
+            id: transportTabs
+
+            width: parent.width
+            picked: sidePanel.transportLayer
+            mediaLive: sidePanel.livePlayer !== null
+            announcementsLive: sidePanel.liveAnnouncementPlayer !== null
+            audioLive: Show.liveMusic !== null
+            onChosen: (layer) => sidePanel.transportLayer = layer
+        }
+
+        Transport {
+            id: transport
+
+            readonly property string works: sidePanel.transportLayer
+
+            objectName: "transport"
+            width: parent.width
+            player: works === "audio" ? (sidePanel.win.clocksHeld ? null : AudioLayer.musicPlayer)
+                  : works === "announcements" ? sidePanel.liveAnnouncementPlayer : sidePanel.livePlayer
+            media: works === "audio" ? Show.liveMusic : works === "announcements" ? Show.liveAnnouncementMedia : sidePanel.win.liveMedia
+            pulse: works === "media" ? previewPicture.relay : null
+            badged: works !== "audio"
+            nothing: works === "audio" ? "No music" : "No media"
+        }
     }
 
     Rule {
         id: secondLine
 
-        anchors.top: transport.bottom
+        anchors.top: transportArea.bottom
     }
 
     ShowControl {

@@ -1858,6 +1858,154 @@ def media_row(key, name, file, folder):
                         "address": "file://" + urllib.parse.quote(os.path.join(folder, file))}
 
 
+# A video row of a media playlist, as ProPresenter 21.4 writes one (the fields of a row of the maintainer's own media
+# bin, the names and files the test's): `loop` says whether it goes round
+VIDEO_ROW = """\
+        items {
+          uuid { string: "%(id)s-ITEM" }
+          name: "%(name)s"
+          cue {
+            uuid { string: "%(id)s-CUE" }
+            name: "%(name)s"
+            completion_action_type: COMPLETION_ACTION_TYPE_LAST
+            hot_key { }
+            actions {
+              uuid { string: "%(id)s-ACTION" }
+              isEnabled: true
+              duration: %(seconds)s
+              type: ACTION_TYPE_MEDIA
+              media {
+                element {
+                  uuid { string: "%(id)s-MEDIA" }
+                  url { absolute_string: "%(address)s" platform: PLATFORM_MACOS local { root: ROOT_SHOW path: "Media/Assets/%(file)s" } }
+                  metadata { format: "avc1" color_format: COLOR_FORMAT_SDR }
+                  video {
+                    drawing { natural_size { width: 320 height: 180 } custom_image_bounds { origin { } size { } } crop_insets { }
+                              alpha_type: ALPHA_TYPE_STRAIGHT }
+                    audio { volume: 1 }
+                    transport { play_rate: 1 out_point: %(seconds)s should_fade_in: true should_fade_out: true end_point: %(seconds)s
+                                %(loop)s times_to_loop: 1 retrigger: RETRIGGER_SETTING_AUTOMATIC }
+                    video { frame_rate: 30 thumbnail_position: -1 soft_loop_duration: 0.5 }
+                    file { local_url { absolute_string: "%(address)s" platform: PLATFORM_MACOS local { root: ROOT_SHOW path: "Media/Assets/%(file)s" } } }
+                  }
+                }
+                audio { }
+              }
+            }
+            isEnabled: true
+          }
+        }
+"""
+
+# The transports' media bin: one playlist of three short videos of one colour each, the first going round, a long one
+# going round, and a picture
+TRANSPORT_BIN = """\
+application_info { platform: PLATFORM_MACOS application: APPLICATION_PROPRESENTER application_version { major_version: 21 minor_version: 4 } }
+type: TYPE_MEDIA
+root_node {
+  uuid { string: "0E0E0E0E-0000-0000-0000-000000000000" }
+  name: "PLAYLIST"
+  expanded: true
+  playlists {
+    playlists {
+      uuid { string: "0E0E0E0E-0000-0000-0000-000000000001" }
+      name: "Run"
+      items {
+%(rows)s
+      }
+    }
+  }
+}
+"""
+
+# The videos the transports' test plays: their names, how long each is, and its colour
+TRANSPORT_VIDEOS = [("Red.mp4", 3, "red"), ("Green.mp4", 3, "lime"), ("Blue.mp4", 3, "blue"), ("Long.mp4", 40, "white")]
+
+
+def make_video(path, seconds, colour, test_dir):
+    """A video of one colour, 320 by 180 at 30 frames a second, made with ffmpeg, only inside the test's own folder."""
+    if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("a test's video was about to be written outside the test's folder: %s" % os.path.realpath(path))
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=%s:s=320x180:r=30:d=%d" % (colour, seconds),
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", path], check=True)
+
+
+def prepare_transports(workspace, test_dir):
+    """The transports' test (transports): its own media bin (TRANSPORT_BIN: three videos of three seconds, red going
+    round, green and blue stopping, a long white one going round, and a still), made with ffmpeg in the test's folder;
+    an audio bin of a long tune and a sound effect; and a presentation "Notices" of blocks, which the test sends to the
+    announcements and gives the long video. The media bin as given is kept (transports-media-before). Nothing is
+    written outside the test's folder, and nothing under the copy's Media."""
+    library = os.path.join(workspace, "Libraries", "MainHall")
+    playlists = os.path.join(workspace, "Playlists")
+    for target in (library, playlists):
+        if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("the transports' test would write outside its own folder: " + os.path.realpath(target))
+    videos = os.path.join(test_dir, "videos")
+    os.makedirs(videos)
+    rows = ""
+    for key, (name, seconds, colour) in enumerate(TRANSPORT_VIDEOS, start=1):
+        make_video(os.path.join(videos, name), seconds, colour, test_dir)
+        rows += VIDEO_ROW % {"id": "0F0F0F0F-0000-0000-0000-%012d" % key, "name": name[:-4], "file": name, "seconds": seconds,
+                             "address": "file://" + urllib.parse.quote(os.path.join(videos, name)),
+                             "loop": "playback_behavior: PLAYBACK_BEHAVIOR_LOOP" if name in ("Red.mp4", "Long.mp4") else ""}
+    with open(os.path.join(videos, "Still.png"), "wb") as out:
+        out.write(quarters_png(320, 180, [(255, 255, 0)] * 4))
+    rows += media_row(9, "Still", "Still.png", videos)
+    with open(os.path.join(playlists, "Media"), "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (TRANSPORT_BIN % {"rows": rows}).encode()))
+    shutil.copy(os.path.join(playlists, "Media"), os.path.join(test_dir, "transports-media-before"))
+    sounds = os.path.join(test_dir, "sounds")
+    os.makedirs(sounds)
+    write_tone(os.path.join(sounds, "Long Tune.wav"), 30.0, 440, 0.25, 0.25, test_dir)
+    write_tone(os.path.join(sounds, "Bell.wav"), *AUDIO_TONES["Bell.wav"], test_dir)
+    before = audio_row(1, "Long Tune", "Long Tune.wav", 30, sounds, target=False)
+    effects = audio_row(6, "Bell", "Bell.wav", 2, sounds, target=False, effect=True)
+    with open(os.path.join(playlists, "Audio"), "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (AUDIO_BIN % {"before": before, "effects": effects}).encode()))
+    text = blocks_presentation("Notices", [(1, 1, 1), (0, 1, 1)], 100, 100)
+    with open(os.path.join(library, "Notices.pro"), "wb") as out:
+        out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+
+
+def after_transports(workspace, test_dir):
+    """The media bin once the test has given its rows their Next Cues, read with protoc and not by the app: Red, which
+    went round, goes on to the next and stops at its end; Green goes on to Blue, named by Blue's cue; Blue goes on to
+    the first; Red then set to Random; and every other field of the file as it was given."""
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.PlaylistDocument", "propresenter.proto", source.read()).decode()
+
+    def items(text):
+        """Each row of the playlist by its name: a block that starts with its own uuid (the list of rows starts with a row)"""
+        found = {}
+        for match in re.finditer(r"^( *)items \{\n\1  uuid \{\n(?:.*\n)*?\1\}\n", text, re.M):
+            found[re.search(r'^\s*name: "([^"]*)"', match.group(0), re.M).group(1)] = match.group(0)
+        return found
+
+    was = decoded(os.path.join(test_dir, "transports-media-before"))
+    now = decoded(os.path.join(workspace, "Playlists", "Media"))
+    rows_was, rows_now = items(was), items(now)
+    red, green, blue = rows_now.get("Red", ""), rows_now.get("Green", ""), rows_now.get("Blue", "")
+    blue_cue = re.search(r'cue \{\n\s*uuid \{\n\s*string: "([^"]*)"', blue)
+    # The rows with the lines the test changed taken out: what is left is as it was given
+    changed = re.compile(r"^\s*(completion_target_type: .*|playback_behavior: PLAYBACK_BEHAVIOR_LOOP|completion_target_uuid \{|string: \"0F0F0F0F-0000-0000-0000-000000000003-CUE\"|\})$")
+    def rest(block):
+        return [line for line in block.splitlines() if not changed.match(line)]
+    return [
+        said("completion_target_type: COMPLETION_TARGET_TYPE_RANDOM" in red and "PLAYBACK_BEHAVIOR_LOOP" not in red,
+             "Red goes on to one at random, last of what the test gave it, and stops at its end now, having gone round", red[:300]),
+        said("completion_target_type: COMPLETION_TARGET_TYPE_CUE" in green and blue_cue is not None
+             and re.search(r'completion_target_uuid \{\n\s*string: "%s"' % re.escape(blue_cue.group(1)), green) is not None,
+             "Green goes on to Blue, named by Blue's cue (a GUESS at ProPresenter's form)", green[:400]),
+        said("completion_target_type: COMPLETION_TARGET_TYPE_FIRST" in blue and "completion_target_uuid" not in blue,
+             "Blue goes on to the first", blue[:300]),
+        said(sorted(rows_now) == sorted(rows_was) and all(rest(rows_now[name]) == rest(rows_was[name]) for name in rows_was),
+             "every other field of every row is as it was given", ", ".join(sorted(rows_now))),
+        said(re.sub(r"(?ms)^ *items \{\n.*", "", now) == re.sub(r"(?ms)^ *items \{\n.*", "", was), "and the file round the rows is as it was"),
+    ]
+
+
 def prepare_playacts(workspace, test_dir):
     """The test's own media bin (MEDIA_BIN: two pictures of one colour each, red and green, in the test's folder),
     audio bin (AUDIO_BIN, with two short tones before the service, each followed by the next, and a sound effect),
@@ -2738,6 +2886,7 @@ TESTS = {
     "themebuilds": test("Act", timeout=240),
     "devices": test("Act", timeout=300, env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_devices, after=after_devices),
     "playacts": test("Act", timeout=300, prepare=prepare_playacts, after=after_playacts),
+    "transports": test("Act", timeout=300, prepare=prepare_transports, after=after_transports),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

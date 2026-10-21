@@ -26,6 +26,9 @@ presentations are live at once, each marked in its own list of slides: the slide
 is live on the announcements with a green ring, the green of the button that sends a
 presentation there, and the show's with the usual orange.
 
+A video under an announcement's slide has a [transport](media.md#the-transport) of its
+own, the middle of the three tabs over the transport, with ProPresenter's megaphone.
+
 The layer is cleared by its own button, the sixth of the clears of the layers, with
 ProPresenter's megaphone on it; by **Clear All**; by a [clear group](clear-groups.md)
 that has the announcements among its layers; and by a slide or a macro with the

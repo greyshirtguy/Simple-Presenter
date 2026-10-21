@@ -34,6 +34,9 @@ Item {
     // A slide held back until the media that goes with it can be shown; undefined
     // when none is
     property var heldSlide: undefined
+    // The MediaPlayer of the video under its slide, or null: what the transport for the
+    // announcements works
+    readonly property var livePlayer: mediaLayer.currentItem ? mediaLayer.currentItem.player : null
 
     function showSlide(slide) {
         heldSlide = undefined

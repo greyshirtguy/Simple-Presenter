@@ -4907,6 +4907,7 @@ Window {
             win: win
             liveVideoSink: win.output ? win.output.liveVideoSink : null
             livePlayer: win.clocksHeld || !win.output ? null : win.output.livePlayer
+            liveAnnouncementPlayer: win.clocksHeld || !win.output ? null : win.output.liveAnnouncementPlayer
             audioPlaylistDrag: audioPlaylistDrag
             onShowControlTabChanged: win.save("showControlTab", showControlTab)
         }

@@ -57,6 +57,8 @@ Item {
     readonly property var liveVideoSink: mediaLayer.currentItem ? mediaLayer.currentItem.videoSink : null
     // The MediaPlayer of the video on the media layer, or null; lets a transport control work it.
     readonly property var livePlayer: mediaLayer.currentItem ? mediaLayer.currentItem.player : null
+    // The same for the video on the announcements layer
+    readonly property var liveAnnouncementPlayer: announcementsLayer.item ? announcementsLayer.item.livePlayer : null
     // The video on the media layer has played to its end, by the number of its playing:
     // said only by the scene that plays it (see MediaContent.ended)
     signal mediaEnded(int playId)

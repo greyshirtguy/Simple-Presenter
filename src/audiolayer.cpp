@@ -150,6 +150,16 @@ AudioLayer::Voice *AudioLayer::music()
     return nullptr;
 }
 
+void AudioLayer::followMusic()
+{
+    Voice *now = music();
+    QObject *player = now ? now->player : nullptr;
+    if (player == m_musicPlayer.data())
+        return;
+    m_musicPlayer = player;
+    emit musicPlayerChanged();
+}
+
 double AudioLayer::musicPosition() const
 {
     for (const Voice *voice : m_voices) {
@@ -195,6 +205,7 @@ void AudioLayer::leave(Voice *voice, qint64 ms)
 {
     voice->leaving = true;
     fadeTo(voice, 0, qMax(ms, kNoClickMs));
+    followMusic();
 }
 
 void AudioLayer::step()
@@ -243,6 +254,7 @@ void AudioLayer::drop(Voice *voice)
         m_progress.stop();
         emit musicPositionChanged();
     }
+    followMusic();
     emit voicesChanged();
 }
 
@@ -314,6 +326,7 @@ void AudioLayer::start(const QVariantMap &audio)
                                                                    : QStringLiteral(", wherever the system sends sound: the device chosen for it is not there now")));
     if (!voice->effect && !m_progress.isActive())
         m_progress.start();
+    followMusic();
     emit voicesChanged();
     emit musicPositionChanged();
 }
@@ -359,6 +372,7 @@ void AudioLayer::nearing(int play)
         // Its last moments go out as the next comes in. Should nothing follow it, it
         // has faded out over its own ending, which is no loss.
         fadeTo(voice, 0, length - voice->player->position());
+        followMusic();
         emit finished(play);
         return;
     }

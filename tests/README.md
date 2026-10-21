@@ -198,6 +198,19 @@ own thumbnail and holding nothing. The files are read with `protoc` after:
 ProPresenter's input as it was, the added one with nothing of this computer's in it,
 the actions and the fill as ProPresenter writes them, and the rest as it was.
 
+And `transports` works the tabs over the transport and the media bin's Next Cue, on a
+media bin, an audio bin and a presentation of the test's own (three videos of three
+seconds and a long one, made with ffmpeg in the test's folder, and a long tone): Next
+Cue's menu and its choices, a still having none; a run of the three videos on the output
+and in the operator's preview, each going on as its row says (the next, a row it names,
+the first), and Random; the media's tab working the long video, paused and played; a
+presentation sent to the announcements with the long video under its slide, the
+announcements' tab working that video and not the other; the long tone from the audio
+bin, its tab working it, a sound effect over it not taking its place, paused and played
+on from where it was; and with everything cleared, nothing to work. The media bin is
+read with `protoc` after: each row's Next Cue as ProPresenter keeps it, and the rest as
+it was.
+
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two
 outputs, one that can key as a linked pair of connectors can, and one that cannot, and

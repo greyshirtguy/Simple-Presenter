@@ -84,6 +84,8 @@ class Show : public QObject
     Q_PROPERTY(bool announcementAdvanceWaiting READ announcementAdvanceWaiting NOTIFY advanceChanged)
     Q_PROPERTY(double announcementAdvanceSeconds READ announcementAdvanceSeconds NOTIFY advanceChanged)
     Q_PROPERTY(bool announcementsOn READ announcementsOn NOTIFY announcementChanged)
+    // The media on the announcements layer, as liveMedia is the media layer's, or null
+    Q_PROPERTY(QVariant liveAnnouncementMedia READ liveAnnouncementMedia NOTIFY announcementChanged)
     // What is on the media layer, as a map (see catalog.h), or null; and the media
     // playlist it was triggered from, "" if a slide triggered it.
     Q_PROPERTY(QVariant liveMedia READ liveMedia NOTIFY mediaChanged)
@@ -183,6 +185,7 @@ public:
     QString liveMediaPlaylistId() const { return m_state.mediaPlaylistId; }
     int liveVideoInput() const { return m_state.videoInput; }
     QVariant liveMusic() const;
+    QVariant liveAnnouncementMedia() const;
     QString liveMusicPlaylistId() const { return m_state.musicPlaylistId; }
     QVariantList liveSounds() const { return m_state.sounds; }
     QStringList liveProps() const { return m_state.props; }

@@ -58,7 +58,8 @@ void Show::change(const std::function<show::Effects()> &what)
     const show::State::Place &was = before.announcement;
     const show::State::Place &now = m_state.announcement;
     if (was.atSlide != now.atSlide || was.index != now.index || was.key != now.key || was.playlistId != now.playlistId
-        || was.cleared != now.cleared || was.clearedByCue != now.clearedByCue || before.announcementHasMedia != m_state.announcementHasMedia)
+        || was.cleared != now.cleared || was.clearedByCue != now.clearedByCue || before.announcementHasMedia != m_state.announcementHasMedia
+        || before.announcementMedia != m_state.announcementMedia)
         emit announcementChanged();
     if (before.advance != m_state.advance || before.announcementAdvance != m_state.announcementAdvance)
         emit advanceChanged();
@@ -174,6 +175,10 @@ QVariant Show::liveMusic() const
     return m_state.hasMusic ? QVariant(m_state.music) : QVariant::fromValue(nullptr);
 }
 
+QVariant Show::liveAnnouncementMedia() const
+{
+    return m_state.announcementHasMedia ? QVariant(m_state.announcementMedia) : QVariant::fromValue(nullptr);
+}
 
 QVariantMap Show::screenLayouts() const
 {

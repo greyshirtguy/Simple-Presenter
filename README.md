@@ -39,7 +39,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 #### Running the show
 
 - <a id="workspaces"></a>**[Workspaces](docs/features/workspaces.md)**: a ProPresenter folder, opened as it stands, with its libraries, playlists, media bin and all the rest. A playlist exported from ProPresenter can be brought in too.
-- <a id="media"></a><a id="the-media-inspector"></a>**[Media](docs/features/media.md)**: backgrounds that play on under the slides, foregrounds with their sound, the media bin with ProPresenter's Next Cue, and ProPresenter's Media Inspector for fitting, cropping, looping and effects.
+- <a id="media"></a><a id="the-media-inspector"></a>**[Media](docs/features/media.md)**: backgrounds that play on under the slides, foregrounds with their sound, the media bin with ProPresenter's Next Cue, a transport for the video, the announcements' video and the music, and ProPresenter's Media Inspector for fitting, cropping, looping and effects.
 - <a id="video-inputs"></a>**[Video inputs](docs/features/video-inputs.md)**: a webcam or a capture device, live on the screens on a layer of its own under the media, from the media bin, a slide or a macro, with its sound; or in a shape, beside the words or on the stage.
 - <a id="audio"></a>**[Audio](docs/features/audio.md)**: the audio bin, with playlists of music and sound effects, a clear of its own and a meter of how loud it is.
 - <a id="timers"></a>**[Timers](docs/features/timers.md)**: countdowns, countdowns to a time of day and elapsed timers, started from a slide, with ProPresenter's Color Triggers.

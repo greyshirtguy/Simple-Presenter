@@ -32,6 +32,7 @@ AuxWindow {
     property alias pictures: scene.pictures
     readonly property var liveVideoSink: scene.liveVideoSink
     readonly property var livePlayer: scene.livePlayer
+    readonly property var liveAnnouncementPlayer: scene.liveAnnouncementPlayer
     readonly property var heldSlide: scene.heldSlide
 
     function showSlide(slide, transition, times) {

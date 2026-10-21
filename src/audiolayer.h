@@ -4,6 +4,7 @@
 #include <QElapsedTimer>
 #include <QList>
 #include <QObject>
+#include <QPointer>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -77,6 +78,12 @@ class AudioLayer : public QObject
     // (0 and 0 with none): told about four times a second, for a row to show
     Q_PROPERTY(double musicPosition READ musicPosition NOTIFY musicPositionChanged)
     Q_PROPERTY(double musicDuration READ musicDuration NOTIFY musicPositionChanged)
+    // The player of the music that is playing (a QMediaPlayer), or null with none: what
+    // the transport for the audio works, as the video's works the video's player. One
+    // on its way out, or past its end with the next crossing in, is not it. A pause, or
+    // a move, made there is the player's alone: the show still has the piece as the
+    // music that is playing, and its end, when it comes, is told as ever.
+    Q_PROPERTY(QObject *musicPlayer READ musicPlayer NOTIFY musicPlayerChanged)
     // How many pieces are sounding now, those on their way out among them
     Q_PROPERTY(int voices READ voices NOTIFY voicesChanged)
 
@@ -95,6 +102,7 @@ public:
     QVariantList devices();
     double musicPosition() const;
     double musicDuration() const;
+    QObject *musicPlayer() const { return m_musicPlayer; }
     int voices() const { return int(m_voices.size()); }
 
     // Starts a piece of audio, as the show hands it over (a row of the audio bin with
@@ -111,6 +119,7 @@ signals:
     void deviceChanged();
     void devicesChanged();
     void musicPositionChanged();
+    void musicPlayerChanged();
     void voicesChanged();
     // A piece has come to its end, or, for music the next follows with `crossfade` on,
     // is one fade's length from it.
@@ -143,6 +152,8 @@ private:
     };
 
     Voice *music();
+    // Says, if it is so, that the music's player is another now
+    void followMusic();
     void fadeTo(Voice *voice, double level, qint64 ms);
     void leave(Voice *voice, qint64 ms);
     void apply(Voice *voice);
@@ -154,6 +165,7 @@ private:
     void devicesMayHaveChanged();
 
     QList<Voice *> m_voices;
+    QPointer<QObject> m_musicPlayer;
     double m_fade = 1;
     bool m_crossfade = false;
     QString m_device;

@@ -1,12 +1,14 @@
 import QtQuick
 import QtMultimedia
 
-// The transport: where the video on the output's media layer has got to, with a slider
-// that can be dragged to move it, and buttons to take it back to its start, to play or
-// pause it, and to skip fifteen seconds back or on.
+// The transport: where a video (or the music) has got to, with a slider that can be
+// dragged to move it, and buttons to take it back to its start, to play or pause it,
+// and to skip fifteen seconds back or on.
 //
-// It works the output's own player (see MediaContent), so there is nothing here to keep
-// in step. With no video on the output there is nothing to work, and it is greyed.
+// It works the player itself, the output's own (see MediaContent) or the audio layer's
+// (see AudioLayer.musicPlayer), so there is nothing here to keep in step. With nothing
+// playing there is nothing to work, and it is greyed. Which player it is the tabs over
+// it pick (see TransportTabs, in PreviewPanel).
 //
 // What it costs. A player says where it has got to twenty times a second, and anything
 // drawn straight from that is drawn twenty times a second, with the whole operator
@@ -21,9 +23,12 @@ Item {
 
     // The MediaPlayer playing the video on the output, or null
     property var player: null
-    // What is on the media layer, as the operator window has it, or null: for its name
-    // and how it behaves
+    // What is on the layer it works, as the operator window has it, or null: for its
+    // name and, where `badged`, whether it is a background or a foreground; and what it
+    // says with nothing there
     property var media: null
+    property bool badged: true
+    property string nothing: "No media"
     // Something that says `relayed` whenever the window is about to be drawn again for
     // the video's sake anyway, or null: the preview's FrameRelay
     property var pulse: null
@@ -126,7 +131,7 @@ Item {
                 id: badge
 
                 anchors.verticalCenter: parent.verticalCenter
-                visible: transport.media !== null
+                visible: transport.media !== null && transport.badged
                 foreground: transport.media !== null && transport.media.foreground === true
             }
 
@@ -136,7 +141,7 @@ Item {
                 elide: Text.ElideMiddle
                 color: transport.media !== null ? transport.textColor : transport.dimTextColor
                 font.pixelSize: 12
-                text: transport.media !== null ? transport.media.name : "No media"
+                text: transport.media !== null ? transport.media.name : transport.nothing
             }
         }
 

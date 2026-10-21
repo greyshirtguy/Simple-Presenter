@@ -120,9 +120,19 @@ the first of which is what F1 clears: to begin with that is Clear All, as high a
 preview. The second is the layers, in ProPresenter's order down it: the audio (F5), the
 messages (F6), the props (F4), the announcements, the slide (F2), the media (F3) and the
 [video input](video-inputs.md), each red while there is something there for it to clear.
-Under the preview is the **transport**, for the video on the output: how far in it is and
-how much is left, a slider that can be dragged to move it, and buttons to go back to the
-start, to play or pause, and to skip fifteen seconds back or on.
+
+<a id="the-transport"></a>Under the preview is the **transport**: how far in a video is and how much is left,
+a slider that can be dragged to move it, and buttons to go back to the start, to play or
+pause, and to skip fifteen seconds back or on. Over it is a thin strip of three tabs,
+pictures and no words, which pick what it works, as ProPresenter's tabs over its
+transport do: the video on the **media** layer (what a slide or the media bin plays), the
+video on the **announcements** layer (one under an [announcement](announcements.md)'s
+slide), and the **audio** bin's music (not its sound effects, which have no transport).
+Their pictures are those of the three layers' clears without the crossed circle:
+ProPresenter's megaphone, and for the media and the music this app's own drawings, its
+pack having no such pictures. The tab picked is lit, and one whose layer has something
+playing is drawn brighter than one with nothing. Which is picked is the operator's to
+choose: nothing turns to a tab by itself (a guess at ProPresenter, which may).
 
 ## The Media Inspector
 
