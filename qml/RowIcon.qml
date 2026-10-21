@@ -2,10 +2,11 @@ import QtQuick
 import QtQuick.Shapes
 
 // A small icon for a row of a list, drawn as shapes so it stays sharp at any scale.
-// `kind` is "library", "folder", "playlist", "mediaPlaylist", "audioPlaylist" or
-// "presentation"; anything else draws nothing. Libraries and playlists are white glyphs
-// on a coloured rounded square, orange for a library, blue for a playlist, purple for a
-// media playlist and teal for a playlist of the audio bin;
+// `kind` is "library", "folder", "playlist", "mediaPlaylist", "audioPlaylist",
+// "videoInputs" or "presentation"; anything else draws nothing. Libraries and playlists
+// are white glyphs on a coloured rounded square, orange for a library, blue for a
+// playlist, purple for a media playlist and teal for a playlist of the audio bin; the
+// media bin's Video Inputs is ProPresenter's camera on a deeper blue;
 // folders and presentations are plain muted glyphs, since they label rows and are not
 // the content.
 Item {
@@ -13,7 +14,7 @@ Item {
 
     property string kind
     readonly property bool list: kind === "playlist" || kind === "mediaPlaylist" || kind === "audioPlaylist"
-    readonly property bool badge: kind === "library" || list
+    readonly property bool badge: kind === "library" || list || kind === "videoInputs"
     readonly property color ink: badge ? "white" : kind === "folder" ? "#c2b280" : "#b9bcc2"
 
     width: badge ? 18 : 16
@@ -23,7 +24,16 @@ Item {
         anchors.fill: parent
         visible: icon.badge
         radius: 4
-        color: icon.kind === "library" ? "#f08a24" : icon.kind === "playlist" ? "#3d8be0" : icon.kind === "audioPlaylist" ? "#1f9e94" : "#9a6ae0"
+        color: icon.kind === "library" ? "#f08a24" : icon.kind === "playlist" ? "#3d8be0" : icon.kind === "audioPlaylist" ? "#1f9e94"
+             : icon.kind === "videoInputs" ? "#2b5fb8" : "#9a6ae0"
+    }
+
+    ProIcon {
+        anchors.centerIn: parent
+        visible: icon.kind === "videoInputs"
+        name: "VideoInput"
+        ink: "white"
+        size: 20
     }
 
     component Outline: Shape {

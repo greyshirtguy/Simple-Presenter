@@ -44,8 +44,7 @@ the top one first.
 | Row | What it is |
 | --- | --- |
 | Masks | Not a tick box but which [mask](masks.md) the screen is given: a circle with a line through it for none, or the mask's name. A click gives the masks to choose from, and the way to the editor they are made in |
-| Messages, Props, Announcements, Slide, Media | A tick box for each screen: whether that screen gets the layer |
-| Video Input | ProPresenter's layer that this app has not yet. It is shown greyed, as the look has it in the file, cannot be changed here, and is kept as it is |
+| Messages, Props, Announcements, Slide, Media, Video Input | A tick box for each screen: whether that screen gets the layer (the last is the [video input](video-inputs.md) layer) |
 | Presentation | Not a layer but the **theme** that screen's slides are dressed in as they are shown: a circle with a line through it for none, or a theme slide, chosen from the same menu of themes a slide's own menu has |
 
 Picking a look in the list shows it, to be read and changed; it does not make it live.

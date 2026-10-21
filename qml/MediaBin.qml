@@ -5,6 +5,12 @@ import QtQuick.Controls.Basic
 // playlists and the folders they are kept in on the left, and the files of the playlist
 // picked there, as thumbnails, on the right.
 //
+// At the top of the list is Video Inputs, ProPresenter's playlist of the workspace's
+// video inputs (see VideoInputs): picked, the grid has the inputs, by their thumbnails
+// and names, the one on the video input layer ringed. A click on one puts it on that
+// layer; dragged onto a slide or a macro it gives it a Video Input Action. The inputs
+// are set up in Settings → Inputs, which + and a right click lead to.
+//
 // Click a file to put it on the output's media layer. Drag one onto a slide to make that
 // slide trigger it, between two slides to give it a slide of its own, or onto another
 // file of the playlist to move it there. Files dragged in from another application,
@@ -108,17 +114,23 @@ Rectangle {
         anchors.top: mediaTitle.bottom
         anchors.bottom: parent.bottom
         width: bin.listWidth
-        model: bin.win.catalog.mediaPlaylists
+        // (Video Inputs first: it is the inputs themselves, and no playlist of the file's)
+        model: [{ name: "Video Inputs", path: bin.win.videoInputsNode, parent: "", depth: 0, folder: false, icon: "videoInputs" }]
+               .concat(bin.win.catalog.mediaPlaylists)
         selectedPath: bin.win.selectedMediaNode
-        livePath: bin.win.liveMedia ? bin.win.liveMediaPlaylistId : ""
+        livePath: bin.win.liveMedia ? bin.win.liveMediaPlaylistId : Show.liveVideoInput >= 0 ? bin.win.videoInputsNode : ""
         dragProxy: bin.playlistDrag
+        draggable: (entry) => entry.path !== bin.win.videoInputsNode
         // A playlist or folder of the list can be moved by dropping it on another; files
         // from another application go onto a playlist, if there is media among them.
         dropKeys: bin.win.takesDrops ? ["mediaPlaylist", "text/uri-list"] : ["mediaPlaylist"]
-        dropZone: (node, source, urls) => source !== null ? (node.folder ? "both" : "between")
+        dropZone: (node, source, urls) => node.path === bin.win.videoInputsNode ? ""
+                                         : source !== null ? (node.folder ? "both" : "between")
                                          : !node.folder && bin.win.catalog.mediaAmong(urls).length > 0 ? "onto" : ""
         onPicked: (entry) => {
-            if (entry.folder)
+            if (entry.path === bin.win.videoInputsNode)
+                bin.win.openVideoInputs()
+            else if (entry.folder)
                 bin.win.selectedMediaNode = entry.path
             else
                 bin.win.openMediaPlaylist(entry.path)
@@ -142,7 +154,7 @@ Rectangle {
 
         anchors.fill: mediaGrid
         keys: ["text/uri-list"]
-        enabled: bin.win.takesDrops && bin.win.mediaPlaylistId !== ""
+        enabled: bin.win.takesDrops && bin.win.mediaPlaylistId !== "" && bin.win.mediaPlaylistId !== bin.win.videoInputsNode
         onEntered: (drag) => bin.win.acceptMediaDrag(drag)
         onPositionChanged: (drag) => bin.win.acceptMediaDrag(drag)
         onDropped: (drop) => bin.win.dropOnMediaPlaylist(bin.win.mediaPlaylistId, drop)
@@ -159,11 +171,148 @@ Rectangle {
         border.color: "#c0ffffff"
     }
 
+    // ---- Video Inputs: the workspace's inputs, in their order, by thumbnail and name.
+    // (Made only while they are picked: most workspaces are never shown them.)
+    Loader {
+        anchors.fill: mediaGrid
+        active: bin.win.mediaPlaylistId === bin.win.videoInputsNode
+
+        sourceComponent: Item {
+            GridView {
+                id: inputGrid
+
+                objectName: "videoInputGrid"
+                anchors.fill: parent
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                cellWidth: mediaGrid.cellWidth
+                cellHeight: mediaGrid.cellHeight
+                model: VideoInputs.inputs
+
+                ScrollBar.vertical: ScrollBar {}
+
+                delegate: Item {
+                    id: inputCell
+
+                    required property var modelData
+                    readonly property bool live: Show.liveVideoInput === modelData.index
+
+                    objectName: "videoInputCell:" + modelData.name
+                    width: inputGrid.cellWidth
+                    height: inputGrid.cellHeight
+                    z: live ? 1 : 0
+
+                    Loader {
+                        anchors.fill: inputFrame
+                        anchors.margins: -5
+                        active: inputCell.live
+
+                        sourceComponent: LiveRing {
+                            background: bin.win.surfaceColor
+                        }
+                    }
+
+                    Rectangle {
+                        id: inputFrame
+
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        color: inputMouse.containsMouse ? "#4a4d54" : bin.win.panelColor
+                        radius: 4
+
+                        // Its thumbnail, or its colour with ProPresenter's camera on it: the
+                        // inputs themselves are not captured for this (see VideoInputs)
+                        Rectangle {
+                            id: inputThumbnail
+
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 3
+                            height: width * 9 / 16
+                            color: inputCell.modelData.color !== "" ? inputCell.modelData.color : "black"
+                            clip: true
+
+                            Image {
+                                anchors.fill: parent
+                                visible: inputCell.modelData.thumbnail !== ""
+                                source: inputCell.modelData.thumbnail
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                cache: false
+                            }
+
+                            ProIcon {
+                                anchors.centerIn: parent
+                                visible: inputCell.modelData.thumbnail === ""
+                                name: "VideoInput"
+                                ink: "#c0ffffff"
+                                size: Math.min(parent.height * 0.9, 64)
+                            }
+
+                            Text {
+                                anchors.bottom: parent.bottom
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottomMargin: 4
+                                visible: inputCell.modelData.device === "" || inputCell.modelData.missing
+                                color: "#ffb4a9"
+                                font.pixelSize: 11
+                                text: inputCell.modelData.device === "" ? "no device" : "not here"
+                            }
+                        }
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: inputThumbnail.bottom
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: 6
+                            anchors.rightMargin: 6
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideMiddle
+                            color: bin.win.textColor
+                            font.pixelSize: 11
+                            text: inputCell.modelData.name
+                        }
+                    }
+
+                    // A click puts it on the video input layer; dragged, it is a Video Input
+                    // Action for a slide or a macro
+                    DragSource {
+                        id: inputMouse
+
+                        anchors.fill: parent
+                        win: bin.win
+                        payload: ({ kind: "videoInput", id: inputCell.modelData.id, inputIndex: inputCell.modelData.index,
+                                    name: inputCell.modelData.name, picture: "VideoInput" })
+                        hoverEnabled: true
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: (mouse) => {
+                            if (mouse.button === Qt.RightButton)
+                                bin.win.showVideoInputMenu(inputCell.modelData, inputCell, mouse.x, mouse.y)
+                            else if (!dragged)
+                                bin.win.showVideoInput(inputCell.modelData.index)
+                        }
+                    }
+                }
+            }
+
+            EmptyNote {
+                anchors.centerIn: inputGrid
+                width: inputGrid.width - 40
+                visible: VideoInputs.inputs.length === 0
+                text: "No video inputs. They are set up in Settings → Inputs."
+            }
+        }
+    }
+
     GridView {
         id: mediaGrid
 
         objectName: "mediaGrid"
         readonly property real labelHeight: 24
+
+        visible: bin.win.mediaPlaylistId !== bin.win.videoInputsNode
         readonly property int columns: Math.max(1, Math.floor(width / bin.win.mediaThumbnailWidth))
 
         anchors.left: mediaList.right
@@ -385,7 +534,7 @@ Rectangle {
     EmptyNote {
         anchors.centerIn: mediaGrid
         width: mediaGrid.width - 80
-        visible: bin.win.mediaFiles.length === 0
+        visible: bin.win.mediaFiles.length === 0 && mediaGrid.visible
         text: bin.win.mediaPlaylistId !== "" ? "This media playlist is empty. Add media to it from the + above, or drag files in."
             : "No media playlists yet. Add one from the + beside Media bin."
     }

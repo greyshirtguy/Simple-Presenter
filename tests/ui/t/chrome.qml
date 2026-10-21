@@ -96,19 +96,19 @@ QtObject {
                 check("the previews have no titles", !inPane.some(x => x.toLowerCase() === "output" || x.toLowerCase() === "stage") && !inPane.some(x => x.toLowerCase() === "timers"),
                       inPane.join(" | "))
                 // In ProPresenter's order down their column
-                const clears = ["clearAudio", "clearMessages", "clearProps", "clearAnnouncements", "clearSlide", "clearMedia"].map(name => named(name))
+                const clears = ["clearAudio", "clearMessages", "clearProps", "clearAnnouncements", "clearSlide", "clearMedia", "clearVideoInput"].map(name => named(name))
                 const at = (item) => item.mapToItem(sidePanel, 0, 0)
-                check("there are six clear buttons for the layers, one over another in a column at the pane's right edge, as high as each other",
+                check("there are seven clear buttons for the layers, one over another in a column at the pane's right edge, as high as each other",
                       clears.every(c => c !== null) && clears.every(c => near(c.height, clears[0].height) && near(c.width, clears[0].width) && near(at(c).x, at(clears[0]).x))
                       && clears.every((c, i) => i === 0 || at(c).y > at(clears[i - 1]).y) && near(at(clears[0]).x + clears[0].width, sidePanel.width - 12),
                       clears.map(c => c ? Math.round(at(c).x) + "," + Math.round(at(c).y) + " " + c.width.toFixed(1) + "x" + c.height.toFixed(1) : "none").join("; ") + " in " + sidePanel.width)
                 const pictureOf = (item) => { const found = Lib.find(item, i => i.inkName !== undefined && i.name !== undefined && i.name !== "" && i.visible === true); return found ? found.name : "none" }
-                check("with pictures on them and no words: ProPresenter's own, of clearing each layer, in its order (audio, messages, props, announcements, slide, media)",
+                check("with pictures on them and no words: ProPresenter's own, of clearing each layer, in its order (audio, messages, props, announcements, slide, media, video input)",
                       clears.every(c => texts(c).length === 0)
-                      && clears.map(pictureOf).join() === "ClearAudio,ClearMessages,ClearProps,ClearAnnouncements,ClearPresentation,ClearMedia", clears.map(pictureOf).join())
+                      && clears.map(pictureOf).join() === "ClearAudio,ClearMessages,ClearProps,ClearAnnouncements,ClearPresentation,ClearMedia,ClearVideoInput", clears.map(pictureOf).join())
                 const groups = Lib.findAll(sidePanel, i => i.objectName === "clearGroup")
-                const columnBottom = at(clears[5]).y + clears[5].height
-                check("and beside them, in a column of its own, the button of the workspace's clear group, as high as the six together, with ProPresenter's picture of clearing and no words",
+                const columnBottom = at(clears[6]).y + clears[6].height
+                check("and beside them, in a column of its own, the button of the workspace's clear group, as high as the seven together, with ProPresenter's picture of clearing and no words",
                       groups.length === 1 && at(groups[0]).x + groups[0].width < at(clears[0]).x && near(at(groups[0]).y, at(clears[0]).y)
                       && near(at(groups[0]).y + groups[0].height, columnBottom) && groups[0].width < clears[0].width
                       && pictureOf(groups[0]) === "Clear" && texts(groups[0]).length === 0,
@@ -402,7 +402,7 @@ QtObject {
             },
             () => {
                 const shown = Lib.find(sidePanel, i => i.namePrefix === "preview" && i.screenId !== undefined)
-                const media = named("clearMedia")
+                const media = named("clearVideoInput")
                 const groupButton = Lib.findAll(sidePanel, i => i.objectName === "clearGroup")[0]
                 const areaBottom = sidePanel.mapToItem(null, 0, 0).y
                 check("dragged down, the preview's area is as much taller, and the preview fills it, the screen fitted in", near(sidePanel.areaHeight, kept.area + 150)

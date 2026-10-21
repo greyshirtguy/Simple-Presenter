@@ -78,6 +78,10 @@ its thumbnails where they are dropped. Files are referred to where they are on d
 never copied or moved, and anything in a drag that is not an image or a video the app
 can show is left out.
 
+First in the bin's list is **Video Inputs**, as in ProPresenter: the workspace's
+[video inputs](video-inputs.md), which a click puts on a layer of their own under the
+media.
+
 A **media playlist** can be dragged out of the bin's list onto a slide or onto a macro,
 or picked from Add Action, under Media Playlist: that gives it an action that plays the
 playlist from its first row. Run again while the playlist is playing, it leaves it to

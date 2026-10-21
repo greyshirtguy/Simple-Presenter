@@ -308,9 +308,10 @@ private slots:
         const rv::data::ProPresenterWorkspace document = fileOf(folder.path());
         QCOMPARE(document.live_audience_look().uuid().string(), "LIVE-COPY");
         QCOMPARE(document.selected_library_name(), "Songs");
-        // And so are the switches for the layers this app has not
+        // Every layer is this app's now (the video input since 0.105), and is given what
+        // `wanted` says of it: here, as a line made from nothing has it, on
         QVERIFY(document.audience_looks(1).screen_looks(0).announcements_enabled());
-        QVERIFY(!document.audience_looks(1).screen_looks(0).live_video_enabled());
+        QVERIFY(document.audience_looks(1).screen_looks(0).live_video_enabled());
     }
 
     void theMessagesAreALayerALookSwitchesForAScreen()
@@ -351,6 +352,25 @@ private slots:
         QVERIFY(!document.audience_looks(1).screen_looks(1).announcements_enabled());
         QVERIFY(document.audience_looks(1).screen_looks(1).messages_layer_enabled());
         QVERIFY(!document.audience_looks(1).screen_looks(1).live_video_enabled());
+    }
+
+    void theVideoInputIsALayerALookSwitchesForAScreen()
+    {
+        QTemporaryDir folder;
+        writeProPresenters(folder.path());
+        // (ProPresenter's file has it off for the stream in the second look)
+        ScreenLook wanted = read(folder.path()).looks.at(1).screens.value("STREAM");
+        QVERIFY(!wanted.videoInput);
+        wanted.videoInput = true;
+        QCOMPARE(setScreen(folder.path(), "LOOK-2", "STREAM", wanted), QString());
+        const ScreenLook now = read(folder.path()).looks.at(1).screens.value("STREAM");
+        QVERIFY(now.videoInput && now.slide == wanted.slide && now.media == wanted.media && now.announcements == wanted.announcements);
+        const rv::data::ProPresenterWorkspace document = fileOf(folder.path());
+        QVERIFY(document.audience_looks(1).screen_looks(1).live_video_enabled());
+        // And off again
+        wanted.videoInput = false;
+        QCOMPARE(setScreen(folder.path(), "LOOK-2", "STREAM", wanted), QString());
+        QVERIFY(!fileOf(folder.path()).audience_looks(1).screen_looks(1).live_video_enabled());
     }
 
     void aScreenIsGivenAMaskAndHasItTakenAway()

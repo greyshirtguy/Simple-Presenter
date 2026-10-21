@@ -2200,6 +2200,88 @@ def after_announce(workspace, test_dir):
     ]
 
 
+def prepare_videoinputs(workspace, test_dir):
+    """What the workspace's file was before the test (videoinputs-workspace-before), and every presentation of its
+    library (videoinputs-pro-before/), for after_videoinputs to compare what the test changed with."""
+    shutil.copy(os.path.join(workspace, "Configuration", "Workspace"), os.path.join(test_dir, "videoinputs-workspace-before"))
+    os.makedirs(os.path.join(test_dir, "videoinputs-pro-before"))
+    for path in glob.glob(os.path.join(glob.escape(workspace), "Libraries", "*", "*.pro")):
+        shutil.copy(path, os.path.join(test_dir, "videoinputs-pro-before", os.path.basename(path)))
+
+
+def after_videoinputs(workspace, test_dir):
+    """What the files hold once the test has worked on them, read with protoc and not by the app. The workspace's file:
+    ProPresenter's own input as it was, to the byte; the one added after it, by its name, with an id, ProPresenter's
+    colour and straight alpha, and nothing of this computer's (its device is in the app's settings); and the rest of the
+    file as it was but for the live look, which the test changed (ProPresenter keeps the look that is live in this
+    file). The presentation the test changed: two Video Input Actions as ProPresenter writes them (a media action of
+    live video on the input layer, by the input's place), and the fill that was a colour made a video input; and with
+    those taken out, and the fill as it was, the presentation as it was. Every other presentation to the byte."""
+    def decoded(data, message="rv.data.Presentation", proto="presentation.proto"):
+        return protoc("decode", message, proto, data).decode()
+
+    def blocks(text, name):
+        return [m.group(0) for m in re.finditer(r"^( *)" + name + r" \{\n.*?^\1\}\n", text, re.S | re.M)]
+
+    def without(text, name):
+        for block in blocks(text, name):
+            text = text.replace(block, "")
+        return text
+
+    with open(os.path.join(test_dir, "videoinputs-workspace-before"), "rb") as source:
+        was = decoded(source.read(), "rv.data.ProPresenterWorkspace", "proworkspace.proto")
+    with open(os.path.join(workspace, "Configuration", "Workspace"), "rb") as source:
+        now = decoded(source.read(), "rv.data.ProPresenterWorkspace", "proworkspace.proto")
+    inputs_was, inputs_now = blocks(was, "videoInputs"), blocks(now, "videoInputs")
+    added = inputs_now[1] if len(inputs_now) == 2 else ""
+    rest_same = without(without(was, "videoInputs"), "live_audience_look") == without(without(now, "videoInputs"), "live_audience_look")
+    # The presentations
+    changed, same = [], 0
+    for path in sorted(glob.glob(os.path.join(glob.escape(workspace), "Libraries", "*", "*.pro"))):
+        with open(path, "rb") as source:
+            data = source.read()
+        with open(os.path.join(test_dir, "videoinputs-pro-before", os.path.basename(path)), "rb") as source:
+            old = source.read()
+        if data == old:
+            same += 1
+        else:
+            changed.append((decoded(old), decoded(data)))
+    text_was, text_now = changed[0] if len(changed) == 1 else ("", "")
+    # (The new actions by their ids: a slide is itself held in an action of its cue, which the fill changed)
+    def ident(action):
+        return re.search(r'uuid \{\n\s*string: "([^"]*)"', action).group(1)
+
+    had = {ident(a) for a in blocks(text_was, "actions")}
+    made = [a for a in blocks(text_now, "actions") if ident(a) not in had]
+    proper = [a for a in made if a.startswith("  actions {") and "type: ACTION_TYPE_MEDIA\n" in a and "layer_type: LAYER_TYPE_INPUT" in a
+              and re.search(r"\n( *)live_video \{\n\1  live_video_index: 1\n", a) and "url {" not in a and re.search(r"\n *video \{", a) is None]
+    fills_was, fills_now = blocks(text_was, "fill"), blocks(text_now, "fill")
+    different = [i for i in range(min(len(fills_was), len(fills_now))) if fills_was[i] != fills_now[i]]
+    fill = fills_now[different[0]] if len(different) == 1 and len(fills_was) == len(fills_now) else ""
+    put_back = text_now
+    for block in made:
+        put_back = put_back.replace(block, "", 1)
+    if fill:
+        put_back = put_back.replace(fill, fills_was[different[0]], 1)
+    return [
+        said(len(inputs_was) == 1 and len(inputs_now) == 2 and inputs_now[0] == inputs_was[0],
+             "ProPresenter's own input is first, as it was", "%d then %d" % (len(inputs_was), len(inputs_now))),
+        said('user_description: "Camera Two"' in added and re.search(r'uuid \{\n\s*string: "[0-9A-F-]{36}"', added) is not None
+             and "red: 0.0471" in added and "alpha_type: ALPHA_TYPE_STRAIGHT" in added,
+             "the added one has its name, an id, ProPresenter's colour and straight alpha", added[:400]),
+        said("video_input_device" not in added and "Test Pattern" not in now and "test:pattern" not in now,
+             "and nothing of this computer's: which device an input is, is the app's to keep", added[:400]),
+        said(rest_same, "the rest of the workspace's file is as it was, but for the live look the test chose"),
+        said(len(changed) == 1 and same > 0, "one presentation was changed, and every other is as it was, to the byte", "%d changed, %d the same" % (len(changed), same)),
+        said(len(made) == 2 and len(proper) == 2,
+             "it has two Video Input Actions, as ProPresenter writes them: a media action of live video on the input layer, by the input's place",
+             "\n".join(made)[:900]),
+        said(fill != "" and "color {" in fills_was[different[0]] and "live_video {" in fill and "media {" in fill,
+             "the fill that was a colour is a video input", fill[:400]),
+        said(text_was != "" and put_back == text_was, "and with those taken out, and the fill as it was, the presentation is as it was"),
+    ]
+
+
 def prepare_red_picture(workspace, test_dir):
     """A picture of one colour, red and the shape of a screen, for a test to put on the media layer and look for
     (screenpreview, screens, decklink): in the test's own folder and NOT under the workspace's Media, which in a copy of a
@@ -2645,6 +2727,8 @@ TESTS = {
     "notes": test("Act", timeout=300, prepare=prepare_notes, after=after_notes),
     "messages": test("Act", timeout=300, prepare=prepare_messages, after=after_messages),
     "screenpreview": test("Act", timeout=240, prepare=prepare_red_picture),
+    # (With the pretend device the app has for tests: there is no camera here, or none that may be looked at.)
+    "videoinputs": test("Act", timeout=240, env={"SP_TEST_VIDEOINPUT": "1"}, prepare=prepare_videoinputs, after=after_videoinputs),
     "textstyle": test("Act", timeout=240),
     # (With the two Blackmagic outputs the app pretends for tests: there is no card here.)
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),

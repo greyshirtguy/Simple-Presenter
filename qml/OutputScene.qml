@@ -1,8 +1,9 @@
 import QtQuick
 
-// What an audience screen shows: the media layer, the slide layer over it, the
-// announcements over those, the props over all three, the messages over them and the
-// screen's mask, if the look gives it one, over everything, on black.
+// What an audience screen shows: the video input layer, the media layer over it, the
+// slide layer over that, the announcements over those, the props over them all, the
+// messages over them and the screen's mask, if the look gives it one, over everything,
+// on black.
 //
 // Layers are what make a presenter more than a slide show. A background video on the
 // media layer keeps playing while the slides over it change, and either layer can be
@@ -42,7 +43,11 @@ Item {
     property bool announcementsOn: true
     property bool propsOn: true
     property bool messagesOn: true
+    property bool videoInputOn: true
     property int lookFade: 0
+    // The video input layer: the input on it, by its place in the workspace's list of
+    // them (as Show has it: see VideoInputs), -1 for none
+    property int videoInput: -1
     // The mask the live look gives this screen: its slide, to be laid over everything
     // else, or null for none (see Masks)
     property var mask: null
@@ -137,6 +142,32 @@ Item {
     function clearAnnouncements() {
         if (announcementsLayer.item)
             announcementsLayer.item.clear()
+    }
+
+    // The video input layer, at the bottom: made only while an input is on it, which
+    // is what has the input captured (see VideoInputView). Its sound plays while the
+    // look gives this screen the layer, and not while it does not: an input's sound is
+    // played while it is on an audience screen (see VideoInputs). An input that takes
+    // the place of another is a cut. (A GUESS: ProPresenter has a transition of its own
+    // for video inputs, which is not done here yet.)
+    Loader {
+        id: videoInputLayer
+
+        objectName: "videoInputLayer"
+        anchors.fill: parent
+        active: scene.videoInput >= 0
+        opacity: scene.videoInputOn ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation { duration: scene.lookFade }
+        }
+
+        sourceComponent: VideoInputView {
+            index: scene.videoInput
+            sound: scene.videoInputOn
+            shown: videoInputLayer.visible
+        }
     }
 
     TransitionLayer {

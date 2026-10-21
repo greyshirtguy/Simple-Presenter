@@ -88,6 +88,9 @@ class Show : public QObject
     // playlist it was triggered from, "" if a slide triggered it.
     Q_PROPERTY(QVariant liveMedia READ liveMedia NOTIFY mediaChanged)
     Q_PROPERTY(QString liveMediaPlaylistId READ liveMediaPlaylistId NOTIFY mediaChanged)
+    // The video input layer, under the media: the input on it, by its place in the
+    // workspace's list of them (see VideoInputs), -1 for none
+    Q_PROPERTY(int liveVideoInput READ liveVideoInput NOTIFY videoInputChanged)
     // The audio layer: the music that is playing, as a row of the audio bin (see
     // playlistfile.h) with the number of this playing of it as `play`, or null; the
     // playlist of the bin it was played from, "" if a slide or a macro played it; and
@@ -178,6 +181,7 @@ public:
     bool announcementsOn() const { return !m_state.announcement.cleared || m_state.announcementHasMedia; }
     QVariant liveMedia() const;
     QString liveMediaPlaylistId() const { return m_state.mediaPlaylistId; }
+    int liveVideoInput() const { return m_state.videoInput; }
     QVariant liveMusic() const;
     QString liveMusicPlaylistId() const { return m_state.musicPlaylistId; }
     QVariantList liveSounds() const { return m_state.sounds; }
@@ -256,6 +260,10 @@ public:
 
     Q_INVOKABLE void clearSlide();
     Q_INVOKABLE void clearMedia();
+    // A video input put on its layer, by its place, as a click on it in the media bin
+    // does; and the layer cleared
+    Q_INVOKABLE void showVideoInput(int index);
+    Q_INVOKABLE void clearVideoInput();
     Q_INVOKABLE void clearAnnouncements();
     Q_INVOKABLE void clearProps();
     // The audio layer, which is the music and the sound effects; and the sound
@@ -331,6 +339,7 @@ signals:
     void slideChanged();
     void announcementChanged();
     void mediaChanged();
+    void videoInputChanged();
     void audioChanged();
     void propsChanged();
     void messagesChanged();

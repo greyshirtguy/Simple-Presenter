@@ -121,6 +121,7 @@ public:
     Q_INVOKABLE QVariantMap message(const QVariantMap &message, int index, bool active) const;
     Q_INVOKABLE QVariantMap clearGroup(const QVariantMap &group, int index) const;
     Q_INVOKABLE QVariantMap macro(const QVariantMap &macro, int index) const;
+    Q_INVOKABLE QVariantMap videoInput(const QVariantMap &input, int index) const;
     Q_INVOKABLE QVariantList binTree(const QVariantList &nodes) const;
     Q_INVOKABLE QVariantMap binItem(const QVariantMap &row, int index, bool audio) const;
 

@@ -303,7 +303,7 @@ QtObject {
                 const items = addActionItems({ slide: 2 })
                 const clears = items.find(i => i.label === "Clear").items
                 check("the actions a slide can be given have one that clears the announcements",
-                      clears.map(i => i.header ?? i.label).join(", ") === "Clear, Everything, The Slide, The Media, The Props, The Messages, The Announcements",
+                      clears.map(i => i.header ?? i.label).join(", ") === "Clear, Everything, The Slide, The Media, The Props, The Messages, The Announcements, The Video Input",
                       clears.map(i => i.header ?? i.label).join(", "))
                 clears.find(i => i.label === "The Announcements").run()
                 return 600

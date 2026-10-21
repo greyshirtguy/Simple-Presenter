@@ -40,6 +40,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 
 - <a id="workspaces"></a>**[Workspaces](docs/features/workspaces.md)**: a ProPresenter folder, opened as it stands, with its libraries, playlists, media bin and all the rest. A playlist exported from ProPresenter can be brought in too.
 - <a id="media"></a><a id="the-media-inspector"></a>**[Media](docs/features/media.md)**: backgrounds that play on under the slides, foregrounds with their sound, the media bin, and ProPresenter's Media Inspector for fitting, cropping, looping and effects.
+- <a id="video-inputs"></a>**[Video inputs](docs/features/video-inputs.md)**: a webcam or a capture device, live on the screens on a layer of its own under the media, from the media bin, a slide or a macro, with its sound; or in a shape, beside the words or on the stage.
 - <a id="audio"></a>**[Audio](docs/features/audio.md)**: the audio bin, with playlists of music and sound effects, a clear of its own and a meter of how loud it is.
 - <a id="timers"></a>**[Timers](docs/features/timers.md)**: countdowns, countdowns to a time of day and elapsed timers, started from a slide, with ProPresenter's Color Triggers.
 - <a id="props"></a>**[Props](docs/features/props.md)**: a logo, a lower third, a countdown, laid over everything else until it is cleared.
@@ -47,7 +48,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="announcements"></a>**[Announcements](docs/features/announcements.md)**: a second presentation running over the first on a layer of its own, for the notices before a service or a ticker along the foot of the screen.
 - <a id="go-to-next-timers-and-the-slide-show"></a>**[Go To Next timers and the Slide Show](docs/features/go-to-next-and-slide-show.md)**: slides that go on by themselves after a time, and a whole presentation left going round.
 - <a id="clear-groups"></a>**[Clear groups](docs/features/clear-groups.md)**: named sets of layers, cleared together at one click.
-- <a id="actions"></a>**[Actions](docs/features/actions.md)**: what a slide or a macro does as it goes live: start a timer, clear a layer, give the stage a layout, put a prop on, run a macro, change the look, play a media or audio playlist, show a message, or send to a device.
+- <a id="actions"></a>**[Actions](docs/features/actions.md)**: what a slide or a macro does as it goes live: start a timer, clear a layer, give the stage a layout, put a prop on, run a macro, change the look, play a media or audio playlist, show a message or a video input, or send to a device.
 - <a id="macros"></a>**[Macros](docs/features/macros.md)**: a named list of actions, run at one click.
 - <a id="groups-and-labels"></a>**[Groups and labels](docs/features/groups-and-labels.md)**: a slide's group and label, changed from the slide's menu, in ProPresenter's colours.
 - <a id="arrangements"></a>**[Arrangements](docs/features/arrangements.md)**: verse, chorus, verse, chorus, bridge. The groups are dragged into the order a song is sung in.
@@ -109,7 +110,7 @@ a slide is up, and plays a 4K video under the words with most of the machine to 
 see [Built for modest hardware](docs/how-it-is-made.md#built-for-modest-hardware).
 
 <a id="todo"></a>**What it cannot do yet** is a longer list. ProPresenter does a great deal more than this:
-there are no video inputs here yet, no timelines and no capture, among much else. See
+there are no timelines here yet and no capture, nor video in from a DeckLink card or over NDI, among much else. See
 [what is not there yet](docs/todo.md).
 
 ## What's new

@@ -373,7 +373,9 @@ const QList<Route> &routes()
         remove("transport/{layer}/auto_advance");
         // What the app has nothing of yet, but which a client may stream with the rest
         clocked("capture/status");
+        // Video inputs
         get("video_inputs");
+        get("video_inputs/{id}/trigger");
         return made;
     }();
     return all;

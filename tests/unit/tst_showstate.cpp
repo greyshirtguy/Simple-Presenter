@@ -239,7 +239,8 @@ QString outside(const Effects &effects)
 {
     static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia",
                                   "announcement", "announcementovermedia", "announcementwithmedia", "noannouncements",
-                                  "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem", "build", "communicate"};
+                                  "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem", "build", "communicate",
+                                  "videoinput", "novideoinput"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -1524,6 +1525,63 @@ private slots:
         // Music started after them leaves them playing.
         show.playAudio(tune("Offertory"), "list");
         QCOMPARE(show.sounds.size(), 3);
+    }
+
+    // ---- the video input layer
+
+    void aVideoInputActionPutsTheInputOnItsLayerAndItStays()
+    {
+        State show;
+        Presentation song;
+        song.slides = {slide("a", {}, {QVariantMap {{"kind", "videoInput"}, {"title", "Show video input 2"}, {"done", true}, {"inputIndex", 1}}}),
+                       slide("b", video("Waves"))};
+        Effects effects = show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(show.videoInput, 1);
+        QVERIFY(outside(effects).contains("videoinput"));
+        bool told = false;
+        for (const Effect &effect : effects) {
+            if (effect.kind == Effect::VideoInput)
+                told = effect.action.value("index").toInt() == 1;
+        }
+        QVERIFY(told);
+        // A slide that brings media, and none: the input stays under them
+        effects = show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(show.videoInput, 1);
+        QVERIFY(!outside(effects).contains("novideoinput"));
+        show.clearSlide();
+        show.clearMedia();
+        QCOMPARE(show.videoInput, 1);
+        // The same one again is left as it is; another takes its place
+        QVERIFY(!outside(show.showVideoInput(1)).contains("videoinput"));
+        QCOMPARE(outside(show.showVideoInput(0)), "videoinput");
+        QCOMPARE(show.videoInput, 0);
+    }
+
+    void theVideoInputIsClearedByItsClearAndByEverything()
+    {
+        State show;
+        show.showVideoInput(0);
+        QCOMPARE(outside(show.clearVideoInput()), "novideoinput");
+        QCOMPARE(show.videoInput, -1);
+        QVERIFY(show.clearVideoInput().isEmpty());
+        show.showVideoInput(2);
+        QVERIFY(outside(show.clearAll()).contains("novideoinput"));
+        QCOMPARE(show.videoInput, -1);
+        // By an action that clears its layer (the file's 3), and by Clear Everything (0)
+        Presentation song;
+        song.slides = {slide("a", {}, {clearAction(3)}), slide("b", {}, {clearAction(0)})};
+        show.showVideoInput(1);
+        show.goLive(song.cue(0), false, workspace());
+        QCOMPARE(show.videoInput, -1);
+        show.showVideoInput(1);
+        show.goLive(song.cue(1), false, workspace());
+        QCOMPARE(show.videoInput, -1);
+        // And by a clear group that has it (Clear All has every layer), and not one that has not
+        show.showVideoInput(1);
+        show.clearGroup("extras", workspace());
+        QCOMPARE(show.videoInput, 1);
+        show.clearGroup("all", workspace());
+        QCOMPARE(show.videoInput, -1);
     }
 
     // ---- actions that play a playlist of either bin

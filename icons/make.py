@@ -40,7 +40,7 @@ from PIL import Image
 NAMES = [
     "Announcements", "Arrangements", "Clear", "ClearAnnouncements", "ClearAudio", "ClearMedia", "ClearMessages", "ClearPresentation", "ClearProps",
     "ClearVideoInput", "Countdown", "Looks", "Macro", "Message", "Prop", "Screens", "ScreensOn", "Stage",
-    "Transport Pause", "Transport Play",
+    "Transport Pause", "Transport Play", "VideoInput",
 ]
 # The middle of a picture, which holds every drawing in the pack
 BOX = (16, 16, 56, 56)

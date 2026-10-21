@@ -231,7 +231,10 @@ QVariantMap macro(const QVariantMap &macro, int index)
 {
     static const QHash<QString, QString> types {{"timer", "timer"}, {"clear", "clear"}, {"clearGroup", "clear_group"},
                                                 {"stage", "stage_layout"}, {"prop", "prop"}, {"look", "audience_look"},
-                                                {"macro", "macro"}, {"audio", "audio_bin_playlist"}};
+                                                {"macro", "macro"}, {"audio", "audio_bin_playlist"},
+                                                // (A GUESS: a Video Input Action is a media action in
+                                                // ProPresenter's file, so its own name for that kind)
+                                                {"videoInput", "media"}};
     QVariantList actions;
     for (const QVariant &entry : macro.value("actions").toList())
         actions << QVariantMap {{"type", types.value(entry.toMap().value("kind").toString(), QStringLiteral("unknown"))}};
@@ -240,6 +243,11 @@ QVariantMap macro(const QVariantMap &macro, int index)
             {"color", color(tint.isValid() ? tint : QColor(Qt::white))},
             {"image_type", QStringLiteral("Default")},
             {"actions", actions}};
+}
+
+QVariantMap videoInput(const QVariantMap &input, int index)
+{
+    return {{"id", id(input.value("id").toString(), input.value("name").toString(), index)}};
 }
 
 namespace {

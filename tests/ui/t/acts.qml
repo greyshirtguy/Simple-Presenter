@@ -89,8 +89,8 @@ QtObject {
             () => {
                 const panes = Lib.findAll(menu.contentItem, i => i.px !== undefined && i.rows !== undefined)
                 kept.panes = panes
-                check("resting the pointer on Add Action opens its menu, of eleven kinds (Audio Playlist, Message and Communication off, there being no audio bin, messages or devices)",
-                      labels() === "[Add Action], Timer…, Clear, Clear Group, Stage…, Audience Look, Prop, Macro, Media Playlist, Audio Playlist(off), Message(off), Communication(off)", labels())
+                check("resting the pointer on Add Action opens its menu, of twelve kinds (Audio Playlist, Message and Communication off, there being no audio bin, messages or devices)",
+                      labels() === "[Add Action], Timer…, Clear, Clear Group, Stage…, Audience Look, Prop, Macro, Media Playlist, Video Input, Audio Playlist(off), Message(off), Communication(off)", labels())
                 check("beside the slide's menu, which stays where it is", panes.length === 2 && menu.opened && near(panes[1].x, panes[0].x + panes[0].width - 4)
                       && panes[1].y >= panes[0].y && panes[1].x + panes[1].width <= win.width, panes.map(p => p.x + "," + p.y).join(" "))
                 const row = menuRow("Clear")
@@ -99,7 +99,7 @@ QtObject {
             },
             () => {
                 const panes = Lib.findAll(menu.contentItem, i => i.px !== undefined && i.rows !== undefined)
-                check("clearing: the layers there are here, in a third menu", labels() === "[Clear], Everything, The Slide, The Media, The Props, The Messages, The Announcements" && panes.length === 3, labels())
+                check("clearing: the layers there are here, in a third menu", labels() === "[Clear], Everything, The Slide, The Media, The Props, The Messages, The Announcements, The Video Input" && panes.length === 3, labels())
                 check("every menu is inside the window", panes.every(p => p.x >= 0 && p.y >= 0 && p.x + p.width <= win.width && p.y + p.height <= win.height))
                 testInput.grab("0-menus")
                 // Back on another row of the second menu, the third shuts

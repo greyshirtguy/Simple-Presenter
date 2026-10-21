@@ -85,6 +85,8 @@ qt_add_executable(SimplePresenter
     src/communications.h
     src/playlistactions.cpp
     src/playlistactions.h
+    src/videoinputfile.cpp
+    src/videoinputfile.h
     src/alsamidi.cpp
     src/alsamidi.h
     src/prodocument.cpp
@@ -138,6 +140,8 @@ qt_add_qml_module(SimplePresenter
         qml/ActionIcon.qml
         qml/AppSlider.qml
         qml/AppTextArea.qml
+        qml/InputsSettings.qml
+        qml/VideoInputView.qml
         qml/AnnouncementLayer.qml
         qml/GoToNextPanel.qml
         qml/ArrangementBar.qml
@@ -239,6 +243,8 @@ qt_add_qml_module(SimplePresenter
         src/clocks.cpp
         src/devices.h
         src/devices.cpp
+        src/videoinputs.cpp
+        src/videoinputs.h
         src/clocktext.h
         src/clocktext.cpp
         src/audiolayer.h
@@ -391,6 +397,7 @@ qt_add_resources(SimplePresenter "icons"
         icons/Looks.png
         icons/Macro.png
         icons/Message.png
+        icons/VideoInput.png
         icons/Prop.png
         icons/Screens.png
         icons/ScreensOn.png

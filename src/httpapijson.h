@@ -87,6 +87,11 @@ QVariantMap clearGroup(const QVariantMap &group, int index);
 // type by ProPresenter's name for its kind (see actions.h)
 QVariantMap macro(const QVariantMap &macro, int index);
 
+// A video input as video_inputs gives it: {id}, by its id, name and place (see
+// videoinputs.h). (A GUESS at all of ProPresenter's: the path is its own, but what it
+// sends of each input has not been seen; this is what its other lists all have.)
+QVariantMap videoInput(const QVariantMap &input, int index);
+
 // The media playlists, or the audio bin's, as media/playlists and audio/playlists give
 // them: the same tree as the playlists' but with "type" ("group" or "playlist") where
 // those have "field_type"

@@ -33,7 +33,10 @@ import SimplePresenterApp
 // written, in their own fonts and colours: `liveLinkText` is then that text itself.)
 //
 // A fill can also be a picture of what one of the screens is showing, which is
-// ProPresenter's Screen Preview: see ScreenPicture, which draws it, and `pictures`.
+// ProPresenter's Screen Preview: see ScreenPicture, which draws it, and `pictures`. And
+// it can be one of the workspace's video inputs, live (see VideoInputView), on a screen,
+// in the operator's preview and in the editor, and in a thumbnail the input's own
+// thumbnail, for the same reason as a Screen Preview is nothing there.
 //
 // A shadow is the one dear thing here. The shape or the text is drawn into a texture of
 // its own, which a blur then turns into the shadow under it: an extra pass, and an extra
@@ -250,14 +253,17 @@ Item {
             // (A Screen Preview that is not drawn here is drawn as its stand-in, the
             // fill the file has for it, where stand-ins are, and not at all elsewhere.)
             readonly property string kind: !element.boxFilled ? "none"
+                                         : element.source.fillKind === "input" ? "input"
                                          : element.source.fillKind !== "screen" ? element.source.fillKind
                                          : element.pictures !== null ? "screen" : element.standIns ? "color" : "none"
             readonly property bool cut: element.source.shape !== "rectangle"
             // Which way a gradient runs: its angle is anticlockwise from pointing right
             readonly property real along: element.source.fillGradientAngle * Math.PI / 180
             readonly property real reach: Math.abs(width / 2 * Math.cos(along)) + Math.abs(height / 2 * Math.sin(along))
-            // The picture of a Screen Preview, while the fill is one: see placeScreen()
+            // The picture of a Screen Preview, while the fill is one: see placeScreen(); and
+            // the live picture of a video input, while it is one: see placeInput()
             property var screenPicture: null
+            property var inputPicture: null
 
             // A Screen Preview: what one of the screens is showing, fitted in, and cut to
             // the shape by the same mask as a picture is.
@@ -303,8 +309,49 @@ Item {
                 screenPicture = made
             }
 
-            onKindChanged: placeScreen()
-            Component.onCompleted: placeScreen()
+            // A video input: one of the workspace's inputs, live, fitted as the fill's media
+            // says (Scale to Fit, Scale to Fill, Stretch), cut to the shape as a picture is.
+            // Made as a Screen Preview is, here only while the fill is one, so that no
+            // shape that is not carries anything for it.
+            //
+            // Chosen for speed: in the operator window (its preview, the editor) a frame
+            // is taken a tenth of a second apart, as the preview takes a video's, each
+            // frame being a redraw of that whole window; on a screen, every frame; and in
+            // a thumbnail (where `pictures` is null and there are no stand-ins) none at
+            // all, but the input's thumbnail, still. Its sound is the video input layer's
+            // to play, and not a shape's (A GUESS at ProPresenter, whose help says an
+            // input's sound plays while it is on an audience screen).
+            function placeInput() {
+                const wanted = kind === "input"
+                if (wanted === (inputPicture !== null))
+                    return
+                if (!wanted) {
+                    inputPicture.destroy()
+                    inputPicture = null
+                    return
+                }
+                const made = Qt.createComponent(Qt.resolvedUrl("VideoInputView.qml")).createObject(fill, {
+                    index: element.source.fillInputIndex ?? 0,
+                    still: element.pictures === null && !element.standIns,
+                })
+                made.anchors.fill = fill
+                made.index = Qt.binding(() => element.source.fillInputIndex ?? 0)
+                made.fitting = Qt.binding(() => element.source.fillMediaScale ?? 0)
+                made.still = Qt.binding(() => element.pictures === null && !element.standIns)
+                made.interval = Qt.binding(() => element.pictures !== null && element.Window.window === element.pictures || element.standIns ? 100 : 0)
+                made.layer.effect = picture.layer.effect
+                made.layer.enabled = Qt.binding(() => rich.cut)
+                inputPicture = made
+            }
+
+            onKindChanged: {
+                placeScreen()
+                placeInput()
+            }
+            Component.onCompleted: {
+                placeScreen()
+                placeInput()
+            }
 
             // The fill, which is the part whose edges fade if they do
             Item {
@@ -392,7 +439,7 @@ Item {
                     id: mask
 
                     anchors.fill: parent
-                    active: rich.cut && (rich.kind === "media" || rich.kind === "screen")
+                    active: rich.cut && (rich.kind === "media" || rich.kind === "screen" || rich.kind === "input")
 
                     sourceComponent: Shape {
                         visible: false

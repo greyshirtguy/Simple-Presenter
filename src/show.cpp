@@ -63,6 +63,8 @@ void Show::change(const std::function<show::Effects()> &what)
         emit advanceChanged();
     if (before.hasMedia != m_state.hasMedia || before.media != m_state.media || before.mediaPlaylistId != m_state.mediaPlaylistId)
         emit mediaChanged();
+    if (before.videoInput != m_state.videoInput)
+        emit videoInputChanged();
     if (before.hasMusic != m_state.hasMusic || before.music != m_state.music || before.musicPlaylistId != m_state.musicPlaylistId
         || before.sounds != m_state.sounds)
         emit audioChanged();
@@ -152,6 +154,10 @@ void Show::change(const std::function<show::Effects()> &what)
             break;
         case show::Effect::Communicate:
             emit communicate(effect.action);
+            break;
+        case show::Effect::VideoInput:
+        case show::Effect::NoVideoInput:
+            // (What the screens show of it they read from liveVideoInput.)
             break;
         }
     }
@@ -328,6 +334,16 @@ void Show::clearSlide()
 void Show::clearMedia()
 {
     change([&] { return m_state.clearMedia(); });
+}
+
+void Show::showVideoInput(int index)
+{
+    change([&] { return m_state.showVideoInput(index); });
+}
+
+void Show::clearVideoInput()
+{
+    change([&] { return m_state.clearVideoInput(); });
 }
 
 void Show::clearAnnouncements()

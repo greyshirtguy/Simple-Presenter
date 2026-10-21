@@ -3,13 +3,13 @@ import QtQuick.Shapes
 
 // The small picture of what an action does, for an ActionIcon and for the lists of
 // actions. `kind` is the kind of action, as they are named (see src/actions.h):
-// "timer", "clear", "look", "stage", "prop", "macro", "message", "mediaPlaylist",
-// "audioPlaylist" or "other".
+// "timer", "clear", "look", "stage", "prop", "macro", "message", "videoInput",
+// "mediaPlaylist", "audioPlaylist" or "other".
 //
-// For the first seven ProPresenter has a picture of its own, and that is what is
+// For the first eight ProPresenter has a picture of its own, and that is what is
 // drawn (see ProIcon): its timer, its crossed circle, its glasses and moustache for a
 // look, its speaker at a lectern for the stage, its pile of layers for a prop, its M
-// in brackets, its speech bubble for a message. Its pack has none for a playlist of
+// in brackets, its speech bubble for a message, its camera for a video input. Its pack has none for a playlist of
 // either bin (see icons/README.md), so those two are this app's own: what the bin
 // holds beside three short lines, as a list is drawn in the bins' own lists. A
 // picture in a frame, with a play mark in it, for the media bin; the audio bin's two
@@ -37,13 +37,15 @@ Item {
     property color ink: "#e3e5e9"
 
     // The picture for a kind that has not said which is its own
-    readonly property var pictures: ({ timer: "Countdown", clear: "Clear", look: "Looks", stage: "Stage", prop: "Prop", macro: "Macro", message: "Message" })
+    readonly property var pictures: ({ timer: "Countdown", clear: "Clear", look: "Looks", stage: "Stage", prop: "Prop", macro: "Macro", message: "Message",
+                                       videoInput: "VideoInput" })
     // Which of the audio bin's pictures it is, if it is one of those: "" for none
     readonly property string audio: kind === "next" ? "next" : picture === "SoundEffect" || kind === "sound" ? "sound"
                                   : kind === "audio" || kind === "music" ? "music" : ""
     readonly property string shown: audio !== "" ? "" : picture !== "" ? picture : (pictures[kind] ?? "")
     readonly property bool list: kind === "mediaPlaylist" || kind === "audioPlaylist"
     readonly property bool wide: list || shown === "Looks" || shown === "Macro" || shown === "ClearVideoInput" || shown === "ClearPresentation"
+                                 || shown === "VideoInput"
 
     width: wide ? 16 : 12
     height: 12

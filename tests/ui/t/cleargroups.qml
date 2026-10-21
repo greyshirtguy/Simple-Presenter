@@ -120,7 +120,7 @@ QtObject {
                 const buttons = groupButtons()
                 const layers = named("clearAudio")
                 const top = layers.mapToItem(sidePanel, 0, 0).y
-                const bottom = named("clearMedia").mapToItem(sidePanel, 0, named("clearMedia").height).y
+                const bottom = named("clearVideoInput").mapToItem(sidePanel, 0, named("clearVideoInput").height).y
                 check("each has a button, in a column beside the clears of the layers, but the one that is kept out of sight", buttons.map(b => b.modelData.name).join("|") === "Clear All|Words|Own"
                       && buttons.every(b => b.visible && b.mapToItem(sidePanel, b.width, 0).x < layers.mapToItem(sidePanel, 0, 0).x),
                       buttons.map(b => b.modelData.name).join("|"))
@@ -181,11 +181,11 @@ QtObject {
                 const tags = rows().map(row => row.modelData.name + (Lib.findAll(row, i => i.font !== undefined && i.visible && (i.text === "F1" || i.text === "hidden")).map(i => "/" + i.text).join("")))
                 check("its list has every group, the first marked as the one F1 clears and the one out of sight as hidden",
                       tags.join("|") === "Clear All/F1|Words|Out Of Sight/hidden|Own", tags.join("|"))
-                check("the layers are ProPresenter's eight in its order; the seven this app has can be changed and the other is greyed, as the group has them",
-                      layersShown() === "+Audio +Audio Effects +Messages +Props +Announcements +Slide +Media +Video Input(grey)", layersShown())
-                const greyed = layerBox("videoInput")
+                check("the layers are ProPresenter's eight in its order, each of which this app has and can change, as the group has them",
+                      layersShown() === "+Audio +Audio Effects +Messages +Props +Announcements +Slide +Media +Video Input", layersShown())
+                const input = layerBox("videoInput")
                 const ours = layerBox("slide")
-                check("drawn so: a greyed one is fainter than one of ours", greyed.opacity < 0.6 && ours.opacity === 1 && strokes(ours).light >= 3)
+                check("drawn so: the video input's as the slide's, none fainter", input.opacity === 1 && ours.opacity === 1 && strokes(ours).light >= 3)
                 check("its picture is the one called All, picked out among the thirty-two", Lib.findAll(named("clearPictures"), i => String(i.objectName).startsWith("clearPicture:")).length === 32
                       && named("clearPicture:11").chosen && !named("clearPicture:20").chosen && !named("clearTint").checked && !named("clearTintColor").available)
                 testInput.grab("2-window")
@@ -194,7 +194,7 @@ QtObject {
             },
             () => {
                 check("another group picked shows what that one has: its two layers, its bell, and its tint switched on, in its blue", named("clearGroupsTitle").text === "Words"
-                      && layersShown() === "-Audio -Audio Effects +Messages -Props -Announcements +Slide -Media -Video Input(grey)"
+                      && layersShown() === "-Audio -Audio Effects +Messages -Props -Announcements +Slide -Media -Video Input"
                       && named("clearPicture:20").chosen && named("clearTint").checked && named("clearTintColor").available
                       && like(String(named("clearTintColor").value), "#1e88e5", 2), layersShown() + " " + named("clearTintColor").value)
                 testInput.grab("3-second-group")
@@ -213,7 +213,13 @@ QtObject {
                 return 400
             },
             () => {
-                check("a greyed layer is not changed by a click", group("Words").layers.join("+") === "messages+slide" && testInput.fileHash(file) === kept.hash)
+                check("the video input ticked, it is one the group clears, last as in ProPresenter's order", group("Words").layers.join("+") === "messages+slide+videoInput"
+                      && layerBox("videoInput").checked, group("Words").layers.join("+"))
+                click(centre(layerBox("videoInput")))
+                return 500
+            },
+            () => {
+                check("and unticked again, the file is byte for byte what it was", group("Words").layers.join("+") === "messages+slide" && testInput.fileHash(file) === kept.hash)
                 click(centre(named("clearPicture:18")))
                 return 500
             },
@@ -262,7 +268,7 @@ QtObject {
                 return 500
             },
             () => {
-                const bottom = named("clearMedia").mapToItem(sidePanel, 0, named("clearMedia").height).y
+                const bottom = named("clearVideoInput").mapToItem(sidePanel, 0, named("clearVideoInput").height).y
                 check("ticked, it has a button with the others, which make room for it", !group("Out Of Sight").hidden && groupButtons().length === 4
                       && groupButtons().map(b => b.modelData.name).join("|") === "Clear All|Words|Out Of Sight|Own" && near(groupButtons()[0].height, groupButtons()[3].height)
                       && near(groupButtons()[3].mapToItem(sidePanel, 0, groupButtons()[3].height).y, bottom), groupButtons().map(b => b.height.toFixed(1)).join())
@@ -281,7 +287,7 @@ QtObject {
                 check("the + makes a group, last in the list, picked, with its name to be typed over", ClearGroups.groups.length === 5 && made.name === "Clear Group"
                       && named("clearGroupsTitle").text === "Clear Group" && box !== null && box.activeFocus && box.selectedText === "Clear Group", made.name)
                 check("it clears nothing yet, and its picture is the first digit no group has", made.layers.length === 0 && made.icon === 1 && made.picture === "1" && !made.tinted
-                      && layersShown() === "-Audio -Audio Effects -Messages -Props -Announcements -Slide -Media -Video Input(grey)", layersShown())
+                      && layersShown() === "-Audio -Audio Effects -Messages -Props -Announcements -Slide -Media -Video Input", layersShown())
                 testInput.type("Offering")
                 testInput.key(Qt.Key_Return)
                 return 500

@@ -278,10 +278,10 @@ private slots:
         QTemporaryDir workspace;
         writeProPresenters(workspace.path());
         const quint64 was = fileItself(workspace.path());
-        QCOMPARE(ourLayers(), (QStringList {"audio", "audioEffects", "messages", "props", "announcements", "slide", "media"}));
+        // (Video inputs are this app's too, since it has them.)
+        QCOMPARE(ourLayers(), kEveryLayer);
         QCOMPARE(layers(), kEveryLayer);
-        for (const QString &layer : {QStringLiteral("videoInput"), QStringLiteral("logo")})
-            QVERIFY(!setLayer(workspace.path(), kOwn, layer, false).isEmpty());
+        QVERIFY(!setLayer(workspace.path(), kOwn, QStringLiteral("logo"), false).isEmpty());
         QCOMPARE(fileItself(workspace.path()), was);
     }
 

@@ -1426,7 +1426,8 @@ Window {
             { label: "Timer…", glyph: "timer", disabled: Timers.timers.length === 0, run: () => actionDialog.openTimer(target, null, "") },
             { label: "Clear", glyph: "clear", items: [{ header: "Clear" }, clear("Everything", 0, "Clear"), clear("The Slide", 5, "ClearPresentation"),
                                                      clear("The Media", 2, "ClearMedia"), clear("The Props", 4, "ClearProps"),
-                                                     clear("The Messages", 7, "ClearMessages"), clearAnnouncements] },
+                                                     clear("The Messages", 7, "ClearMessages"), clearAnnouncements,
+                                                     clear("The Video Input", 3, "ClearVideoInput")] },
             { label: "Clear Group", glyph: "clear", disabled: ClearGroups.groups.length === 0, items: [{ header: "Clear Group" }].concat(
                 ClearGroups.groups.map(group => ({ label: group.name, run: () => add(clearGroupAction(group.id, group.name)) }))) },
             { label: "Stage…", glyph: "stage", run: () => actionDialog.openStage(target, null) },
@@ -1439,6 +1440,8 @@ Window {
                 label: collection.name, items: [{ header: collection.name }].concat(collection.macros.map(macro => ({
                     label: macro.name, run: () => add(macroAction(macro, collection)) }))) }))) },
             { label: "Media Playlist", glyph: "mediaPlaylist", disabled: mediaLists.length === 0, items: [{ header: "Media Playlist" }].concat(mediaLists) },
+            { label: "Video Input", glyph: "videoInput", disabled: VideoInputs.inputs.length === 0, items: [{ header: "Video Input" }].concat(
+                VideoInputs.inputs.map(input => ({ label: input.name, run: () => add({ kind: "videoInput", inputIndex: input.index }) }))) },
             { label: "Audio Playlist", glyph: "audioPlaylist", disabled: audioLists.length === 0, items: [{ header: "Audio Playlist" }].concat(audioLists) },
             { label: "Message", glyph: "message", disabled: Messages.messages.length === 0, items: [{ header: "Message" }].concat(Messages.messages.map(message => ({
                 label: message.name + (givenWords(message) ? "…" : ""), run: () => addMessageAction(target, message) }))) },
@@ -1576,6 +1579,11 @@ Window {
             items.push({ label: "Change…", run: () => actionDialog.openCommunication(target, action, known,
                                                                                     action.command === "words" ? "customControl" : action.command) })
         }
+        // A video input: which of the workspace's it is, by its place
+        if (action.kind === "videoInput" && VideoInputs.inputs.length > 0)
+            items.push({ label: "Video Input", items: [{ header: "Video Input" }].concat(VideoInputs.inputs.map(input => ({
+                label: input.name, current: input.index === action.inputIndex,
+                run: () => commitAction(target, { kind: "videoInput", inputIndex: input.index }, action.id) }))) })
         // A playlist: whether it starts again when it is playing already
         if (action.kind === "mediaPlaylist" || action.kind === "audioPlaylist")
             items.push(retriggerItem(target, action))
@@ -1666,7 +1674,8 @@ Window {
             return
         Log.note("drop", "a " + (dropped.kind === "stage" ? "stage screen" : dropped.kind === "clear" ? "clear button"
                                  : dropped.kind === "clearGroup" ? "clear group's button" : dropped.kind === "mediaPlaylist" ? "media playlist"
-                                 : dropped.kind === "audioPlaylist" ? "audio playlist" : dropped.kind) + " dropped on "
+                                 : dropped.kind === "audioPlaylist" ? "audio playlist" : dropped.kind === "videoInput" ? "video input"
+                                 : dropped.kind) + " dropped on "
                  + (target.macro !== undefined ? "a macro" : "slide " + (target.slide + 1) + " of " + quoted(document.name)))
         if (dropped.kind === "timer")
             actionDialog.openTimer(target, null, dropped.id)
@@ -1684,6 +1693,8 @@ Window {
             commitAction(target, { kind: "audio", item: dropped.id }, "")
         else if (dropped.kind === "mediaPlaylist" || dropped.kind === "audioPlaylist")
             commitAction(target, playlistAction(dropped.kind, { path: dropped.id, name: dropped.name }), "")
+        else if (dropped.kind === "videoInput")
+            commitAction(target, { kind: "videoInput", inputIndex: dropped.inputIndex }, "")
         else if (dropped.kind === "message") {
             const message = Messages.messages.find(candidate => candidate.id === dropped.id)
             if (message)
@@ -3377,12 +3388,39 @@ Window {
             { label: "Add Folder", run: () => newMediaNode(true, newMediaNodeParent()) },
             { label: "Add Playlist", run: () => newMediaNode(false, newMediaNodeParent()) }
         ]
-        if (mediaPlaylistId !== "")
+        if (mediaPlaylistId === videoInputsNode)
+            items.push({ label: "Add Video Input…", run: () => openInputSettings() })
+        else if (mediaPlaylistId !== "")
             items.push({ label: "Add Media…", run: () => mediaDialog.open() })
         menu.show(items, item)
     }
 
+    // ---- The media bin's Video Inputs (see MediaBin): ProPresenter's playlist of the
+    // workspace's video inputs, which is not a playlist of the file's but the inputs
+    // themselves, at the top of the bin's list; and the settings they are set up in.
+    readonly property string videoInputsNode: "videoInputs"
+
+    function openVideoInputs() {
+        selectedMediaNode = videoInputsNode
+        mediaPlaylistId = videoInputsNode
+        refreshLists()
+    }
+
+    function openInputSettings() {
+        settingsOpen = true
+        settingsScreen.section = "inputs"
+    }
+
+    function showVideoInputMenu(input, item, x, y) {
+        menu.show([{ header: input.name }, { label: "Show", run: () => showVideoInput(input.index) },
+                   { label: "Video Inputs…", run: () => openInputSettings() }], item, x, y)
+    }
+
     function showMediaNodeMenu(node, item) {
+        if (node.path === videoInputsNode) {
+            menu.show([{ label: "Video Inputs…", run: () => openInputSettings() }], item)
+            return
+        }
         const items = []
         if (node.folder) {
             items.push({ label: "New Playlist Here", run: () => newMediaNode(false, node.path) })
@@ -3454,6 +3492,19 @@ Window {
         Show.clearMedia()
     }
 
+    // The video input layer: an input put on it by its place in the workspace's list (a
+    // click on it in the media bin's Video Inputs, unless `from` says otherwise), and the
+    // layer cleared
+    function showVideoInput(index, from = "the media bin") {
+        const input = VideoInputs.at(index)
+        Log.note("live", "the video input " + quoted(input.name ?? "") + ", from " + from)
+        Show.showVideoInput(index)
+    }
+
+    function clearVideoInput() {
+        Show.clearVideoInput()
+    }
+
     // Turns a prop on, over whatever else is on the output and in front of the props
     // that are on already, or off if it is on. A collection set to show one prop at a
     // time gives up whichever of its others is on.
@@ -3508,6 +3559,7 @@ Window {
     function openShowControls(path) {
         Screens.remember = remember
         Devices.remember = remember
+        VideoInputs.remember = remember
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
                              Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path), ClearGroups.open(path),
@@ -3519,6 +3571,11 @@ Window {
         // The communication devices (see src/devices.h): the workspace's, as this
         // computer keeps them
         Devices.open(path)
+        // And the video inputs (see src/videoinputs.h): ProPresenter's list, with this
+        // computer's devices for them
+        const inputs = VideoInputs.open(path)
+        if (inputs !== "")
+            report(inputs)
         followScreens()
         readGroupKeys()
     }
@@ -3678,8 +3735,11 @@ Window {
         else
             openFirst()
         const firstMediaPlaylist = catalog.mediaPlaylists.find(p => !p.folder)
-        openMediaPlaylist(catalog.mediaPlaylists.some(p => p.path === mediaPlaylist && !p.folder) ? mediaPlaylist
-                          : firstMediaPlaylist ? firstMediaPlaylist.path : "")
+        if (mediaPlaylist === videoInputsNode)
+            openVideoInputs()
+        else
+            openMediaPlaylist(catalog.mediaPlaylists.some(p => p.path === mediaPlaylist && !p.folder) ? mediaPlaylist
+                              : firstMediaPlaylist ? firstMediaPlaylist.path : "")
         // (A screen that is not there now is the first audience screen: see previewScreenId.)
         pickedPreviewScreen = savedSelection("previewScreen")
         const audioPlaylist = savedSelection("audioPlaylist")
@@ -4070,6 +4130,8 @@ Window {
                     announcementsOn: audienceHost.look.announcements
                     propsOn: audienceHost.look.props
                     messagesOn: audienceHost.look.messages
+                    videoInputOn: audienceHost.look.videoInput !== false
+                    videoInput: Show.liveVideoInput
                     lookFade: win.lookFade
                     shader: transitionCatalogue.shaderUrl(win.transition)
                     options: win.transitionUniforms.options
@@ -4110,6 +4172,8 @@ Window {
                         announcementsOn: audienceHost.look.announcements
                         propsOn: audienceHost.look.props
                         messagesOn: audienceHost.look.messages
+                        videoInputOn: audienceHost.look.videoInput !== false
+                        videoInput: Show.liveVideoInput
                         lookFade: win.lookFade
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
@@ -4153,6 +4217,8 @@ Window {
                         announcementsOn: audienceHost.look.announcements
                         propsOn: audienceHost.look.props
                         messagesOn: audienceHost.look.messages
+                        videoInputOn: audienceHost.look.videoInput !== false
+                        videoInput: Show.liveVideoInput
                         lookFade: win.lookFade
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
@@ -4475,6 +4541,13 @@ Window {
         target: Show
         property: "catalog"
         value: win.catalog
+    }
+
+    // A video input's sound is played where the app's audio is (see VideoInputs)
+    Binding {
+        target: VideoInputs
+        property: "audioDevice"
+        value: win.audioDevice
     }
 
     // The key the live song's chords are written in, and the one they are shown in

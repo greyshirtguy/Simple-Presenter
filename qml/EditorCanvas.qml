@@ -116,6 +116,13 @@ Item {
         return "Screen Preview: " + (screen ? screen.name : element.fillScreenName + " (not here)")
     }
 
+    // And of a video input: which, by name (it is drawn here live, but an input with no
+    // device, or not sending, is nothing to see)
+    function inputCaption(element) {
+        const input = VideoInputs.at(element.fillInputIndex ?? 0)
+        return "Video Input: " + (input.name ?? "number " + ((element.fillInputIndex ?? 0) + 1) + " (none here)")
+    }
+
     // What an element's text is linked to, in a few words; "" for one whose text is
     // its own. A timer goes by the name it has now, which may not be the name the link
     // was made with.
@@ -286,10 +293,11 @@ Item {
     // Whether an element's words can be typed in Quick Edit: one that is shown, is not
     // locked and is not linked to something else, and that either has words already or
     // is not a picture. (ProPresenter lets any element hold text; a box that is filled
-    // with media or a Screen Preview and has none is taken not to be a text box.)
+    // with media, a Screen Preview or a video input and has none is taken not to be a
+    // text box.)
     function typable(element) {
         return !element.hidden && !element.locked && element.linkKind === "none"
-            && (!bridge.isEmpty(element.text) || (element.fillKind !== "media" && element.fillKind !== "screen"))
+            && (!bridge.isEmpty(element.text) || (element.fillKind !== "media" && element.fillKind !== "screen" && element.fillKind !== "input"))
     }
 
     // The text box in front at a point of the canvas, among those that can be typed in
@@ -985,14 +993,15 @@ Item {
             readonly property var box: canvas.dragBox !== null && modelData.id === canvas.selectedId ? canvas.dragBox
                                                                                                     : modelData
             readonly property string caption: modelData.linkKind !== "none" ? canvas.linkCaption(modelData)
-                                            : modelData.fillKind === "screen" ? canvas.screenCaption(modelData) : ""
+                                            : modelData.fillKind === "screen" ? canvas.screenCaption(modelData)
+                                            : modelData.fillKind === "input" ? canvas.inputCaption(modelData) : ""
 
             objectName: "linkMark"
             x: canvas.originX + box.x * canvas.u
             y: canvas.originY + box.y * canvas.u
             width: box.width * canvas.u
             height: box.height * canvas.u
-            visible: !modelData.hidden && (modelData.linkKind !== "none" || modelData.fillKind === "screen")
+            visible: !modelData.hidden && (modelData.linkKind !== "none" || modelData.fillKind === "screen" || modelData.fillKind === "input")
             rotation: canvas.dragTurn !== null && modelData.id === canvas.selectedId ? canvas.dragTurn : modelData.rotation
             color: "transparent"
             border.width: 1.5

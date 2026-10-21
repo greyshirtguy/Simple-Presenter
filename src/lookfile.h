@@ -65,8 +65,8 @@ struct ScreenLook
     QString themeSlide;
     // The mask the screen is given, by its id (see maskfile.h); "" for none
     QString mask;
-    // ProPresenter's other layer, which this app has not yet: only read, to be shown
-    // (greyed) where a look is shown whole.
+    // The video input layer (ProPresenter's `live_video_enabled`), which this app has
+    // since 0.105
     bool videoInput = true;
 
     bool operator==(const ScreenLook &other) const = default;

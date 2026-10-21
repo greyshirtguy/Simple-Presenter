@@ -140,7 +140,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("Add Action has Media Playlist, Audio Playlist and Message, after Macro", /Macro, Media Playlist, Audio Playlist, Message, Communication\(off\)$/.test(labels()), labels())
+                check("Add Action has Media Playlist, Audio Playlist and Message, after Macro (and Video Input after Media Playlist)", /Macro, Media Playlist, Video Input, Audio Playlist, Message, Communication\(off\)$/.test(labels()), labels())
                 hover("Media Playlist")
                 return 500
             },

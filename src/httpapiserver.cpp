@@ -215,6 +215,11 @@ QVariantMap HttpApi::macro(const QVariantMap &macro, int index) const
     return httpapijson::macro(macro, index);
 }
 
+QVariantMap HttpApi::videoInput(const QVariantMap &input, int index) const
+{
+    return httpapijson::videoInput(input, index);
+}
+
 QVariantList HttpApi::binTree(const QVariantList &nodes) const
 {
     return httpapijson::binTree(nodes);

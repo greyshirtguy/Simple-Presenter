@@ -22,13 +22,11 @@ up the window they are set up in: the groups down the left, and on the right wha
 one picked has.
 
 - **The layers it clears.** ProPresenter's eight, in its order: audio, audio effects,
-  messages, props, announcements, the slide, the media and video inputs. This app has
-  seven of them (all but the video inputs), and those are ticked and unticked. The
-  audio is the whole of the [audio](audio.md) layer, its music and its sound effects;
-  the audio effects are the sound effects alone, so that a group can stop those and
-  leave the music playing. The video inputs are greyed: they are shown as the group
-  has them in the file, are kept exactly so, and cannot be changed here, there being
-  nothing here yet for them to clear.
+  messages, props, announcements, the slide, the media and video inputs, each ticked
+  and unticked. The audio is the whole of the [audio](audio.md) layer, its music and
+  its sound effects; the audio effects are the sound effects alone, so that a group
+  can stop those and leave the music playing. The video inputs are the
+  [video input](video-inputs.md) layer.
 - **The picture** on its button, one of the thirty-two ProPresenter has to choose from.
   For the two that ProPresenter's icon pack has (the one called All, and the message)
   it is ProPresenter's own picture; the digits are digits; and the rest are this app's

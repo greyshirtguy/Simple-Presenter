@@ -112,6 +112,8 @@ struct Effect
         Problem,        // tell the log, and whoever is running the show, that `text` went wrong
         Build,          // run the live slide's next On Click build: the step it is at now is State::buildStep
         Communicate,    // tell a communication device what `action` says (see communications.h)
+        VideoInput,     // put the video input whose place is `action`'s "index" on the video input layer
+        NoVideoInput,   // take the video input layer off
     };
     Kind kind = Note;
     QVariantMap media;
@@ -145,6 +147,14 @@ public:
     // more for each On Click build run since. Its map says how many On Click builds
     // it has, as "buildSteps" (none if it has no key).
     int buildStep = 0;
+
+    // The video input layer, under the media layer: the input on it, by its place in the
+    // workspace's list of them (which is how ProPresenter's files name one: see
+    // videoinputfile.h), -1 for none. An input put on it stays, whatever slides and
+    // media come and go over it, until it is cleared or another takes its place. (A
+    // GUESS at ProPresenter, whose help says only that the slides are layered over it,
+    // and whose looks switch it on and off apart from the media.)
+    int videoInput = -1;
 
     // The media layer: what is on it, and the media playlist it was triggered from (""
     // if a slide triggered it).
@@ -327,6 +337,11 @@ public:
 
     Effects clearSlide();
     Effects clearMedia();
+    // A video input put on its layer, by its place, as a click on it in the media bin's
+    // Video Inputs does; one that is on it already is left as it is. And the layer
+    // cleared.
+    Effects showVideoInput(int index);
+    Effects clearVideoInput();
     // The announcements layer: its slide and the media under it.
     Effects clearAnnouncements();
     Effects clearProps();
@@ -400,6 +415,8 @@ private:
     void runAction(const QVariantMap &action, int depth, const Workspace &workspace, Effects &effects);
     void clearSlide(Effects &effects);
     void clearMedia(Effects &effects);
+    void showVideoInput(int index, Effects &effects);
+    void clearVideoInput(Effects &effects);
     void clearAnnouncements(Effects &effects);
     Effects goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Workspace &workspace, bool byTimer);
     void clearProps(Effects &effects);

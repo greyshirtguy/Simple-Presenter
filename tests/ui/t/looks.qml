@@ -182,8 +182,8 @@ QtObject {
                       box("props", kept.room).available && box("slide", kept.stream).available && box("media", kept.room).checked === true
                       && box("media", kept.stream).checked === false && box("slide", kept.stream).checked === true
                       && box("messages", kept.room).available && box("messages", kept.room).checked === Looks.liveOf(kept.room).messages)
-                check("and the layer of ProPresenter's that this app has not, shown as the look has it, greyed, not to be changed",
-                      box("videoInput", kept.stream).available === false && box("videoInput", kept.room).available === false
+                check("and the video input layer, a tick box like the others, as the look has it",
+                      box("videoInput", kept.stream).available === true && box("videoInput", kept.room).available === true
                       && box("videoInput", kept.room).checked === Looks.liveOf(kept.room).videoInput)
                 check("the announcements are a layer of this app's, to be switched like the others", box("announcements", kept.stream).available === true
                       && box("announcements", kept.room).available === true && box("announcements", kept.room).checked === Looks.liveOf(kept.room).announcements)
@@ -200,9 +200,13 @@ QtObject {
                       && Looks.live.origin === kept.lyrics)
                 check("the preview in the operator window shows what the screen it stands for is given: no props now",
                       named("previewProps").visible === false && named("previewSlide").visible === true)
+                // The video input layer, off for the room, and on again (drawn: see videoinputs.qml)
                 kept.videoInput = Looks.liveOf(kept.room).videoInput
                 click(centre(box("videoInput", kept.room)))
-                check("a greyed layer does not answer to a click", Looks.liveOf(kept.room).videoInput === kept.videoInput)
+                check("a click switches the video input layer for a screen", Looks.liveOf(kept.room).videoInput === !kept.videoInput
+                      && output.videoInputOn === !kept.videoInput)
+                click(centre(box("videoInput", kept.room)))
+                check("and another switches it back", Looks.liveOf(kept.room).videoInput === kept.videoInput && output.videoInputOn === kept.videoInput)
                 // The announcements are a layer of this app's too: off for the room, and on again
                 click(centre(box("announcements", kept.room)))
                 check("a click keeps the announcements from a screen", Looks.liveOf(kept.room).announcements === false && output.announcementsOn === false)

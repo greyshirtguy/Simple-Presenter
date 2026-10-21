@@ -320,6 +320,15 @@ target_include_directories(tst_builds PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_builds PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
 add_test(NAME builds COMMAND tst_builds)
 
+qt_add_executable(tst_videoinputfile
+    tst_videoinputfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/videoinputfile.h
+    ${PROJECT_SOURCE_DIR}/src/videoinputfile.cpp
+)
+target_include_directories(tst_videoinputfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_videoinputfile PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
+add_test(NAME videoinputfile COMMAND tst_videoinputfile)
+
 qt_add_executable(tst_playlistactions
     tst_playlistactions.cpp
     ${PROJECT_SOURCE_DIR}/src/playlistactions.h

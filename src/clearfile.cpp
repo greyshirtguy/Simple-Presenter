@@ -24,11 +24,9 @@ using rv::data::Action;
 // (The audio and the audio effects are the two halves of this app's audio layer: see
 // State::clearGroup, src/showstate.cpp, for which half is which.)
 //
-// TO COME: when the app gains the one it has not (video inputs), its `ours` below
-// becomes true, which is all the window the groups are set up in goes by
-// (ClearGroupsPanel.qml). Two things go with that: the show is to clear the layer for
-// a group that has it (State::clearGroup, src/showstate.cpp), and the layer wants a
-// clear button of its own (PreviewPanel.qml).
+// (Video inputs became one of ours with 0.105: the show clears the layer for a group
+// that has it, State::clearGroup in src/showstate.cpp, and it has a clear button of
+// its own, PreviewPanel.qml.)
 struct Layer
 {
     const char *key;
@@ -44,7 +42,7 @@ const Layer kLayers[] = {
     {"announcements", Clear::CLEAR_TARGET_LAYER_ALL, Action::CONTENT_DESTINATION_ANNOUNCEMENTS, true},
     {"slide", Clear::CLEAR_TARGET_LAYER_SLIDE, Action::CONTENT_DESTINATION_GLOBAL, true},
     {"media", Clear::CLEAR_TARGET_LAYER_BACKGROUND, Action::CONTENT_DESTINATION_GLOBAL, true},
-    {"videoInput", Clear::CLEAR_TARGET_LAYER_LIVE_VIDEO, Action::CONTENT_DESTINATION_GLOBAL, false},
+    {"videoInput", Clear::CLEAR_TARGET_LAYER_LIVE_VIDEO, Action::CONTENT_DESTINATION_GLOBAL, true},
 };
 const int kLayerCount = int(sizeof kLayers / sizeof kLayers[0]);
 

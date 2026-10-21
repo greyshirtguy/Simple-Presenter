@@ -78,7 +78,8 @@ choose between three ways of working. **Slides** is everything described here.
   be cut off at its edges, or stretched to it (and turned, flipped, cropped and given
   effects in its [Media Inspector](media.md#the-media-inspector), behind **Inspector…**), or a
   [Screen Preview](stage-layouts.md#screen-preview) of
-  one of the workspace's screens, chosen under it. A rounded rectangle has one handle more
+  one of the workspace's screens, chosen under it, or one of the workspace's
+  [video inputs](video-inputs.md#as-the-fill-of-a-shape), live, chosen and scaled under it. A rounded rectangle has one handle more
   than the others, a round one on its top edge, which is dragged to make its corners
   more round or less. A rectangle, a rounded rectangle and an ellipse can have their
   edges feathered, which fades them out. A picture is referred to where it is on disk,

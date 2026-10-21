@@ -29,9 +29,7 @@ import SimplePresenterApp
 //     showing. The saved look it came from has a green dot.
 //   - The layers are in the order they lie on a screen, the top one first: masks,
 //     messages, props, announcements, the presentation (its slides, then its media),
-//     video inputs. This app has all but the last, which is ProPresenter's, and is
-//     shown greyed, as the look has it in the file, and cannot be changed here.
-//     Nothing a look says of it is lost.
+//     video inputs. This app has them all (video inputs since 0.105).
 //   - "Masks" is not a switch but which mask the screen is given (see Masks): none,
 //     or one of the workspace's, by name, chosen from a menu that also has the way to
 //     the editor the masks are made in (Add New Mask, Edit Masks…), which is where
@@ -68,7 +66,7 @@ Rectangle {
         { key: "theme", label: "Presentation", kind: "theme", ours: true },
         { key: "slide", label: "Slide", kind: "switch", ours: true },
         { key: "media", label: "Media", kind: "switch", ours: true },
-        { key: "videoInput", label: "Video Input", kind: "switch", ours: false }
+        { key: "videoInput", label: "Video Input", kind: "switch", ours: true }
     ]
     // What a look gives a screen it says nothing of: everything, as it is
     readonly property var everything: ({ slide: true, media: true, props: true, theme: "", themeSlide: "", messages: true,
@@ -903,8 +901,7 @@ Rectangle {
                 wrapMode: Text.Wrap
                 color: "#6c6f75"
                 font.pixelSize: 11
-                text: "The layers are in the order they lie on a screen. The greyed one is ProPresenter's, which this app has not yet: "
-                      + "what a look says of it is shown, and kept as it is."
+                text: "The layers are in the order they lie on a screen, the top one first."
             }
         }
     }

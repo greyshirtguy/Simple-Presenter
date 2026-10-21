@@ -491,9 +491,12 @@ Rectangle {
             }
 
             // What it is filled with: a colour, a gradient from one colour to another, a
-            // picture, or a Screen Preview, which is what one of the workspace's screens is
-            // showing (see ScreenPicture), as ProPresenter's fill menu has it. Choosing a
-            // kind turns the fill on. A Screen Preview starts as the first audience screen.
+            // picture, a Screen Preview, which is what one of the workspace's screens is
+            // showing (see ScreenPicture), or one of the workspace's video inputs, live
+            // (see VideoInputs), as ProPresenter's fill menu has them. Choosing a kind
+            // turns the fill on. A Screen Preview starts as the first audience screen, a
+            // video input as the first input. (Where Video Input is in the menu is A
+            // GUESS at ProPresenter's.)
             CheckLine {
                 id: fillLine
 
@@ -506,11 +509,15 @@ Rectangle {
                 Choice {
                     objectName: "fillKind"
                     width: shapeTab.width - 78
-                    model: ["Colour", "Gradient", "Media", "Screen Preview"]
-                    choice: fillLine.kind === "gradient" ? 1 : fillLine.kind === "media" ? 2 : fillLine.kind === "screen" ? 3 : 0
+                    model: ["Colour", "Gradient", "Media", "Screen Preview", "Video Input"]
+                    choice: fillLine.kind === "gradient" ? 1 : fillLine.kind === "media" ? 2 : fillLine.kind === "screen" ? 3
+                          : fillLine.kind === "input" ? 4 : 0
                     onChosen: (index) => {
                         if (index === 2) {
                             inspector.chooseMedia()
+                        } else if (index === 4) {
+                            if (fillLine.kind !== "input")
+                                inspector.setProperties({ fillKind: "input", fillInputIndex: 0, fillOn: true }, false)
                         } else if (index === 3) {
                             if (fillLine.kind !== "screen") {
                                 const first = Screens.audience[0] ?? Screens.screens[0]
@@ -526,7 +533,7 @@ Rectangle {
 
             Line {
                 caption: "Colour"
-                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen"
+                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen" && fillLine.kind !== "input"
 
                 // Picking a colour turns the fill on, and makes it a plain colour.
                 ColorButton {
@@ -615,9 +622,31 @@ Rectangle {
                 }
             }
 
+            // Which of the workspace's video inputs, by its place in the list, as the file
+            // names it: one past the end of the list is shown as its number, and draws
+            // nothing until there is an input there.
+            Line {
+                caption: "Input"
+                visible: fillLine.kind === "input"
+
+                Choice {
+                    readonly property var inputs: VideoInputs.inputs
+                    readonly property int index: inspector.element ? inspector.element.fillInputIndex ?? 0 : 0
+
+                    objectName: "fillInput"
+                    width: shapeTab.width - 78
+                    model: index < inputs.length ? inputs.map(input => input.name) : inputs.map(input => input.name).concat(["Video input " + (index + 1) + " (none here)"])
+                    choice: Math.min(index, inputs.length)
+                    onChosen: (chosen) => {
+                        if (chosen < inputs.length && chosen !== index)
+                            inspector.setProperties({ fillInputIndex: chosen }, false)
+                    }
+                }
+            }
+
             Line {
                 caption: "Scale"
-                visible: fillLine.kind === "media"
+                visible: fillLine.kind === "media" || fillLine.kind === "input"
 
                 Choice {
                     objectName: "mediaScale"
@@ -661,7 +690,7 @@ Rectangle {
 
             AppCheck {
                 width: parent.width
-                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen"
+                visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen" && fillLine.kind !== "input"
                 text: "Only behind the lines of text"
                 checked: inspector.element ? inspector.element.fillLinesOnly : false
                 onToggled: (checked) => inspector.setProperties({ fillLinesOnly: checked }, false)

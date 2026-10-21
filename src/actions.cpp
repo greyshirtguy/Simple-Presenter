@@ -4,6 +4,7 @@
 #include "communications.h"
 #include "messagefile.h"
 #include "playlistactions.h"
+#include "videoinputfile.h"
 #include "playlistfile.h"
 #include "timers.pb.h"
 #include "workspacefiles.h"
@@ -178,6 +179,7 @@ QString layerWords(const Action::ClearType &clear, bool *done)
         *done = true;
         return QStringLiteral("Clear the audio");
     case Clear::CLEAR_TARGET_LAYER_LIVE_VIDEO:
+        *done = true;
         return QStringLiteral("Clear the video input");
     case Clear::CLEAR_TARGET_LAYER_LOGO:
         return QStringLiteral("Clear to the logo");
@@ -319,6 +321,15 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("values", values);
         map.insert("picture", QStringLiteral("Message"));
         map.insert("title", QStringLiteral("Show the message %1").arg(quoted(text(message.parameter_name()))));
+    } else if (videoinputfile::isAction(action)) {
+        // A video input, put on the video input layer, by its place in the workspace's
+        // list of them (see videoinputfile.h). Its name is the list's to say, which this
+        // has not to hand: the operator window says it where it shows the action.
+        const int index = videoinputfile::actionInput(action);
+        map.insert("kind", QStringLiteral("videoInput"));
+        map.insert("inputIndex", index);
+        map.insert("picture", QStringLiteral("VideoInput"));
+        map.insert("title", QStringLiteral("Show video input %1").arg(index + 1));
     } else if (playlistactions::isPlaylist(action)) {
         // A playlist of the media bin or of the audio bin, to be played from its start
         // (see playlistactions.h)
@@ -410,6 +421,9 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
         return communications::build(wanted, action);
     } else if (kind == QLatin1String("mediaPlaylist") || kind == QLatin1String("audioPlaylist")) {
         return playlistactions::build(wanted, action);
+    } else if (kind == QLatin1String("videoInput")) {
+        // As ProPresenter writes one (see videoinputfile.h)
+        videoinputfile::buildAction(qMax(0, wanted.value("inputIndex").toInt()), action);
     } else if (kind == QLatin1String("message")) {
         // As ProPresenter writes one: the message by its id and its name, and what its
         // text tokens are given, which `values` has ({ tokenId, name, kind, value }

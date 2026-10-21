@@ -311,7 +311,7 @@ Item {
         switch (route) {
         // ---- status
         case "status/layers":
-            return ok({ video_input: false,
+            return ok({ video_input: Show.liveVideoInput >= 0,
                         media: !!Show.liveMedia,
                         slide: Show.atSlide && !Show.cleared,
                         announcements: Show.announcementLive,
@@ -746,6 +746,17 @@ Item {
             const at = HttpApi.resolve(macros, params.id, "id", "name")
             return at < 0 ? notFound : ok(HttpApi.macro(macros[at], at))
         }
+        // ---- video inputs, by their place in the workspace's list (see VideoInputs)
+        case "video_inputs":
+            return ok(VideoInputs.inputs.map((input, i) => HttpApi.videoInput(input, i)))
+        case "video_inputs/{id}/trigger": {
+            const at = HttpApi.resolve(VideoInputs.inputs, params.id, "id", "name")
+            if (at < 0)
+                return notFound
+            window.showVideoInput(at, "the API")
+            return done
+        }
+
         case "macro/{id}/trigger": {
             const macro = findIn(allMacros(), params.id)
             if (!macro)
@@ -939,8 +950,7 @@ Item {
             case "announcements": window.clearAnnouncements(); return done
             case "slide": window.clearSlide(); return done
             case "media": window.clearMedia(); return done
-            // (There is no video input here to clear.)
-            case "video_input": return done
+            case "video_input": window.clearVideoInput(); return done
             }
             return notFound
 
@@ -997,8 +1007,6 @@ Item {
         // ---- what the app has nothing of yet
         case "capture/status":
             return ok({ status: "inactive", capture_time: "0:00:00", status_text: "" })
-        case "video_inputs":
-            return ok([])
         }
         return undefined
     }
@@ -1013,6 +1021,7 @@ Item {
         function onMediaChanged() { HttpApi.changed() }
         function onAudioChanged() { HttpApi.changed() }
         function onPropsChanged() { HttpApi.changed() }
+        function onVideoInputChanged() { HttpApi.changed() }
         function onMessagesChanged() { HttpApi.changed() }
         function onStageMessageChanged() { HttpApi.changed() }
         function onScreenLayoutsChanged() { HttpApi.changed() }

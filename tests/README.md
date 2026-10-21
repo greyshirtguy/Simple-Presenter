@@ -14,11 +14,12 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are thirty-five:
+So far there are thirty-six:
 
 | Test | What it tries |
 | --- | --- |
-| `tst_lookfile` | The looks in ProPresenter's set-up file (`src/lookfile.h`): what each gives each screen, the live look as a look of its own (made from a saved one, changed by itself, saved as that one, made again), a theme known by its place whatever computer named it, the messages and the announcements switched for one screen, a screen given a mask and having it taken away, and changes that leave the rest of the file alone |
+| `tst_lookfile` | The looks in ProPresenter's set-up file (`src/lookfile.h`): what each gives each screen, the live look as a look of its own (made from a saved one, changed by itself, saved as that one, made again), a theme known by its place whatever computer named it, the messages and the announcements switched for one screen, a screen given a mask and having it taken away, the video input layer switched for a screen, and changes that leave the rest of the file alone |
+| `tst_videoinputfile` | The workspace's video inputs in ProPresenter's set-up file (`src/videoinputfile.h`): the list read as ProPresenter writes it; an input added last, renamed and removed, with all else in the file kept, and a workspace with no such file given one; ProPresenter's Video Input Action read, one made as it writes one, and one there already given another input with the rest kept; a shape's fill as an input by its place; the mode Automatic takes, the largest picture up to 1920 by 1080 at its fastest; and a device's own sound found among the audio inputs by its name |
 | `tst_maskfile` | The masks in ProPresenter's set-up file (`src/maskfile.h`), on a file made as ProPresenter might have left one: the masks read in the file's order, each with its slide whole; a new one, with nothing on it and a name no other has; one renamed; one removed, which takes it from every look that gave it to a screen; a workspace with no file given one for its first mask; and after each, that the screens, the looks and the rest of the file are as they were |
 | `tst_chords` | Chords (`src/chords.h`): a chord's parts, changing key, the four notations, a key's own chords, what a typed chord might become, the stretch of the words a chord is written over in the file (with words, and with none), ChordPro there and back, a song read from a ChordPro file; and which sharps and flats are drawn as ♯ and ♭, held to the cases the chord editors for the Mac and Windows are held to (`tests/unit/data/signs.json`, copied from the same place as `tst_rtfstandins`'s, whose `tools/signs.py` made it) |
 | `tst_sheethints` | The line of hints under the chord sheet (`src/sheethints.h`): what it says for each thing the person can be about (typing, an emptied box on a chord, carrying a chord of the sheet's or of the strip's, Ctrl held, over the strip, on a chord, on a word, nobody at the sheet), in the words the Mac and Windows chord editors have, each beginning with a capital; and how many go into a width, the last left off, but the two on copying and pasting put one under the other and made smaller instead, and how tall the line then is |
@@ -178,6 +179,23 @@ audio playlist followed by the next; a message shown with the action's words and
 from its tab with its own; and ProPresenter's own two actions, one finding its playlist
 by name. The files are read with `protoc` after: each action as ProPresenter writes its
 kind, ProPresenter's own to the byte, and the messages file untouched.
+
+And `videoinputs` works video inputs on a workspace whose ProPresenter has one, with no
+camera: with `SP_TEST_VIDEOINPUT` set (which `run.py` does for it), the app has a
+pretend device more, whose picture is one colour the test changes. ProPresenter's own
+input read from its file, one added and renamed in Settings → Inputs, the pretend device
+chosen, its preview and a thumbnail taken of it; the media bin's Video Inputs, an input
+clicked onto the layer and seen on the output and in the operator's preview, following
+the device's colour, taken off one screen by a look and given back, cleared by its
+button, and let go once nothing shows it; ProPresenter's HTTP API listing the inputs,
+triggering one by name, saying the layer is on and clearing it; Video Input from Add
+Action, an input dragged out of the bin onto a slide, the input changed from the
+action's menu, the slide shown and Clear All; and the fill: Video Input chosen in the
+editor, drawn live there, another input and a scale chosen, all undone to the byte, and
+the slide on the output with the input in its shape, its thumbnail showing the input's
+own thumbnail and holding nothing. The files are read with `protoc` after:
+ProPresenter's input as it was, the added one with nothing of this computer's in it,
+the actions and the fill as ProPresenter writes them, and the rest as it was.
 
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two

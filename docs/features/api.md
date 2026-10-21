@@ -28,7 +28,8 @@ What is there, by ProPresenter's paths under `/v1/`:
 | **Timers** | listed, with their times now; started, stopped, reset, and given more time |
 | **The stage** | its screens and layouts, which layout each screen has, and changing it; the stage message shown and hidden |
 | **Media and audio** | the media playlists and the audio bin, their items played, next and previous; the video playing on the media layer played, paused, and moved through; the time left of it |
-| **The rest** | the workspace's global groups and masks; and, for a client that asks for everything at once, capture (never capturing) and video inputs (none) |
+| **Video inputs** | listed, and one put on the [video input](video-inputs.md) layer; whether one is on it, and clearing it |
+| **The rest** | the workspace's global groups and masks; and, for a client that asks for everything at once, capture (never capturing) |
 
 **Streams.** As with ProPresenter, any of those that report something can be asked for
 with `?chunked=true`, and the answer then stays open and sends the thing again each
@@ -40,7 +41,7 @@ when the network splits it.
 **Not there yet**: whatever makes, changes or deletes things in the workspace's files
 (looks, messages, timers, props, playlists, macros, clear groups); the pictures of
 slides, media and props; the chord chart; and what waits on things the app does not do
-yet (capture, video inputs, a timeline, pausing or moving through the audio bin's
+yet (capture, a timeline, pausing or moving through the audio bin's
 music). Those answer 404, as ProPresenter answers what it does not know. Nor is
 ProPresenter's other form of the API, over TCP/IP, nor its server-sent events.
 

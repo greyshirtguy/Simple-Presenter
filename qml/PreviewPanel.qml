@@ -57,12 +57,12 @@ Rectangle {
     readonly property real gap: 12
     // The two columns of clears: slim, as ProPresenter's are, the layers' a little the
     // wider for their pictures, with a narrow space between the buttons; and the least
-    // the layers' column is high, six buttons that can still be hit
+    // the layers' column is high, seven buttons that can still be hit
     readonly property real groupColumnWidth: 30
     readonly property real layerColumnWidth: 40
     readonly property real columnGap: 4
     readonly property real clearsWidth: (shownGroups.length > 0 ? groupColumnWidth + columnGap : 0) + layerColumnWidth
-    readonly property real leastClearsHeight: 6 * 24 + 5 * columnGap
+    readonly property real leastClearsHeight: 7 * 22 + 6 * columnGap
     // The preview is 16:9 and as wide as the panel leaves it beside the clears, unless
     // the panel is too short for that with everything under it, in which case it
     // shrinks to fit and stays centred. What it shrinks for is the show controls, which
@@ -116,6 +116,7 @@ Rectangle {
                || (group.layers.indexOf("announcements") >= 0 && Show.announcementsOn)
                || (group.layers.indexOf("audio") >= 0 && win.audioLive)
                || (group.layers.indexOf("audioEffects") >= 0 && win.liveSounds.length > 0)
+               || (group.layers.indexOf("videoInput") >= 0 && Show.liveVideoInput >= 0)
     }
 
     // A line across the panel, between one lot of controls and the next
@@ -133,25 +134,26 @@ Rectangle {
     component ClearButton: Rectangle {
         id: clearButton
 
-        // "slide", "media", "props", "audio", "messages" or "announcements"
+        // "slide", "media", "props", "audio", "messages", "announcements" or "videoInput"
         property string kind
         property bool live: false
         // The layer it clears, as an action's file numbers them, and what an action
         // that clears it is called. (The announcements are not one of the file's
         // layers but a destination that everything is cleared of: 0, and said beside
         // it. See clearfile.h.)
-        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4, "audio": 1, "messages": 7, "announcements": 0 })[kind] ?? 5
+        readonly property int clears: ({ "slide": 5, "media": 2, "props": 4, "audio": 1, "messages": 7, "announcements": 0, "videoInput": 3 })[kind] ?? 5
         readonly property string title: ({ "slide": "Clear the Slide", "media": "Clear the Media", "props": "Clear the Props",
                                            "audio": "Clear the Audio", "messages": "Clear the Messages",
-                                           "announcements": "Clear the Announcements" })[kind] ?? ""
+                                           "announcements": "Clear the Announcements", "videoInput": "Clear the Video Input" })[kind] ?? ""
         readonly property string picture: ({ "slide": "ClearPresentation", "media": "ClearMedia", "props": "ClearProps", "audio": "ClearAudio",
-                                             "messages": "ClearMessages", "announcements": "ClearAnnouncements" })[kind] ?? "Clear"
+                                             "messages": "ClearMessages", "announcements": "ClearAnnouncements",
+                                             "videoInput": "ClearVideoInput" })[kind] ?? "Clear"
         readonly property color ink: live ? "#ececec" : "#6c6f75"
 
         signal clicked
 
         width: layerColumn.width
-        height: (layerColumn.height - 5 * layerColumn.spacing) / 6
+        height: (layerColumn.height - 6 * layerColumn.spacing) / 7
         radius: 5
         color: !live ? "#2b2d31" : clearMouse.pressed ? "#e25555" : clearMouse.containsMouse ? "#d84343" : "#c62828"
 
@@ -454,18 +456,13 @@ Rectangle {
 
         // The layers, in ProPresenter's order down its column: the audio (F5), which is
         // the music and the sound effects of the audio bin, the messages (F6), the props
-        // (F4), the announcements, which have no key here, the slide (F2) and the media
-        // (F3).
+        // (F4), the announcements, which have no key here, the slide (F2), the media (F3)
+        // and the video input, which has none either.
         //
         // A GUESS: that F6 is ProPresenter's key for clearing the messages. Its keys
         // for the first four are known; this one follows on from them. Which key it
-        // has for the announcements is not known, so they are given none.
-        //
-        // TO COME: a button here, under the media's, for the layer this app has not yet
-        // (video inputs), which ProPresenter's column has last; that is also when that
-        // layer is to be switched on among the layers a clear group can be given (see
-        // `ours` in src/clearfile.cpp) and cleared by State::clearGroup
-        // (src/showstate.cpp).
+        // has for the announcements or the video input is not known, so they are given
+        // none.
         Column {
             id: layerColumn
 
@@ -515,6 +512,13 @@ Rectangle {
                 kind: "media"
                 live: sidePanel.win.liveMedia !== null
                 onClicked: sidePanel.win.clearMedia()
+            }
+
+            ClearButton {
+                objectName: "clearVideoInput"
+                kind: "videoInput"
+                live: Show.liveVideoInput >= 0
+                onClicked: sidePanel.win.clearVideoInput()
             }
         }
     }

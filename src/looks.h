@@ -36,10 +36,10 @@ class Looks : public QObject
     QML_SINGLETON
     // Every saved look:
     //   { id, name, transition, screens: { <screen id>: <line> } }
-    // where a line is { slide, media, props, messages, announcements } for the layers
-    // this app has, each on or off; { theme, themeSlide } for the theme the screen's
-    // slides are dressed in and { mask } for the mask it is given, by id ("" for
-    // none); and { videoInput } for ProPresenter's other layer, which is only shown. A
+    // where a line is { slide, media, props, messages, announcements, videoInput } for
+    // the layers, each on or off; { theme, themeSlide } for the theme the screen's
+    // slides are dressed in; and { mask } for the mask it is given, by id ("" for
+    // none). A
     // screen a look has nothing for gets everything, with no theme and no mask (see
     // of()).
     Q_PROPERTY(QVariantList looks READ looks NOTIFY changed)

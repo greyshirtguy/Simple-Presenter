@@ -510,6 +510,46 @@ void State::clearMedia(Effects &effects)
     effects << plain(Effect::NoMedia);
 }
 
+void State::showVideoInput(int index, Effects &effects)
+{
+    if (index < 0)
+        return;
+    if (videoInput == index) {
+        effects << note("input", QStringLiteral("video input %1 is on already, and is left as it is").arg(index + 1));
+        return;
+    }
+    effects << note("input", QStringLiteral("video input %1 on").arg(index + 1)
+                                 + (videoInput >= 0 ? QStringLiteral(", in place of %1").arg(videoInput + 1) : QString()));
+    videoInput = index;
+    Effect shown;
+    shown.kind = Effect::VideoInput;
+    shown.action = {{"index", index}};
+    effects << shown;
+}
+
+void State::clearVideoInput(Effects &effects)
+{
+    if (videoInput < 0)
+        return;
+    effects << note("clear", QStringLiteral("the video input, %1").arg(videoInput + 1));
+    videoInput = -1;
+    effects << plain(Effect::NoVideoInput);
+}
+
+Effects State::showVideoInput(int index)
+{
+    Effects effects;
+    showVideoInput(index, effects);
+    return effects;
+}
+
+Effects State::clearVideoInput()
+{
+    Effects effects;
+    clearVideoInput(effects);
+    return effects;
+}
+
 void State::clearAnnouncements(Effects &effects)
 {
     if (!m_runningAnnouncement)
@@ -840,6 +880,7 @@ Effects State::clearAll()
     effects << note("clear", QStringLiteral("everything asked for"));
     clearSlide(effects);
     clearMedia(effects);
+    clearVideoInput(effects);
     clearAnnouncements(effects);
     clearProps(effects);
     clearMessages(effects);
@@ -868,6 +909,8 @@ void State::clearGroup(const QVariantMap &group, Effects &effects)
         clearSlide(effects);
     if (layers.contains(QLatin1String("media")))
         clearMedia(effects);
+    if (layers.contains(QLatin1String("videoInput")))
+        clearVideoInput(effects);
     if (layers.contains(QLatin1String("announcements")))
         clearAnnouncements(effects);
     if (layers.contains(QLatin1String("props")))
@@ -1013,6 +1056,7 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
             effects << note("clear", QStringLiteral("everything asked for"));
             clearSlide(effects);
             clearMedia(effects);
+            clearVideoInput(effects);
             clearAnnouncements(effects);
             clearProps(effects);
             clearMessages(effects);
@@ -1028,6 +1072,8 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
             clearSounds(effects);
         } else if (layer == 2) {
             clearMedia(effects);
+        } else if (layer == 3) {
+            clearVideoInput(effects);
         } else if (layer == 4) {
             clearProps(effects);
         } else {
@@ -1071,6 +1117,10 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
             if (props.contains(id) == action.value("clear").toBool())
                 toggleProp(id, workspace, effects);
         }
+    } else if (kind == QLatin1String("videoInput")) {
+        // A video input, by its place, put on its layer (see videoInput in the header)
+        effects << note("action", title);
+        showVideoInput(qMax(0, action.value("inputIndex").toInt()), effects);
     } else if (kind == QLatin1String("mediaPlaylist") || kind == QLatin1String("audioPlaylist")) {
         playPlaylist(action, workspace, effects);
     } else if (kind == QLatin1String("message")) {

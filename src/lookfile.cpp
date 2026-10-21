@@ -242,6 +242,7 @@ void change(rv::data::ProAudienceLook *look, const QString &screenId, const Scre
     screen->set_props_layer_enabled(wanted.props);
     screen->set_messages_layer_enabled(wanted.messages);
     screen->set_announcements_enabled(wanted.announcements);
+    screen->set_live_video_enabled(wanted.videoInput);
     // The mask, by the id of its slide (see maskfile.h); none takes the line's away.
     if (wanted.mask != QString::fromStdString(screen->mask_uuid().string())) {
         if (wanted.mask.isEmpty())

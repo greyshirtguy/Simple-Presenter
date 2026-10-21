@@ -225,11 +225,11 @@ Rectangle {
     readonly property var sections: Qt.platform.os === "linux"
         ? [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
            { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
-           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Network", path: "network" }, { name: "Devices", path: "devices" }, { name: "Windows", path: "windows" },
+           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Network", path: "network" }, { name: "Devices", path: "devices" }, { name: "Inputs", path: "inputs" }, { name: "Windows", path: "windows" },
            { name: "About", path: "about" }]
         : [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
            { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
-           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Network", path: "network" }, { name: "Devices", path: "devices" }, { name: "About", path: "about" }]
+           { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Network", path: "network" }, { name: "Devices", path: "devices" }, { name: "Inputs", path: "inputs" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
         "#e53935", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5",
@@ -1591,6 +1591,23 @@ Rectangle {
 
             sourceComponent: DevicesSettings {
                 notHere: screen.midiNotHere
+                showMenu: (rows, item, x, y) => screen.screenMenuWanted(rows, item, x, y)
+            }
+        }
+
+        // Inputs: the workspace's video inputs, and this computer's devices for them (made
+        // when the section is turned to, so that the devices are asked for only then)
+        Loader {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            active: screen.section === "inputs"
+            visible: active
+
+            sourceComponent: InputsSettings {
                 showMenu: (rows, item, x, y) => screen.screenMenuWanted(rows, item, x, y)
             }
         }

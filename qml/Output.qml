@@ -20,6 +20,8 @@ AuxWindow {
     property alias announcementsOn: scene.announcementsOn
     property alias propsOn: scene.propsOn
     property alias messagesOn: scene.messagesOn
+    property alias videoInputOn: scene.videoInputOn
+    property alias videoInput: scene.videoInput
     property alias lookFade: scene.lookFade
     property alias props: scene.props
     property alias propsDuration: scene.propsDuration

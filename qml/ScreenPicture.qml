@@ -140,6 +140,21 @@ Item {
 
         // ---- An audience screen: its layers, in the order the screen has them
 
+        // The video input layer, under the media: the input on it, while the look gives
+        // the screen the layer, `videoInterval` apart as a video is, and without its
+        // sound, which is the screen's own to play (see OutputScene). Made only while
+        // there is one, so a picture of a screen with none costs nothing for it.
+        Loader {
+            objectName: picture.name("VideoInput")
+            anchors.fill: frame
+            active: !picture.stage && picture.look.videoInput !== false && Show.liveVideoInput >= 0
+
+            sourceComponent: VideoInputView {
+                index: Show.liveVideoInput
+                interval: picture.videoInterval
+            }
+        }
+
         // A still picture: its thumbnail, or its file at this size where the thumbnail
         // is too small for it (the thumbnails are a few hundred pixels across). Each is
         // drawn as the media layer draws it, as its Media Inspector sets it (MediaPicture,

@@ -28,19 +28,21 @@ is marked as the live one, and the arrow keys go on from it.)
   or of the [audio bin](audio.md) from its first row (see below).
 - **Message**: show one of the workspace's [messages](messages.md), with words of the
   action's own for its tokens (see below).
+- **Video Input**: put one of the workspace's [video inputs](video-inputs.md) on the video
+  input layer.
 - **Communication**: send a MIDI note, a RossTalk Custom Control or an HTTP request to
   one of the workspace's [devices](devices.md).
 
 Each action a slide has is a small icon in the top left corner of its thumbnail, after
 the icons for its hotkey and its media. A right click on a slide offers **Add Action**,
 which leads to the kinds above: Clear, Clear Group, Prop, Macro, Audience Look, Media
-Playlist, Audio Playlist and Message to lists to pick from (a prop by its collection,
+Playlist, Video Input, Audio Playlist and Message to lists to pick from (a prop by its collection,
 then Trigger or Clear; a macro by its collection; a playlist in its folders), Timer,
 Stage and Communication to a small panel to fill in. Under it is **Remove Action**,
 which lists the actions the slide has. A right click on an action's icon says what the
 action is and offers to change it, for a timer, a stage or a message action, or to
 remove it; for one that plays audio it has Stop or Loop, and Music or Sound Effect; for
-one that plays a playlist, Always Retrigger.
+one that plays a playlist, Always Retrigger; for a video input, the inputs to change to.
 
 A row of a menu that leads to a menu of its own has an arrowhead at its right, and its
 menu opens beside it when the pointer rests on the row (or on a click). The menu it
@@ -51,8 +53,9 @@ or the stage screen, which bring up their panel; a prop, which asks whether it i
 be triggered or cleared; a macro, which needs nothing more; a piece of audio, which
 needs nothing more either; and a message, out of the list on its tab. So can the
 **clear buttons** beside the preview, each of which gives the slide the action that
-clears its layer, or its group; and a playlist, out of the list of either bin (a folder
-of playlists is not taken). Each of those can be dropped on a macro as well.
+clears its layer, or its group; a playlist, out of the list of either bin (a folder
+of playlists is not taken); and a video input, out of the media bin's Video Inputs.
+Each of those can be dropped on a macro as well.
 
 **A playlist.** An action for a playlist of the media bin or of the audio bin plays it
 as a click on its first row in the bin would: the first that is on this computer, or

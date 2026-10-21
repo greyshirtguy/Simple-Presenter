@@ -9,6 +9,7 @@
 #include "rtfwriter.h"
 #include "sessionlog.h"
 #include "timers.h"
+#include "videoinputfile.h"
 #include "workspacefiles.h"
 
 #include <QDir>
@@ -404,7 +405,7 @@ void setShapePath(rv::data::Graphics::Path *path, ShapeType type, double roundne
 // The media a fill is made of, as its drawing settings: an image's or a video's.
 const rv::data::Media::DrawingProperties &fillDrawing(const rv::data::Media &media)
 {
-    return media.has_video() ? media.video().drawing() : media.image().drawing();
+    return media.has_video() ? media.video().drawing() : media.has_live_video() ? media.live_video().drawing() : media.image().drawing();
 }
 
 // A timer's (or a video's) Color Triggers as QML has them: [{ time, color }], the time in
@@ -464,6 +465,7 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
         {"hidden", element.hidden()},
         {"fillOn", fill.enable()},
         {"fillKind", fill.has_color() ? QStringLiteral("color") : fill.has_gradient() ? QStringLiteral("gradient")
+                     : fill.has_media() && videoinputfile::isInput(fill.media()) ? QStringLiteral("input")
                      : fill.has_media() ? QStringLiteral("media")
                      : fill.FillType_case() == rv::data::Graphics::Fill::FILLTYPE_NOT_SET ? QStringLiteral("none")
                      : QStringLiteral("other")},
@@ -525,8 +527,14 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     // element's: see mediasettings::isSet)
     if (fill.has_media() && mediasettings::isSet(fill.media(), false))
         map.insert("fillMediaSettings", mediasettings::describe(fill.media()));
-    // Whether there is a fill that is drawn: on, and a colour, a gradient or a picture
-    map.insert("fillShown", fill.enable() && (fill.has_color() || fill.has_gradient()
+    // A video input, by its place in the workspace's list (see videoinputfile.h): only
+    // for an element filled with one, the map being every element's
+    const bool input = fill.has_media() && videoinputfile::isInput(fill.media());
+    if (input)
+        map.insert("fillInputIndex", videoinputfile::inputOf(fill.media()));
+    // Whether there is a fill that is drawn: on, and a colour, a gradient, a picture or
+    // a video input
+    map.insert("fillShown", fill.enable() && (fill.has_color() || fill.has_gradient() || input
                                               || (fill.has_media() && !mediaIsVideo && !mediaPath.isEmpty())));
     map.insert("featherOn", element.feather().enable() && element.feather().radius() > 0);
     map.insert("featherRadius", element.feather().radius());
@@ -1364,6 +1372,22 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
         *fill->mutable_media() = std::move(made);
         fill->set_enable(true);
     }
+    // A video input, by its place in the workspace's list: the fill's media made live
+    // video, as ProPresenter's Video Input Action's is (videoinputfile.h), keeping what
+    // live video it had already; and the fill switched on, which is what shows it.
+    if (changes.value("fillKind").toString() == QLatin1String("input") || changes.contains("fillInputIndex")) {
+        rv::data::Graphics::Fill *fill = element->mutable_fill();
+        if (!fill->has_media() || !videoinputfile::isInput(fill->media())) {
+            rv::data::Media made;
+            made.mutable_uuid()->set_string(workspace::newUuid());
+            made.mutable_metadata();
+            made.mutable_live_video()->mutable_drawing()->set_alpha_type(rv::data::ALPHA_TYPE_STRAIGHT);
+            made.mutable_live_video()->mutable_audio()->set_volume(1);
+            *fill->mutable_media() = std::move(made);
+        }
+        videoinputfile::setInput(changes.value("fillInputIndex", videoinputfile::inputOf(fill->media())).toInt(), fill->mutable_media());
+        fill->set_enable(true);
+    }
     // A Screen Preview: the link names the screen, by id and by name as ProPresenter's
     // does, and the fill is switched on, which is what shows it. Any other fill takes
     // the link away, and the fill the file had is drawn again.
@@ -1393,7 +1417,8 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
         mediasettings::apply(element->mutable_fill()->mutable_media(), changes.value("fillMediaSettings").toMap());
     if (changes.contains("fillMediaScale") && element->fill().has_media()) {
         rv::data::Media *media = element->mutable_fill()->mutable_media();
-        (media->has_video() ? media->mutable_video()->mutable_drawing() : media->mutable_image()->mutable_drawing())
+        (media->has_video() ? media->mutable_video()->mutable_drawing()
+         : media->has_live_video() ? media->mutable_live_video()->mutable_drawing() : media->mutable_image()->mutable_drawing())
             ->set_scale_behavior(rv::data::Media::ScaleBehavior(qBound(0, changes.value("fillMediaScale").toInt(), 2)));
     }
     if (changes.contains("featherOn")) {

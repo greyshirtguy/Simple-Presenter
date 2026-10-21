@@ -63,11 +63,9 @@ the top of the [README](../README.md).
       that a whole workspace survives being read and written back unchanged; one
       command that runs every check there is; and the checks run by themselves on every
       pull request.
-- [ ] **Clear groups**: they are there, for the layers this app has (the slide, the
-      media, the props, the messages, the announcements, the audio and the audio
-      effects). Still to come: the other layer a group can name (video inputs), which
-      also wants a clear button of its own when the layer comes; giving a group a
-      picture of one's own; and putting the groups in another order by dragging.
+- [ ] **Clear groups**: they are there, for every layer a group can name. Still to
+      come: giving a group a picture of one's own; and putting the groups in another
+      order by dragging.
 - [ ] **Announcements**: they are there (see [Announcements](features/announcements.md)). Still to
       come: a key for their clear button; and a transition of their own.
 - [ ] **Go To Next timers and the Slide Show**: they are there (see
@@ -79,22 +77,20 @@ the top of the [README](../README.md).
       another size than 1920 by 1080, to match the screen it is for; copying one; and
       a look's fade for a mask that comes or goes.
 - [ ] **Actions**: a slide and a macro can be given actions for timers, clearing, the
-      stage, props, macros, looks and audio, and those are run; so is one that shows a
-      message, which cannot be made here yet, and communication with a MIDI, RossTalk
-      or HTTP device (see [Devices](features/devices.md)). Still to come: the rest
-      of ProPresenter's kinds (capture and more, which
-      are kept in the files and shown, and not done), an action's delay, putting a
-      slide's or a macro's actions in another order, and the clear layer the app
-      does not have yet (video inputs).
+      stage, props, macros, looks, audio, playlists, messages and video inputs, and
+      those are run; so is communication with a MIDI, RossTalk or HTTP device (see
+      [Devices](features/devices.md)). Still to come: the rest of ProPresenter's kinds
+      (capture and more, which are kept in the files and shown, and not done), an
+      action's delay, and putting a slide's or a macro's actions in another order.
 - [ ] **Bibles**: they are there (see [Bibles](features/bibles.md)), from XML files and from
       api.bible. Still to come: searching a Bible by a word; a second translation
       beside the first; other sources online (the ESV's own, among them); and the
       flow's weights tried on real passages.
 - [ ] **Blackmagic DeckLink**: a screen can go out through a card's output, keyed or
       not (see [Blackmagic DeckLink](features/decklink.md)), and has been tried on one
-      card; keying not yet. Still to come: the video coming in (see Video input,
-      below); sound, in and out, the first two channels to begin with; and more
-      formats.
+      card; keying not yet. Still to come: the video coming in, as a video input (see
+      Video inputs, above); sound, in and out, the first two channels to begin with;
+      and more formats.
 - [ ] **Devices**: MIDI, RossTalk's Custom Control and HTTP requests are there (see
       [Devices](features/devices.md)). Still to come: ProPresenter's other kinds of device
       (DMX, Global Cache, the Sony and GVG switchers, the scoreboards), RossTalk's other
@@ -104,6 +100,11 @@ the top of the [README](../README.md).
       workspace's files through it (looks, messages, timers, props, playlists, macros,
       clear groups), the pictures of slides and of media, the chord chart, and what
       waits on features the app does not have yet.
+- [ ] **Video inputs**: they are there, from the devices Linux has for video (see
+      [Video inputs](features/video-inputs.md)). Still to come: a DeckLink card's
+      inputs, and NDI sources, as inputs; ProPresenter's audio Delay, channel levels
+      and routing for an input's sound; and the settings ProPresenter has for a
+      card's inputs.
 - [ ] **The audio bin**: it is there (see [Audio](features/audio.md)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, how loud it
       is, and its own fades, which ProPresenter's inspector sets and which are kept
@@ -118,8 +119,6 @@ no promise that any of them will turn out to be possible this way: that is the
 experiment.
 
 - [ ] **A simple help file**: the app's own features explained in one place, in the app
-- [ ] **Video input**: from a Blackmagic card's input first, on a video input layer
-      under the media, with its clear button and its place in the clear groups
 - [ ] **Clear to logo**
 - [ ] **Playback markers**
 - [ ] **Timer markers** (an idea of my own)

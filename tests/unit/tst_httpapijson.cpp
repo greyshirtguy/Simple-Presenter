@@ -185,6 +185,19 @@ private slots:
         QCOMPARE(made.value("image_type").toString(), QStringLiteral("Default"));
     }
 
+    void videoInputsByTheirIdsAndAVideoInputActionIsMedia()
+    {
+        const QVariantMap made = videoInput({{"id", QStringLiteral("6859FACB-8EAE-470D-A0F2-AE8BE864393B")}, {"name", QStringLiteral("Input 1")},
+                                             {"device", QStringLiteral("/dev/video0")}}, 2);
+        QCOMPARE(made.keys(), QStringList({QStringLiteral("id")}));
+        const QVariantMap id = made.value("id").toMap();
+        QCOMPARE(id.value("uuid").toString(), QStringLiteral("6859FACB-8EAE-470D-A0F2-AE8BE864393B"));
+        QCOMPARE(id.value("name").toString(), QStringLiteral("Input 1"));
+        QCOMPARE(id.value("index").toInt(), 2);
+        const QVariantMap action = macro({{"actions", QVariantList {QVariantMap {{"kind", QStringLiteral("videoInput")}}}}}, 0);
+        QCOMPARE(action.value("actions").toList().value(0).toMap().value("type").toString(), QStringLiteral("media"));
+    }
+
     void librariesByNameMadeUuids()
     {
         const QVariantList made = libraries({QStringLiteral("MainHall"), QStringLiteral("Demo")});
