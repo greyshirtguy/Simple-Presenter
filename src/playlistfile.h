@@ -46,9 +46,12 @@ struct PlaylistFile
     // arrangement, "" being every group in stored order.
     //
     // For a media playlist: { id, name, path, source, video, missing, foreground, loops,
-    // retriggers, volume }, where `id` is the row's own id and `path` the media file on
-    // this machine, empty with `missing` set if it cannot be found. The last four are
-    // how the row's media behaves, as workspace::MediaBehaviour describes.
+    // retriggers, volume, cueId, next, nextCue }, where `id` is the row's own id and
+    // `path` the media file on this machine, empty with `missing` set if it cannot be
+    // found. Four are how the row's media behaves, as workspace::MediaBehaviour
+    // describes; the last three are its cue's id and what follows it, ProPresenter's
+    // Next Cue, as mediacue::describe has them (the last two only for a row followed by
+    // anything).
     //
     // For a playlist of the audio bin: { id, name, path, source, missing, playback,
     // effect, volume, duration, loopCount, loopSeconds }, the first five as a media
@@ -131,6 +134,10 @@ struct PlaylistFile
                             const QString &targetId = {}, bool after = false);
     // Makes a row a background or a foreground (see workspace::MediaBehaviour).
     static QString setMediaForeground(const QString &root, const QString &itemId, bool foreground);
+    // What follows a row when its video has played to its end (see mediacue.h): `next`
+    // "" for nothing, "next", "random", "first", or "cue" with `targetId` the row to go
+    // to. Anything to follow makes the row's video stop at its end.
+    static QString setMediaNext(const QString &root, const QString &itemId, const QString &next, const QString &targetId = {});
     // What the Media Inspector sets of a row's media, as mediasettings::apply takes
     // changes; and the row's media replaced by another file, keeping what
     // mediasettings::carryOver keeps (and the row's name, if it was given one).

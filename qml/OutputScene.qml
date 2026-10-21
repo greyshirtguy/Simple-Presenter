@@ -57,6 +57,9 @@ Item {
     readonly property var liveVideoSink: mediaLayer.currentItem ? mediaLayer.currentItem.videoSink : null
     // The MediaPlayer of the video on the media layer, or null; lets a transport control work it.
     readonly property var livePlayer: mediaLayer.currentItem ? mediaLayer.currentItem.player : null
+    // The video on the media layer has played to its end, by the number of its playing:
+    // said only by the scene that plays it (see MediaContent.ended)
+    signal mediaEnded(int playId)
     // The props that are on, the first at the bottom: [{ id, slide }]; and how long one
     // takes to come or go, in milliseconds
     property alias props: propsLayer.props
@@ -189,6 +192,7 @@ Item {
         duration: scene.duration
         delegate: MediaContent {
             leads: scene.leads
+            onEnded: (playId) => scene.mediaEnded(playId)
         }
         // The media layer has stopped waiting, to make its change or because it was
         // given something else to show: either way a slide held for it goes now.

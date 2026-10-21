@@ -684,6 +684,11 @@ QString Catalog::setMediaItemForeground(const QString &item, bool foreground)
     return afterChange(PlaylistFile::setMediaForeground(m_root, item, foreground));
 }
 
+QString Catalog::setMediaItemNext(const QString &item, const QString &next, const QString &target)
+{
+    return afterChange(PlaylistFile::setMediaNext(m_root, item, next, target));
+}
+
 QString Catalog::setMediaItemSettings(const QString &item, const QVariantMap &changes)
 {
     return afterChange(PlaylistFile::setMediaSettings(m_root, item, changes));

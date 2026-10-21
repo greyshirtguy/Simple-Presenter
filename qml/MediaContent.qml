@@ -58,6 +58,12 @@ Item {
     property real level: 1
     // Whether what there is to show can be shown yet
     readonly property bool ready: loader.item === null || loader.item.ready
+    // A video has played to its end, and stays where it is: its end, its out point, or
+    // the end of the count or the time it goes round for. Said by the scene that plays
+    // it, for what follows it in a media playlist (see Show.mediaFinished), with the
+    // number of its playing (`playId`), so that a playing that has gone since is not
+    // taken for the one there is now.
+    signal ended(int playId)
     // The QVideoSink frames are delivered to while a video is showing, else null
     readonly property var videoSink: content !== null && content.video && loader.item ? loader.item.videoSink : null
     // The MediaPlayer playing the video while one is showing, else null: what a
@@ -166,6 +172,7 @@ Item {
                 atEnd = true
                 mediaPlayer.pause()
                 Log.note("media", "video \"" + movie.name + "\" has played to its out point")
+                root.ended(root.content?.playId ?? 0)
             }
 
             MediaPlayer {
@@ -190,8 +197,10 @@ Item {
                     if (mediaStatus === MediaPlayer.EndOfMedia) {
                         if (movie.trimmed && !movie.atEnd)
                             movie.reachedOut()
-                        else
+                        else {
                             Log.note("media", "video \"" + movie.name + "\" has played to its end")
+                            root.ended(root.content?.playId ?? 0)
+                        }
                     }
                 }
                 Component.onCompleted: {
@@ -230,6 +239,7 @@ Item {
                     lapsed = true
                     Log.note("media", "video \"" + movie.name + "\" has gone round for its " + root.content.loopSeconds + " seconds, and stops")
                     mediaPlayer.pause()
+                    root.ended(root.content?.playId ?? 0)
                 }
             }
 

@@ -22,6 +22,23 @@ QVariantMap picture(const QString &name, bool foreground = false)
             {"loops", false}, {"playback", 0}, {"loopCount", 0}, {"loopSeconds", 0.0}};
 }
 
+// A row of a media playlist, as the bin has it: a video that stops at its end, with
+// what follows it (mediacue.h), its cue's id being its name's
+QVariantMap mediaRow(const QString &name, const QString &next = {}, const QString &nextCue = {}, bool missing = false)
+{
+    QVariantMap row = video(name, false, 0);
+    row.insert("id", "row-" + name);
+    row.insert("cueId", "cue-" + name);
+    row.insert("missing", missing);
+    if (missing)
+        row.insert("path", QString());
+    if (!next.isEmpty())
+        row.insert("next", next);
+    if (!nextCue.isEmpty())
+        row.insert("nextCue", nextCue);
+    return row;
+}
+
 // A piece of audio, as a row of the audio bin is: music that plays once, unless said
 // otherwise.
 QVariantMap tune(const QString &name, const QString &playback = QStringLiteral("stop"))
@@ -1683,6 +1700,75 @@ private slots:
         const Effects effects = show.playAudio(gone, "list");
         QCOMPARE(outside(effects), "problem");
         QCOMPARE(show.music.value("name").toString(), "Prelude");
+    }
+
+    void aMediaRowThatEndsGoesOnAsItsNextCueSays()
+    {
+        State show;
+        QVariantList rows {mediaRow("A"), mediaRow("B", "next"), mediaRow("C", {}, {}, true), mediaRow("D")};
+        show.showMedia(rows.at(1).toMap(), "list");
+        Effects effects = show.mediaFinished("row-B", rows, nullptr);
+        // Next: the next with a file, C having none
+        QCOMPARE(outside(effects), "media");
+        QCOMPARE(show.media.value("name").toString(), "D");
+        QCOMPARE(show.mediaPlaylistId, "list");
+        QVERIFY(noted(effects, "goes on to the next"));
+        // D is followed by nothing: it stays where it is
+        effects = show.mediaFinished("row-D", rows, nullptr);
+        QCOMPARE(outside(effects), "");
+        QCOMPARE(show.media.value("name").toString(), "D");
+        QVERIFY(show.hasMedia);
+    }
+
+    void firstACueAndRandomAreFoundAmongTheRows()
+    {
+        const QVariantList rows {mediaRow("A"), mediaRow("B"), mediaRow("C", {}, {}, true), mediaRow("D")};
+        const auto with = [&rows](const QString &next, const QString &cue = {}) {
+            QVariantList changed = rows;
+            changed[1] = mediaRow("B", next, cue);
+            return changed;
+        };
+        QCOMPARE(State::followingMedia(with("first"), "row-B", nullptr), 0);
+        QCOMPARE(State::followingMedia(with("cue", "cue-D"), "row-B", nullptr), 3);
+        QCOMPARE(State::followingMedia(with("cue", "cue-A"), "row-B", nullptr), 0);
+        // A row named that has no file, or is gone, is nothing to go to
+        QCOMPARE(State::followingMedia(with("cue", "cue-C"), "row-B", nullptr), -1);
+        QCOMPARE(State::followingMedia(with("cue", "cue-Z"), "row-B", nullptr), -1);
+        // Random: one of the others with a file (A and D), as the number given picks
+        int asked = 0;
+        QCOMPARE(State::followingMedia(with("random"), "row-B", [&asked](int n) { asked = n; return 1; }), 3);
+        QCOMPARE(asked, 2);
+        QCOMPARE(State::followingMedia(with("random"), "row-B", [](int) { return 0; }), 0);
+        // Alone in its playlist, it is the one there is
+        QCOMPARE(State::followingMedia({mediaRow("B", "random")}, "row-B", [](int) { return 0; }), 0);
+        // First with the first having no file: the first that has one
+        QVariantList noFirst = with("first");
+        noFirst[0] = mediaRow("A", {}, {}, true);
+        QCOMPARE(State::followingMedia(noFirst, "row-B", nullptr), 1);
+        // Its own row gone, nothing follows
+        QCOMPARE(State::followingMedia(with("next"), "row-gone", nullptr), -1);
+    }
+
+    void onlyMediaPlayedFromItsPlaylistGoesOn()
+    {
+        const QVariantList rows {mediaRow("A", "next"), mediaRow("B")};
+        // Triggered by a slide: no playlist to go on in
+        State bySlide;
+        bySlide.showMedia(rows.at(0).toMap(), QString());
+        QCOMPARE(outside(bySlide.mediaFinished("row-A", rows, nullptr)), "");
+        QCOMPARE(bySlide.media.value("name").toString(), "A");
+        // Media that has taken its place since is not what ended
+        State replaced;
+        replaced.showMedia(rows.at(0).toMap(), "list");
+        replaced.showMedia(video("Other"), "list");
+        QCOMPARE(outside(replaced.mediaFinished("row-A", rows, nullptr)), "");
+        QCOMPARE(replaced.media.value("name").toString(), "Other");
+        // Nor is cleared media
+        State cleared;
+        cleared.showMedia(rows.at(0).toMap(), "list");
+        cleared.clearMedia();
+        QCOMPARE(outside(cleared.mediaFinished("row-A", rows, nullptr)), "");
+        QVERIFY(!cleared.hasMedia);
     }
 
     void musicThatPlaysOnceHasEndedWhenItEnds()

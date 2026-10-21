@@ -334,6 +334,22 @@ public:
     // stops at a playlist's last row and does not start at its first again.)
     // What has ended already, or was never playing, changes nothing.
     Effects audioFinished(int play, const QVariantList &rows);
+    // The video on the media layer has played to its end, by its row's id (one that
+    // stops at its end; see MediaContent). If it was played from a media playlist (a
+    // click in the bin, or an action that plays the playlist), and its row is followed
+    // by another (ProPresenter's Next Cue: see mediacue.h), that row is put on the media
+    // layer as a click on it in the bin would: `rows` are the playlist's rows as they
+    // are now, which say what follows it, and `random(n)` gives a number from 0 to
+    // below n, for Random. Otherwise it stays on its last frame, and nothing changes.
+    // GUESSES, none of these having been seen in ProPresenter: Next stops at the
+    // playlist's last row and does not go round to its first (as the audio bin's Next
+    // is taken to); Random never picks the row that has just played, where there is
+    // another; and a row with no file to play is passed over, and a row named to go to
+    // that has none is nothing to go to.
+    Effects mediaFinished(const QString &id, const QVariantList &rows, const std::function<int(int)> &random);
+    // Which of `rows` follows the row `id` as its `next` and `nextCue` say (see
+    // mediaFinished): its place, or -1 for none
+    static int followingMedia(const QVariantList &rows, const QString &id, const std::function<int(int)> &random);
 
     Effects clearSlide();
     Effects clearMedia();

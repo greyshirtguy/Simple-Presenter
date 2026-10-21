@@ -2721,14 +2721,42 @@ Window {
 
     // The menu of a file in the media bin.
     function showMediaItemMenu(media, item) {
-        menu.show([
+        const items = [
             { header: "Behaviour" },
             { label: "Background", current: !media.foreground, run: () => setMediaItemForeground(media.id, false) },
             { label: "Foreground", current: media.foreground, run: () => setMediaItemForeground(media.id, true) },
-            { label: "Inspector", disabled: media.missing, run: () => inspectMediaItem(media) },
-            { header: "Playlist" },
-            { label: "Remove from Playlist", run: () => report(catalog.removeMediaItem(media.id)) }
-        ], item)
+            { label: "Inspector", disabled: media.missing, run: () => inspectMediaItem(media) }
+        ]
+        // What follows a video when it has played to its end, played from this playlist:
+        // ProPresenter's Next Cue (see src/mediacue.h). (Not for a picture, which never
+        // comes to an end.)
+        if (media.video)
+            items.push({ label: "Next Cue", items: mediaNextItems(media) })
+        items.push({ header: "Playlist" })
+        items.push({ label: "Remove from Playlist", run: () => report(catalog.removeMediaItem(media.id)) })
+        menu.show(items, item)
+    }
+
+    // The rows of Next Cue: nothing, the next, one at random, the first, and then each of
+    // the playlist's other rows, the one it has ticked. Any but nothing makes the row stop
+    // at its end, or it would never get there.
+    function mediaNextItems(media) {
+        const next = media.next ?? ""
+        const choose = (kind, target, name) => {
+            Log.note("edit", quoted(media.name) + " in the media bin goes on to " + (kind === "" ? "nothing" : name))
+            report(catalog.setMediaItemNext(media.id, kind, target))
+        }
+        return [
+            { header: "Next Cue" },
+            { label: "None", current: next === "", run: () => choose("", "", "") },
+            { label: "Next", current: next === "next", run: () => choose("next", "", "the next") },
+            { label: "Random", current: next === "random", run: () => choose("random", "", "one at random") },
+            { label: "First", current: next === "first", run: () => choose("first", "", "the first") },
+            { divider: true }
+        ].concat(mediaFiles.filter(other => other.id !== media.id).map(other => ({
+            label: other.name, disabled: other.missing, current: next === "cue" && media.nextCue === other.cueId,
+            run: () => choose("cue", other.id, quoted(other.name))
+        })))
     }
 
     // Brings up the editor on the workspace's props, at the one with the given id, or on
@@ -3505,6 +3533,16 @@ Window {
         Show.clearVideoInput()
     }
 
+    // The video on the media layer has played to its end, in the scene that plays it.
+    // If it is the playing that is on the layer now, and was played from a media
+    // playlist, what follows it there, if anything, is played (ProPresenter's Next Cue:
+    // see Show.mediaFinished).
+    function mediaEnded(playId) {
+        if (lastPlayed === null || lastPlayed.playId !== playId || Show.liveMediaPlaylistId === "")
+            return
+        Show.mediaFinished(lastPlayed.id ?? "", catalog.mediaIn(Show.liveMediaPlaylistId))
+    }
+
     // Turns a prop on, over whatever else is on the output and in front of the props
     // that are on already, or off if it is on. A collection set to show one prop at a
     // time gives up whichever of its others is on.
@@ -4133,6 +4171,7 @@ Window {
                     videoInputOn: audienceHost.look.videoInput !== false
                     videoInput: Show.liveVideoInput
                     lookFade: win.lookFade
+                    onMediaEnded: (playId) => win.mediaEnded(playId)
                     shader: transitionCatalogue.shaderUrl(win.transition)
                     options: win.transitionUniforms.options
                     tint: win.transitionUniforms.tint
@@ -4175,6 +4214,7 @@ Window {
                         videoInputOn: audienceHost.look.videoInput !== false
                         videoInput: Show.liveVideoInput
                         lookFade: win.lookFade
+                        onMediaEnded: (playId) => win.mediaEnded(playId)
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint
@@ -4220,6 +4260,7 @@ Window {
                         videoInputOn: audienceHost.look.videoInput !== false
                         videoInput: Show.liveVideoInput
                         lookFade: win.lookFade
+                        onMediaEnded: (playId) => win.mediaEnded(playId)
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint

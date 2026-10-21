@@ -143,7 +143,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a media file's menu offers its behaviour", menu.opened && labels() === "[Behaviour], *Background, Foreground, Inspector, [Playlist], Remove from Playlist", labels())
+                check("a video's menu offers its behaviour, and its Next Cue", menu.opened && labels() === "[Behaviour], *Background, Foreground, Inspector, Next Cue, [Playlist], Remove from Playlist", labels())
                 testInput.grab("1-media-menu")
                 click(menuRow("Foreground"))
                 return 500
@@ -157,7 +157,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("the menu ticks Foreground now", labels() === "[Behaviour], Background, *Foreground, Inspector, [Playlist], Remove from Playlist", labels())
+                check("the menu ticks Foreground now", labels() === "[Behaviour], Background, *Foreground, Inspector, Next Cue, [Playlist], Remove from Playlist", labels())
                 testInput.key(Qt.Key_Escape)
                 // ---- a foreground from the media bin
                 goLive(7)

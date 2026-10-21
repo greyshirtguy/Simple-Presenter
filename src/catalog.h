@@ -186,6 +186,11 @@ public:
     // Makes a media playlist's row a background or a foreground. It is the row's own:
     // the same file on a slide, or in another row, keeps the behaviour it has there.
     Q_INVOKABLE QString setMediaItemForeground(const QString &item, bool foreground);
+    // What follows a media playlist's row when its video ends, played from the
+    // playlist: ProPresenter's Next Cue (see src/mediacue.h): "" for nothing, "next",
+    // "random", "first", or "cue" with `target` the row to go to. Anything to follow
+    // makes the row stop at its end.
+    Q_INVOKABLE QString setMediaItemNext(const QString &item, const QString &next, const QString &target = QString());
     // What a row's Media Inspector sets (src/mediasettings.h), and the row's media
     // replaced by another file, keeping what mediasettings::carryOver keeps.
     Q_INVOKABLE QString setMediaItemSettings(const QString &item, const QVariantMap &changes);

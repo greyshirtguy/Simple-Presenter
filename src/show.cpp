@@ -8,6 +8,7 @@
 #include "sessionlog.h"
 
 #include <QJSValue>
+#include <QRandomGenerator>
 #include <cstdio>
 
 namespace {
@@ -172,6 +173,7 @@ QVariant Show::liveMusic() const
 {
     return m_state.hasMusic ? QVariant(m_state.music) : QVariant::fromValue(nullptr);
 }
+
 
 QVariantMap Show::screenLayouts() const
 {
@@ -364,6 +366,11 @@ void Show::playAudio(const QVariantMap &audio, const QString &playlist)
 void Show::audioFinished(int play, const QVariantList &rows)
 {
     change([&] { return m_state.audioFinished(play, rows); });
+}
+
+void Show::mediaFinished(const QString &id, const QVariantList &rows)
+{
+    change([&] { return m_state.mediaFinished(id, rows, [](int n) { return int(QRandomGenerator::global()->bounded(qMax(1, n))); }); });
 }
 
 void Show::clearAudio()

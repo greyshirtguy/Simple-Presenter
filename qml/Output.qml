@@ -8,6 +8,8 @@ import QtQuick
 AuxWindow {
     id: win
 
+    signal mediaEnded(int playId)
+
     property alias shader: scene.shader
     property alias options: scene.options
     property alias tint: scene.tint
@@ -67,5 +69,6 @@ AuxWindow {
         id: scene
 
         anchors.fill: parent
+        onMediaEnded: (playId) => win.mediaEnded(playId)
     }
 }

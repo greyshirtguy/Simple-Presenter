@@ -1,6 +1,7 @@
 #include "playlistfile.h"
 
 #include "audiocue.h"
+#include "mediacue.h"
 #include "mediasettings.h"
 #include "prodocument.h"
 #include "sessionlog.h"
@@ -287,6 +288,8 @@ void addMediaNode(const rv::data::Playlist &node, const QString &parent, int dep
             if (mediasettings::isSet(media))
                 row.insert("settings", mediasettings::describe(media));
             workspace::mediaBehaviour(action).describe(&row);
+            // What follows it, played from its playlist (mediacue.h)
+            mediacue::describe(item.cue(), &row);
             rows.append(row);
             break;
         }
@@ -460,6 +463,30 @@ rv::data::Action *mediaActionOf(rv::data::PlaylistItem *item)
 }
 
 } // namespace
+
+QString PlaylistFile::setMediaNext(const QString &root, const QString &itemId, const QString &next, const QString &targetId)
+{
+    const Kind kind = Media;
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    if (!item || !item->has_cue())
+        return QStringLiteral("The playlist no longer has that entry");
+    // A row to go to is named by its cue (see mediacue.h)
+    QString cue;
+    if (next == QLatin1String("cue")) {
+        const rv::data::PlaylistItem *target = findItem(document.mutable_root_node(), targetId.toStdString());
+        if (!target || !target->has_cue() || target->cue().uuid().string().empty())
+            return QStringLiteral("The playlist no longer has the entry it was to go on to");
+        cue = QString::fromStdString(target->cue().uuid().string());
+    }
+    if (!mediacue::set(item->mutable_cue(), mediaActionOf(item), next, cue))
+        return QStringLiteral("There is no such thing for media to go on to");
+    return write(root, kind, document);
+}
 
 QString PlaylistFile::setMediaSettings(const QString &root, const QString &itemId, const QVariantMap &changes)
 {

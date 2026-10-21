@@ -824,6 +824,90 @@ Effects State::audioFinished(int play, const QVariantList &rows)
     return effects;
 }
 
+namespace {
+
+bool playableMedia(const QVariantMap &row)
+{
+    return !row.value("missing").toBool() && !row.value("path").toString().isEmpty();
+}
+
+} // namespace
+
+int State::followingMedia(const QVariantList &rows, const QString &id, const std::function<int(int)> &random)
+{
+    int at = -1;
+    for (int i = 0; i < rows.size(); ++i) {
+        if (rows.at(i).toMap().value("id").toString() == id) {
+            at = i;
+            break;
+        }
+    }
+    // Its own row no longer there, nothing follows it.
+    if (at < 0)
+        return -1;
+    const QVariantMap ended = rows.at(at).toMap();
+    const QString kind = ended.value("next").toString();
+    if (kind == QLatin1String("next")) {
+        for (int i = at + 1; i < rows.size(); ++i) {
+            if (playableMedia(rows.at(i).toMap()))
+                return i;
+        }
+        return -1;
+    }
+    if (kind == QLatin1String("first")) {
+        for (int i = 0; i < rows.size(); ++i) {
+            if (playableMedia(rows.at(i).toMap()))
+                return i;
+        }
+        return -1;
+    }
+    if (kind == QLatin1String("cue")) {
+        const QString cue = ended.value("nextCue").toString();
+        for (int i = 0; i < rows.size(); ++i) {
+            if (rows.at(i).toMap().value("cueId").toString() == cue)
+                return playableMedia(rows.at(i).toMap()) ? i : -1;
+        }
+        return -1;
+    }
+    if (kind == QLatin1String("random")) {
+        QList<int> others;
+        for (int i = 0; i < rows.size(); ++i) {
+            if (i != at && playableMedia(rows.at(i).toMap()))
+                others << i;
+        }
+        // With no other, the one there is, if it has a file
+        if (others.isEmpty())
+            return playableMedia(ended) ? at : -1;
+        return others.at(qBound(0, random ? random(int(others.size())) : 0, int(others.size()) - 1));
+    }
+    return -1;
+}
+
+Effects State::mediaFinished(const QString &id, const QVariantList &rows, const std::function<int(int)> &random)
+{
+    Effects effects;
+    // (Media that has been put in its place, or cleared, since is not what ended; nor
+    // is media a slide triggered, which has no playlist to go on in.)
+    if (!hasMedia || mediaPlaylistId.isEmpty() || id.isEmpty() || media.value("id").toString() != id)
+        return effects;
+    const int at = followingMedia(rows, id, random);
+    QString kind;
+    for (const QVariant &row : rows) {
+        if (row.toMap().value("id").toString() == id)
+            kind = row.toMap().value("next").toString();
+    }
+    if (at < 0) {
+        effects << note("media", mediaWords(media) + QStringLiteral(" has played to its end")
+                                     + (kind.isEmpty() ? QString() : QStringLiteral(", and there is nothing for it to go on to")));
+        return effects;
+    }
+    effects << note("media", mediaWords(media) + QStringLiteral(" has played to its end, and goes on to ")
+                                 + (kind == QLatin1String("cue") ? QStringLiteral("the one it names") : kind == QLatin1String("random")
+                                        ? QStringLiteral("one at random") : QStringLiteral("the ") + kind));
+    effects += showMedia(rows.at(at).toMap(), mediaPlaylistId);
+    return effects;
+}
+
 Effects State::clearSlide()
 {
     Effects effects;

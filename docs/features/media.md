@@ -87,6 +87,23 @@ or picked from Add Action, under Media Playlist: that gives it an action that pl
 playlist from its first row. Run again while the playlist is playing, it leaves it to
 play on, unless its Always Retrigger is on. See [Actions](actions.md).
 
+<a id="next-cue"></a>**Next Cue.** A video in a media playlist can be followed by another of
+its playlist when it has played to its end, as in ProPresenter: **Next Cue** in its
+right-click menu leads to **None** (it stays on its last frame), **Next** (the row after
+it), **Random** (any other row), **First** (the playlist's first row), and, under a line,
+each of the playlist's other rows by name; what it has now is ticked. Anything but None
+makes it stop at its end, since a video that goes round never gets there for anything to
+follow. It holds only where the video was played from its playlist, by a click in the bin
+or an action that plays the playlist: the same file triggered by a slide has no playlist
+to go on in. A picture has no Next Cue, never coming to an end. It is kept in the media
+playlists file as ProPresenter keeps it, the row's cue's "completion target".
+
+Guesses, none of these having been seen in ProPresenter: that a row chosen by name is
+named in the file by the id of its cue; that Next stops at the playlist's last row and
+does not go round to its first; that Random never picks the row that has just played,
+where there is another; and that a row with no file to play is passed over, and one named
+that has none is nothing to go to.
+
 A video's thumbnail is a picture from about five seconds into it (or from the middle of
 one shorter than ten seconds), and a little later than that if the picture there is
 nearly black: a great many videos fade in from black, and their first frame says
@@ -101,11 +118,11 @@ as ProPresenter has them, each button a picture and no words. The first column i
 workspace's [clear groups](clear-groups.md), a button each, sharing the column's height,
 the first of which is what F1 clears: to begin with that is Clear All, as high as the
 preview. The second is the layers, in ProPresenter's order down it: the audio (F5), the
-messages (F6), the props (F4), the announcements, the slide (F2) and the media (F3),
-each red while there is something there for it to clear. Under the preview is the
-**transport**, for the video on the output: how far in it is and how much is left, a
-slider that can be dragged to move it, and buttons to go back to the start, to play or
-pause, and to skip fifteen seconds back or on.
+messages (F6), the props (F4), the announcements, the slide (F2), the media (F3) and the
+[video input](video-inputs.md), each red while there is something there for it to clear.
+Under the preview is the **transport**, for the video on the output: how far in it is and
+how much is left, a slider that can be dragged to move it, and buttons to go back to the
+start, to play or pause, and to skip fifteen seconds back or on.
 
 ## The Media Inspector
 

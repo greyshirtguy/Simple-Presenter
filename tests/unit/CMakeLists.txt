@@ -280,6 +280,15 @@ target_include_directories(tst_audiocue PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_audiocue PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME audiocue COMMAND tst_audiocue)
 
+qt_add_executable(tst_mediacue
+    tst_mediacue.cpp
+    ${PROJECT_SOURCE_DIR}/src/mediacue.h
+    ${PROJECT_SOURCE_DIR}/src/mediacue.cpp
+)
+target_include_directories(tst_mediacue PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_mediacue PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME mediacue COMMAND tst_mediacue)
+
 qt_add_executable(tst_audiolevel
     tst_audiolevel.cpp
     ${PROJECT_SOURCE_DIR}/src/audiolevel.h

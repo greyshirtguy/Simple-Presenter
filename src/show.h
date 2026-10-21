@@ -257,6 +257,10 @@ public:
     // was music that the next of its playlist follows, `rows` being that playlist's
     // rows as they are now, the next is played (see show::State::audioFinished).
     Q_INVOKABLE void audioFinished(int play, const QVariantList &rows);
+    // The video on the media layer has played to its end, by its row's id. If it was
+    // played from a media playlist whose `rows` (as they are now) say a row follows it,
+    // that row is put on the media layer (see show::State::mediaFinished).
+    Q_INVOKABLE void mediaFinished(const QString &id, const QVariantList &rows);
 
     Q_INVOKABLE void clearSlide();
     Q_INVOKABLE void clearMedia();

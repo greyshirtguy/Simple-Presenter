@@ -79,7 +79,9 @@
 //
 //   A slide's cue may do more than show the slide. It may trigger media, which goes to
 //   the media layer as a background that stays or as a foreground that plays once (see
-//   workspace::MediaBehaviour in src/workspacefiles.h); and it may work a timer.
+//   workspace::MediaBehaviour in src/workspacefiles.h); and it may work a timer. A video
+//   played from a media playlist may be followed by another of its playlist when it
+//   ends, ProPresenter's Next Cue (src/mediacue.h, and State::mediaFinished).
 //
 // What is heard.
 //
