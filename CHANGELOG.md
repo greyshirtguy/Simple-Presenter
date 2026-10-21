@@ -6,6 +6,17 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.106](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.106) · 2026-10-21
+
+- [Next Cue](docs/features/media.md#next-cue) for a video in a media playlist, as
+  ProPresenter has it: None, Next, Random, First, or another row of its playlist, from its
+  right-click menu; followed when it was played from its playlist and has played to its
+  end, and made to stop at its end so that it gets there.
+- [Tabs over the transport](docs/features/media.md#the-transport): the video on the media
+  layer, the video on the announcements layer, or the audio bin's music, each worked by the
+  same transport.
+- The README's screenshot taken again.
+
 ## [0.105](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.105) · 2026-10-21
 
 - [Video inputs](docs/features/video-inputs.md): the computer's webcams and capture

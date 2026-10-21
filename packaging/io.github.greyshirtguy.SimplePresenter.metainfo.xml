@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.106" date="2026-10-21">
+      <description>
+        <p>
+          Next Cue: a video in a media playlist can go on to another of its playlist when it
+          has played to its end, as ProPresenter's can. And tabs over the transport, which
+          work the media layer's video, the announcements' video or the audio bin's music.
+        </p>
+      </description>
+    </release>
     <release version="0.105" date="2026-10-21">
       <description>
         <p>

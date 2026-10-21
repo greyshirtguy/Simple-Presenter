@@ -117,20 +117,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.106: Next Cue, and a transport for each layer.** A video in a media playlist can go on to another of its playlist when it ends, as ProPresenter's Next Cue; and tabs over the transport work the media layer's video, the announcements' video or the audio bin's music. See [Next Cue](docs/features/media.md#next-cue) and [the transport](docs/features/media.md#the-transport).
 - **0.105: Video inputs.** A webcam or a capture device, live on a layer of its own under the media, with its sound: set up in Settings → Inputs, shown from the media bin's Video Inputs or by a slide or a macro, and as the fill of a shape. See [Video inputs](docs/features/video-inputs.md).
 - **0.104: One preview, of any screen, with the clears beside it.** The preview shows whichever screen is picked under it, and can be dragged taller for a stage layout of several Screen Previews; the clears are two columns of pictures beside it, as ProPresenter has them. See [Screens](docs/features/screens.md).
 - **0.103: Playlists and messages as actions.** A slide or a macro plays a playlist of the media bin or of the audio bin, with ProPresenter's Always Retrigger, or shows a message with words of its own for its tokens. Picked from Add Action or dragged out of their lists. See [Actions](docs/features/actions.md).
 - **0.102: Devices.** A slide or a macro sends a MIDI note, a RossTalk Custom Control or an HTTP request, and a MIDI device's notes work the show by ProPresenter's MIDI Map. See [Devices](docs/features/devices.md).
-- **0.101: Builds.** The elements of a slide come on one after another and go again, as ProPresenter's Build In and Build Out, and a theme's builds run on the screen a look gives the theme to. See [Builds](docs/features/builds.md).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.105_amd64.deb` from the
+`simplepresenter_0.106_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.105_amd64.deb
+sudo apt install ./simplepresenter_0.106_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes
