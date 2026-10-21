@@ -39,6 +39,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.104" date="2026-10-21">
+      <description>
+        <p>
+          One preview in the operator window, of whichever screen is picked under it, an
+          audience screen or a stage screen with its layout and its Screen Previews, which
+          can be dragged taller for a layout of several of them. The clear buttons are two
+          columns of pictures beside it, as ProPresenter has them: the clear groups, and the
+          layers in ProPresenter's order.
+        </p>
+      </description>
+    </release>
     <release version="0.103" date="2026-10-20">
       <description>
         <p>

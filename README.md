@@ -116,20 +116,20 @@ there are no video inputs here yet, no timelines and no capture, among much else
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.104: One preview, of any screen, with the clears beside it.** The preview shows whichever screen is picked under it, and can be dragged taller for a stage layout of several Screen Previews; the clears are two columns of pictures beside it, as ProPresenter has them. See [Screens](docs/features/screens.md).
 - **0.103: Playlists and messages as actions.** A slide or a macro plays a playlist of the media bin or of the audio bin, with ProPresenter's Always Retrigger, or shows a message with words of its own for its tokens. Picked from Add Action or dragged out of their lists. See [Actions](docs/features/actions.md).
 - **0.102: Devices.** A slide or a macro sends a MIDI note, a RossTalk Custom Control or an HTTP request, and a MIDI device's notes work the show by ProPresenter's MIDI Map. See [Devices](docs/features/devices.md).
 - **0.101: Builds.** The elements of a slide come on one after another and go again, as ProPresenter's Build In and Build Out, and a theme's builds run on the screen a look gives the theme to. See [Builds](docs/features/builds.md).
 - **0.100: The Media Inspector and Quick Edit.** ProPresenter's inspector for a slide's media, with its effects; and a slide's words put right without the editor. See [The Media Inspector](docs/features/media.md#the-media-inspector) and [Quick Edit](docs/features/editing.md#quick-edit).
-- **0.99: ProPresenter's API.** Switched on in Settings → Network, the app answers ProPresenter's own HTTP API. See [The API](docs/features/api.md).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.103_amd64.deb` from the
+`simplepresenter_0.104_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.103_amd64.deb
+sudo apt install ./simplepresenter_0.104_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

@@ -6,6 +6,17 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.104](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.104) · 2026-10-21
+
+- [One preview, of any screen](docs/features/screens.md): the screen picked under it,
+  audience or stage, a stage screen with its layout and its Screen Previews; kept for
+  the workspace.
+- Its area dragged taller or shorter by the line under it, for a tall layout of several
+  Screen Previews; a double click gives it back its 16:9.
+- [The clears](docs/features/media.md) in two columns beside the preview, pictures and no
+  words, as ProPresenter has them: the clear groups, sharing their column's height, and
+  the layers in ProPresenter's order.
+
 ## [0.103](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.103) · 2026-10-20
 
 - [Media Playlist and Audio Playlist actions](docs/features/actions.md): a playlist of the
