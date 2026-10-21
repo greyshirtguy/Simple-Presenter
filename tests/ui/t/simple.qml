@@ -123,7 +123,9 @@ QtObject {
                 check("and so does a click on a slide", liveIndex === 7)
                 testInput.key(Qt.Key_F2)
                 check("and the clears", cleared === true || liveSlide === null)
-                return 4500
+                // Until its five seconds are up and it has finished shrinking (a quarter of a second) and fading, from when it
+                // was clicked: a wait from here alone ended in the middle of it whenever the steps between went quickly.
+                return Math.max(100, kept.started + simpleToggle.announceFor + 600 - testInput.now())
             },
             () => {
                 const pill = Lib.find(simpleToggle, i => i.radius !== undefined && i.clip === true)
