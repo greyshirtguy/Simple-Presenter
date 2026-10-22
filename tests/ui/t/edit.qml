@@ -8,7 +8,7 @@ Item {
         editTest()
     }
 
-    // TEMPORARY: a scripted run of the editor with the mouse and the keyboard.
+    // A scripted run of the editor with the mouse and the keyboard.
     property var editTestSteps: []
     property int editTestStep: 0
     property int editTestFailures: 0

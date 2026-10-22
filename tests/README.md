@@ -76,7 +76,7 @@ thing it checks, `ok` or `FAILED`.
 ```
 cmake -B build-tests -G Ninja -DSIMPLEPRESENTER_TEST_HOOK=ON
 cmake --build build-tests
-tests/ui/run.py                  # all of them: about a quarter of an hour
+tests/ui/run.py                  # all of them: about half an hour
 tests/ui/run.py props stage      # or some
 tests/ui/run.py --list
 ```

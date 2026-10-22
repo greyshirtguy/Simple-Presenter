@@ -8,7 +8,7 @@ Item {
         smokeTest()
     }
 
-    // TEMPORARY: a scripted run of the operator window with the mouse and the keyboard.
+    // A scripted run of the operator window with the mouse and the keyboard.
     property var smokeSteps: []
     property int smokeStep: 0
     property int smokeFailures: 0
