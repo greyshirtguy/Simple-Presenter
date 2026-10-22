@@ -212,8 +212,6 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
     workspace::FileFinder mediaFinder(workspace, QStringLiteral("Media"));
     const auto slidesForCue = [&mediaFinder](const rv::data::Cue &cue) {
         QVariantList slides;
-        if (!cue.isenabled())
-            return slides;
         const QString id = QString::fromStdString(cue.uuid().string());
         // The cue's media action, if it has one: its file's name, how it plays, and
         // the file if found. And the actions it has besides.
@@ -269,6 +267,12 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
             slide.insert("id", id);
             if (!goToNext.isEmpty())
                 slide.insert("goToNext", goToNext);
+            // A slide ProPresenter has disabled (its cue's isEnabled off): listed, and
+            // shown when it is clicked or asked for by its number, but passed over by
+            // Next and Previous and by what goes on by itself (see show::State). Said
+            // only of one that is, the maps being made of every slide.
+            if (!cue.isenabled())
+                slide.insert("disabled", true);
             entry = slide;
         }
         return slides;
@@ -658,6 +662,14 @@ QString ProDocument::setCueMediaPlayback(const QString &path, const QString &cue
             }
         }
         return QStringLiteral("That slide has no media");
+    });
+}
+
+QString ProDocument::setCueEnabled(const QString &path, const QString &cueId, bool enabled)
+{
+    return changeCue(path, cueId, [enabled](rv::data::Cue *cue) {
+        cue->set_isenabled(enabled);
+        return QString();
     });
 }
 

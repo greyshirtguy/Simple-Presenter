@@ -120,6 +120,8 @@ struct Presentation
     QVariantMap ccli;
     // Its file
     QString file = "/library/song.pro";
+    // Its slides that are disabled, by place
+    QList<int> disabled;
 
     Cue cue(int index) const
     {
@@ -135,6 +137,7 @@ struct Presentation
         cue.slideShow = slideShow;
         cue.ccli = ccli;
         cue.file = file;
+        cue.disabled = disabled;
         return cue;
     }
 };
@@ -779,6 +782,62 @@ private slots:
         // A library's file renamed: whichever is at it goes by the new name.
         show.renamed("notices.pro", "foyer.pro");
         QVERIFY(show.announcementAt("foyer.pro", "") && show.at("song.pro", ""));
+    }
+
+    // ---- disabled slides
+
+    // A disabled slide (ProPresenter's Enable/Disable) is passed over by Next and Previous
+    // and by what goes on by itself, and shown when it is asked for by a click
+    void aDisabledSlideIsPassedOverAndShownWhenAskedFor()
+    {
+        State show;
+        Presentation song = plainSong(5);
+        song.disabled = {1, 2};
+        song.slides[0] = timed(song.slides[0].toMap(), 5);
+        show.goLive(song.cue(0), false, workspace());
+        // Next from the first: past the two disabled, to the fourth; and the time up on
+        // the first's Go To Next Timer, the same
+        QCOMPARE(show.stepTarget("song.pro", "", 1, false, song.disabled, 5), 3);
+        QCOMPARE(show.takeAdvance(false), 3);
+        show.goLive(song.cue(3), false, workspace(), true);
+        // Previous from the fourth: back past them to the first
+        QCOMPARE(show.stepTarget("song.pro", "", -1, false, song.disabled, 5), 0);
+        // One of them clicked is shown, and Next and Previous go on from it
+        show.goLive(song.cue(2), false, workspace());
+        QCOMPARE(show.index, 2);
+        QCOMPARE(show.stepTarget("song.pro", "", 1, false, song.disabled, 5), 3);
+        QCOMPARE(show.stepTarget("song.pro", "", -1, false, song.disabled, 5), 0);
+        // Past the last that is not disabled, Next goes nowhere
+        Presentation tail = plainSong(3);
+        tail.key = "tail.pro";
+        tail.disabled = {2};
+        show.goLive(tail.cue(1), false, workspace());
+        QCOMPARE(show.stepTarget("tail.pro", "", 1, false, tail.disabled, 3), -1);
+        // From another presentation, to its first that is not disabled
+        QCOMPARE(show.stepTarget("other.pro", "", 1, false, {0, 1}, 4), 2);
+        QCOMPARE(show.stepTarget("other.pro", "", 1, false, {0, 1, 2, 3}, 4), -1);
+        // A last slide that leads round, past a disabled first
+        Presentation round = plainSong(3);
+        round.key = "round.pro";
+        round.disabled = {0};
+        round.slides[2] = timed(round.slides[2].toMap(), 5, true);
+        show.goLive(round.cue(2), false, workspace());
+        QCOMPARE(show.takeAdvance(false), 1);
+        // With nothing disabled, as before
+        QCOMPARE(State::enabledFrom(2, 1, 5, {}), 2);
+        QCOMPARE(State::enabledFrom(3, -1, 5, {3, 2}), 1);
+        QCOMPARE(State::enabledFrom(0, -1, 5, {0}), -1);
+    }
+
+    void theAnnouncementsPassOverADisabledSlideToo()
+    {
+        State show;
+        Presentation foyer = notices(4);
+        foyer.disabled = {1};
+        foyer.slides[0] = timed(foyer.slides[0].toMap(), 8);
+        show.goLive(foyer.cue(0), false, workspace());
+        QCOMPARE(show.stepTarget("notices.pro", "", 1, true, foyer.disabled, 4), 2);
+        QCOMPARE(show.takeAdvance(true), 2);
     }
 
     // ---- going on by itself: Go To Next Timers and the Slide Show

@@ -90,6 +90,9 @@ struct Cue
     // The presentation's file: where the playback markers of the media its slide brings
     // are kept (see State::mediaPlace)
     QString file;
+    // The places of the presentation's slides that are disabled (ProPresenter's
+    // Enable/Disable): passed over by Next and Previous and by what goes on by itself
+    QList<int> disabled;
 };
 
 // One thing to be done outside, as the outcome of a change.
@@ -146,6 +149,8 @@ public:
     int count = 0;
     QVariantMap slide;
     QVariantMap next;
+    // Its slides that are disabled, by place (see Cue::disabled)
+    QList<int> disabled;
     // The copyright line laid over the live slide on the audience screens, where the
     // workspace's copyright display says this slide shows it (see ccli.h), and "" where
     // it does not: decided as the slide goes live, and gone with it when it is cleared.
@@ -203,6 +208,7 @@ public:
         int count = 0;
         QVariantMap slide;
         QVariantMap next;
+        QList<int> disabled;
         bool cleared = true;
         bool clearedByCue = false;
     };
@@ -307,7 +313,15 @@ public:
     // was at (unless that slide cleared itself, which it would only do again); from
     // another presentation, to its first slide.
     // With `announcements`, the same for the announcements: from where they are.
-    int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false) const;
+    // A disabled slide is passed over, by the places in `disabled` of that presentation,
+    // which has `count` slides (the maintainer's choice, 2026-10-22: Next and Previous,
+    // with the keys or a clicker, skip one; a click on it, or its number typed, shows it):
+    // a step that finds no slide that is not disabled goes nowhere (-1).
+    int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false,
+                   const QList<int> &disabled = {}, int count = -1) const;
+    // The first place from `from`, going by `step` (1 or -1), of a presentation of
+    // `count` slides, that is not one of `disabled`; -1 for none
+    static int enabledFrom(int from, int step, int count, const QList<int> &disabled);
     // Next, for whoever is looking at the presentation `key` of `playlistId`; or a click
     // on its slide `index` (-1 for Next, which means the slide the show is at). If that
     // is the slide on show, and it has an On Click build that has not been run, the

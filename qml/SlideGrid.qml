@@ -409,10 +409,14 @@ Item {
             Rectangle {
                 id: frameRect
 
+                objectName: "slideFrame:" + cell.index
                 anchors.fill: parent
                 anchors.margins: 6
                 color: cell.frame
                 radius: 4
+                // A disabled slide is dimmed (A GUESS at how ProPresenter marks one): it is
+                // passed over by Next and Previous, and shown when it is clicked.
+                opacity: cell.modelData.disabled === true ? 0.38 : 1
 
                 Rectangle {
                     id: thumbnail

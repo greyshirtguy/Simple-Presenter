@@ -52,6 +52,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="actions"></a>**[Actions](docs/features/actions.md)**: what a slide or a macro does as it goes live: start a timer, clear a layer, give the stage a layout, put a prop on, run a macro, change the look, play a media or audio playlist, show a message or a video input, or send to a device.
 - <a id="macros"></a>**[Macros](docs/features/macros.md)**: a named list of actions, run at one click.
 - <a id="calendar"></a>**[Calendar](docs/features/calendar.md)**: events at a date and time, once or every week on chosen days, that take a playlist's presentation live or run a macro by themselves, as ProPresenter's Calendar does.
+- <a id="disabled-slides"></a>**[Disabled slides](docs/features/disabled-slides.md)**: a slide switched off from its menu, passed over by Next, Previous and everything that goes on by itself, and shown only when it is clicked.
 - <a id="groups-and-labels"></a>**[Groups and labels](docs/features/groups-and-labels.md)**: a slide's group and label, changed from the slide's menu, in ProPresenter's colours.
 - <a id="copyright"></a>**[Copyright display](docs/features/copyright.md)**: a song's copyright, from SongSelect or typed in the editor, laid over its first, last or every slide, for a church's CCLI licence, as ProPresenter's display is.
 - <a id="arrangements"></a>**[Arrangements](docs/features/arrangements.md)**: verse, chorus, verse, chorus, bridge. The groups are dragged into the order a song is sung in.

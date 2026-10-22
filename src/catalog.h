@@ -199,6 +199,9 @@ public:
     // (A new marker is a colour of the palette its media's markers have not, at random:
     // see playbackmarkers::newColor.)
     Q_INVOKABLE QVariantMap addMarker(const QVariantMap &place, double time);
+    // A slide of a presentation enabled or disabled, as ProPresenter's are (its cue's
+    // isEnabled): an error message back, empty on success
+    Q_INVOKABLE QString setSlideEnabled(const QString &path, const QString &slideId, bool enabled);
     // The colours the marker menu offers by name (playbackmarkers::palette)
     Q_INVOKABLE QVariantList markerPalette() const;
     // The markers of the media of a `place` as its file has them now (as

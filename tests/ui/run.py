@@ -2006,6 +2006,37 @@ def after_transports(workspace, test_dir):
     ]
 
 
+def prepare_disabled(workspace, test_dir):
+    """The disabled slides' test (disabled): "It Is Well" as it was given (disabled-before.pro)."""
+    shutil.copy(os.path.join(workspace, "Libraries", "Demo", "It Is Well.pro"), os.path.join(test_dir, "disabled-before.pro"))
+
+
+def after_disabled(workspace, test_dir):
+    """"It Is Well" once the test has enabled the slide ProPresenter disabled and disabled another, read with protoc and
+    not by the app: the cue that was disabled now enabled, the third slide's disabled, the same cues in the same order,
+    and every cue but those two and the one given a Go To Next Timer as it was, to the byte of its text."""
+    def cues(path):
+        with open(path, "rb") as source:
+            text = protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+        return [m.group(0) for m in re.finditer(r"(?ms)^cues \{\n.*?^\}\n", text)]
+
+    was = cues(os.path.join(test_dir, "disabled-before.pro"))
+    now = cues(os.path.join(workspace, "Libraries", "Demo", "It Is Well.pro"))
+    uuid = lambda cue: re.search(r'uuid \{\n\s*string: "([^"]+)"', cue).group(1)
+    enabled = lambda cue: "\n  isEnabled: true" in cue
+    off_was = [uuid(c) for c in was if not enabled(c)]
+    off_now = [uuid(c) for c in now if not enabled(c)]
+    changed = [uuid(a) for a, b in zip(was, now) if a != b]
+    return [
+        said([uuid(c) for c in now] == [uuid(c) for c in was], "the same cues, in the same order", "%d and %d" % (len(was), len(now))),
+        said(len(off_was) == 1 and off_was[0] not in off_now and len(off_now) == 1, "the cue ProPresenter disabled enabled, and one other disabled",
+             "%s then %s" % (off_was, off_now)),
+        said(len(changed) == 3 and set(off_was) <= set(changed) and set(off_now) <= set(changed),
+             "and no other cue changed but those two and the one given a Go To Next Timer",
+             "%d changed" % len(changed)),
+    ]
+
+
 def prepare_calendar(workspace, test_dir):
     """The Calendar's test (calendar): that the workspace has no calendar yet, as Act has none, and its set-up file as it
     was given (calendar-workspace-before), which a calendar is not kept in."""
@@ -3066,6 +3097,7 @@ TESTS = {
     "markers": test("Act", timeout=360, prepare=prepare_markers, after=after_markers),
     "copyright": test("Act", timeout=300, prepare=prepare_copyright, after=after_copyright),
     "calendar": test("Act", timeout=300, prepare=prepare_calendar, after=after_calendar),
+    "disabled": test("Demo", timeout=240, prepare=prepare_disabled, after=after_disabled),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

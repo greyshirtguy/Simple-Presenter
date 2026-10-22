@@ -27,6 +27,8 @@ show::Cue cueFrom(const QVariantMap &map)
     cue.slideShow = map.value("slideShow").toDouble();
     cue.ccli = map.value("ccli").toMap();
     cue.file = map.value("file").toString();
+    for (const QVariant &place : map.value("disabled").toList())
+        cue.disabled << place.toInt();
     return cue;
 }
 
@@ -303,9 +305,21 @@ QTimer *Show::advanceTimer(bool announcements)
     return timer;
 }
 
-int Show::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements) const
+int Show::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements, const QVariantList &disabled,
+                     int count) const
 {
-    return m_state.stepTarget(key, playlistId, delta, announcements);
+    QList<int> places;
+    for (const QVariant &place : disabled)
+        places << place.toInt();
+    return m_state.stepTarget(key, playlistId, delta, announcements, places, count);
+}
+
+int Show::enabledFrom(int from, int step, int count, const QVariantList &disabled) const
+{
+    QList<int> places;
+    for (const QVariant &place : disabled)
+        places << place.toInt();
+    return show::State::enabledFrom(from, step, count, places);
 }
 
 bool Show::stepBuild(const QString &key, const QString &playlistId, int index)

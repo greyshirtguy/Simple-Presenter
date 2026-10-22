@@ -239,7 +239,11 @@ public:
     Q_INVOKABLE void goLive(const QVariantMap &cue, bool withoutMedia = false, bool byTimer = false);
     // Where a step of `delta` slides takes the show, for whoever is looking at that
     // presentation (see show::State::stepTarget).
-    Q_INVOKABLE int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false) const;
+    Q_INVOKABLE int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false,
+                               const QVariantList &disabled = {}, int count = -1) const;
+    // The first place from `from` by `step` of `count` slides that is not disabled, -1 for
+    // none (see show::State::enabledFrom): the next slide, as what goes on by itself has it
+    Q_INVOKABLE int enabledFrom(int from, int step, int count, const QVariantList &disabled) const;
     // Runs the next On Click build of the slide on show, if Next (`index` -1) or a click
     // on slide `index` of that presentation is to: true if it did (see State::stepBuild).
     Q_INVOKABLE bool stepBuild(const QString &key, const QString &playlistId, int index);

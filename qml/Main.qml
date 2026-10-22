@@ -522,8 +522,13 @@ Window {
     // the maintainer describes as making the slide's transition "first".) Each On Click
     // build that Next runs adds one, the moment it was asked for.
     property var liveBuildTimes: null
-    readonly property var nextSlide: liveDocument && liveIndex + 1 < liveDocument.slides.length
-                                     ? liveDocument.slides[liveIndex + 1] : null
+    // (The next that is not disabled: Next passes over a disabled slide.)
+    readonly property var nextSlide: {
+        if (!liveDocument)
+            return null
+        const next = Show.enabledFrom(liveIndex + 1, 1, liveDocument.slides.length, disabledOf(liveDocument))
+        return next >= 0 ? liveDocument.slides[next] : null
+    }
     readonly property string stageCurrentText: liveSlide ? liveSlide.plainText : ""
     readonly property string stageNextText: nextSlide ? nextSlide.plainText : ""
 
@@ -1400,10 +1405,12 @@ Window {
                 leaveBibles()
             openPlaylist(node.path)
             openEntry(documents.find(d => d.path === entry.path) ?? entry)
-            if (document && document.slides.length > 0)
-                goLive(0)
+            // (Its first slide that is not disabled: this is no one's click.)
+            const first = document ? Show.enabledFrom(0, 1, document.slides.length, disabledOf(document)) : -1
+            if (first >= 0)
+                goLive(first)
             else
-                Log.problem(said + ": " + quoted(entry.name) + " has no slides")
+                Log.problem(said + ": " + quoted(entry.name) + " has no slides that are not disabled")
             return
         }
         Log.note("calendar", said + (action.kind === "capture" ? ": its action is Capture, which this app has not" : ": it has no action to run"))
@@ -2684,6 +2691,9 @@ Window {
             // editor (see Themes.copyTextStyle)
             { label: "Copy Text Style", disabled: slide.plainText.trim() === "", run: () => copyTextStyle(index) },
             { label: "Paste Text Style", disabled: !Themes.hasCopiedTextStyle, run: () => pasteTextStyle(index) },
+            // ProPresenter's Enable/Disable: a disabled slide is passed over by Next and
+            // Previous and what goes on by itself, and shown when clicked (see setSlideEnabled)
+            { label: slide.disabled === true ? "Enable Slide" : "Disable Slide", run: () => setSlideEnabled(index, slide.disabled === true) },
             // Asked twice, since it is for good. (Not the last one there is: a
             // presentation with no slides is not one ProPresenter makes.)
             { label: "Delete Slide…", danger: true, disabled: new Set(document.slides.map(s => s.id)).size < 2,
@@ -2693,6 +2703,17 @@ Window {
                 { label: "Cancel", run: () => {} }
             ], item, x, y) }
         ], item, x, y)
+    }
+
+    // A slide enabled or disabled (ProPresenter's cue's isEnabled), in its file at once;
+    // the show then goes by it (see disabledOf)
+    function setSlideEnabled(index, enabled) {
+        const slide = document.slides[index]
+        const error = catalog.setSlideEnabled(document.path, slide.id, enabled)
+        Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name) + (enabled ? " enabled" : " disabled")
+                 + (error === "" ? "" : ", which failed: " + error))
+        if (report(error))
+            reloadDocument()
     }
 
     // ---- Going on by itself: a slide's Go To Next Timer and a presentation's Slide
@@ -3496,9 +3517,21 @@ Window {
     // A slide as Show is handed it when it goes live: which presentation it is of, by
     // the row it was opened from and the playlist that row is in, where it is in it,
     // and the slide itself with the one after it.
+    // The places of a presentation's slides that are disabled (ProPresenter's
+    // Enable/Disable, src/prodocument.h), which Next and Previous and what goes on by
+    // itself pass over (see show::State::stepTarget)
+    function disabledOf(presentation) {
+        const places = []
+        if (presentation)
+            presentation.slides.forEach((slide, place) => { if (slide.disabled === true) places.push(place) })
+        return places
+    }
+
     function cueAt(presentation, key, playlist, index) {
+        const disabled = disabledOf(presentation)
+        const next = Show.enabledFrom(index + 1, 1, presentation.slides.length, disabled)
         return { key: key, playlistId: playlist, presentation: presentation.name, index: index, count: presentation.slides.length,
-                 slide: presentation.slides[index] ?? ({}), next: presentation.slides[index + 1] ?? ({}),
+                 slide: presentation.slides[index] ?? ({}), next: next >= 0 ? presentation.slides[next] : ({}), disabled: disabled,
                  destination: presentation.destination ?? "", slideShow: presentation.slideShow ?? 0, ccli: presentation.ccli ?? ({}),
                  file: presentation.path ?? "" }
     }
@@ -3682,7 +3715,8 @@ Window {
     function step(delta) {
         if (delta > 0 && !viewedGoesToAnnouncements && Show.stepBuild(documentKey, viewedPlaylistId, -1))
             return
-        goLive(Show.stepTarget(documentKey, viewedPlaylistId, delta, viewedGoesToAnnouncements))
+        goLive(Show.stepTarget(documentKey, viewedPlaylistId, delta, viewedGoesToAnnouncements, disabledOf(document),
+                               document ? document.slides.length : -1))
     }
 
     // A click on a slide of the presentation being viewed: it goes live, unless it is

@@ -253,13 +253,17 @@ int State::takeAdvance(bool announcements)
     const bool there = announcements ? announcement.atSlide : atSlide;
     const int from = announcements ? announcement.index : index;
     const int slides = announcements ? announcement.count : count;
+    const QList<int> &disabled = announcements ? announcement.disabled : this->disabled;
     if (!there || slides <= 0)
         return -1;
+    // (A disabled slide is passed over: to the next that is not, and round to the first
+    // that is not for a presentation that goes round.)
     if (was.toFirst)
-        return 0;
-    if (from + 1 < slides)
-        return from + 1;
-    return was.loops ? 0 : -1;
+        return enabledFrom(0, 1, slides, disabled);
+    const int next = enabledFrom(from + 1, 1, slides, disabled);
+    if (next >= 0)
+        return next;
+    return was.loops ? enabledFrom(0, 1, slides, disabled) : -1;
 }
 
 // A slide of a presentation that is sent to the announcements goes live there: the
@@ -281,6 +285,7 @@ Effects State::goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Works
     announcement.presentation = cue.presentation;
     announcement.index = cue.index;
     announcement.count = cue.count;
+    announcement.disabled = cue.disabled;
     announcement.slide = cue.slide;
     announcement.next = cue.next;
     announcement.cleared = false;
@@ -350,6 +355,7 @@ Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &worksp
     presentation = cue.presentation;
     index = cue.index;
     count = cue.count;
+    disabled = cue.disabled;
     slide = cue.slide;
     next = cue.next;
     cleared = false;
@@ -410,20 +416,34 @@ Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &worksp
     return effects;
 }
 
-int State::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements) const
+int State::enabledFrom(int from, int step, int count, const QList<int> &disabled)
 {
-    if (announcements) {
-        if (!announcementAt(key, playlistId))
-            return 0;
-        if (announcement.cleared && !announcement.clearedByCue)
-            return announcement.index;
-        return announcement.index + delta;
+    for (int place = from; place >= 0 && (count < 0 || place < count); place += step) {
+        if (!disabled.contains(place))
+            return place;
+        if (step == 0)
+            break;
     }
-    if (!at(key, playlistId))
-        return 0;
-    if (cleared && !clearedByCue)
-        return index;
-    return index + delta;
+    return -1;
+}
+
+int State::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements, const QList<int> &disabled,
+                      int count) const
+{
+    const int way = delta < 0 ? -1 : 1;
+    const bool here = announcements ? announcementAt(key, playlistId) : at(key, playlistId);
+    // From another presentation, its first slide that is not disabled
+    if (!here)
+        return enabledFrom(0, 1, count, disabled);
+    const bool back = announcements ? announcement.cleared && !announcement.clearedByCue : cleared && !clearedByCue;
+    const int from = announcements ? announcement.index : index;
+    if (back)
+        return from;
+    const int target = from + delta;
+    if (target < 0 || (count >= 0 && target >= count))
+        return target;
+    const int found = enabledFrom(target, way, count, disabled);
+    return found;
 }
 
 Effects State::stepBuild(const QString &key, const QString &playlistId, int index, bool *ran)
@@ -451,6 +471,7 @@ Effects State::follow(const Cue &cue)
         announcement.presentation = cue.presentation;
         announcement.index = cue.index;
         announcement.count = cue.count;
+        announcement.disabled = cue.disabled;
         announcement.slide = cue.slide;
         announcement.next = cue.next;
     } else {
@@ -459,6 +480,7 @@ Effects State::follow(const Cue &cue)
         presentation = cue.presentation;
         index = cue.index;
         count = cue.count;
+        disabled = cue.disabled;
         slide = cue.slide;
         next = cue.next;
     }

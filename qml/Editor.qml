@@ -789,6 +789,8 @@ Rectangle {
                     width: parent.width - 36
                     height: parent.height - 10
                     radius: 4
+                    // A disabled slide dimmed, as in the show's grid
+                    opacity: cell.slide.disabled === true ? 0.38 : 1
                     color: cell.frame
 
                     Rectangle {

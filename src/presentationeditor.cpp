@@ -193,7 +193,9 @@ void PresentationEditor::placeRows()
     QSet<int> placed;
     const auto place = [this, &placed](int cue, const QString &group, const QString &color, bool start) {
         const rv::data::Cue &candidate = m_presentation.cues(cue);
-        if (placed.contains(cue) || !candidate.isenabled() || slideAction(candidate) < 0)
+        // (A disabled cue is listed: it is a slide ProPresenter shows and edits, which
+        // the show passes over.)
+        if (placed.contains(cue) || slideAction(candidate) < 0)
             return false;
         placed.insert(cue);
         m_rows.append({cue, group, color, start});
@@ -530,6 +532,9 @@ QVariantMap PresentationEditor::describe(int row) const
                      : proconvert::toSlideMap(action.slide().presentation().base_slide(),
                                               QString::fromStdString(action.label().text()));
         slide.insert("id", QString::fromStdString(cue.uuid().string()));
+        // (A disabled slide is listed, and marked: see ProDocument)
+        if (!prop && !cue.isenabled())
+            slide.insert("disabled", true);
         if (!prop)
             proconvert::addNotes(action.slide().presentation(), &slide);
         if (!prop && action.slide().presentation().has_transition())

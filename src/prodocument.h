@@ -157,6 +157,9 @@ struct ProDocument
     // Sets how the video the cue triggers plays on from its end (see
     // workspace::MediaBehaviour), and writes the file back.
     static QString setCueMediaPlayback(const QString &path, const QString &cueId, int playback, int loopCount, double loopSeconds);
+    // Enables or disables a slide's cue, ProPresenter's Enable/Disable (its isEnabled),
+    // and writes the file back
+    static QString setCueEnabled(const QString &path, const QString &cueId, bool enabled);
     // Changes a slide's media action (the action its picture or video is played by) by
     // `change`, which returns an error message: what its playback markers are changed
     // through (playbackmarkers.h).

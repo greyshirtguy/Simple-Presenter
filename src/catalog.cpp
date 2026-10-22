@@ -714,6 +714,11 @@ QVariantMap Catalog::addMarker(const QVariantMap &place, double time)
     return {{"id", error.isEmpty() ? made : QString()}, {"error", error}};
 }
 
+QString Catalog::setSlideEnabled(const QString &path, const QString &slideId, bool enabled)
+{
+    return ProDocument::setCueEnabled(path, slideId, enabled);
+}
+
 QVariantList Catalog::markerPalette() const
 {
     return playbackmarkers::palette();
