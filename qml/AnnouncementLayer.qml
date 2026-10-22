@@ -38,6 +38,9 @@ Item {
     // announcements works
     readonly property var livePlayer: mediaLayer.currentItem ? mediaLayer.currentItem.player : null
 
+    // A playback marker of the video under its slide has been reached
+    signal markerReached(int playId, var marker)
+
     function showSlide(slide) {
         heldSlide = undefined
         slideLayer.show(slide)
@@ -81,6 +84,7 @@ Item {
         duration: announcements.duration
         delegate: MediaContent {
             leads: announcements.leads
+            onMarkerReached: (playId, marker) => announcements.markerReached(playId, marker)
         }
         onWaitingChanged: {
             if (!waiting && announcements.heldSlide !== undefined)

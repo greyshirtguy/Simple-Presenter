@@ -1250,6 +1250,7 @@ Rectangle {
                         : kind === "slideText" ? (inspector.element.linkSlideNext ? "Next Slide" : "Current Slide")
                         : kind === "clock" ? "System Clock"
                         : kind === "videoCountdown" ? "Video Countdown"
+                        : kind === "marker" ? (inspector.element.linkMarkerTime ? "Time to Marker" : "Marker Name")
                         : kind === "stageMessage" ? "Stage Message"
                         : "Its Own Text"
 
@@ -1306,6 +1307,22 @@ Rectangle {
                                                              linkTimerHundredths: Timers.None, linkVideoIgnoreLooping: false })
                                 inspector.setProperties(changes, false)
                             } },
+                            // A playback marker's name, or the time to it (see Clocks.markerText): as
+                            // ProPresenter's Linked Text has "Playback Marker", then what it shows.
+                            // The first time, the presentation's next marker, the time in minutes
+                            // and seconds.
+                            { label: "Playback Marker", current: linkLine.kind === "marker", items: [{ header: "Playback Marker" }].concat(
+                                [["Marker Name", false], ["Time to Marker", true]].map(choice => ({
+                                    label: choice[0], current: linkLine.kind === "marker" && element.linkMarkerTime === choice[1],
+                                    run: () => {
+                                        const changes = { linkKind: "marker", linkMarkerTime: choice[1] }
+                                        if (linkLine.kind !== "marker")
+                                            Object.assign(changes, { linkMarkerDestination: 0, linkMarkerWhich: 2, linkMarkerName: "", linkMarkerColor: false })
+                                        if (choice[1] && !(linkLine.kind === "marker" && element.linkMarkerTime))
+                                            Object.assign(changes, { linkTimerHours: Timers.None, linkTimerMinutes: Timers.Long, linkTimerSeconds: Timers.Long,
+                                                                     linkTimerHundredths: Timers.None })
+                                        inspector.setProperties(changes, false)
+                                    } }))) },
                             { label: "Stage Message", current: linkLine.kind === "stageMessage", run: () => {
                                 // The first time, set to flash, in the red the boxes
                                 // of ProPresenter's own stage layouts flash.
@@ -1500,10 +1517,65 @@ Rectangle {
                                   + " stays over its word, a line is never broken: text too wide for the box is made smaller instead."
                         }
 
+                        // A playback marker's: which layer's media, which of its markers (the
+                        // name typed, for one by name), and whether drawn in its colour
+                        Line {
+                            caption: "Of"
+                            visible: linkLine.kind === "marker"
+
+                            Choice {
+                                objectName: "linkMarkerDestination"
+                                width: textTab.width - 78
+                                model: ["Presentation", "Announcements", "Audio"]
+                                choice: inspector.element !== null ? inspector.element.linkMarkerDestination ?? 0 : 0
+                                onChosen: (index) => inspector.setProperties({ linkMarkerDestination: index }, false)
+                            }
+                        }
+
+                        Line {
+                            caption: "Marker"
+                            visible: linkLine.kind === "marker"
+
+                            Choice {
+                                objectName: "linkMarkerWhich"
+                                width: textTab.width - 78
+                                model: ["First", "Previous", "Next", "Last", "By Name"]
+                                choice: inspector.element !== null ? inspector.element.linkMarkerWhich ?? 2 : 2
+                                onChosen: (index) => inspector.setProperties({ linkMarkerWhich: index }, false)
+                            }
+                        }
+
+                        Line {
+                            caption: "Named"
+                            visible: linkLine.kind === "marker" && inspector.element.linkMarkerWhich === 4
+
+                            AppTextField {
+                                objectName: "linkMarkerName"
+                                width: textTab.width - 78
+                                height: 28
+                                font.pixelSize: 13
+                                text: inspector.element !== null ? inspector.element.linkMarkerName ?? "" : ""
+                                onEditingFinished: {
+                                    if (inspector.element !== null && text !== (inspector.element.linkMarkerName ?? ""))
+                                        inspector.setProperties({ linkMarkerName: text }, false)
+                                }
+                            }
+                        }
+
+                        AppCheck {
+                            objectName: "linkMarkerColor"
+                            width: parent.width
+                            visible: linkLine.kind === "marker"
+                            text: "In the marker's colour"
+                            checked: inspector.element !== null && inspector.element.linkMarkerColor === true
+                            onToggled: (checked) => inspector.setProperties({ linkMarkerColor: checked }, false)
+                        }
+
                         // How each part of a time is written, as ProPresenter has it: a
                         // drop-down for each of the four. A timer's time, and a video's.
                         Repeater {
-                            model: linkLine.kind === "timer" || linkLine.kind === "videoCountdown" ? inspector.timerParts : []
+                            model: linkLine.kind === "timer" || linkLine.kind === "videoCountdown"
+                                   || (linkLine.kind === "marker" && inspector.element.linkMarkerTime) ? inspector.timerParts : []
 
                             delegate: Line {
                                 id: partLine

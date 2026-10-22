@@ -32,6 +32,13 @@
 // goes round is counted down to the end of each time round unless the link says such
 // videos are not counted.
 //
+// And a playback marker's name, or the time to it (see playbackmarkers.h), which a text
+// box linked to one shows: of the media playing on one of three layers, which the
+// operator window tells this of while `markersWatched` says a box is showing one, as it
+// tells this of the video. The time to a marker that has been passed counts up from it,
+// as a timer past its end would (A GUESS at ProPresenter); with no media on the layer,
+// or no such marker, the name is nothing and the time is at nothing.
+//
 // `held` is for the self-test and the benchmark, whose pictures are to come out the same
 // at any time of day: the clock then stands at a moment that is always the same.
 //
@@ -51,6 +58,10 @@ class Clocks : public QObject
     // Goes up whenever what is known of the playing video changes: read it likewise.
     Q_PROPERTY(int videoRevision READ videoRevision NOTIFY videoChanged)
     Q_PROPERTY(bool held READ held WRITE setHeld NOTIFY heldChanged)
+    // Whether any box is showing a playback marker's name or time; and what goes up when
+    // what is known of the markers changes, read in the binding that asks
+    Q_PROPERTY(bool markersWatched READ markersWatched NOTIFY markersWatchedChanged)
+    Q_PROPERTY(int markerRevision READ markerRevision NOTIFY markersChanged)
 
 public:
     explicit Clocks(QObject *parent = nullptr);
@@ -60,6 +71,8 @@ public:
     int videoRevision() const { return m_videoRevision; }
     bool held() const { return m_held; }
     void setHeld(bool held);
+    bool markersWatched() const { return m_markersWatched; }
+    int markerRevision() const { return m_markerRevision; }
 
     // The time of day, written as a link to the clock says (see clocktext.h). Asking
     // is what keeps the clock going.
@@ -78,11 +91,25 @@ public:
     Q_INVOKABLE void setVideo(double secondsLeft, bool loops);
     Q_INVOKABLE void noVideo();
 
+    // A playback marker's name, or the time to it written as a timer's time is (`time`),
+    // of the media on a layer (`destination` 0 the presentation's, 1 the announcements',
+    // 2 the audio's), the marker being `which` (see playbackmarkers::pick). Asking is
+    // what has the markers watched. And that marker's colour, for a box drawn in it, or
+    // nothing for none.
+    Q_INVOKABLE QString markerText(int destination, int which, const QString &name, bool time, int hours, int minutes,
+                                   int seconds, int hundredths, bool hundredthsUnderMinuteOnly);
+    Q_INVOKABLE QVariant markerColor(int destination, int which, const QString &name);
+    // The media on a layer is at `position` seconds and has these markers (as
+    // playbackmarkers::describe gives them); an empty list for none, or no media.
+    Q_INVOKABLE void setMarkers(int destination, double position, const QVariantList &markers);
+
 signals:
     void secondChanged();
     void videoWatchedChanged();
     void videoChanged();
     void heldChanged();
+    void markersWatchedChanged();
+    void markersChanged();
 
 private:
     void waitForNextSecond();
@@ -107,4 +134,12 @@ private:
     bool m_videoLoops = false;
     bool m_held = false;
     QTimer m_tick;
+    // Each layer's media: where it is, in seconds, and its markers
+    double m_markerAt[3] = {0, 0, 0};
+    QVariantList m_markers[3];
+    int m_markerRevision = 0;
+    bool m_markerAsked = false;
+    bool m_markersWatched = false;
+    bool m_markerSettlePending = false;
+    void settleMarkersWatched();
 };

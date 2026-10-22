@@ -30,6 +30,9 @@ is marked as the live one, and the arrow keys go on from it.)
   action's own for its tokens (see below).
 - **Video Input**: put one of the workspace's [video inputs](video-inputs.md) on the video
   input layer.
+
+A [playback marker](playback-markers.md) has actions of these kinds too, which run as
+playback reaches it.
 - **Communication**: send a MIDI note, a RossTalk Custom Control or an HTTP request to
   one of the workspace's [devices](devices.md).
 

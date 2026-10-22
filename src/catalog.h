@@ -191,6 +191,22 @@ public:
     // "random", "first", or "cue" with `target` the row to go to. Anything to follow
     // makes the row stop at its end.
     Q_INVOKABLE QString setMediaItemNext(const QString &item, const QString &next, const QString &target = QString());
+    // Playback markers (src/playbackmarkers.h), on the media of a `place`: { kind:
+    // "slide", path, slideId } for a slide's, { kind: "mediaRow", item } for a row of the
+    // media bin and { kind: "audioRow", item } for a piece of the audio bin. Each returns
+    // an error message, empty on success; one that makes a marker gives { id, error }.
+    // A marker's actions are of the kinds a slide's are (src/actions.h).
+    // (A new marker is a colour of the palette its media's markers have not, at random:
+    // see playbackmarkers::newColor.)
+    Q_INVOKABLE QVariantMap addMarker(const QVariantMap &place, double time);
+    // The colours the marker menu offers by name (playbackmarkers::palette)
+    Q_INVOKABLE QVariantList markerPalette() const;
+    Q_INVOKABLE QString changeMarker(const QVariantMap &place, const QString &id, const QVariantMap &changes);
+    Q_INVOKABLE QString removeMarker(const QVariantMap &place, const QString &id);
+    Q_INVOKABLE QVariantMap duplicateMarker(const QVariantMap &place, const QString &id);
+    Q_INVOKABLE QString addMarkerAction(const QVariantMap &place, const QString &id, const QVariantMap &action);
+    Q_INVOKABLE QString changeMarkerAction(const QVariantMap &place, const QString &id, const QString &actionId, const QVariantMap &action);
+    Q_INVOKABLE QString removeMarkerAction(const QVariantMap &place, const QString &id, const QString &actionId);
     // What a row's Media Inspector sets (src/mediasettings.h), and the row's media
     // replaced by another file, keeping what mediasettings::carryOver keeps.
     Q_INVOKABLE QString setMediaItemSettings(const QString &item, const QVariantMap &changes);
@@ -303,6 +319,8 @@ private:
     void rescan();
     QVariantList listDocuments(const QString &library) const;
     QString afterChange(const QString &error);
+    // Changes the media action of a marker's `place` (see addMarker) by `change`
+    QString changeMarkers(const QVariantMap &place, const std::function<QString(rv::data::Action *)> &change);
     QVariantMap open(const QString &path, const std::optional<QString> &arrangement) const;
 
     QString m_root;

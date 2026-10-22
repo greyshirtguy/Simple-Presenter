@@ -1,7 +1,9 @@
 #include "playlistfile.h"
 
+#include "actions.h"
 #include "audiocue.h"
 #include "mediacue.h"
+#include "playbackmarkers.h"
 #include "mediasettings.h"
 #include "prodocument.h"
 #include "sessionlog.h"
@@ -290,6 +292,11 @@ void addMediaNode(const rv::data::Playlist &node, const QString &parent, int dep
             workspace::mediaBehaviour(action).describe(&row);
             // What follows it, played from its playlist (mediacue.h)
             mediacue::describe(item.cue(), &row);
+            // Its playback markers (playbackmarkers.h), for a row that has any: the map is
+            // every row's
+            const QVariantList markers = playbackmarkers::describe(action, actions::describe);
+            if (!markers.isEmpty())
+                row.insert("markers", markers);
             rows.append(row);
             break;
         }
@@ -340,6 +347,10 @@ void addAudioNode(const rv::data::Playlist &node, const QString &parent, int dep
             {"missing", file.isEmpty()},
         };
         audiocue::read(*action, &item.cue()).describe(&row);
+        // Its playback markers, for a row that has any (playbackmarkers.h)
+        const QVariantList markers = playbackmarkers::describe(*action, actions::describe);
+        if (!markers.isEmpty())
+            row.insert("markers", markers);
         rows.append(row);
     }
     result->items.insert(id, rows);
@@ -463,6 +474,27 @@ rv::data::Action *mediaActionOf(rv::data::PlaylistItem *item)
 }
 
 } // namespace
+
+QString PlaylistFile::changeMediaAction(const QString &root, Kind kind, const QString &itemId,
+                                        const std::function<QString(rv::data::Action *)> &change)
+{
+    if (kind != Media && kind != Audio)
+        return QStringLiteral("Only a row of the media bin or of the audio bin has media");
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    if (!item || !item->has_cue())
+        return QStringLiteral("The playlist no longer has that entry");
+    rv::data::Action *action = kind == Media ? mediaActionOf(item) : audiocue::audioOf(item->mutable_cue());
+    if (!action)
+        return QStringLiteral("That entry has no media");
+    const QString changed = change(action);
+    if (!changed.isEmpty())
+        return changed;
+    return write(root, kind, document);
+}
 
 QString PlaylistFile::setMediaNext(const QString &root, const QString &itemId, const QString &next, const QString &targetId)
 {

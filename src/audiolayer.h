@@ -124,6 +124,9 @@ signals:
     // A piece has come to its end, or, for music the next follows with `crossfade` on,
     // is one fade's length from it.
     void finished(int play);
+    // Playback has reached one of a piece's playback markers (`marker` as
+    // playbackmarkers::describe has it), for its actions to be run (Show.runMarker)
+    void markerReached(int play, const QVariantMap &marker);
 
 private:
     struct Voice
@@ -147,6 +150,10 @@ private:
         bool leaving = false;
         // The show has been told it is at its end
         bool told = false;
+        // Its playback markers, and where it was last looked at, in seconds (see
+        // passMarkers)
+        QVariantList markers;
+        double lastAt = -1;
         // It goes round for so long, and has so long left of that
         QTimer *limit = nullptr;
     };
@@ -154,6 +161,9 @@ private:
     Voice *music();
     // Says, if it is so, that the music's player is another now
     void followMusic();
+    // Says each of a piece's markers that playback has reached since it was last looked
+    // at (the rule is MediaContent's for a video's: see there)
+    void passMarkers(int play);
     void fadeTo(Voice *voice, double level, qint64 ms);
     void leave(Voice *voice, qint64 ms);
     void apply(Voice *voice);

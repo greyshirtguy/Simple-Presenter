@@ -585,6 +585,7 @@ Rectangle {
             pulse: works === "media" ? previewPicture.relay : null
             badged: works !== "audio"
             nothing: works === "audio" ? "No music" : "No media"
+            onMarkersAsked: (item) => sidePanel.win.showTransportMarkers(works, markers, player, item)
         }
     }
 

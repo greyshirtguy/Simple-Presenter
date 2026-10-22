@@ -300,6 +300,10 @@ public:
 
     // Runs a macro by hand.
     Q_INVOKABLE void runMacro(const QString &id);
+    // A playback marker reached by what plays it, or picked from the transport's Marker
+    // menu: its actions are run (see show::State::runMarker). `media` is what it is on,
+    // in a few words, for the log.
+    Q_INVOKABLE void runMarker(const QVariantMap &marker, const QString &media);
 
     // Says which saved look the live look came from, without making anything live: what
     // is known from the workspace's file when it is opened (see show::State::adoptLook).

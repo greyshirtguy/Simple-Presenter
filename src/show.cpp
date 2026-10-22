@@ -547,6 +547,11 @@ void Show::runMacro(const QString &id)
     change([&] { return m_state.runMacro(id, m_workspace); });
 }
 
+void Show::runMarker(const QVariantMap &marker, const QString &media)
+{
+    change([&] { return m_state.runMarker(marker, media, m_workspace); });
+}
+
 QVariant Show::propOf(const QVariantMap &action) const
 {
     return orNull(show::propOf(action, m_workspace));

@@ -6,6 +6,7 @@
 #include "groupedit.h"
 #include "labelfile.h"
 #include "mediasettings.h"
+#include "playbackmarkers.h"
 
 #include "themefile.h"
 
@@ -45,6 +46,10 @@ QVariantMap toMedia(const rv::data::Action &action, workspace::FileFinder *finde
     if (mediasettings::isSet(media))
         map.insert("settings", mediasettings::describe(media));
     workspace::mediaBehaviour(action).describe(&map);
+    // Its playback markers, for media that has any (src/playbackmarkers.h)
+    const QVariantList markers = playbackmarkers::describe(action, actions::describe);
+    if (!markers.isEmpty())
+        map.insert("markers", markers);
     return map;
 }
 
@@ -649,6 +654,17 @@ QString ProDocument::setCueMediaPlayback(const QString &path, const QString &cue
                 workspace::setMediaPlayback(&action, playback, loopCount, loopSeconds);
                 return QString();
             }
+        }
+        return QStringLiteral("That slide has no media");
+    });
+}
+
+QString ProDocument::changeCueMedia(const QString &path, const QString &cueId, const std::function<QString(rv::data::Action *)> &change)
+{
+    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
+        for (rv::data::Action &action : *cue->mutable_actions()) {
+            if (action.isenabled() && isVisualMedia(action))
+                return change(&action);
         }
         return QStringLiteral("That slide has no media");
     });

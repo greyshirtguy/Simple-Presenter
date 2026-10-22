@@ -1,8 +1,10 @@
 #include "clocks.h"
 
 #include "clocktext.h"
+#include "playbackmarkers.h"
 #include "timers.h"
 
+#include <QColor>
 #include <QDateTime>
 #include <QLocale>
 
@@ -126,4 +128,69 @@ void Clocks::noVideo()
     m_videoLeft = -1;
     m_videoLoops = false;
     told();
+}
+
+QString Clocks::markerText(int destination, int which, const QString &name, bool time, int hours, int minutes, int seconds,
+                           int hundredths, bool hundredthsUnderMinuteOnly)
+{
+    m_markerAsked = true;
+    if (!m_markersWatched)
+        settleMarkersWatched();
+    const int layer = qBound(0, destination, 2);
+    const int at = m_held ? -1 : playbackmarkers::pick(m_markers[layer], m_markerAt[layer], which, name);
+    const QVariantMap marker = at >= 0 ? m_markers[layer].at(at).toMap() : QVariantMap();
+    if (!time)
+        return marker.value("name").toString();
+    const Timers::Format format {hours, minutes, seconds, hundredths, hundredthsUnderMinuteOnly};
+    if (marker.isEmpty())
+        return Timers::linked(0, true, format, QString());
+    // To it, counting down; or, once it is passed, from it, counting up
+    const double to = marker.value("time").toDouble() - m_markerAt[layer];
+    return Timers::linked(qAbs(to), to >= 0, format, QString());
+}
+
+QVariant Clocks::markerColor(int destination, int which, const QString &name)
+{
+    m_markerAsked = true;
+    if (!m_markersWatched)
+        settleMarkersWatched();
+    const int layer = qBound(0, destination, 2);
+    const int at = m_held ? -1 : playbackmarkers::pick(m_markers[layer], m_markerAt[layer], which, name);
+    if (at < 0)
+        return {};
+    return QColor(m_markers[layer].at(at).toMap().value("color").toString());
+}
+
+void Clocks::setMarkers(int destination, double position, const QVariantList &markers)
+{
+    const int layer = qBound(0, destination, 2);
+    // Told many times a second while media plays: only a new second, or other markers,
+    // is news (what is shown changes by the second).
+    const bool news = markers != m_markers[layer] || std::floor(qMax(0.0, position)) != std::floor(m_markerAt[layer]);
+    m_markers[layer] = markers;
+    m_markerAt[layer] = qMax(0.0, position);
+    if (!news)
+        return;
+    // Those who show a marker ask again at once; if nobody does, the markers need not
+    // be watched.
+    m_markerAsked = false;
+    ++m_markerRevision;
+    emit markersChanged();
+    if (!m_markerAsked && m_markersWatched)
+        settleMarkersWatched();
+}
+
+// (As the video's is, a moment after and not on the spot: see settleWatched.)
+void Clocks::settleMarkersWatched()
+{
+    if (m_markerSettlePending)
+        return;
+    m_markerSettlePending = true;
+    QMetaObject::invokeMethod(this, [this] {
+        m_markerSettlePending = false;
+        if (m_markerAsked == m_markersWatched)
+            return;
+        m_markersWatched = m_markerAsked;
+        emit markersWatchedChanged();
+    }, Qt::QueuedConnection);
 }

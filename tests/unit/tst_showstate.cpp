@@ -1196,6 +1196,21 @@ private slots:
         QVERIFY(show.runMacro("no such", w).isEmpty());
     }
 
+    void aPlaybackMarkersActionsAreRunAsAMacrosAre()
+    {
+        State show;
+        const Workspace w = workspace();
+        show.showMedia(video("waves.mp4"), "");
+        const QVariantMap marker {{"name", "Lights"}, {"time", 12.5}, {"actions", QVariantList {clearAction(2), macroAction("tidy")}}};
+        const Effects effects = show.runMarker(marker, "the video \"waves.mp4\"", w);
+        QCOMPARE(outside(effects), "nomedia");
+        QVERIFY(!show.hasMedia);
+        QVERIFY(noted(effects, "the marker \"Lights\" of the video \"waves.mp4\": 2 actions"));
+        // One with no name is told by its time; one with no actions does nothing.
+        QVERIFY(noted(show.runMarker({{"time", 3.0}}, "the music", w), "the marker at 3.00 s of the music: 0 actions"));
+        QCOMPARE(outside(show.runMarker({{"time", 3.0}}, "the music", w)), "");
+    }
+
     // A slide's communication actions are handed out to be sent, in their order with
     // its other actions; one of a kind not sent here is only said in the log
     void communicationActionsAreHandedOut()

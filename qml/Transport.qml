@@ -10,6 +10,11 @@ import QtMultimedia
 // playing there is nothing to work, and it is greyed. Which player it is the tabs over
 // it pick (see TransportTabs, in PreviewPanel).
 //
+// Media with playback markers has them drawn on the bar in their colours, as
+// ProPresenter's transport has, and a Marker menu at the right of the buttons, which
+// lists them by time and name: one picked takes the media there and runs its actions
+// (the operator window's showTransportMarkers).
+//
 // What it costs. A player says where it has got to twenty times a second, and anything
 // drawn straight from that is drawn twenty times a second, with the whole operator
 // window around it: measured, that was over half as much work again as playing the
@@ -29,6 +34,11 @@ Item {
     property var media: null
     property bool badged: true
     property string nothing: "No media"
+    // Its playback markers (see playbackmarkers.h), drawn on the bar; and the Marker menu
+    // asked for, by its button (`item`), which the operator window puts up
+    readonly property var markers: media !== null ? media.markers ?? [] : []
+
+    signal markersAsked(var item)
     // Something that says `relayed` whenever the window is about to be drawn again for
     // the video's sake anyway, or null: the preview's FrameRelay
     property var pulse: null
@@ -182,6 +192,27 @@ Item {
                     when: !slider.pressed
                     value: transport.position
                 }
+
+                // The playback markers, each a mark of its colour on the bar, outlined
+                // so as to be seen on the part played as well. (Moved in the Media
+                // Inspector, where they are made, and not here, where the media is live.)
+                Repeater {
+                    model: transport.working ? transport.markers : []
+
+                    delegate: Rectangle {
+                        required property var modelData
+
+                        objectName: "transportMarkerMark"
+                        x: slider.leftPadding + Math.min(1, modelData.time * 1000 / transport.duration) * slider.availableWidth - 2.5
+                        y: slider.height / 2 - 8
+                        width: 5
+                        height: 16
+                        radius: 1.5
+                        color: modelData.color
+                        border.width: 1
+                        border.color: "#15161a"
+                    }
+                }
             }
 
             Text {
@@ -229,6 +260,25 @@ Item {
                 text: "+15"
                 available: transport.working
                 onClicked: transport.seek(transport.player.position + 15000)
+            }
+
+            // The Marker menu, for media that has markers: a marker's mark on a button
+            IconButton {
+                id: markerButton
+
+                objectName: "transportMarkers"
+                width: 30
+                visible: transport.markers.length > 0
+                available: transport.working
+                onClicked: transport.markersAsked(markerButton)
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 9
+                    height: 9
+                    rotation: 45
+                    color: markerButton.ink
+                }
             }
         }
     }

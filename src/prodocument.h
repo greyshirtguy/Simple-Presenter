@@ -9,6 +9,7 @@
 #include <optional>
 
 namespace rv::data {
+class Action;
 class Cue;
 class Slide;
 }
@@ -154,6 +155,10 @@ struct ProDocument
     // Sets how the video the cue triggers plays on from its end (see
     // workspace::MediaBehaviour), and writes the file back.
     static QString setCueMediaPlayback(const QString &path, const QString &cueId, int playback, int loopCount, double loopSeconds);
+    // Changes a slide's media action (the action its picture or video is played by) by
+    // `change`, which returns an error message: what its playback markers are changed
+    // through (playbackmarkers.h).
+    static QString changeCueMedia(const QString &path, const QString &cueId, const std::function<QString(rv::data::Action *)> &change);
     // What the Media Inspector sets of the media the cue triggers (the same media its
     // slide's `media` is read from), as mediasettings::apply takes changes; and that
     // media replaced by another file, keeping what mediasettings::carryOver keeps. Each

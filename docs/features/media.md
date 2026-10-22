@@ -144,7 +144,8 @@ be shown, in the shape of the screen (or of the element), with every setting as 
 set, effects and all; for a video, under it, a player of its own, silent, with play and
 pause (and the space bar), a bar to move through the video on, the time gone and the
 time left, the part of it that plays marked in blue under the bar and the moment its
-picture is taken from as a white mark over it. On the right are three tabs:
+picture is taken from as a white mark over it. On the right are three tabs, and a
+fourth for a video, **Playback Markers** (see [Playback markers](playback-markers.md)):
 
 - **Information**: where the file is, with **Show in Folder** (which opens the folder in
   the desktop's file manager, the file picked out where the file manager can do that)

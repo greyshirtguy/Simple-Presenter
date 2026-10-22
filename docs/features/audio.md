@@ -51,6 +51,10 @@ Along the bottom of the bin:
   changed. It is how long a crossing takes, and how long the audio takes to go out
   when it is cleared. With no length, clearing stops it at once.
 
+**A piece can have [playback markers](playback-markers.md)**: points in it whose actions
+run as it plays them. **Inspector** in its right-click menu has them, in the Media
+Inspector's Playback Markers tab, which is the only tab a piece of audio has there.
+
 **The music has a [transport](media.md#the-transport)**, the last of the three tabs over
 the transport under the preview, with the audio bin's notes: how far in the music is and
 how much is left, a slider to move it, and buttons to go back to its start, to pause it

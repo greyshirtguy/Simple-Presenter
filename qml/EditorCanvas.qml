@@ -143,6 +143,9 @@ Item {
             return "System Clock"
         case "videoCountdown":
             return "Video Countdown"
+        case "marker":
+            return (element.linkMarkerTime ? "Time to " : "Name of ") + ["the first", "the previous", "the next", "the last", "“" + element.linkMarkerName + "”"][element.linkMarkerWhich ?? 2]
+                 + " marker: " + ["Presentation", "Announcements", "Audio"][element.linkMarkerDestination ?? 0]
         case "stageMessage":
             return "Stage Message"
         case "other":
@@ -404,6 +407,7 @@ Item {
                                                          + (element.linkSlideNext ? "next" : "live")
                     : element.linkKind === "clock" ? "the system clock"
                     : element.linkKind === "videoCountdown" ? "how long a video has left"
+                    : element.linkKind === "marker" ? "a playback marker's " + (element.linkMarkerTime ? "time" : "name")
                     : element.linkKind === "stageMessage" ? "what the stage is being told"
                     : "a " + element.linkLabel.toLowerCase() + ", set up in ProPresenter")
                  + ", so it has no text of its own to edit. Its font and colour can still be changed.")

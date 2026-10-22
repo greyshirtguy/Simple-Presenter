@@ -2006,6 +2006,75 @@ def after_transports(workspace, test_dir):
     ]
 
 
+def prepare_markers(workspace, test_dir):
+    """The playback markers' test (markers): a media bin of the test's own (TRANSPORT_BIN's form) with one playlist
+    "Run" of a white video of twelve seconds that stops at its end and a still, made with ffmpeg in the test's folder;
+    and an audio bin with a tone of ten seconds. What each bin file was is kept (markers-media-before,
+    markers-audio-before). Nothing is written outside the test's folder, and nothing under the copy's Media."""
+    playlists = os.path.join(workspace, "Playlists")
+    if not os.path.realpath(playlists).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("the markers' test would write outside its own folder: " + os.path.realpath(playlists))
+    videos = os.path.join(test_dir, "videos")
+    os.makedirs(videos)
+    make_video(os.path.join(videos, "Count.mp4"), 12, "white", test_dir)
+    rows = VIDEO_ROW % {"id": "0F0F0F0F-0000-0000-0000-%012d" % 1, "name": "Count", "file": "Count.mp4", "seconds": 12,
+                        "address": "file://" + urllib.parse.quote(os.path.join(videos, "Count.mp4")), "loop": ""}
+    with open(os.path.join(videos, "Still.png"), "wb") as out:
+        out.write(quarters_png(320, 180, [(255, 255, 0)] * 4))
+    rows += media_row(9, "Still", "Still.png", videos)
+    with open(os.path.join(playlists, "Media"), "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (TRANSPORT_BIN % {"rows": rows}).encode()))
+    shutil.copy(os.path.join(playlists, "Media"), os.path.join(test_dir, "markers-media-before"))
+    sounds = os.path.join(test_dir, "sounds")
+    os.makedirs(sounds)
+    write_tone(os.path.join(sounds, "Tune.wav"), 10.0, 440, 0.25, 0.25, test_dir)
+    before = audio_row(1, "Tune", "Tune.wav", 10, sounds, target=False)
+    with open(os.path.join(playlists, "Audio"), "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (AUDIO_BIN % {"before": before, "effects": ""}).encode()))
+    shutil.copy(os.path.join(playlists, "Audio"), os.path.join(test_dir, "markers-audio-before"))
+
+
+def after_markers(workspace, test_dir):
+    """The bins once the test has given their rows playback markers, read with protoc and not by the app: the video's
+    two markers on its media action, in the order of their times, as ProPresenter's message has them (the first named,
+    red, at two and a half seconds, clearing the slide; the second at about six, putting a prop on), the duplicate made
+    and deleted gone; the tone's one marker, clearing the props; and each file otherwise as it was given."""
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.PlaylistDocument", "propresenter.proto", source.read()).decode()
+
+    def markers(text):
+        return [m.group(0) for m in re.finditer(r"^( *)markers \{\n(?:.*\n)*?\1\}\n", text, re.M)]
+
+    def without(text):
+        for block in markers(text):
+            text = text.replace(block, "", 1)
+        return text
+
+    media_was = decoded(os.path.join(test_dir, "markers-media-before"))
+    media_now = decoded(os.path.join(workspace, "Playlists", "Media"))
+    audio_was = decoded(os.path.join(test_dir, "markers-audio-before"))
+    audio_now = decoded(os.path.join(workspace, "Playlists", "Audio"))
+    video = markers(media_now)
+    tone = markers(audio_now)
+    first = video[0] if len(video) == 2 else ""
+    second = video[1] if len(video) == 2 else ""
+    time = lambda block: float(re.search(r"\n\s*time: ([0-9.e+-]+)", block).group(1)) if re.search(r"\n\s*time: ", block) else 0
+    return [
+        said(len(video) == 2, "the video has two markers, the duplicate made and deleted being gone", len(video)),
+        said('name: "Lights"' in first and abs(time(first) - 2.5) < 0.05 and "red: 0.898" in first and "type: ACTION_TYPE_CLEAR" in first
+             and re.search(r"uuid \{\n\s*string: \"[0-9A-F-]{36}\"", first) is not None,
+             "the first is named, red, at two and a half seconds, with an id, and clears", first[:600]),
+        said(abs(time(second) - 6.0) < 0.4 and "type: ACTION_TYPE_PROP" in second and "name:" not in second.split("actions {")[0],
+             "the second is at about six seconds, with no name, and puts a prop on", second[:600]),
+        said(len(tone) == 1 and abs(time(tone[0]) - 1.0) < 0.3 and "type: ACTION_TYPE_CLEAR" in tone[0],
+             "the tone has its one marker, at about a second, clearing", tone[0][:400] if tone else "none"),
+        said(media_now.index("markers {") > media_now.index("video {") if "markers {" in media_now else False,
+             "the markers are the media action's, beside its media", ""),
+        said(without(media_now) == media_was and without(audio_now) == audio_was, "and the rest of both files is as it was given"),
+    ]
+
+
 def prepare_playacts(workspace, test_dir):
     """The test's own media bin (MEDIA_BIN: two pictures of one colour each, red and green, in the test's folder),
     audio bin (AUDIO_BIN, with two short tones before the service, each followed by the next, and a sound effect),
@@ -2887,6 +2956,7 @@ TESTS = {
     "devices": test("Act", timeout=300, env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_devices, after=after_devices),
     "playacts": test("Act", timeout=300, prepare=prepare_playacts, after=after_playacts),
     "transports": test("Act", timeout=300, prepare=prepare_transports, after=after_transports),
+    "markers": test("Act", timeout=360, prepare=prepare_markers, after=after_markers),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

@@ -65,6 +65,8 @@ qt_add_executable(SimplePresenter
     src/audiocue.h
     src/mediacue.cpp
     src/mediacue.h
+    src/playbackmarkers.cpp
+    src/playbackmarkers.h
     src/audioprobe.cpp
     src/audioprobe.h
     src/playlistfile.cpp

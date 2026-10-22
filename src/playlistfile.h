@@ -5,6 +5,8 @@
 #include <QStringList>
 #include <QVariantList>
 
+#include <functional>
+
 namespace rv::data {
 class Action;
 }
@@ -134,6 +136,12 @@ struct PlaylistFile
                             const QString &targetId = {}, bool after = false);
     // Makes a row a background or a foreground (see workspace::MediaBehaviour).
     static QString setMediaForeground(const QString &root, const QString &itemId, bool foreground);
+    // Changes the media action of a row of the media bin (`kind` Media) or of the audio
+    // bin (Audio) by `change`, which returns an error message, and writes the file if
+    // there is none: what a row's playback markers are changed through
+    // (playbackmarkers.h).
+    static QString changeMediaAction(const QString &root, Kind kind, const QString &itemId,
+                                     const std::function<QString(rv::data::Action *)> &change);
     // What follows a row when its video has played to its end (see mediacue.h): `next`
     // "" for nothing, "next", "random", "first", or "cue" with `targetId` the row to go
     // to. Anything to follow makes the row's video stop at its end.

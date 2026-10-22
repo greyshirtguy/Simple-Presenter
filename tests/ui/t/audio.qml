@@ -260,7 +260,7 @@ QtObject {
 
             // ---- A row's menu
             () => {
-                check("a right click on a piece has how it plays on, what it is, and taking it out", labels() === "[Playback], Stop, Loop, *Next, [Type], *Music, Sound Effect, [Playlist], Remove from Playlist", labels())
+                check("a right click on a piece has how it plays on, what it is, its Inspector, and taking it out", labels() === "[Playback], Stop, Loop, *Next, [Type], *Music, Sound Effect, Inspector, [Playlist], Remove from Playlist", labels())
                 click(menuRow("Stop"))
                 return 400
             },

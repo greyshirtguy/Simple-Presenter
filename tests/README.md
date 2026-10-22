@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are thirty-seven:
+So far there are thirty-eight:
 
 | Test | What it tries |
 | --- | --- |
@@ -52,6 +52,7 @@ So far there are thirty-seven:
 | `tst_showstate` | The rules of the show (`src/showstate.h`): what a slide going live puts on the output and in what order, when the media it brings is started and when what is playing is left to, what a slide's actions do, what clearing leaves, what a clear group clears, how props stack and give way, what a macro does, where a step takes the show, Next and a click on the slide running its On Click builds before it goes on, a slide's communication actions handed out to be sent, how the show follows a presentation that is read again, and one that is renamed under it; and the audio layer: music one at a time, sound effects over it and each other, what follows a piece that has ended, and what clears which; the messages: several at once, one that goes by itself after its time, what clears them, and an action that shows one; and what the stage is told; the announcements: a presentation sent there goes to their layer, with media of its own under its slide, and the show stays where it was, what clears them, and stepping from where they are; and going on by itself: a slide's Go To Next Timer and its presentation's Slide Show, which of them wins, what stops it, the show and the announcements each by their own time, and a presentation that would never stop being stopped; and an action that plays a playlist of either bin: from its first row that is here, or the one it names, found by its id or its name, left to play on when the playlist is playing (whichever of its rows), started again from the first with Always Retrigger, music so played followed by the next; a message shown with the words an action gives its tokens; and a video of a media playlist that has played to its end followed as its Next Cue says (the next with a file, the first, a row it names, one at random), only where it was played from its playlist and is still the one on the layer |
 | `tst_audiocue` | How a piece of audio plays (`src/audiocue.h`), on a row of the audio bin made as ProPresenter writes one: whether it stops, goes round or is followed by the next, whether it is music or a sound effect, how loud and how long; each of those changed, with a look at what else of the row is still as it was, to the byte; and what a new row is given |
 | `tst_mediacue` | What follows a row of a media playlist when its video ends, ProPresenter's Next Cue (`src/mediacue.h`): a row as ProPresenter writes one read as followed by nothing; each kind read as the cue says it, a cue to go to by its id; anything to follow making the video stop at its end, with the rest of the row as it was; a cue to go to named and taken away again; nothing written that is as asked, or no such thing; and a picture, which has no going round to stop |
+| `tst_playbackmarkers` | ProPresenter's Playback Markers (`src/playbackmarkers.h`), on a media action as ProPresenter writes one: a video or audio takes them and a picture does not; a new one's colour, at random, one its media's others have not; added in the order of their times, and taken away to the byte; renamed, recoloured and moved; their actions added, changed and taken off; a duplicate with ids of its own; and which marker a stage link means (first, previous, next, last, by name) |
 | `tst_audiolevel` | The arithmetic of sound (`src/audiolevel.h`): the loudest sample of each channel of a stretch of sound, however its samples are written; how far up a meter that comes, by decibels, and how the meter rises and falls; and that two pieces crossing are together as loud all the way as either is alone |
 | `tst_clocktext` | How a date and a time are written for a text box linked to the system clock (`src/clocktext.h`): each of the five ways ProPresenter names for each, the twelve and the twenty-four hour clock, both together, in the words of the locale it is given, and where in a pattern the clock goes |
 | `tst_messagefile` | Messages (`src/messagefile.h`), on a file made as ProPresenter wrote the one that was looked at: a message read; a text as its words and its tokens in order; a message made, named, moved and removed; a text with tokens of each kind written as the file keeps them, a token the message has left as it is and one no longer in the text taken out; what a token is given; its theme; how it goes away; and after each, what else of the file is still as it was, to the byte; and what an action that shows a message gives its tokens, read as ProPresenter writes it (a timer token's setting among them), and words given to its text tokens with all else it says kept |
@@ -210,6 +211,19 @@ bin, its tab working it, a sound effect over it not taking its place, paused and
 on from where it was; and with everything cleared, nothing to work. The media bin is
 read with `protoc` after: each row's Next Cue as ProPresenter keeps it, and the rest as
 it was.
+
+And `markers` works playback markers, on a media bin and an audio bin of the test's own
+(a video made with ffmpeg in the test's folder, a still, a tone): the Media Inspector's
+Playback Markers tab for the video and none for the still; markers added at the player
+and by a right click on the bar, each a colour the other has not, renamed, given a
+Clear and a prop's Trigger, coloured from the menu and with Other…'s picker, duplicated,
+deleted, dragged along the bar by its flag (the player following) and moved to the
+player, and a flag clicked; the video played over a live slide, the
+first marker clearing the slide and the second putting the prop on as playback reaches
+them; the transport's marks and its Marker menu; a stage layout's box linked in the
+editor to the previous marker's name in its colour, empty before it and drawn red after;
+and the tone's Inspector, with that tab alone, and its marker run as it plays. The bins
+are read with `protoc` after.
 
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two

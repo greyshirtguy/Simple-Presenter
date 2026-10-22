@@ -120,6 +120,15 @@ Item {
                 ? Clocks.videoText(source.linkTimerHours, source.linkTimerMinutes, source.linkTimerSeconds, source.linkTimerHundredths,
                                    source.linkTimerHundredthsUnderMinute, source.linkVideoIgnoreLooping, source.linkTimerPattern)
                 : ""
+        case "marker":
+            // A playback marker's name, or the time to it, of one layer's media (see
+            // Clocks.markerText): asked again as the revision goes up, which it does by
+            // the second while the media plays and a box asks.
+            return Clocks.markerRevision >= 0
+                ? Clocks.markerText(source.linkMarkerDestination, source.linkMarkerWhich, source.linkMarkerName, source.linkMarkerTime,
+                                    source.linkTimerHours, source.linkTimerMinutes, source.linkTimerSeconds, source.linkTimerHundredths,
+                                    source.linkTimerHundredthsUnderMinute)
+                : ""
         case "stageMessage":
             // What the stage is being told, which is nothing until it is told
             // something (see Show).
@@ -140,6 +149,10 @@ Item {
     // to a timer has `linkColorTriggers` at all (proconvert.cpp), so for any other this
     // is undefined at once.
     readonly property var liveLinkColor: {
+        // (A playback marker's text drawn in the marker's colour, where its link says)
+        if (source.linkKind === "marker")
+            return source.linkMarkerColor === true && Clocks.markerRevision >= 0
+                ? Clocks.markerColor(source.linkMarkerDestination, source.linkMarkerWhich, source.linkMarkerName) : undefined
         const triggers = source.linkColorTriggers
         if (!triggers || triggers.length === 0)
             return undefined

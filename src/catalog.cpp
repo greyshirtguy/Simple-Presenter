@@ -1,8 +1,10 @@
 #include "catalog.h"
 
+#include "actions.h"
 #include "audioprobe.h"
 #include "mediaeffects.h"
 #include "mediasettings.h"
+#include "playbackmarkers.h"
 #include "songimport.h"
 
 #include "playlistimport.h"
@@ -17,6 +19,7 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
+#include <QRandomGenerator>
 #include <QThread>
 #include <QUrl>
 
@@ -687,6 +690,70 @@ QString Catalog::setMediaItemForeground(const QString &item, bool foreground)
 QString Catalog::setMediaItemNext(const QString &item, const QString &next, const QString &target)
 {
     return afterChange(PlaylistFile::setMediaNext(m_root, item, next, target));
+}
+
+QString Catalog::changeMarkers(const QVariantMap &place, const std::function<QString(rv::data::Action *)> &change)
+{
+    const QString kind = place.value("kind").toString();
+    if (kind == QLatin1String("slide"))
+        return ProDocument::changeCueMedia(place.value("path").toString(), place.value("slideId").toString(), change);
+    if (kind == QLatin1String("mediaRow") || kind == QLatin1String("audioRow"))
+        return afterChange(PlaylistFile::changeMediaAction(m_root, kind == QLatin1String("mediaRow") ? PlaylistFile::Media : PlaylistFile::Audio,
+                                                           place.value("item").toString(), change));
+    return QStringLiteral("There is no such media for markers to be on");
+}
+
+QVariantMap Catalog::addMarker(const QVariantMap &place, double time)
+{
+    QString made;
+    const quint32 roll = QRandomGenerator::global()->generate();
+    const QString error = changeMarkers(place, [&](rv::data::Action *media) {
+        return playbackmarkers::add(media, time, workspace::newUuid, &made, roll);
+    });
+    return {{"id", error.isEmpty() ? made : QString()}, {"error", error}};
+}
+
+QVariantList Catalog::markerPalette() const
+{
+    return playbackmarkers::palette();
+}
+
+QString Catalog::changeMarker(const QVariantMap &place, const QString &id, const QVariantMap &changes)
+{
+    return changeMarkers(place, [&](rv::data::Action *media) { return playbackmarkers::change(media, id, changes); });
+}
+
+QString Catalog::removeMarker(const QVariantMap &place, const QString &id)
+{
+    return changeMarkers(place, [&](rv::data::Action *media) { return playbackmarkers::remove(media, id); });
+}
+
+QVariantMap Catalog::duplicateMarker(const QVariantMap &place, const QString &id)
+{
+    QString made;
+    const QString error = changeMarkers(place, [&](rv::data::Action *media) { return playbackmarkers::duplicate(media, id, workspace::newUuid, &made); });
+    return {{"id", error.isEmpty() ? made : QString()}, {"error", error}};
+}
+
+QString Catalog::addMarkerAction(const QVariantMap &place, const QString &id, const QVariantMap &action)
+{
+    return changeMarkers(place, [&](rv::data::Action *media) {
+        rv::data::Action made;
+        const QString error = actions::build(action, &made);
+        return error.isEmpty() ? playbackmarkers::addAction(media, id, made) : error;
+    });
+}
+
+QString Catalog::changeMarkerAction(const QVariantMap &place, const QString &id, const QString &actionId, const QVariantMap &action)
+{
+    return changeMarkers(place, [&](rv::data::Action *media) {
+        return playbackmarkers::changeAction(media, id, actionId, [&](rv::data::Action *each) { return actions::build(action, each); });
+    });
+}
+
+QString Catalog::removeMarkerAction(const QVariantMap &place, const QString &id, const QString &actionId)
+{
+    return changeMarkers(place, [&](rv::data::Action *media) { return playbackmarkers::removeAction(media, id, actionId); });
 }
 
 QString Catalog::setMediaItemSettings(const QString &item, const QVariantMap &changes)

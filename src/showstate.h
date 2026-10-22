@@ -402,6 +402,11 @@ public:
 
     // Runs a macro by hand.
     Effects runMacro(const QString &id, const Workspace &workspace);
+    // A playback marker has been reached by the media playing it, or picked from the
+    // transport's Marker menu (see playbackmarkers.h): its actions are run as a macro's
+    // are. `marker` is { name, time, actions } as playbackmarkers::describe has it, and
+    // `media` what it is on, in a few words, for the log.
+    Effects runMarker(const QVariantMap &marker, const QString &media, const Workspace &workspace);
 
     // Gives a stage screen a layout ("" for the plain view).
     void setStageLayout(const QString &screenId, const QString &layoutId);

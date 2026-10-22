@@ -25,6 +25,16 @@ import SimplePresenterApp
 //    part of it that plays (its in and out points, set from the player or typed).
 //  - Effects: the effects it is drawn with, in order, each switched on and off, taken
 //    off, and with what can be adjusted about it; Add Effect lists ProPresenter's.
+//  - Playback Markers, for a video or a piece of audio (src/playbackmarkers.h): its
+//    markers in the order of their times, each with its colour, its time, its name and
+//    the icons of its actions; Add Marker puts one where the player is, and a right click
+//    on the bar puts one where it was clicked; a click on a marker takes the player
+//    there, and a right click has what can be done to it (Rename, Color, Add Action,
+//    Remove Action, Duplicate, Move to Playhead, Delete: the operator window's
+//    showMarkerMenu). The markers are drawn over the bar too, each a flag of its colour,
+//    which is dragged along it to move the marker (the player following, to show where it
+//    is going), clicked to take the player there, and right-clicked for its menu. A piece
+//    of the audio bin is inspected for its markers alone: it has that tab and no other.
 //
 // Every change is kept as it is made, in the file, as the menus' changes are (a
 // slider's when it is let go: until then it is only shown). Done, Esc or a click outside
@@ -53,7 +63,8 @@ Rectangle {
     // Where it is, in a few words ("Slide 3 of “Abandoned”")
     property string about: ""
     // How changes are kept: { save(changes) → error message, "" when saved;
-    // replace(file) → error message; reread() → the media as the file now has it }
+    // replace(file) → error message; reread() → the media as the file now has it;
+    // place, where the media is, for its playback markers (see Catalog.addMarker) }
     property var keeper: null
     // The effects that can be added (Catalog.mediaEffects()), and the dialog's filter and
     // folder for another file
@@ -72,10 +83,20 @@ Rectangle {
     property bool adding: false
     // Set while a video's player is being started to show its first frame
     property bool settling: false
+    // The playback marker whose name is being typed, by id; "" for none
+    property string renaming: ""
 
     // The preview's own player (for the scripted test, which sets where it is)
     readonly property alias player: previewPlayer
     readonly property bool isVideo: media !== null && media.video === true
+    // A piece of the audio bin, inspected for its markers alone
+    readonly property bool isAudio: media !== null && media.audio === true
+    // Whether it plays for a time, and so has a bar to move along and markers on it
+    readonly property bool timed: isVideo || isAudio
+    readonly property var markers: media && timed ? (media.markers ?? []) : []
+    readonly property var tabChoices: isAudio ? [["markers", "Playback Markers"]]
+                                    : [["information", "Information"], ["properties", "Properties"], ["effects", "Effects"]]
+                                      .concat(isVideo ? [["markers", "Playback Markers"]] : [])
     readonly property real duration: previewPlayer.duration
     readonly property real boxAspect: media && media.box && media.box.width > 0 && media.box.height > 0
                                       ? media.box.width / media.box.height : 16 / 9
@@ -94,7 +115,8 @@ Rectangle {
         settings = media.settings ?? ({})
         pending = ({})
         problem = ""
-        tab = "information"
+        renaming = ""
+        tab = media.audio === true ? "markers" : "information"
         adding = false
         pickedEffect = effects.length > 0 ? effects[0].id : ""
         open = true
@@ -201,6 +223,47 @@ Rectangle {
         const index = effects.findIndex(effect => effect.id === id)
         change({ effects: effects.filter(effect => effect.id !== id) }, false)
         pickedEffect = effects.length > 0 ? effects[Math.min(index, effects.length - 1)].id : ""
+    }
+
+    // A playback marker where the player is (or at `seconds`), and its name typed
+    function addMarker(seconds) {
+        if (!keeper || !keeper.place)
+            return
+        const made = owner.catalog.addMarker(keeper.place, Math.max(0, seconds))
+        problem = made.error
+        Log.note("media", "Media Inspector: a marker added to " + (media?.name ?? "") + " at " + seconds.toFixed(2) + " s"
+                 + (made.error === "" ? "" : ", which failed: " + made.error))
+        reread()
+    }
+
+    // A marker being dragged along the bar, and where it is so far, in seconds; "" for none
+    property string draggedMarker: ""
+    property real draggedTime: 0
+
+    // Where along the bar a marker's flag is: where it is being dragged to, or its time
+    function markerX(marker) {
+        const time = draggedMarker === marker.id ? draggedTime : marker.time
+        return bar.leftPadding + Math.max(0, Math.min(1, time * 1000 / Math.max(1, duration))) * bar.availableWidth
+    }
+
+    // A marker let go of where it was dragged to: kept at its new time
+    function moveMarker(id, seconds) {
+        draggedMarker = ""
+        if (!keeper || !keeper.place)
+            return
+        problem = owner.catalog.changeMarker(keeper.place, id, { time: seconds })
+        Log.note("media", "Media Inspector: a marker of " + (media?.name ?? "") + " dragged to " + seconds.toFixed(2) + " s"
+                 + (problem === "" ? "" : ", which failed: " + problem))
+        reread()
+    }
+
+    function renameMarker(id, name) {
+        renaming = ""
+        if (!keeper || !keeper.place)
+            return
+        problem = owner.catalog.changeMarker(keeper.place, id, { name: name.trim() })
+        reread()
+        focusTaker.forceActiveFocus()
     }
 
     // A time in milliseconds as minutes, seconds and tenths
@@ -389,7 +452,7 @@ Rectangle {
                     id: previewLook
 
                     anchors.fill: parent
-                    visible: panel.media !== null && !panel.media.missing
+                    visible: panel.media !== null && !panel.media.missing && !panel.isAudio
                     settings: panel.settings
                     sourceWidth: panel.isVideo ? previewVideo.sourceRect.width : previewStill.implicitWidth
                     sourceHeight: panel.isVideo ? previewVideo.sourceRect.height : previewStill.implicitHeight
@@ -400,7 +463,7 @@ Rectangle {
                         anchors.fill: parent
                         visible: !panel.isVideo
                         fillMode: previewLook.imageFill
-                        source: panel.open && panel.media && !panel.media.video ? panel.media.source : ""
+                        source: panel.open && panel.media && !panel.media.video && !panel.isAudio ? panel.media.source : ""
                         asynchronous: true
                         sourceSize: Qt.size(1920, 1920)
                     }
@@ -421,13 +484,34 @@ Rectangle {
                     font.pixelSize: 13
                     text: "The file is not on this computer"
                 }
+
+                // A piece of audio: its notes and its name, there being nothing to see
+                Column {
+                    anchors.centerIn: parent
+                    visible: panel.isAudio && panel.media !== null && !panel.media.missing
+                    spacing: 10
+
+                    ProIcon {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        name: "Audio"
+                        ink: "#8d9097"
+                        size: 64
+                    }
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        color: "#d6d8dc"
+                        font.pixelSize: 14
+                        text: panel.media ? panel.media.name ?? "" : ""
+                    }
+                }
             }
 
             MediaPlayer {
                 id: previewPlayer
 
                 // Its own, and silent: the room hears only what is on the screens.
-                source: panel.open && panel.isVideo && !panel.media.missing ? panel.media.source : ""
+                source: panel.open && panel.timed && !panel.media.missing ? panel.media.source : ""
                 videoOutput: previewVideo
                 onPositionChanged: {
                     if (panel.settling && position > 0) {
@@ -444,13 +528,15 @@ Rectangle {
                 anchors.topMargin: 12
                 width: left.width
                 spacing: 6
-                visible: panel.isVideo
+                visible: panel.timed
 
                 // The bar: where the player is, with the part that plays marked in
-                // blue under it, and where the picture is taken from as a white mark
+                // blue under it, and where the picture is taken from as a white mark;
+                // over it, a band for the flags of the playback markers.
                 Item {
                     width: parent.width
-                    height: 26
+                    height: 26 + markerBand
+                    readonly property int markerBand: panel.markers.length > 0 ? 15 : 0
 
                     Rectangle {
                         objectName: "inspectorTrimBar"
@@ -464,10 +550,28 @@ Rectangle {
                         opacity: panel.trimmedIn || panel.settings.trimmedOut ? 1 : 0.35
                     }
 
+                    // The stems of the markers' flags, from their heads (over the slider,
+                    // below) down to the bar, under the slider's handle
+                    Repeater {
+                        model: panel.duration > 0 ? panel.markers : []
+
+                        delegate: Rectangle {
+                            required property var modelData
+
+                            x: panel.markerX(modelData) - 1
+                            y: 10
+                            width: 2
+                            // (to the middle of the slider's track)
+                            height: parent.markerBand + 13 - 10
+                            color: modelData.color
+                            opacity: 0.8
+                        }
+                    }
+
                     Rectangle {
                         visible: (panel.settings.thumbnail ?? -1) > 0 && panel.duration > 0
                         x: bar.leftPadding + Math.min(1, (panel.settings.thumbnail ?? 0) * 1000 / Math.max(1, panel.duration)) * bar.availableWidth - 1
-                        y: 0
+                        y: parent.markerBand
                         width: 2
                         height: 7
                         color: "white"
@@ -477,13 +581,142 @@ Rectangle {
                         id: bar
 
                         objectName: "inspectorScrub"
-                        anchors.fill: parent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 26
                         from: 0
                         to: Math.max(1, panel.duration)
                         value: pressed ? value : previewPlayer.position
                         onMoved: {
                             panel.settling = false
                             previewPlayer.position = value
+                        }
+                    }
+
+                    // A right click on the bar puts a marker where it was clicked.
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.RightButton
+                        enabled: panel.timed && panel.duration > 0 && panel.keeper !== null && panel.keeper.place !== undefined
+                        onClicked: (mouse) => {
+                            const along = Math.max(0, Math.min(1, (mouse.x - bar.leftPadding) / Math.max(1, bar.availableWidth)))
+                            const seconds = along * panel.duration / 1000
+                            panel.owner.showMenu([{ label: "Add Marker Here", run: () => panel.addMarker(seconds) }], this, mouse.x, mouse.y)
+                        }
+                    }
+
+                    // The heads of the markers' flags: each dragged along the bar to move
+                    // its marker, the player following it to show where it is going (let
+                    // go, it is kept there); clicked, the player taken to it; right-clicked,
+                    // its menu. (ProPresenter's help says a marker is moved with Move to
+                    // Playhead; that it can be dragged as well is A GUESS, asked for here.)
+                    Repeater {
+                        model: panel.duration > 0 ? panel.markers : []
+
+                        delegate: Item {
+                            id: flag
+
+                            required property var modelData
+                            readonly property color color: modelData.color
+                            readonly property bool dragged: panel.draggedMarker === modelData.id
+
+                            objectName: "inspectorMarkerMark"
+                            x: panel.markerX(modelData) - width / 2
+                            y: 0
+                            z: dragged ? 1 : 0
+                            width: 20
+                            height: 18
+
+                            // A diamond, as in the list of markers
+                            Rectangle {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: 2
+                                width: 11
+                                height: 11
+                                rotation: 45
+                                radius: 1.5
+                                color: flag.color
+                                border.width: 1
+                                border.color: flag.dragged || flagMouse.containsMouse ? "white" : "#15161a"
+                            }
+
+                            // Where it is going, while it is dragged
+                            Rectangle {
+                                visible: flag.dragged
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: -height - 4
+                                width: draggedTimeText.implicitWidth + 12
+                                height: 20
+                                radius: 4
+                                color: "#15161a"
+                                border.width: 1
+                                border.color: "#5c5f66"
+
+                                Text {
+                                    id: draggedTimeText
+
+                                    anchors.centerIn: parent
+                                    color: "#e6e6e6"
+                                    font.pixelSize: 12
+                                    text: panel.clock(panel.draggedTime * 1000)
+                                }
+                            }
+
+                            MouseArea {
+                                id: flagMouse
+
+                                property real pressedAt: 0
+                                // Whether this press has dragged the marker (and so is no click)
+                                property bool moved: false
+
+                                objectName: "inspectorMarkerHandle"
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                cursorShape: flag.dragged ? Qt.ClosedHandCursor : Qt.SizeHorCursor
+                                preventStealing: true
+                                onPressed: (mouse) => {
+                                    pressedAt = mapToItem(bar, mouse.x, 0).x
+                                    moved = false
+                                }
+                                onPositionChanged: (mouse) => {
+                                    if (!pressed || !(pressedButtons & Qt.LeftButton))
+                                        return
+                                    const along = mapToItem(bar, mouse.x, 0).x
+                                    if (!flag.dragged && Math.abs(along - pressedAt) < 4)
+                                        return
+                                    const seconds = Math.max(0, Math.min(1, (along - bar.leftPadding) / Math.max(1, bar.availableWidth))) * panel.duration / 1000
+                                    panel.draggedTime = seconds
+                                    panel.draggedMarker = flag.modelData.id
+                                    panel.settling = false
+                                    previewPlayer.position = seconds * 1000
+                                }
+                                // Kept once the press is over: keeping it reads the markers
+                                // again, which makes this flag anew.
+                                onReleased: (mouse) => {
+                                    if (!flag.dragged)
+                                        return
+                                    moved = true
+                                    const id = flag.modelData.id
+                                    const seconds = panel.draggedTime
+                                    Qt.callLater(() => panel.moveMarker(id, seconds))
+                                }
+                                onCanceled: panel.draggedMarker = ""
+                                onClicked: (mouse) => {
+                                    if (moved)
+                                        return
+                                    if (mouse.button === Qt.RightButton) {
+                                        panel.owner.showMarkerMenu(panel.keeper.place, flag.modelData, flag, mouse.x, mouse.y,
+                                                                   previewPlayer.position / 1000, () => panel.reread(),
+                                                                   id => panel.renaming = id)
+                                        return
+                                    }
+                                    panel.settling = false
+                                    previewPlayer.position = flag.modelData.time * 1000
+                                    focusTaker.forceActiveFocus()
+                                }
+                            }
                         }
                     }
                 }
@@ -549,13 +782,13 @@ Rectangle {
                 height: 32
 
                 Repeater {
-                    model: [["information", "Information"], ["properties", "Properties"], ["effects", "Effects"]]
+                    model: panel.tabChoices
 
                     delegate: Rectangle {
                         required property var modelData
 
                         objectName: "inspectorTab-" + modelData[0]
-                        width: tabs.width / 3
+                        width: tabs.width / panel.tabChoices.length
                         height: tabs.height
                         color: panel.tab === modelData[0] ? "#45484e" : tabArea.containsMouse ? "#383a40" : "#323439"
                         border.width: 1
@@ -592,7 +825,8 @@ Rectangle {
                 anchors.bottom: parent.bottom
                 width: parent.width
                 clip: true
-                contentHeight: (panel.tab === "information" ? information : panel.tab === "properties" ? properties : effectsPage).height
+                contentHeight: (panel.tab === "information" ? information : panel.tab === "properties" ? properties
+                                : panel.tab === "markers" ? markersPage : effectsPage).height
                 boundsBehavior: Flickable.StopAtBounds
 
                 // -------- Information
@@ -911,6 +1145,174 @@ Rectangle {
                             font.pixelSize: 12
                             text: panel.duration > 0 ? "Plays " + panel.clock(Math.max(0, panel.playsTo - panel.playsFrom)) + " of " + panel.clock(panel.duration) : ""
                         }
+                    }
+                }
+
+                // -------- Playback Markers
+                Column {
+                    id: markersPage
+
+                    width: page.width
+                    spacing: 8
+                    visible: panel.tab === "markers"
+
+                    Item {
+                        width: parent.width
+                        height: addMarker.height
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#b4b7bd"
+                            font.pixelSize: 13
+                            text: panel.markers.length === 0 ? "No markers" : panel.markers.length + (panel.markers.length === 1 ? " marker" : " markers")
+                        }
+
+                        AppButton {
+                            id: addMarker
+
+                            objectName: "inspectorAddMarker"
+                            anchors.right: parent.right
+                            text: "Add Marker"
+                            enabled: panel.media !== null && panel.keeper !== null && panel.keeper.place !== undefined && !panel.media.missing
+                            opacity: enabled ? 1 : 0.45
+                            onClicked: {
+                                panel.settling = false
+                                panel.addMarker(previewPlayer.position / 1000)
+                            }
+                        }
+                    }
+
+                    Repeater {
+                        model: panel.markers
+
+                        delegate: Rectangle {
+                            id: markerRow
+
+                            required property var modelData
+                            required property int index
+                            readonly property bool typing: panel.renaming === modelData.id
+
+                            objectName: "inspectorMarker:" + index
+                            width: markersPage.width
+                            height: 38
+                            radius: 6
+                            color: markerMouse.containsMouse ? "#3a3c42" : "#323439"
+
+                            MouseArea {
+                                id: markerMouse
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                onClicked: (mouse) => {
+                                    if (mouse.button === Qt.RightButton) {
+                                        panel.owner.showMarkerMenu(panel.keeper.place, markerRow.modelData, markerRow, mouse.x, mouse.y,
+                                                                   previewPlayer.position / 1000, () => panel.reread(),
+                                                                   id => panel.renaming = id)
+                                        return
+                                    }
+                                    // The player taken to it
+                                    panel.settling = false
+                                    previewPlayer.position = markerRow.modelData.time * 1000
+                                    focusTaker.forceActiveFocus()
+                                }
+                            }
+
+                            // Its colour, as a marker's mark is drawn
+                            Rectangle {
+                                id: markerColor
+
+                                x: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 10
+                                height: 10
+                                rotation: 45
+                                color: markerRow.modelData.color
+                            }
+
+                            Text {
+                                id: markerTime
+
+                                x: 32
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 62
+                                color: "#d6d8dc"
+                                font.pixelSize: 13
+                                font.family: "monospace"
+                                text: panel.clock(markerRow.modelData.time * 1000)
+                            }
+
+                            Text {
+                                anchors.left: markerTime.right
+                                anchors.leftMargin: 8
+                                anchors.right: markerActions.left
+                                anchors.rightMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: !markerRow.typing
+                                elide: Text.ElideRight
+                                color: markerRow.modelData.name !== "" ? "#e6e6e6" : "#8d9097"
+                                font.pixelSize: 13
+                                text: markerRow.modelData.name !== "" ? markerRow.modelData.name : "Marker"
+                            }
+
+                            AppTextField {
+                                objectName: "inspectorMarkerName"
+                                anchors.left: markerTime.right
+                                anchors.leftMargin: 8
+                                anchors.right: markerActions.left
+                                anchors.rightMargin: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: markerRow.typing
+                                height: 28
+                                font.pixelSize: 13
+                                text: markerRow.modelData.name
+                                onVisibleChanged: {
+                                    if (visible) {
+                                        forceActiveFocus()
+                                        selectAll()
+                                    }
+                                }
+                                onAccepted: panel.renameMarker(markerRow.modelData.id, text)
+                                Keys.onEscapePressed: {
+                                    panel.renaming = ""
+                                    focusTaker.forceActiveFocus()
+                                }
+                            }
+
+                            // Its actions, each by its icon
+                            Row {
+                                id: markerActions
+
+                                anchors.right: parent.right
+                                anchors.rightMargin: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 3
+
+                                Repeater {
+                                    model: markerRow.modelData.actions
+
+                                    delegate: ActionGlyph {
+                                        required property var modelData
+
+                                        objectName: "inspectorMarkerAction"
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        kind: modelData.kind ?? "other"
+                                        picture: modelData.picture ?? ""
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        visible: panel.markers.length === 0
+                        wrapMode: Text.Wrap
+                        color: "#8d9097"
+                        font.pixelSize: 12
+                        text: "A marker is a point in the media with actions that are run when playback reaches it, or when it is "
+                              + "picked from the transport's Marker menu. Add Marker puts one where the player is; a right click on "
+                              + "the bar puts one where it was clicked."
                     }
                 }
 

@@ -289,6 +289,15 @@ target_include_directories(tst_mediacue PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_mediacue PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME mediacue COMMAND tst_mediacue)
 
+qt_add_executable(tst_playbackmarkers
+    tst_playbackmarkers.cpp
+    ${PROJECT_SOURCE_DIR}/src/playbackmarkers.h
+    ${PROJECT_SOURCE_DIR}/src/playbackmarkers.cpp
+)
+target_include_directories(tst_playbackmarkers PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_playbackmarkers PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
+add_test(NAME playbackmarkers COMMAND tst_playbackmarkers)
+
 qt_add_executable(tst_audiolevel
     tst_audiolevel.cpp
     ${PROJECT_SOURCE_DIR}/src/audiolevel.h

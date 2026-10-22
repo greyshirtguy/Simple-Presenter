@@ -1108,6 +1108,19 @@ Effects State::runMacro(const QString &id, const Workspace &workspace)
     return effects;
 }
 
+Effects State::runMarker(const QVariantMap &marker, const QString &media, const Workspace &workspace)
+{
+    Effects effects;
+    const QVariantList actions = marker.value("actions").toList();
+    const QString name = marker.value("name").toString();
+    const double time = marker.value("time").toDouble();
+    effects << note("marker", (name.isEmpty() ? QStringLiteral("the marker at %1 s").arg(time, 0, 'f', 2)
+                                              : QStringLiteral("the marker ") + quoted(name))
+                                  + QStringLiteral(" of ") + media + QStringLiteral(": ") + actionsWord(actions.size()));
+    runActions(actions, 1, workspace, effects);
+    return effects;
+}
+
 // Runs a list of actions, in order: a slide's, as it goes live, or a macro's. `depth` is
 // how many macros deep this is, a macro being able to run a macro.
 void State::runActions(const QVariantList &actions, int depth, const Workspace &workspace, Effects &effects)

@@ -140,6 +140,11 @@ choose between three ways of working. **Slides** is everything described here.
     ([Stage layouts](stage-layouts.md)), and nothing until it is told something. A tick
     box has the box flash when a message is shown, in the colour beside it: to begin
     with, the red ProPresenter's own layouts flash.
+  - **Playback Marker** shows a [playback marker](playback-markers.md)'s **Marker Name**
+    or the **Time to Marker**: of the presentation's media, the announcements' or the
+    audio's (**Of**), which marker (**First**, **Previous**, **Next**, **Last**, or **By
+    Name**, with the name typed), the time a part at a time as a timer's is, and a tick
+    box for the marker's colour.
 
   A linked box has a yellow outline in the editor, and in small yellow print at its
   foot what it is linked to. Some of this is a guess at ProPresenter, whose own menu

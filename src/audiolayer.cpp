@@ -303,6 +303,11 @@ void AudioLayer::start(const QVariantMap &audio)
     });
     if (!voice->effect && voice->playback == QLatin1String("next"))
         connect(voice->player, &QMediaPlayer::positionChanged, this, [this, play] { nearing(play); });
+    // Its playback markers, for a piece that has any: looked at as the player says where
+    // it is, and for no other
+    voice->markers = audio.value("markers").toList();
+    if (!voice->markers.isEmpty())
+        connect(voice->player, &QMediaPlayer::positionChanged, this, [this, play] { passMarkers(play); });
     if (voice->playback == QLatin1String("loop") && loopSeconds > 0) {
         // One that goes round for a length of time has come to its end when the time is up.
         voice->limit = new QTimer(this);
@@ -349,6 +354,27 @@ void AudioLayer::ended(int play)
         }
         if (tell)
             emit finished(play);
+        return;
+    }
+}
+
+void AudioLayer::passMarkers(int play)
+{
+    for (Voice *voice : std::as_const(m_voices)) {
+        if (voice->play != play || voice->leaving)
+            continue;
+        const double now = voice->player->position() / 1000.0;
+        const double was = voice->lastAt;
+        voice->lastAt = now;
+        // (A jump forward of more than a second, or back but to the first second as going
+        // round is, says nothing of the markers between: see MediaContent.)
+        const double from = now < was ? (now < 1 ? -1 : now) : now - was > 1 ? now : was;
+        const QVariantList markers = voice->markers;
+        for (const QVariant &entry : markers) {
+            const double time = entry.toMap().value("time").toDouble();
+            if (time > from && time <= now)
+                emit markerReached(play, entry.toMap());
+        }
         return;
     }
 }

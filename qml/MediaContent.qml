@@ -64,6 +64,10 @@ Item {
     // number of its playing (`playId`), so that a playing that has gone since is not
     // taken for the one there is now.
     signal ended(int playId)
+    // Playback has reached one of the video's playback markers (`marker` as
+    // playbackmarkers::describe has it), for its actions to be run (Show.runMarker); said
+    // by the scene that plays it, with the number of its playing, as `ended` is.
+    signal markerReached(int playId, var marker)
     // The QVideoSink frames are delivered to while a video is showing, else null
     readonly property var videoSink: content !== null && content.video && loader.item ? loader.item.videoSink : null
     // The MediaPlayer playing the video while one is showing, else null: what a
@@ -206,6 +210,36 @@ Item {
                 Component.onCompleted: {
                     if (movie.inAt <= 0)
                         movie.start()
+                }
+            }
+
+            // Its playback markers (see playbackmarkers.h), for a video that has any. As
+            // playback reaches one it is said, and its actions run. Looked at only for such
+            // a video, as the player says where it is, which is twenty times a second or
+            // so: nothing is asked of the others as they play. A jump forward of more than
+            // a second (the transport moving it) passes the markers in between unsaid, and
+            // one back does too unless it is to the first second, as going round is: then
+            // the markers from the start are said again. (GUESSES at ProPresenter, whose
+            // help says only that they run when playback reaches them.)
+            readonly property var markers: root.content?.markers ?? []
+            property real lastAt: -1
+
+            function passMarkers(now) {
+                const was = lastAt
+                lastAt = now
+                const from = now < was ? (now < 1 ? -1 : now) : now - was > 1 ? now : was
+                for (const marker of markers) {
+                    if (marker.time > from && marker.time <= now)
+                        root.markerReached(root.content?.playId ?? 0, marker)
+                }
+            }
+
+            Connections {
+                target: mediaPlayer
+                enabled: movie.markers.length > 0
+
+                function onPositionChanged() {
+                    movie.passMarkers(mediaPlayer.position / 1000)
                 }
             }
 

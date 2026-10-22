@@ -1381,6 +1381,15 @@ Window {
     // macro with that id. An action is a map as src/actions.h describes; with
     // `existingId` it takes the place of the action that has that id.
     function commitAction(target, action, existingId) {
+        // A playback marker's (see showMarkerMenu): `target.place` is where its media is
+        if (target.marker !== undefined) {
+            Log.note("edit", "an action " + (existingId ? "changed on" : "added to") + " a playback marker: " + action.kind)
+            const done = report(existingId ? catalog.changeMarkerAction(target.place, target.marker, existingId, action)
+                                           : catalog.addMarkerAction(target.place, target.marker, action))
+            if (done && target.after)
+                target.after()
+            return done
+        }
         if (target.macro !== undefined) {
             Log.note("edit", "an action " + (existingId ? "changed in" : "added to") + " a macro: " + action.kind)
             return report(existingId ? Macros.changeAction(target.macro, existingId, action) : Macros.addAction(target.macro, action))
@@ -1396,6 +1405,12 @@ Window {
     }
 
     function removeAction(target, action) {
+        if (target.marker !== undefined) {
+            const done = report(catalog.removeMarkerAction(target.place, target.marker, action.id))
+            if (done && target.after)
+                target.after()
+            return done
+        }
         if (target.macro !== undefined)
             return report(Macros.removeAction(target.macro, action.id))
         const slide = document.slides[target.slide]
@@ -2079,9 +2094,76 @@ Window {
             { header: "Type" },
             { label: "Music", glyph: "music", current: !audio.effect, run: () => type(false) },
             { label: "Sound Effect", glyph: "sound", current: audio.effect, run: () => type(true) },
+            // Its playback markers, in the Media Inspector, which has them alone for audio
+            { label: "Inspector", disabled: audio.missing, run: () => inspectAudioItem(audio) },
             { header: "Playlist" },
             { label: "Remove from Playlist", run: () => report(catalog.removeAudioItem(audio.id)) }
         ], item)
+    }
+
+    // What can be done to a playback marker (see src/playbackmarkers.h), from a right click
+    // on it in the Media Inspector (its row, or its flag over the bar), as ProPresenter's
+    // marker menu has it: Rename, its Color (the palette's, playbackmarkers::palette, or
+    // any with Other…), Add Action (the kinds a slide's actions are), Remove Action, Duplicate, Move
+    // to Playhead (where the inspector's player is, `playhead` seconds) and Delete. (Not
+    // ProPresenter's Cut, Copy and Paste.) `place` is where its media is (see
+    // Catalog.addMarker), `after` reads it again, and `rename` starts its name typed.
+    readonly property var markerColors: catalog.markerPalette()
+
+    function showMarkerMenu(place, marker, item, x, y, playhead, after, rename) {
+        const changed = (error, words) => {
+            Log.note("edit", "the playback marker " + (marker.name !== "" ? quoted(marker.name) : "at " + marker.time.toFixed(2) + " s") + " " + words
+                     + (error === "" ? "" : ", which failed: " + error))
+            report(error)
+            after()
+        }
+        const target = { marker: marker.id, place: place, after: after }
+        const items = [
+            { header: marker.name !== "" ? marker.name : "Marker at " + marker.time.toFixed(2) + " s" },
+            { label: "Rename", run: () => rename(marker.id) },
+            // The palette's, and any other with the system's colour picker, as a slide
+            // label's colour is (A GUESS at ProPresenter's own choices)
+            { label: "Color", items: [{ header: "Color" }].concat(markerColors.map(choice => ({
+                label: choice.name, current: String(marker.color).toLowerCase() === choice.color,
+                run: () => changed(catalog.changeMarker(place, marker.id, { color: choice.color }), "made " + choice.name.toLowerCase()) }))).concat([
+                { divider: true },
+                { label: "Other…", current: !markerColors.some(choice => choice.color === String(marker.color).toLowerCase()), run: () => {
+                    markerColorPicker.chosen = (colour) => changed(catalog.changeMarker(place, marker.id, { color: colour }), "made " + colour)
+                    markerColorPicker.selectedColor = marker.color
+                    markerColorPicker.open()
+                } }
+            ]) },
+            { label: "Add Action", items: [{ header: "Add Action" }].concat(addActionItems(target)) }
+        ]
+        if (marker.actions.length > 0)
+            items.push({ label: "Remove Action", items: [{ header: "Remove Action" }].concat(marker.actions.map(action => ({
+                label: action.title ?? action.kind, glyph: action.kind, picture: action.picture ?? "", run: () => removeAction(target, action) }))) })
+        items.push({ divider: true })
+        items.push({ label: "Duplicate", run: () => changed(catalog.duplicateMarker(place, marker.id).error, "duplicated") })
+        items.push({ label: "Move to Playhead", run: () => changed(catalog.changeMarker(place, marker.id, { time: playhead }), "moved to " + playhead.toFixed(2) + " s") })
+        items.push({ label: "Delete", run: () => changed(catalog.removeMarker(place, marker.id), "deleted") })
+        menu.show(items, item, x, y)
+    }
+
+    // A piece of the audio bin in the Media Inspector, for its playback markers (see
+    // src/playbackmarkers.h): the only tab it has there.
+    function inspectAudioItem(audio) {
+        const playlist = audioPlaylistId
+        const id = audio.id
+        const node = catalog.audioPlaylists.find(p => p.path === playlist)
+        const mediaOf = () => {
+            const row = catalog.audioIn(playlist).find(r => r.id === id)
+            return row ? Object.assign({}, row, { audio: true, video: false, box: { width: 1920, height: 1080 } }) : null
+        }
+        inspectMedia(mediaOf(), "The audio bin" + (node ? ": " + node.name : ""), {
+            save: () => "",
+            replace: () => "Only a piece's markers are set here",
+            reread: mediaOf,
+            place: { kind: "audioRow", item: id }
+        }, () => {
+            if (audioPlaylistId === playlist)
+                audioFiles = catalog.audioIn(playlist)
+        })
     }
 
     function moveAudio(sourceId, targetId, after) {
@@ -2902,7 +2984,8 @@ Window {
         inspectMedia(mediaOf(), "Slide " + (index + 1) + " of “" + document.name + "”", {
             save: (changes) => catalog.setSlideMediaSettings(file, id, changes),
             replace: (path) => catalog.replaceSlideMediaFile(file, id, path),
-            reread: mediaOf
+            reread: mediaOf,
+            place: { kind: "slide", path: file, slideId: id }
         }, () => {
             // The grid shows the media as it is now set: its thumbnail, and what it is.
             if (document && document.path === file)
@@ -2922,7 +3005,8 @@ Window {
         inspectMedia(mediaOf(), "The media bin" + (node ? ": " + node.name : ""), {
             save: (changes) => catalog.setMediaItemSettings(id, changes),
             replace: (path) => catalog.replaceMediaItemFile(id, path),
-            reread: mediaOf
+            reread: mediaOf,
+            place: { kind: "mediaRow", item: id }
         }, () => {
             const scrolledTo = mediaBin.contentY
             if (mediaPlaylistId === playlist)
@@ -3537,6 +3621,41 @@ Window {
     // If it is the playing that is on the layer now, and was played from a media
     // playlist, what follows it there, if anything, is played (ProPresenter's Next Cue:
     // see Show.mediaFinished).
+    // A playback marker of the video on the media layer or on the announcements layer has
+    // been reached, in the scene that plays it: if it is the playing that is on that layer
+    // now, its actions are run (see Show.runMarker). (Not one picked from the transport's
+    // Marker menu a moment ago, which has been run already: playback can come to it
+    // again as the media is taken there.)
+    function markerReached(playId, marker, layer) {
+        const playing = layer === "announcements" ? lastAnnouncementPlayed : lastPlayed
+        if (playing === null || playing.playId !== playId || justPicked(marker))
+            return
+        Show.runMarker(marker, (layer === "announcements" ? "the announcements' video " : "the video ") + quoted(playing.name ?? ""))
+    }
+
+    // The marker last picked from the transport's Marker menu, and when
+    property var pickedMarker: ({ id: "", at: 0 })
+    function justPicked(marker) {
+        return marker.id === pickedMarker.id && Date.now() - pickedMarker.at < 1500
+    }
+
+    // The transport's Marker menu: the media's playback markers by time and name, as
+    // ProPresenter's has them; one picked takes the media there (`player` is what the
+    // transport works) and runs its actions. `layer` is the transport's tab.
+    function showTransportMarkers(layer, markers, player, item) {
+        const clock = (seconds) => Math.floor(seconds / 60) + ":" + String(Math.floor(seconds % 60)).padStart(2, "0")
+        const what = layer === "audio" ? "the audio" : layer === "announcements" ? "the announcements' video" : "the video"
+        menu.show([{ header: "Markers" }].concat(markers.map(marker => ({
+            label: clock(marker.time) + (marker.name !== "" ? "   " + marker.name : ""),
+            run: () => {
+                pickedMarker = { id: marker.id, at: Date.now() }
+                if (player)
+                    player.position = marker.time * 1000
+                Show.runMarker(marker, what + ", from the Marker menu")
+            }
+        }))), item)
+    }
+
     function mediaEnded(playId) {
         if (lastPlayed === null || lastPlayed.playId !== playId || Show.liveMediaPlaylistId === "")
             return
@@ -4083,6 +4202,18 @@ Window {
         }
     }
 
+    // The system's colour picker, for a playback marker's Color → Other… (see
+    // showMarkerMenu): `chosen` is handed the colour picked, as "#rrggbb".
+    ColorDialog {
+        id: markerColorPicker
+
+        property var chosen: (colour) => {}
+
+        objectName: "markerColorPicker"
+        title: "Marker Colour"
+        onAccepted: chosen(String(selectedColor).substring(0, 7).toLowerCase())
+    }
+
     // Presentations go into the library last browsed, playlists where a new one would.
     FileDialog {
         id: songDialog
@@ -4172,6 +4303,7 @@ Window {
                     videoInput: Show.liveVideoInput
                     lookFade: win.lookFade
                     onMediaEnded: (playId) => win.mediaEnded(playId)
+                    onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
                     shader: transitionCatalogue.shaderUrl(win.transition)
                     options: win.transitionUniforms.options
                     tint: win.transitionUniforms.tint
@@ -4215,6 +4347,7 @@ Window {
                         videoInput: Show.liveVideoInput
                         lookFade: win.lookFade
                         onMediaEnded: (playId) => win.mediaEnded(playId)
+                        onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint
@@ -4261,6 +4394,7 @@ Window {
                         videoInput: Show.liveVideoInput
                         lookFade: win.lookFade
                         onMediaEnded: (playId) => win.mediaEnded(playId)
+                        onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint
@@ -4538,6 +4672,52 @@ Window {
         }
     }
 
+    // The same for the playback markers a stage's text box shows (see Clocks.markerText):
+    // each layer's media, where it is and its markers, told only while a box shows one.
+    // The presentation's is the media layer's video, the announcements' the video under
+    // their slide, the audio's the music.
+    readonly property bool markersCounted: Clocks.markersWatched && !clocksHeld
+    readonly property var markedPlayer: markersCounted && output ? output.livePlayer : null
+    readonly property var markedAnnouncementPlayer: markersCounted && output ? output.liveAnnouncementPlayer : null
+
+    function tellMarkers() {
+        if (!markersCounted)
+            return
+        Clocks.setMarkers(0, markedPlayer ? markedPlayer.position / 1000 : 0, markedPlayer && liveMedia ? liveMedia.markers ?? [] : [])
+        Clocks.setMarkers(1, markedAnnouncementPlayer ? markedAnnouncementPlayer.position / 1000 : 0,
+                          markedAnnouncementPlayer && Show.liveAnnouncementMedia ? Show.liveAnnouncementMedia.markers ?? [] : [])
+        Clocks.setMarkers(2, AudioLayer.musicPosition, Show.liveMusic !== null ? Show.liveMusic.markers ?? [] : [])
+    }
+
+    onMarkersCountedChanged: tellMarkers()
+    onMarkedPlayerChanged: tellMarkers()
+    onMarkedAnnouncementPlayerChanged: tellMarkers()
+
+    Connections {
+        target: win.markedPlayer
+
+        function onPositionChanged() {
+            win.tellMarkers()
+        }
+    }
+
+    Connections {
+        target: win.markedAnnouncementPlayer
+
+        function onPositionChanged() {
+            win.tellMarkers()
+        }
+    }
+
+    Connections {
+        target: AudioLayer
+        enabled: win.markersCounted
+
+        function onMusicPositionChanged() {
+            win.tellMarkers()
+        }
+    }
+
     // A piece of audio has come to its end: the show says what follows, which for
     // music that the next of its playlist follows is that, going by the playlist as it
     // is now.
@@ -4546,6 +4726,15 @@ Window {
 
         function onFinished(play) {
             Show.audioFinished(play, win.catalog.audioIn(Show.liveMusicPlaylistId))
+        }
+
+        // A playback marker of a piece that is playing has been reached: its actions run
+        function onMarkerReached(play, marker) {
+            if (win.justPicked(marker))
+                return
+            const playing = Show.liveMusic !== null && Show.liveMusic.play === play ? Show.liveMusic
+                          : Show.liveSounds.find(sound => sound.play === play)
+            Show.runMarker(marker, "the audio " + quoted(playing ? playing.name : ""))
         }
     }
 
@@ -5416,12 +5605,14 @@ Window {
         onClosed: win.takeFocus()
     }
 
-    // The small panel in which a timer action or a stage action is set up
+    // The small panel in which a timer action or a stage action is set up (over the
+    // Media Inspector, for a playback marker's)
     ActionDialog {
         id: actionDialog
 
         anchors.fill: parent
         anchors.topMargin: toolbar.height
+        z: 41
         win: win
         onClosed: win.takeFocus()
     }

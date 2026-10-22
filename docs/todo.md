@@ -105,6 +105,10 @@ the top of the [README](../README.md).
       inputs, and NDI sources, as inputs; ProPresenter's audio Delay, channel levels
       and routing for an input's sound; and the settings ProPresenter has for a
       card's inputs.
+- [ ] **Playback markers**: they are there (see [Playback markers](features/playback-markers.md)).
+      Still to come: Cut, Copy and Paste of markers; dragging an action, a show control
+      or a file onto a marker, or under the list for a marker of its own; and the link
+      that colours a shape by a marker.
 - [ ] **The audio bin**: it is there (see [Audio](features/audio.md)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, how loud it
       is, and its own fades, which ProPresenter's inspector sets and which are kept
@@ -119,7 +123,6 @@ experiment.
 
 - [ ] **A simple help file**: the app's own features explained in one place, in the app
 - [ ] **Clear to logo**
-- [ ] **Playback markers**
 - [ ] **Timer markers** (an idea of my own)
 - [ ] **Text formatter**
 - [ ] **CCLI**: a song's details edited, and the ways of showing them
