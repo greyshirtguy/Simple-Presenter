@@ -106,10 +106,10 @@ QtObject {
                 const tabs = ["media", "announcements", "audio"].map(tab)
                 check("over the transport are three tabs, pictures and no words", tabs.every(x => x !== null && x.visible && texts(x).length === 0)
                       && tabs.every(x => x.mapToItem(null, 0, 0).y < transport().mapToItem(null, 0, 0).y))
-                check("the media's, a picture in a frame drawn here; the announcements', ProPresenter's megaphone; the audio's, the audio bin's notes",
-                      Lib.findAll(tabs[0], i => i.preferredRendererType !== undefined && i.visible).length === 1
-                      && Lib.find(tabs[1], i => i.inkName !== undefined && i.name === "Announcements" && i.status === Image.Ready && i.visible) !== null
-                      && Lib.find(tabs[2], i => i.kind === "music" && i.size !== undefined && i.visible) !== null)
+                const picture = (tab) => Lib.find(tab, i => i.inkName !== undefined && i.status === Image.Ready && i.visible)
+                check("the presentation's, ProPresenter's slide; the announcements', its megaphone; the audio's, its joined notes",
+                      ["Presentation", "Announcements", "Audio"].every((name, i) => picture(tabs[i]) !== null && picture(tabs[i]).name === name),
+                      tabs.map(x => picture(x) ? picture(x).name : "none").join())
                 check("the media's is picked, and none has anything playing", tabs[0].picked && !tabs[1].picked && !tabs[2].picked && tabs.every(x => !x.live)
                       && texts(transport()).includes("No media"), texts(transport()).join(" | "))
                 const corner = tabs[0].mapToItem(null, 3, tabs[0].height / 2)

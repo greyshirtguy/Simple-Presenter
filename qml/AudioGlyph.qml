@@ -4,10 +4,12 @@ import QtQuick.Shapes
 // The pictures of the audio bin, which are this app's own drawings: ProPresenter's
 // pack has a picture of clearing the audio and none of the audio itself (see
 // icons/README.md), so these are drawn to go with that one, which is two eighth notes
-// joined by a beam with a crossed circle over them.
+// joined by a beam with a crossed circle over them. (The tabs of the audio bin and of
+// the music's transport have ProPresenter's own picture of the notes, which the
+// maintainer gave: Audio, in icons/. These are for the rest: a row of the bin, and an
+// action's icon.)
 //
-//   music   two eighth notes joined by a beam: a piece of music, and the audio bin
-//           itself (its tab in the show controls)
+//   music   two eighth notes joined by a beam: a piece of music
 //   sound   a jagged line, as a short loud sound is drawn: a sound effect
 //   next    an arrowhead running up against a bar: a piece that is followed by the
 //           next of its playlist

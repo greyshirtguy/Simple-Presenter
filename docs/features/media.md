@@ -125,12 +125,12 @@ messages (F6), the props (F4), the announcements, the slide (F2), the media (F3)
 a slider that can be dragged to move it, and buttons to go back to the start, to play or
 pause, and to skip fifteen seconds back or on. Over it is a thin strip of three tabs,
 pictures and no words, which pick what it works, as ProPresenter's tabs over its
-transport do: the video on the **media** layer (what a slide or the media bin plays), the
-video on the **announcements** layer (one under an [announcement](announcements.md)'s
-slide), and the **audio** bin's music (not its sound effects, which have no transport).
-Their pictures are those of the three layers' clears without the crossed circle:
-ProPresenter's megaphone, and for the media and the music this app's own drawings, its
-pack having no such pictures. The tab picked is lit, and one whose layer has something
+transport do: the **presentation**'s, which is the video on the media layer (what a
+slide or the media bin plays), the video on the **announcements** layer (one under an
+[announcement](announcements.md)'s slide), and the **audio** bin's music (not its sound
+effects, which have no transport). Their pictures are ProPresenter's: a slide, the
+megaphone and the joined notes, those of the three layers' clears without the crossed
+circle. The tab picked is lit, and one whose layer has something
 playing is drawn brighter than one with nothing. Which is picked is the operator's to
 choose: nothing turns to a tab by itself (a guess at ProPresenter, which may).
 

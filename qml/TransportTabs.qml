@@ -1,17 +1,16 @@
 import QtQuick
-import QtQuick.Shapes
 import SimplePresenterApp
 
 // The thin strip of tabs over the transport, which pick what it works, as ProPresenter
-// has tabs over its own: the video on the media layer (what a slide or the media bin
-// plays), the video on the announcements layer, and the audio bin's music (not its sound
-// effects, which have no transport). Pictures and no words.
+// has tabs over its own: the presentation's, which is the video on the media layer (what
+// a slide or the media bin plays), the video on the announcements layer, and the audio
+// bin's music (not its sound effects, which have no transport). Pictures and no words.
 //
 // The pictures are those of clearing each of the three layers, without the crossed
-// circle: ProPresenter's megaphone for the announcements, which its pack has; and,
-// where the pack has none but the clear (see icons/README.md), this app's own drawings
-// of the same, the picture in a frame for the media and the joined notes of the audio
-// bin's tab for the music.
+// circle, as ProPresenter's tabs have them: its slide for the presentation's (the
+// presentation destination, whose media is the media layer's), its megaphone for the
+// announcements, and its joined notes for the audio (see icons/README.md for where
+// each is from).
 //
 // The tab picked is lit, and a tab whose layer has something playing that the transport
 // could work is drawn brighter than one with nothing, so that what is playing can be
@@ -49,45 +48,11 @@ Row {
             radius: 4
             color: picked ? "#3a3c42" : mouse.containsMouse ? "#2a2c31" : "transparent"
 
-            // The media's: a picture in a frame, a hill and the sun in it
-            Shape {
-                anchors.centerIn: parent
-                width: 18
-                height: 16
-                visible: tab.modelData === "media"
-                preferredRendererType: Shape.CurveRenderer
-
-                ShapePath {
-                    strokeColor: tab.ink
-                    strokeWidth: 1.4
-                    fillColor: "transparent"
-                    joinStyle: ShapePath.RoundJoin
-
-                    PathSvg { path: "M 3 1.5 H 15 A 1.5 1.5 0 0 1 16.5 3 V 13 A 1.5 1.5 0 0 1 15 14.5 H 3 A 1.5 1.5 0 0 1 1.5 13 V 3 A 1.5 1.5 0 0 1 3 1.5 Z" }
-                }
-
-                ShapePath {
-                    strokeColor: "transparent"
-                    fillColor: tab.ink
-
-                    PathSvg { path: "M 3 13 L 7 7.5 L 9.8 11 L 11.8 8.8 L 15 13 Z M 7.6 5 A 1.4 1.4 0 1 1 4.8 5 A 1.4 1.4 0 1 1 7.6 5 Z" }
-                }
-            }
-
             ProIcon {
                 anchors.centerIn: parent
-                visible: tab.modelData === "announcements"
-                name: "Announcements"
+                name: tab.modelData === "media" ? "Presentation" : tab.modelData === "announcements" ? "Announcements" : "Audio"
                 ink: tab.ink
                 size: 18
-            }
-
-            AudioGlyph {
-                anchors.centerIn: parent
-                visible: tab.modelData === "audio"
-                kind: "music"
-                ink: tab.ink
-                size: 17
             }
 
             MouseArea {

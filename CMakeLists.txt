@@ -401,6 +401,8 @@ qt_add_resources(SimplePresenter "icons"
         icons/Macro.png
         icons/Message.png
         icons/VideoInput.png
+        icons/Audio.png
+        icons/Presentation.png
         icons/Prop.png
         icons/Screens.png
         icons/ScreensOn.png

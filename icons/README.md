@@ -2,8 +2,8 @@
 
 These are the pictures ProPresenter has for things this app has too: a look, the
 screens, the stage, a timer, a prop, a macro, a message, a presentation's
-arrangements, the announcements, a video input, clearing each layer, and playing and
-pausing. The app
+arrangements, the announcements, a video input, the audio, a presentation, clearing
+each layer, and playing and pausing. The app
 shows them in the toolbar, on the buttons that clear a layer, on the tabs of the show
 controls, on the button over the slides that opens the arrangements, beside a
 presentation that is sent to the announcements, and wherever an action on a slide or in
@@ -23,8 +23,13 @@ The icon pack published with the Bitfocus Companion module for ProPresenter's AP
     IconPack.zip, in the root of that repository
 
 That repository is under the MIT licence, which is given whole at the foot of this
-page, as it asks. The pack has forty pictures; the twenty-one here are the ones the app
-uses.
+page, as it asks. The pack has forty pictures; twenty-one of those here are the ones the
+app uses.
+
+Two more, `Audio.png` and `Presentation.png`, are not in the pack: the maintainer gave
+them, made to go with the pack's (the pictures of clearing the audio and the slide,
+without the crossed circle), as the audio bin's tab and the pictures of the tabs over
+the transport. They are made as the others are, and asked for by name the same way.
 
 ## How these files were made
 

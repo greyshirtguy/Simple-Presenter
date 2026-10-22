@@ -122,11 +122,10 @@ QtObject {
                 check("that group is the one every workspace starts with: this workspace has no file of clear groups, and is not given one for being shown it",
                       ClearGroups.groups.length === 1 && ClearGroups.groups[0].layers.length === 8 && !testInput.exists(catalog.workspacePath + "/Configuration/ClearGroups"))
                 const tabs = Lib.findAll(sidePanel, i => i.chosen !== undefined && i.modelData !== undefined && i.modelData.picture !== undefined)
-                check("and so are the tabs of the show controls: a timer, a pile of layers, a speaker at a lectern, an M in brackets, and for the messages a paper plane",
-                      tabs.map(pictureOf).join() === "Countdown,Prop,Stage,Macro,none,Message", tabs.map(pictureOf).join())
-                // (The fifth, the audio bin's, has no picture in ProPresenter's pack: it is drawn here.)
-                check("and the audio bin's, which is two joined notes drawn here", tabs.length === 6 && tabs[4].modelData.id === "audio"
-                      && Lib.findAll(tabs[4], i => i.kind === "music" && i.size !== undefined && i.ink !== undefined).length === 1)
+                check("and so are the tabs of the show controls: a timer, a pile of layers, a speaker at a lectern, an M in brackets, two joined notes for the audio, and for the messages a paper plane",
+                      tabs.map(pictureOf).join() === "Countdown,Prop,Stage,Macro,Audio,Message", tabs.map(pictureOf).join())
+                check("(the audio bin's being its fifth, and drawn here no longer)", tabs.length === 6 && tabs[4].modelData.id === "audio"
+                      && Lib.findAll(tabs[4], i => i.kind === "music" && i.size !== undefined && i.ink !== undefined).length === 0)
                 const pictures = Lib.findAll(win.contentItem, i => i.inkName !== undefined && i.name !== undefined && i.name !== "")
                 check("every one of those pictures that is asked for anywhere in the window is there to be had", pictures.length >= 10
                       && pictures.every(p => p.status === Image.Ready && p.implicitWidth > 0),

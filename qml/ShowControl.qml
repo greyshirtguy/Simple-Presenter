@@ -11,8 +11,8 @@ import QtQuick
 // The tabs are a row of buttons across the whole width, pictures and not words, as
 // ProPresenter's are, and the pictures are ProPresenter's own: its timer, its pile of
 // layers for the props, its speaker at a lectern for the stage, its M in brackets for
-// the macros, its paper plane for the messages. (The audio bin's, two joined notes, is
-// drawn here: ProPresenter's pack has no picture of it. See AudioGlyph.) The one whose
+// the macros, its two joined notes for the audio bin (the maintainer's, the pack having
+// none: see icons/README.md), its paper plane for the messages. The one whose
 // tab is showing is blue. (A GUESS: where the messages' tab stands among ProPresenter's
 // own. It is the last here, being the last that was made.) Under them,
 // at the right, is the button that adds to what the tab holds.
@@ -39,7 +39,7 @@ Item {
         { id: "props", name: "Props", picture: "Prop" },
         { id: "stage", name: "Stage", picture: "Stage" },
         { id: "macros", name: "Macros", picture: "Macro" },
-        { id: "audio", name: "Audio", picture: "" },
+        { id: "audio", name: "Audio", picture: "Audio" },
         { id: "messages", name: "Messages", picture: "Message" }
     ]
 
@@ -79,18 +79,6 @@ Item {
                     name: button.modelData.picture
                     ink: button.ink
                     size: 25
-                }
-
-                // The audio bin's, which is drawn here
-                Loader {
-                    anchors.centerIn: parent
-                    active: button.modelData.id === "audio"
-
-                    sourceComponent: AudioGlyph {
-                        kind: "music"
-                        ink: button.ink
-                        size: 19
-                    }
                 }
 
                 // A piece of audio dragged out of the audio bin, held over the tab,
