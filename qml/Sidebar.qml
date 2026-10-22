@@ -194,7 +194,10 @@ Rectangle {
                     width: parent.width
                     height: contentHeight
                     interactive: false
-                    model: sidebar.win.catalog.playlists
+                    // (A playlist an event of the Calendar goes live from is marked with
+                    // a calendar, as ProPresenter marks one.)
+                    model: CalendarEvents.playlistIds.length === 0 ? sidebar.win.catalog.playlists
+                         : sidebar.win.catalog.playlists.map(p => CalendarEvents.playlistIds.includes(p.path) ? Object.assign({}, p, { calendar: true }) : p)
                     selectedPath: sidebar.win.selectedNode
                     livePath: sidebar.win.cueLive ? sidebar.win.livePlaylistId : ""
                     dragProxy: sidebar.playlistDrag

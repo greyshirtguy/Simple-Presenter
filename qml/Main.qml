@@ -1352,6 +1352,88 @@ Window {
         Show.runMacro(id)
     }
 
+    // ---- The Calendar (CalendarWindow.qml, src/calendarevents.h)
+
+    // Its window is open; it is made the first time it is wanted, and kept
+    property bool calendarOpen: false
+    property bool calendarMade: false
+
+    function toggleCalendar() {
+        calendarMade = true
+        calendarOpen = !calendarOpen
+        Log.note("calendar", calendarOpen ? "the Calendar window opened" : "the Calendar window closed")
+    }
+
+    // An event of the calendar has come due (or is tested from its window): its action
+    // run. A playlist's presentation goes live on its first slide, as a click on its
+    // first slide would (the playlist opened, and the presentation in it; where no
+    // presentation is chosen, the playlist's first); a macro is run as from the show
+    // controls. (The maintainer's choice, 2026-10-22.) What it cannot find, it says.
+    function runCalendarEvent(event, test) {
+        const action = event.action ?? ({ kind: "none" })
+        const said = "the calendar's event " + quoted(event.name) + (test ? ", tested" : ", come due")
+        if (action.kind === "macro") {
+            const macro = Macros.find(action.macroId, action.macroName)
+            if (!macro || macro.id === undefined) {
+                Log.problem(said + ": its macro " + quoted(action.macroName) + " is not in this workspace")
+                return
+            }
+            Log.note("calendar", said + ": the macro " + quoted(macro.name))
+            runMacro(macro.id)
+            return
+        }
+        if (action.kind === "playlist") {
+            const node = catalog.playlists.find(p => p.path === action.playlistId && !p.folder)
+            if (!node) {
+                Log.problem(said + ": its playlist " + quoted(action.name) + " is not in this workspace")
+                return
+            }
+            const rows = catalog.playlistItems(node.path)
+            const entry = action.itemId !== "" ? rows.find(r => r.path === action.itemId) : rows.find(r => openable(r))
+            if (!entry || !openable(entry)) {
+                Log.problem(said + ": " + (action.itemId !== "" ? "its presentation is not in the playlist " : "there is no presentation in the playlist ")
+                            + quoted(node.name) + " to show")
+                return
+            }
+            Log.note("calendar", said + ": " + quoted(entry.name) + " of the playlist " + quoted(node.name) + ", live on its first slide")
+            if (bibleMode)
+                leaveBibles()
+            openPlaylist(node.path)
+            openEntry(documents.find(d => d.path === entry.path) ?? entry)
+            if (document && document.slides.length > 0)
+                goLive(0)
+            else
+                Log.problem(said + ": " + quoted(entry.name) + " has no slides")
+            return
+        }
+        Log.note("calendar", said + (action.kind === "capture" ? ": its action is Capture, which this app has not" : ": it has no action to run"))
+    }
+
+    Connections {
+        target: CalendarEvents
+
+        function onDue(event, at) {
+            win.runCalendarEvent(event, false)
+        }
+    }
+
+    Loader {
+        id: calendarLoader
+
+        active: win.calendarMade
+
+        sourceComponent: CalendarWindow {
+            objectName: "calendarWindow"
+            owner: win
+            visible: win.calendarOpen
+            // Closed by its own button (or by the app quitting), it is let close, and is
+            // put away. (Not refused: Qt asks every window to close before it quits, and one
+            // that will not keeps the app running with no windows. Its `visible` keeps its
+            // binding, closing being no assignment, and follows calendarOpen again.)
+            onClosing: win.calendarOpen = false
+        }
+    }
+
     // What an action names in this workspace (see Show): the stage screen this app has,
     // which of a stage action's screens that is, the layout the action gives it, the
     // action's list of screens with this app's given a layout, and the prop a prop
@@ -3827,6 +3909,9 @@ Window {
         Devices.open(path)
         // The copyright display (see src/copyrightdisplay.h)
         report(CopyrightDisplay.open(path))
+        // The calendar (see src/calendarevents.h), whose clock starts from now: what came
+        // due before the workspace was opened is not run
+        report(CalendarEvents.open(path))
         // And the video inputs (see src/videoinputs.h): ProPresenter's list, with this
         // computer's devices for them
         const inputs = VideoInputs.open(path)
@@ -5017,6 +5102,14 @@ Window {
         context: Qt.ApplicationShortcut
         enabled: !win.settingsOpen
         onActivated: win.reflowMode()
+    }
+
+    // The Calendar, by ProPresenter's key for it on Windows (Control+Option+C on the Mac)
+    Shortcut {
+        sequence: "Ctrl+Alt+C"
+        context: Qt.ApplicationShortcut
+        enabled: !win.settingsOpen
+        onActivated: win.toggleCalendar()
     }
 
     // Bible mode, by ProPresenter's key for it on Windows (on the Mac it is Ctrl+B,

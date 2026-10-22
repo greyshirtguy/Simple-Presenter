@@ -2006,6 +2006,61 @@ def after_transports(workspace, test_dir):
     ]
 
 
+def prepare_calendar(workspace, test_dir):
+    """The Calendar's test (calendar): that the workspace has no calendar yet, as Act has none, and its set-up file as it
+    was given (calendar-workspace-before), which a calendar is not kept in."""
+    if os.path.exists(os.path.join(workspace, "Configuration", "Calendar")):
+        raise RuntimeError("the calendar test wants a workspace with no Configuration/Calendar")
+    shutil.copy(os.path.join(workspace, "Configuration", "Workspace"), os.path.join(test_dir, "calendar-workspace-before"))
+
+
+def after_calendar(workspace, test_dir):
+    """The calendar the test made, read with protoc and not by the app: enabled; its two events, the one deleted gone; the
+    first every week on the day it starts and two days on (as the test picks them), its action the macro in both of the file's forms as ProPresenter writes them (the
+    calendar's own, type 102, and a Macro action with the macro's id and name); the second once, its action one
+    presentation of the playlist (type 101 with the playlist's id and the row's, and a Library Playlist action); and the
+    workspace's set-up file untouched."""
+    path = os.path.join(workspace, "Configuration", "Calendar")
+    if not os.path.exists(path):
+        return [said(False, "the calendar was written to Configuration/Calendar")]
+    with open(path, "rb") as source:
+        text = protoc("decode", "rv.data.Calendar", "calendar.proto", source.read()).decode()
+    events = [m.group(0) for m in re.finditer(r"(?ms)^events \{\n.*?^\}\n", text)]
+    first = next((e for e in events if 'name: "Prelude"' in e), "")
+    second = next((e for e in events if 'name: "Evening Service"' in e), "")
+    own = lambda event: (re.search(r"(?ms)^  action \{\n.*?^  \}\n", event) or re.search("$", "")).group(0)
+    ordinary = lambda event: [m.group(0) for m in re.finditer(r"(?ms)^  actions \{\n.*?^  \}\n", event)]
+    macro = re.search(r'parameter_uuid \{\n\s*string: "([^"]+)"\n\s*\}\n\s*parameter_name: "Singing"', own(first))
+    playlist = re.search(r'playlist_uuid \{\n\s*string: "([^"]+)"', own(second))
+    item = re.search(r'playlist_item_uuid \{\n\s*string: "([^"]+)"', own(second))
+    # The days the test picked: ProPresenter's (Sunday 1 to Saturday 7) of the day the first starts on, here, and two
+    # days on, in the file's order
+    names = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+    starts = re.search(r"(?m)^  date \{\n\s*seconds: (\d+)", first)
+    day = (time.localtime(int(starts.group(1))).tm_wday + 1) % 7 + 1 if starts else 0
+    days = sorted([day, (day + 1) % 7 + 1])
+    with open(os.path.join(workspace, "Configuration", "Workspace"), "rb") as source:
+        workspace_now = source.read()
+    with open(os.path.join(test_dir, "calendar-workspace-before"), "rb") as source:
+        workspace_was = source.read()
+    return [
+        said("active: true" in text and len(events) == 2 and "Missed" not in text, "the calendar enabled, with its two events, the one deleted gone",
+             "%d events" % len(events)),
+        said(starts is not None and re.findall(r"recurrence_days: (\w+)", first) == ["DAY_OF_WEEK_" + names[d - 1] for d in days]
+             and "recurrence_limit_date" not in first,
+             "the first every %s and %s, with no end" % tuple(names[d - 1].capitalize() for d in days) if starts else "the first's days", first[:300]),
+        said("type: 102" in own(first) and macro is not None and len(ordinary(first)) == 1 and "type: ACTION_TYPE_MACRO" in ordinary(first)[0]
+             and 'name: "Singing"' in ordinary(first)[0] and "isEnabled: true" in ordinary(first)[0]
+             and macro is not None and ('string: "%s"' % macro.group(1)) in ordinary(first)[0].split("macro {")[0],
+             "its action the macro, in both forms, as ProPresenter writes them", first[:900]),
+        said("recurrence_days" not in second and "type: 101" in own(second) and playlist is not None and item is not None
+             and len(ordinary(second)) == 1 and "type: ACTION_TYPE_LIBRARY_PLAYLIST" in ordinary(second)[0] and 'name: "Evening"' in ordinary(second)[0]
+             and ('string: "%s"' % item.group(1)) in ordinary(second)[0] and ('string: "%s"' % playlist.group(1)) in ordinary(second)[0].split("playlist_item {")[0],
+             "the second once, its action a presentation of the playlist, in both forms", second[:900]),
+        said(workspace_now == workspace_was, "and the workspace's set-up file untouched"),
+    ]
+
+
 def prepare_copyright(workspace, test_dir):
     """The copyright display's test (copyright): every presentation of the library as it was given
     (copyright-pro-before/), and that the workspace has no copyright display's file yet, as Act has none."""
@@ -3010,6 +3065,7 @@ TESTS = {
     "transports": test("Act", timeout=300, prepare=prepare_transports, after=after_transports),
     "markers": test("Act", timeout=360, prepare=prepare_markers, after=after_markers),
     "copyright": test("Act", timeout=300, prepare=prepare_copyright, after=after_copyright),
+    "calendar": test("Act", timeout=300, prepare=prepare_calendar, after=after_calendar),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),
@@ -3221,7 +3277,9 @@ def run_on(name, binary, run_dir, desktop, cache):
         done = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=recipe["timeout"])
         output = done.stdout.decode(errors="replace")
     except subprocess.TimeoutExpired as late:
-        output = (late.stdout or b"").decode(errors="replace") + "\nTIMED OUT after %d seconds\n" % recipe["timeout"]
+        # (A failure, whether the script had ended or not: an app that does not quit when it is told to is one, as
+        # the Calendar's window once kept it running with no windows)
+        output = (late.stdout or b"").decode(errors="replace") + "\n  FAILED  TIMED OUT after %d seconds: the app had not quit\n" % recipe["timeout"]
     lines = [line for line in output.splitlines() if not NOISE.search(line)]
     if recipe["after"]:
         try:

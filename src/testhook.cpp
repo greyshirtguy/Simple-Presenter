@@ -57,11 +57,22 @@ public:
     // type: 0 press, 1 move with the button down, 2 release, 3 double click, 4 move with no button
     Q_INVOKABLE void mouse(int type, qreal x, qreal y, int modifiers = 0, int button = Qt::LeftButton)
     {
+        mouseOn(window, type, x, y, modifiers, button);
+    }
+    // The same in another of the app's windows, by its name ("calendarWindow"), at a point
+    // of that window
+    Q_INVOKABLE void mouseIn(const QString &name, int type, qreal x, qreal y, int modifiers = 0, int button = Qt::LeftButton)
+    {
+        if (QQuickWindow *other = named(name.toLatin1().constData()))
+            mouseOn(other, type, x, y, modifiers, button);
+    }
+    void mouseOn(QQuickWindow *target, int type, qreal x, qreal y, int modifiers, int button)
+    {
         const QPointF at(x, y);
         const auto send = [&](QEvent::Type kind, Qt::MouseButtons held) {
-            QMouseEvent event(kind, at, window->mapToGlobal(at), kind == QEvent::MouseMove ? Qt::NoButton : Qt::MouseButton(button),
+            QMouseEvent event(kind, at, target->mapToGlobal(at), kind == QEvent::MouseMove ? Qt::NoButton : Qt::MouseButton(button),
                               held, Qt::KeyboardModifiers(modifiers));
-            QCoreApplication::sendEvent(window, &event);
+            QCoreApplication::sendEvent(target, &event);
         };
         if (type == 0)
             send(QEvent::MouseButtonPress, Qt::MouseButton(button));
@@ -127,6 +138,22 @@ public:
         QCoreApplication::sendEvent(window, &focusIn);
     }
     Q_INVOKABLE void grab(const QString &name) { window->grabWindow().save(directory + "/" + name + ".png"); }
+    // The colour of a pixel of another of the app's windows, by its name, as "#rrggbb"
+    Q_INVOKABLE QString pixelIn(const QString &window, qreal x, qreal y)
+    {
+        QQuickWindow *other = named(window.toLatin1().constData());
+        if (!other)
+            return {};
+        const QImage image = other->grabWindow();
+        const qreal ratio = image.width() / std::max<qreal>(1, other->width());
+        return QColor(image.pixel(int(x * ratio), int(y * ratio))).name();
+    }
+    // A picture of another of the app's windows, by its name ("calendarWindow")
+    Q_INVOKABLE void grabIn(const QString &window, const QString &name)
+    {
+        if (QQuickWindow *other = named(window.toLatin1().constData()))
+            other->grabWindow().save(directory + "/" + name + ".png");
+    }
     Q_INVOKABLE void grabOutput(const QString &name)
     {
         if (QQuickWindow *output = named("output"))

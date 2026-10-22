@@ -375,3 +375,12 @@ qt_add_executable(tst_communications
 target_include_directories(tst_communications PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_communications PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME communications COMMAND tst_communications)
+
+qt_add_executable(tst_calendarfile
+    tst_calendarfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/calendarfile.h
+    ${PROJECT_SOURCE_DIR}/src/calendarfile.cpp
+)
+target_include_directories(tst_calendarfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_calendarfile PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME calendarfile COMMAND tst_calendarfile)

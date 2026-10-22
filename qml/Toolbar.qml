@@ -211,11 +211,26 @@ Rectangle {
         onClicked: toolbar.win.bibleModeToggle()
     }
 
+    // The Calendar (CalendarWindow.qml): events that run actions at their times, in a
+    // window of its own, as ProPresenter's is; lit while it is open
+    ToolbarIcon {
+        id: calendarButton
+
+        objectName: "calendarButton"
+        anchors.left: bibleButton.right
+        anchors.leftMargin: 2
+        anchors.verticalCenter: parent.verticalCenter
+        kind: "calendar"
+        label: "Calendar"
+        on: toolbar.win.calendarOpen
+        onClicked: toolbar.win.toggleCalendar()
+    }
+
     // What is open, and the app: in the middle of the window where there is room for it
-    // there, and otherwise in what room there is between the edit button and the buttons
+    // there, and otherwise in what room there is between the Calendar button and the buttons
     // on the right; where that is too little to say anything in, it is left out
     Text {
-        readonly property real from: bibleButton.x + bibleButton.width + 14
+        readonly property real from: calendarButton.x + calendarButton.width + 14
         readonly property real to: toolbarControls.x - 16
 
         x: Math.max(from, Math.min((parent.width - width) / 2, to - width))
@@ -234,7 +249,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 8
+        spacing: 6
 
         // The slides and nothing else: see Simple View in Main.qml. Not while the editor
         // is up, which has the window to itself.

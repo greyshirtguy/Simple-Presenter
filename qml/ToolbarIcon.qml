@@ -15,10 +15,13 @@ import QtQuick.Shapes
 // and their flowing from slide to slide), orange when `on`; "show" is the triangle
 // that means play, orange when `on`; "search" is a magnifying glass; "themes" is one slide behind another; "expand"
 // is four corners turned outwards, the sign for filling the screen, orange when `on`; "bible" is an open book, orange
-// when `on` (ProPresenter's toolbar has a Bibles button, and its pack no picture of one).
+// when `on` (ProPresenter's toolbar has a Bibles button, and its pack no picture of one); "calendar" is a calendar's
+// page (CalendarGlyph), orange when `on`, the Calendar window being open.
 //
 // A caption is as wide as it needs to be, up to `captionWidth`, and the button with it:
 // most say one short word, and the Looks button says the name of the look that is live.
+// The buttons are kept narrow, the toolbar holding a good many: at least 44 wide, and
+// four either side of a caption wider than that.
 Item {
     id: button
 
@@ -44,7 +47,7 @@ Item {
     // The widest a caption gets before it is cut short with an ellipsis
     property real captionWidth: 120
 
-    width: Math.max(52, Math.min(captionWidth, caption.implicitWidth) + 12)
+    width: Math.max(44, Math.min(captionWidth, caption.implicitWidth) + 8)
     height: 40
 
     Rectangle {
@@ -150,6 +153,17 @@ Item {
                 PathQuad { x: 9; y: 11.5; controlX: 7; controlY: 14.7 }
                 PathQuad { x: 13; y: 11.5; controlX: 11; controlY: 8.3 }
                 PathQuad { x: 17; y: 11.5; controlX: 15; controlY: 14.7 }
+            }
+        }
+
+        // A calendar's page: made only for the button that is one, the drawing being
+        // a component of its own and every button having all the others
+        Loader {
+            anchors.fill: parent
+            active: button.kind === "calendar"
+
+            sourceComponent: CalendarGlyph {
+                ink: button.on ? button.accent : button.ink
             }
         }
 

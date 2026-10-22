@@ -112,6 +112,8 @@ the top of the [README](../README.md).
 - [ ] **Copyright display**: it is there (see [Copyright display](features/copyright.md)).
       Still to come: ProPresenter's CCLI reporting, and its "Show House of Worship
       Integrations" switch.
+- [ ] **Calendar**: it is there (see [Calendar](features/calendar.md)). Still to come:
+      ProPresenter's Capture, and leaving out one time of a repeating event.
 - [ ] **The audio bin**: it is there (see [Audio](features/audio.md)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, how loud it
       is, and its own fades, which ProPresenter's inspector sets and which are kept
@@ -128,7 +130,6 @@ experiment.
 - [ ] **Clear to logo**
 - [ ] **Timer markers** (an idea of my own)
 - [ ] **Text formatter**
-- [ ] **CCLI**: a song's details edited, and the ways of showing them
 - [ ] **More to import**: PowerPoint, to begin with
 - [ ] **Easy View**
 - [ ] **Table View**

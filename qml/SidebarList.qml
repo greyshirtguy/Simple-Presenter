@@ -7,7 +7,8 @@ import QtQuick.Controls.Basic
 // shown dimmed after the name. An entry with a `kind` of "header" only labels what
 // follows it: it is drawn in its `color` and is not picked by a click. An entry marked
 // `missing` is drawn as unavailable. An entry with an `icon` (see RowIcon) has it drawn
-// before its name.
+// before its name. An entry with `calendar` (a playlist an event of the Calendar goes
+// live from) has a calendar's page drawn at the end of its row.
 //
 // Entries sit a little in from the left edge, so a title above the list reads as their
 // heading. Optionally, entries can be renamed in place, dragged out, and dropped onto.
@@ -160,10 +161,23 @@ ListView {
             ink: "#3ddc68"
         }
 
+        // The calendar mark, made only for the rows that have it
+        Loader {
+            objectName: "rowCalendar"
+            anchors.right: parent.right
+            anchors.rightMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+            active: entry.modelData.calendar === true
+
+            sourceComponent: CalendarGlyph {
+                ink: "#9a9da3"
+            }
+        }
+
         Text {
             anchors.fill: parent
             anchors.leftMargin: entry.textIndent
-            anchors.rightMargin: 12
+            anchors.rightMargin: entry.modelData.calendar === true ? 34 : 12
             visible: !entry.editing
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight

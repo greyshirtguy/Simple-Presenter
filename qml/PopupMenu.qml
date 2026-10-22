@@ -4,8 +4,9 @@ import QtQuick.Effects
 
 // The app's one pop-up menu: every right-click menu, and the menus of the + buttons.
 //
-// There is one instance, in the operator window, and whoever wants a menu calls show()
-// on it with the rows and the item to open by. A row is one of
+// There is one instance in the operator window (and one in the Calendar's window, a
+// window of its own), and whoever wants a menu calls show() on it with the rows and the
+// item to open by. A row is one of
 //   { header: "…" }             a caption over the rows that follow; with a `run`
 //                               it can be clicked, and has a mark to say so
 //   { note: "…" }               a line or two of explanation

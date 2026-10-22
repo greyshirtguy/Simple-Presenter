@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are thirty-nine:
+So far there are forty:
 
 | Test | What it tries |
 | --- | --- |
@@ -54,6 +54,7 @@ So far there are thirty-nine:
 | `tst_mediacue` | What follows a row of a media playlist when its video ends, ProPresenter's Next Cue (`src/mediacue.h`): a row as ProPresenter writes one read as followed by nothing; each kind read as the cue says it, a cue to go to by its id; anything to follow making the video stop at its end, with the rest of the row as it was; a cue to go to named and taken away again; nothing written that is as asked, or no such thing; and a picture, which has no going round to stop |
 | `tst_playbackmarkers` | ProPresenter's Playback Markers (`src/playbackmarkers.h`), on a media action as ProPresenter writes one: a video or audio takes them and a picture does not; a new one's colour, at random, one its media's others have not; added in the order of their times, and taken away to the byte; renamed, recoloured and moved; their actions added, changed and taken off; a duplicate with ids of its own; and which marker a stage link means (first, previous, next, last, by name) |
 | `tst_ccli` | The copyright display (`src/ccli.h`): the settings in ProPresenter's CCLI file read and changed with the rest kept; what a workspace with none has; a presentation's details; the line its details make by the layout, a detail it has not leaving its words out; and which slides show it |
+| `tst_calendarfile` | ProPresenter's Calendar (`src/calendarfile.h`), on a calendar made as ProPresenter wrote the one looked at: read; each change (a name, a description, a start, the days, "ends on", the calendar on and off) changing that and nothing else, to the byte; an action written in both of the file's forms as ProPresenter writes them, another action the event had kept; events added and deleted; when events come due, once, every week, through the end of summer time on Sydney's clock, up to "ends on" and not on a day left out; how late one may still run; the window's list both ways; and dates and times written and typed |
 | `tst_audiolevel` | The arithmetic of sound (`src/audiolevel.h`): the loudest sample of each channel of a stretch of sound, however its samples are written; how far up a meter that comes, by decibels, and how the meter rises and falls; and that two pieces crossing are together as loud all the way as either is alone |
 | `tst_clocktext` | How a date and a time are written for a text box linked to the system clock (`src/clocktext.h`): each of the five ways ProPresenter names for each, the twelve and the twenty-four hour clock, both together, in the words of the locale it is given, and where in a pattern the clock goes |
 | `tst_messagefile` | Messages (`src/messagefile.h`), on a file made as ProPresenter wrote the one that was looked at: a message read; a text as its words and its tokens in order; a message made, named, moved and removed; a text with tokens of each kind written as the file keeps them, a token the message has left as it is and one no longer in the text taken out; what a token is given; its theme; how it goes away; and after each, what else of the file is still as it was, to the byte; and what an action that shows a message gives its tokens, read as ProPresenter writes it (a timer token's setting among them), and words given to its text tokens with all else it says kept |
@@ -237,6 +238,17 @@ details typed in the editor's Copyright tab; and the line on the first and last 
 on the output and in the operator's preview, drawn, and on no other. The files are read
 with `protoc` after.
 
+And `calendar` works the Calendar, on a workspace with no calendar and a playlist the test
+makes of two of its presentations: the toolbar's button opening its window; an event added,
+named, given a time a few seconds on and a macro from the Action menu, the calendar
+enabled, and the macro run at its time; a second given one presentation of the playlist,
+the playlist marked in the library, and the presentation live on its first slide at its
+time, on the output too; Test; the days of the week, the list each way, and "ends on"; an
+event whose time passes while the calendar is off not run when it is switched on; one
+deleted from its menu; the list's colours as drawn; the window put away by the button and
+by its own close, and opened again; and the app quitting with it open. The file is read
+with `protoc` after.
+
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two
 outputs, one that can key as a linked pair of connectors can, and one that cannot, and
@@ -251,6 +263,10 @@ change. Whether a real card takes what it is given is not tested here.
 ```
 props       60 ok, 0 failed, 0 QML errors
 ```
+
+A test whose app has not quit by its time limit has failed too, though every check
+passed: an app that does not quit when it is told to is a fault (a window that would not
+close once kept it running with no windows).
 
 The run's folder has every test's full output (`logs/<name>.log`) and the pictures it
 took (`frames/<name>/`). It is removed if every test passed, and kept, with its path

@@ -32,7 +32,7 @@ qt_standard_project_setup(REQUIRES 6.9)
 # they import.
 set(PRO_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ProPresenter7-Proto/autogen-proto)
 set(PRO_PROTO_NAMES
-    action alignmentGuide alphaType applicationInfo audio background ccli clearGroups collectionElementType color cue
+    action alignmentGuide alphaType applicationInfo audio background calendar ccli clearGroups collectionElementType color cue
     customOptions digitalAudio effects fileProperties font graphicsData groups hotKey input
     intRange keymapping labels layers macros messages musicKeyScale planningCenter playlist presentation
     presentationSlide proAudienceLook proMask propDocument propresenter propSlide proscreen proworkspace
@@ -69,6 +69,8 @@ qt_add_executable(SimplePresenter
     src/playbackmarkers.h
     src/ccli.cpp
     src/ccli.h
+    src/calendarfile.cpp
+    src/calendarfile.h
     src/audioprobe.cpp
     src/audioprobe.h
     src/playlistfile.cpp
@@ -148,6 +150,8 @@ qt_add_qml_module(SimplePresenter
         qml/AppTextArea.qml
         qml/InputsSettings.qml
         qml/CopyrightSettings.qml
+        qml/CalendarWindow.qml
+        qml/CalendarGlyph.qml
         qml/TransportTabs.qml
         qml/VideoInputView.qml
         qml/AnnouncementLayer.qml
@@ -318,6 +322,8 @@ qt_add_qml_module(SimplePresenter
         src/messagetext.cpp
         src/cleargroups.h
         src/cleargroups.cpp
+        src/calendarevents.cpp
+        src/calendarevents.h
         src/labelfile.h
         src/labelfile.cpp
         src/labels.h
