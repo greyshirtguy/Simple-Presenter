@@ -6,6 +6,22 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.109](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.109) · 2026-10-23
+
+- [The Calendar](docs/features/calendar.md), as ProPresenter's: events at a date and time,
+  once or every week on chosen days, that take a playlist's presentation live on its first
+  slide or run a macro by themselves, in a window of their own opened from the toolbar (to
+  the right of Bible; the toolbar's buttons are a little narrower to make room).
+- [Scrolling text](docs/features/scrolling-text.md), as ProPresenter's: a text box's words
+  going left, right, up or down across it, once or over and over, feathered at its ends,
+  set in the editor's Text tab. How fast each Speed is, among other things, is a guess.
+- [Disabled slides](docs/features/disabled-slides.md): Disable Slide and Enable Slide in a
+  slide's menu, kept as ProPresenter keeps them. A disabled slide is faded, passed over by
+  Next, Previous and everything that goes on by itself, and shown by a click. Slides
+  ProPresenter had disabled are now listed, where before they were left out.
+- A screen set to a display goes to that display the first time it is turned on, and not
+  to the laptop's screen.
+
 ## [0.108](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.108) · 2026-10-22
 
 - [Playback markers](docs/features/playback-markers.md) on the transport: small flags over

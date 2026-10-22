@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.109" date="2026-10-23">
+      <description>
+        <p>
+          ProPresenter's Calendar, for events that take a presentation live or run a macro
+          at their times; scrolling text; slides disabled and enabled from their menu; and a
+          screen that goes to its display the first time it is turned on.
+        </p>
+      </description>
+    </release>
     <release version="0.108" date="2026-10-22">
       <description>
         <p>
