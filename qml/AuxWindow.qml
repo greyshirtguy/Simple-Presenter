@@ -119,9 +119,35 @@ Window {
         WindowLists.leaveOut(win)
         present()
     }
-    onShownChanged: if (restored) present()
-    onDisplayChanged: if (restored) present()
+    onShownChanged: {
+        putBack = 0
+        if (restored)
+            present()
+    }
+    onDisplayChanged: {
+        putBack = 0
+        if (restored)
+            present()
+    }
     onDisplayScreenChanged: if (restored) present()
+
+    // The first time a window is shown, the desktop may put it where it chooses and not
+    // on the screen it was shown on: GNOME on Wayland put a screen's window, shown full
+    // screen on its display for the first time, on the laptop's own screen instead (the
+    // maintainer's log, 2026-10-22: "fullscreen on screen HDMI-1", then at once "now on
+    // screen eDP-1"), while the same window shown again went where it was asked. So a
+    // window of a display that has been moved off it is put up there again, which is
+    // what switching the screen off and on again did by hand; twice at most, so that a
+    // desktop that will not have it there does not have it put up for ever.
+    property int putBack: 0
+
+    onScreenChanged: {
+        if (!restored || display === "" || displayScreen === null || !visible || screen === displayScreen || putBack >= 2)
+            return
+        ++putBack
+        Log.note("window", title.toLowerCase() + " window: put up again on " + display + ", the desktop having put it on " + (screen ? screen.name : "another"))
+        Qt.callLater(present)
+    }
     onWidthChanged: saveGeometry("width", width)
     onHeightChanged: saveGeometry("height", height)
     onXChanged: saveGeometry("x", x)

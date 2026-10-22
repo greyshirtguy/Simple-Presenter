@@ -118,6 +118,26 @@ QtObject {
             },
             () => {
                 check("and on", output.visible === true && scenes[kept.second].visible === true)
+                // ---- A screen of a display whose window is shown for the first time, as one is at a start with the
+                // audience screens off: the desktop may put a new window where it chooses (GNOME on the maintainer's
+                // laptop put it on the laptop's own screen), and it is put up again on its display.
+                outputEnabled = false
+                Screens.add("audience")
+                kept.third = Screens.audience[Screens.audience.length - 1].id
+                Screens.setOutput(kept.third, { output: "display", display: Screens.displays[1].name })
+                return 900
+            },
+            () => {
+                check("(a new screen of the display, its window not yet shown)", scenes[kept.third] !== undefined && !scenes[kept.third].visible)
+                outputEnabled = true
+                return 1800
+            },
+            () => {
+                const window = scenes[kept.third]
+                const putBack = testInput.readText(Log.path).split("\n").filter(l => /put up again/.test(l))
+                check("shown for the first time, it fills its display", window.visible && window.visibility === Window.FullScreen
+                      && window.screen.name === Screens.displays[1].name, window.visibility + " on " + window.screen.name + "; " + putBack.join(" | "))
+                Screens.remove(kept.third)
                 // ---- NDI. (A red picture on the media layer, to tell what goes out by.)
                 Show.showMedia({ name: "Red.png", path: media + "/Red.png", source: "file://" + media + "/Red.png", video: false })
                 Screens.setOutput(kept.second, { output: "ndi", ndiName: "Test Screen", ndiWidth: 1280, ndiHeight: 720, ndiRate: "30" })

@@ -105,7 +105,9 @@ One test, `screens`, has a desktop to itself with two displays, to send screens 
 also sends a screen over NDI if NDI's library is there to be found ([docs/features/ndi.md](../docs/features/ndi.md) says
 where the app looks; `NDI_RUNTIME_DIR_V6=<folder> tests/ui/run.py screens` points it at
 one), and checks what the app says without it if not. While it runs with the library, a
-source called "Test Screen" is on the local network for a few seconds.
+source called "Test Screen" is on the local network for a few seconds. It also checks
+that a screen set to a display fills that display the first time it is shown, which a
+desktop that puts a new window where it likes had once stopped.
 
 Another, `ndisetup`, tries getting NDI's library through the app: the panel that comes
 up, NDI's licence shown and declined and agreed to, and the screen going on the network
