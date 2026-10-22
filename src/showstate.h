@@ -57,6 +57,9 @@ struct Workspace
     // copied about for the sake of actions that may never come. Not set, every
     // playlist is none.
     std::function<QVariantMap(const QString &bin, const QString &id, const QString &name)> playlist;
+    // Its copyright display (see ccli.h): { enabled, license, display, tokens }, as
+    // ccli::describe has them; empty for none
+    QVariantMap copyright;
 };
 
 // A slide as it is triggered: where it is, and what it brings.
@@ -81,6 +84,9 @@ struct Cue
     // next is triggered, 0 for none (see State::advance). A slide's own Go To Next
     // Timer is in its map, as "goToNext": {seconds, loop}.
     double slideShow = 0;
+    // The presentation's copyright details (see ccli::describe), for the workspace's
+    // copyright display: empty for none
+    QVariantMap ccli;
 };
 
 // One thing to be done outside, as the outcome of a change.
@@ -137,6 +143,12 @@ public:
     int count = 0;
     QVariantMap slide;
     QVariantMap next;
+    // The copyright line laid over the live slide on the audience screens, where the
+    // workspace's copyright display says this slide shows it (see ccli.h), and "" where
+    // it does not: decided as the slide goes live, and gone with it when it is cleared.
+    // (A GUESS at ProPresenter: that it is the slide layer's, and that the
+    // announcements' slides have none.)
+    QString copyright;
     // Nothing is on the slide layer.
     bool cleared = true;
     // The slide the show is at took itself off: its cue has an action that clears the

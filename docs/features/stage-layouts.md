@@ -24,6 +24,7 @@ and changed in the same [editor](editing.md) as a slide. A text box of one can s
 - the time of day, and the date;
 - how long the video that is playing has left;
 - a [playback marker](playback-markers.md)'s name, or the time to it;
+- the copyright of the song that is live ([Copyright display](copyright.md));
 - what the stage is being told: the stage message.
 
 [Editing](editing.md) has how each is set, under Linked text.

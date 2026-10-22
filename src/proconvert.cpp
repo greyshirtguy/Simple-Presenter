@@ -645,6 +645,11 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("linkClockTime", int(clock.format().time_format()));
             map.insert("linkClock24", clock.format().military_time_enabled());
             map.insert("linkClockPattern", QString::fromStdString(clock.clock_format_string()));
+        } else if (link.has_ccli_text()) {
+            // The copyright of the presentation that is live, as the workspace's copyright
+            // display has it (see ccli.h): what the display's template has a box of, and
+            // a box of a stage layout can have too
+            map.insert("linkKind", QStringLiteral("copyright"));
         } else if (link.has_playback_marker_text()) {
             // A playback marker's name, or the time to it (see playbackmarkers.h): of
             // which layer's media (0 the presentation's, 1 the announcements', 2 the
@@ -743,7 +748,8 @@ bool isLive(const QVariantMap &element)
 {
     const QString kind = element.value("linkKind").toString();
     return kind == QLatin1String("timer") || kind == QLatin1String("slideText") || kind == QLatin1String("clock")
-        || kind == QLatin1String("videoCountdown") || kind == QLatin1String("stageMessage") || kind == QLatin1String("marker");
+        || kind == QLatin1String("videoCountdown") || kind == QLatin1String("stageMessage") || kind == QLatin1String("marker")
+        || kind == QLatin1String("copyright");
 }
 
 // The element a link or a visibility rule refers to: by id, or failing that by name,
@@ -1528,6 +1534,7 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                           : existing(&DataLink::has_clock_text) ? QStringLiteral("clock")
                           : existing(&DataLink::has_video_countdown) ? QStringLiteral("videoCountdown")
                           : existing(&DataLink::has_playback_marker_text) ? QStringLiteral("marker")
+                          : existing(&DataLink::has_ccli_text) ? QStringLiteral("copyright")
                           : existing(&DataLink::has_stage_message) ? QStringLiteral("stageMessage") : QStringLiteral("none");
         const QString kind = changes.value("linkKind", was).toString();
         // The links of the other kinds go first, which may move the one that stays.
@@ -1538,6 +1545,7 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
                 || (link.has_clock_text() && kind != QLatin1String("clock"))
                 || (link.has_video_countdown() && kind != QLatin1String("videoCountdown"))
                 || (link.has_playback_marker_text() && kind != QLatin1String("marker"))
+                || (link.has_ccli_text() && kind != QLatin1String("copyright"))
                 || (link.has_stage_message() && kind != QLatin1String("stageMessage"));
         });
         const auto transform = [&changes] {
@@ -1632,6 +1640,10 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
             // (As ProPresenter's own stage layout has one.)
             if (fresh)
                 video->set_timer_format_string("${timer}");
+        } else if (kind == QLatin1String("copyright")) {
+            // (It has nothing to say: it is made by being asked for.)
+            if (!existing(&DataLink::has_ccli_text))
+                slideElement->add_data_links()->mutable_ccli_text();
         } else if (kind == QLatin1String("marker")) {
             DataLink *link = existing(&DataLink::has_playback_marker_text);
             DataLink::PlaybackMarkerText *marker = (link ? link : slideElement->add_data_links())->mutable_playback_marker_text();

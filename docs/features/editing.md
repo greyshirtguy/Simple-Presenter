@@ -145,6 +145,12 @@ choose between three ways of working. **Slides** is everything described here.
     audio's (**Of**), which marker (**First**, **Previous**, **Next**, **Last**, or **By
     Name**, with the name typed), the time a part at a time as a timer's is, and a tick
     box for the marker's colour.
+  - **Copyright** shows the copyright line of the presentation that is live, as the
+    [copyright display](copyright.md) makes it, and nothing while there is none.
+
+  A presentation has a fourth tab, **Copyright**: its own copyright details, for the
+  [copyright display](copyright.md) (its Title, Artist, Author, Publisher, Year, CCLI
+  Song Number and Album, and Display Copyright), changed as a step that can be undone.
 
   A linked box has a yellow outline in the editor, and in small yellow print at its
   foot what it is linked to. Some of this is a guess at ProPresenter, whose own menu

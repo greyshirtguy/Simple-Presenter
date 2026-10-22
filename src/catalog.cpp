@@ -321,6 +321,7 @@ QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arr
         {"destination", document.destination},
         {"slideShow", document.slideShow},
         {"transition", document.transition},
+        {"ccli", document.ccli},
         {"error", error},
     };
 }

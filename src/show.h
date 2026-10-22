@@ -123,6 +123,11 @@ class Show : public QObject
 
     // The workspace's things an action can name, as Props, Macros and StageLayouts list them
     Q_PROPERTY(QVariantList props READ props WRITE setProps NOTIFY workspaceChanged)
+    // The workspace's copyright display (see ccli.h, CopyrightDisplay): { enabled,
+    // license, display, tokens }; and the line it lays over the live slide now, "" for
+    // none (see show::State::copyright)
+    Q_PROPERTY(QVariantMap copyright READ copyright WRITE setCopyright NOTIFY workspaceChanged)
+    Q_PROPERTY(QString copyrightText READ copyrightText NOTIFY copyrightChanged)
     Q_PROPERTY(QVariantList macros READ macros WRITE setMacros NOTIFY workspaceChanged)
     Q_PROPERTY(QVariantList stageLayouts READ stageLayouts WRITE setStageLayouts NOTIFY workspaceChanged)
     Q_PROPERTY(QVariantList stageScreens READ stageScreens WRITE setStageScreens NOTIFY workspaceChanged)
@@ -198,6 +203,9 @@ public:
 
     QVariantList props() const { return m_workspace.props; }
     void setProps(const QVariantList &props);
+    QVariantMap copyright() const { return m_workspace.copyright; }
+    void setCopyright(const QVariantMap &copyright);
+    QString copyrightText() const { return m_state.copyright; }
     QVariantList macros() const { return m_workspace.macros; }
     void setMacros(const QVariantList &macros);
     QVariantList stageLayouts() const { return m_workspace.stageLayouts; }
@@ -347,6 +355,7 @@ public:
     Q_INVOKABLE QVariantList chordLines(bool next, int source, const QString &name, int transform, int notation) const;
 
 signals:
+    void copyrightChanged();
     void slideChanged();
     void announcementChanged();
     void mediaChanged();

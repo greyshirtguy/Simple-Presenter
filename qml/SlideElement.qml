@@ -120,6 +120,10 @@ Item {
                 ? Clocks.videoText(source.linkTimerHours, source.linkTimerMinutes, source.linkTimerSeconds, source.linkTimerHundredths,
                                    source.linkTimerHundredthsUnderMinute, source.linkVideoIgnoreLooping, source.linkTimerPattern)
                 : ""
+        case "copyright":
+            // The copyright of the presentation that is live, as the workspace's display
+            // has it (see Show.copyrightText): nothing while it is not shown.
+            return Show.copyrightText
         case "marker":
             // A playback marker's name, or the time to it, of one layer's media (see
             // Clocks.markerText): asked again as the revision goes up, which it does by

@@ -1,5 +1,7 @@
 #include "showstate.h"
 
+#include "ccli.h"
+
 namespace show {
 
 namespace {
@@ -332,6 +334,13 @@ Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &worksp
     cleared = false;
     clearedByCue = false;
     buildStep = 0;
+    // The copyright line over it, where the display is on, the presentation shows its
+    // details, and this is one of the slides they are shown on
+    const QVariantMap &display = workspace.copyright;
+    copyright = display.value("enabled").toBool() && cue.ccli.value("display").toBool()
+                        && ccli::shownOn(display.value("display").toString(), cue.index, cue.count)
+                    ? ccli::compose(display.value("tokens").toList(), cue.ccli, display.value("license").toString())
+                    : QString();
 
     const bool playing = brings && alreadyPlaying(cueMedia);
     QString said = QStringLiteral("slide %1 of %2 of %3").arg(cue.index + 1).arg(cue.count).arg(quoted(cue.presentation));
@@ -494,6 +503,7 @@ void State::clearSlide(Effects &effects)
     if (cleared)
         return;
     effects << note("clear", QStringLiteral("the slide") + (m_runningCue ? QStringLiteral(", by its own action") : QString()));
+    copyright.clear();
     cleared = true;
     clearedByCue = m_runningCue;
     effects << plain(Effect::NoSlide);

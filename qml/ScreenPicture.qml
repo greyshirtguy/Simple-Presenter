@@ -222,6 +222,20 @@ Item {
             pictures: picture.pictures
         }
 
+        // The copyright display's line over it, as the screens have it (see OutputScene)
+        Loader {
+            objectName: picture.name("Copyright")
+            anchors.fill: parent
+            active: !picture.stage && picture.look.slide && Show.copyrightText !== ""
+            visible: active
+
+            sourceComponent: Slide {
+                slide: CopyrightDisplay.templateSlide
+                effects: picture.effects
+                pictures: picture.pictures
+            }
+        }
+
         // The announcements, over the slide and under the props: their layer again,
         // fed the frames of a video that the output plays (it does not lead), and told
         // what the screens are told. Made when the first announcement is shown, and

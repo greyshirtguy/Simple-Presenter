@@ -326,7 +326,7 @@ QtObject {
             },
             () => {
                 check("which opens a menu of what it can show, the elements and the timers each in a menu of their own",
-                      labels() === "[Shows], *Its Own Text, --, Another Element, Current Slide, Next Slide, Timer, System Clock, Video Countdown, Playback Marker, Stage Message", labels())
+                      labels() === "[Shows], *Its Own Text, --, Another Element, Current Slide, Next Slide, Timer, System Clock, Video Countdown, Playback Marker, Copyright, Stage Message", labels())
                 const timers = menu.shown.find(i => i.label === "Timer")
                 check("the timers being the workspace's", timers.items.filter(i => i.label !== undefined).length === Timers.timers.length && Timers.timers.length > 0,
                       timers.items.map(i => i.label ?? i.header).join("|"))

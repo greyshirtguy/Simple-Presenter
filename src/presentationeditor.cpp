@@ -1,5 +1,7 @@
 #include "presentationeditor.h"
 
+#include "ccli.h"
+
 #include "builds.h"
 #include "chords.h"
 
@@ -128,7 +130,8 @@ QString PresentationEditor::kind() const
     return m_kind == Kind::Props ? QStringLiteral("props")
          : m_kind == Kind::Stage ? QStringLiteral("stage")
          : m_kind == Kind::Theme ? QStringLiteral("theme")
-         : m_kind == Kind::Masks ? QStringLiteral("masks") : QStringLiteral("presentation");
+         : m_kind == Kind::Masks ? QStringLiteral("masks")
+         : m_kind == Kind::Copyright ? QStringLiteral("copyright") : QStringLiteral("presentation");
 }
 
 // Opening goes in three steps: the file is read by whichever of the three is being
@@ -164,6 +167,8 @@ void PresentationEditor::start(Kind kind, const QString &path, const QString &wo
         m_theme.Clear();
     if (kind != Kind::Masks)
         m_masks.Clear();
+    if (kind != Kind::Copyright)
+        m_ccli.Clear();
 }
 
 void PresentationEditor::finishOpening()
@@ -338,10 +343,24 @@ QString PresentationEditor::openMasks(const QString &path, const QString &worksp
     return {};
 }
 
+QString PresentationEditor::openCopyrightTemplate(const QString &path, const QString &workspace)
+{
+    rv::data::CCLIDocument file;
+    const QString error = workspace::readMessage(path, &file, QStringLiteral("the copyright display"));
+    if (!error.isEmpty())
+        return error;
+    start(Kind::Copyright, path, workspace, QStringLiteral("Copyright Template"));
+    m_ccli = file;
+    m_rows.append({0, QString(), QString(), false});
+    finishOpening();
+    return {};
+}
+
 void PresentationEditor::close()
 {
     beginResetModel();
     m_presentation.Clear();
+    m_ccli.Clear();
     m_props.Clear();
     m_stage.Clear();
     m_theme.Clear();
@@ -391,6 +410,7 @@ int PresentationEditor::rowOf(const QString &slideId) const
         const std::string &id = m_kind == Kind::Stage ? m_stage.layouts(unit).uuid().string()
                               : m_kind == Kind::Theme ? m_theme.slides(unit).base_slide().uuid().string()
                               : m_kind == Kind::Masks ? m_masks.collection(unit).base_slide().uuid().string()
+                              : m_kind == Kind::Copyright ? m_ccli.template_().base_slide().uuid().string()
                               : m_kind == Kind::Props ? m_props.cues(unit).uuid().string()
                                                       : m_presentation.cues(unit).uuid().string();
         if (id == wanted)
@@ -411,6 +431,7 @@ google::protobuf::Message *PresentationEditor::unitAt(int row)
     case Kind::Stage: return m_stage.mutable_layouts(unit);
     case Kind::Theme: return m_theme.mutable_slides(unit);
     case Kind::Masks: return m_masks.mutable_collection(unit);
+    case Kind::Copyright: return m_ccli.mutable_template_();
     default: return m_presentation.mutable_cues(unit);
     }
 }
@@ -431,6 +452,8 @@ rv::data::Slide *PresentationEditor::slideIn(int row)
         return m_theme.mutable_slides(unit)->mutable_base_slide();
     if (m_kind == Kind::Masks)
         return m_masks.mutable_collection(unit)->mutable_base_slide();
+    if (m_kind == Kind::Copyright)
+        return m_ccli.mutable_template_()->mutable_base_slide();
     // A change to the cue undone or redone may have altered its actions.
     rv::data::Cue *cue = m_kind == Kind::Props ? m_props.mutable_cues(unit) : m_presentation.mutable_cues(unit);
     const int action = slideAction(*cue, m_kind == Kind::Props);
@@ -460,6 +483,18 @@ QString PresentationEditor::write()
         *file.mutable_masks() = m_masks.collection();
         return workspace::writeMessage(m_path, file, QStringLiteral("the workspace's set-up"));
     }
+    case Kind::Copyright: {
+        // Likewise the copyright display's file, which the settings change: the
+        // template as it is here put into it as it is now, and nothing else touched.
+        rv::data::CCLIDocument file;
+        if (QFile::exists(m_path)) {
+            const QString error = workspace::readMessage(m_path, &file, QStringLiteral("the copyright display"));
+            if (!error.isEmpty())
+                return error;
+        }
+        *file.mutable_template_() = m_ccli.template_();
+        return workspace::writeMessage(m_path, file, QStringLiteral("the copyright display"));
+    }
     default: return proconvert::writePresentation(m_path, m_presentation);
     }
 }
@@ -472,6 +507,9 @@ QVariantMap PresentationEditor::describe(int row) const
         const rv::data::Stage::Layout &layout = m_stage.layouts(place.unit);
         slide = proconvert::toSlideMap(layout.slide(), QString::fromStdString(layout.name()));
         slide.insert("id", QString::fromStdString(layout.uuid().string()));
+    } else if (m_kind == Kind::Copyright) {
+        slide = proconvert::toSlideMap(m_ccli.template_().base_slide(), QStringLiteral("Copyright Template"));
+        slide.insert("id", QString::fromStdString(m_ccli.template_().base_slide().uuid().string()));
     } else if (m_kind == Kind::Masks) {
         const rv::data::ProMask &mask = m_masks.collection(place.unit);
         slide = proconvert::toSlideMap(mask.base_slide(), QString::fromStdString(mask.name()));
@@ -1320,6 +1358,20 @@ QString PresentationEditor::commitMusic(const std::string &before)
     emit historyChanged();
     emit keyChanged();
     return {};
+}
+
+QVariantMap PresentationEditor::copyright() const
+{
+    return m_kind == Kind::Presentation ? ccli::describe(m_presentation.ccli()) : QVariantMap();
+}
+
+QString PresentationEditor::setCopyright(const QVariantMap &changes)
+{
+    // (As a change to the whole presentation: rare, and the details are no slide's.)
+    return restructure([&](rv::data::Presentation *presentation) {
+        ccli::change(presentation->mutable_ccli(), changes);
+        return QString();
+    });
 }
 
 QString PresentationEditor::setKey(const QString &key)

@@ -25,6 +25,7 @@ show::Cue cueFrom(const QVariantMap &map)
     cue.next = map.value("next").toMap();
     cue.destination = map.value("destination").toString();
     cue.slideShow = map.value("slideShow").toDouble();
+    cue.ccli = map.value("ccli").toMap();
     return cue;
 }
 
@@ -76,6 +77,8 @@ void Show::change(const std::function<show::Effects()> &what)
         emit messagesChanged();
     if (before.stageMessage != m_state.stageMessage)
         emit stageMessageChanged();
+    if (before.copyright != m_state.copyright)
+        emit copyrightChanged();
     if (before.stageLayouts != m_state.stageLayouts)
         emit screenLayoutsChanged();
     if (before.lookId != m_state.lookId)
@@ -201,6 +204,14 @@ void Show::setStageLayoutId(const QString &id)
 void Show::setStageLayout(const QString &screenId, const QString &layoutId)
 {
     change([&] { m_state.setStageLayout(screenId, layoutId); return show::Effects(); });
+}
+
+void Show::setCopyright(const QVariantMap &copyright)
+{
+    if (copyright == m_workspace.copyright)
+        return;
+    m_workspace.copyright = copyright;
+    emit workspaceChanged();
 }
 
 void Show::setProps(const QVariantList &props)

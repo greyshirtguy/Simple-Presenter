@@ -6,9 +6,11 @@ qt_add_executable(tst_showstate
     tst_showstate.cpp
     ${PROJECT_SOURCE_DIR}/src/showstate.h
     ${PROJECT_SOURCE_DIR}/src/showstate.cpp
+    ${PROJECT_SOURCE_DIR}/src/ccli.h
+    ${PROJECT_SOURCE_DIR}/src/ccli.cpp
 )
 target_include_directories(tst_showstate PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(tst_showstate PRIVATE Qt6::Core Qt6::Test)
+target_link_libraries(tst_showstate PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME showstate COMMAND tst_showstate)
 
 qt_add_executable(tst_screenfile
@@ -297,6 +299,15 @@ qt_add_executable(tst_playbackmarkers
 target_include_directories(tst_playbackmarkers PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_playbackmarkers PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
 add_test(NAME playbackmarkers COMMAND tst_playbackmarkers)
+
+qt_add_executable(tst_ccli
+    tst_ccli.cpp
+    ${PROJECT_SOURCE_DIR}/src/ccli.h
+    ${PROJECT_SOURCE_DIR}/src/ccli.cpp
+)
+target_include_directories(tst_ccli PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_ccli PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME ccli COMMAND tst_ccli)
 
 qt_add_executable(tst_audiolevel
     tst_audiolevel.cpp

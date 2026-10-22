@@ -83,6 +83,8 @@ struct ProDocument
     // none of its own (see builds.h): as builds::describeTransition has it, empty for
     // none, when the one in use is used
     QVariantMap transition;
+    // Its copyright details, as ccli::describe has them (see ccli.h)
+    QVariantMap ccli;
 
     // Reads a ProPresenter 7 .pro file. `arrangement` names the arrangement to follow,
     // "" (or a name the file does not have) being every group in stored order; without

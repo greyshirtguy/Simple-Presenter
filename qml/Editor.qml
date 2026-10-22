@@ -167,7 +167,7 @@ Rectangle {
     readonly property bool notable: kind === "presentation" && mode === "slides"
     readonly property bool notesUp: notable && notesShown
     readonly property string rowWord: kind === "props" ? "Prop" : kind === "stage" ? "Layout" : kind === "theme" ? "Theme Slide"
-                                    : kind === "masks" ? "Mask" : "Slide"
+                                    : kind === "masks" ? "Mask" : kind === "copyright" ? "Template" : "Slide"
     // For a theme: its place under the workspace's Themes folder (see Themes)
     readonly property string themePlace: kind === "theme" ? editor.path.replace(/^.*\/Themes\//, "").replace(/\/Theme$/, "") : ""
 
@@ -180,7 +180,8 @@ Rectangle {
     // What is being edited, by name: a presentation, or the workspace's props or stage
     // layouts
     readonly property string subject: kind === "props" ? "Props" : kind === "stage" ? "Stage Layouts" : kind === "theme" ? "Theme: " + themePlace.split("/").pop()
-                                    : kind === "masks" ? "Masks" : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
+                                    : kind === "masks" ? "Masks" : kind === "copyright" ? "Copyright Template"
+                                    : editor.path.replace(/^.*\//, "").replace(/\.pro$/i, "")
     // What the toolbar button under the pointer does, in words, or ""
     readonly property string toolHint: {
         if (notesToggle.hovered)
@@ -274,6 +275,12 @@ Rectangle {
         return opened(editor.openMasks(path, workspace), workspace, id, row)
     }
 
+    // The copyright display's template slide (see CopyrightDisplay): `path` is the
+    // workspace's Configuration/CCLI. One slide, with nothing to add, take away or rename.
+    function openCopyright(path, workspace) {
+        return opened(editor.openCopyrightTemplate(path, workspace), workspace, "", 0)
+    }
+
     // What follows opening any of them: the row with the given id is shown, or failing
     // that the one at `row`, or the first.
     function opened(error, workspace, id, row) {
@@ -307,6 +314,7 @@ Rectangle {
                        : kind === "stage" ? openStage(editor.path, workspace, made !== "" ? made : shown, row)
                        : kind === "theme" ? openTheme(editor.path, workspace, made !== "" ? made : shown, row)
                        : kind === "masks" ? openMasks(editor.path, workspace, made !== "" ? made : shown, row)
+                       : kind === "copyright" ? openCopyright(editor.path, workspace)
                        : opened(editor.open(editor.path, workspace), workspace, made !== "" ? made : shown, row)
         report(error !== "" ? error : reopened)
         takeFocus()
@@ -320,6 +328,8 @@ Rectangle {
     // a blank one, and everything that makes a slide (this, New Slide in the list's
     // menu, media dropped between slides) is to offer it.
     function addRow() {
+        if (kind === "copyright")
+            return
         if (kind === "props") {
             const beside = canvas.slide ? Props.find(canvas.slide.id) : ({})
             restructure(() => Props.add(beside.collection ?? ""))
@@ -344,7 +354,7 @@ Rectangle {
     function renameRow(id, name, given) {
         const row = editor.rowOf(id)
         renamingRow = ""
-        if (row < 0 || given === false || name === editor.slideAt(row).label) {
+        if (row < 0 || given === false || name === editor.slideAt(row).label || kind === "copyright") {
             takeFocus()
             return
         }
@@ -364,6 +374,8 @@ Rectangle {
     // list. (The list, and not the row, is what it is opened on: the changes it offers
     // rebuild the rows.)
     function showRowMenu(slide, x, y) {
+        if (kind === "copyright")
+            return
         if (kind === "presentation") {
             // A slide can be deleted, unless it is the only one. Slides that only
             // trigger media are not in this list, so the count here is of the others.
@@ -709,12 +721,14 @@ Rectangle {
 
             color: "#4da3ff"
             text: screen.kind === "props" ? "Props" : screen.kind === "stage" ? "Stage Layouts" : screen.kind === "theme" ? "Theme Slides"
-                : screen.kind === "masks" ? "Masks" : "Slides"
+                : screen.kind === "masks" ? "Masks" : screen.kind === "copyright" ? "Copyright" : "Slides"
         }
 
-        // Adds a slide, a prop or a stage layout: see addRow().
+        // Adds a slide, a prop or a stage layout: see addRow(). (The copyright display
+        // has one template, and no more.)
         AppButton {
             objectName: "editorAddRow"
+            visible: screen.kind !== "copyright"
             anchors.right: parent.right
             anchors.rightMargin: 8
             anchors.verticalCenter: slidesTitle.verticalCenter
@@ -1255,6 +1269,9 @@ Rectangle {
         // tab is chosen, and again whenever the slide is (each change to it is a new
         // map). Only a presentation's slide has a transition of its own.
         buildable: screen.kind === "presentation" || screen.kind === "theme"
+        hasCopyright: screen.kind === "presentation"
+        copyright: editor.copyright
+        setCopyright: (changes) => screen.report(editor.setCopyright(changes))
         ownTransition: screen.kind === "presentation"
         builds: inspector.tab === "build" && buildable && canvas.slide ? editor.builds(canvas.row) : []
         slideTransition: inspector.tab === "build" && ownTransition && canvas.slide ? canvas.slide.transition : undefined

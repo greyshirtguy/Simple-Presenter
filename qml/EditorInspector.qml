@@ -43,6 +43,11 @@ Rectangle {
     // the Build tab is chosen, what EditorBuilds is handed: the slide's builds, its own
     // transition and its presentation's, and the calls that change them
     property bool buildable: false
+    // Whether what is open has copyright details (a presentation: see ccli.h), what they
+    // are, and how one is changed (an error message back, "" when kept)
+    property bool hasCopyright: false
+    property var copyright: ({})
+    property var setCopyright: (changes) => ""
     property bool ownTransition: true
     property var builds: []
     property var slideTransition: undefined
@@ -258,13 +263,21 @@ Rectangle {
         if (!buildable && tab === "build")
             tab = "shape"
     }
+    onHasCopyrightChanged: {
+        if (!hasCopyright && tab === "copyright")
+            tab = "shape"
+    }
 
     // Shape and Text, and Build
     Row {
         id: tabs
 
-        readonly property var shown: inspector.buildable ? [{ name: "Shape", tab: "shape" }, { name: "Text", tab: "text" }, { name: "Build", tab: "build" }]
-                                                         : [{ name: "Shape", tab: "shape" }, { name: "Text", tab: "text" }]
+        // (And a presentation's Copyright: its details, the whole presentation's, as
+        // ProPresenter's help says they are reviewed in the editor. Where the tab is in
+        // ProPresenter's editor is A GUESS.)
+        readonly property var shown: [{ name: "Shape", tab: "shape" }, { name: "Text", tab: "text" }]
+                                     .concat(inspector.buildable ? [{ name: "Build", tab: "build" }] : [])
+                                     .concat(inspector.hasCopyright ? [{ name: "Copyright", tab: "copyright" }] : [])
 
         x: 12
         y: 10
@@ -304,7 +317,7 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         width: parent.width - 48
-        visible: inspector.element === null && inspector.tab !== "build"
+        visible: inspector.element === null && inspector.tab !== "build" && inspector.tab !== "copyright"
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.Wrap
         color: "#9a9da3"
@@ -318,10 +331,11 @@ Rectangle {
         anchors.top: tabs.bottom
         anchors.bottom: parent.bottom
         anchors.topMargin: 8
-        contentHeight: (inspector.tab === "shape" ? shapeTab.height : inspector.tab === "build" ? buildTab.height : textTab.height) + 24
+        contentHeight: (inspector.tab === "shape" ? shapeTab.height : inspector.tab === "build" ? buildTab.height
+                        : inspector.tab === "copyright" ? copyrightTab.height : textTab.height) + 24
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        visible: inspector.element !== null || inspector.tab === "build"
+        visible: inspector.element !== null || inspector.tab === "build" || inspector.tab === "copyright"
 
         ScrollBar.vertical: ScrollBar {}
 
@@ -924,6 +938,70 @@ Rectangle {
             }
         }
 
+        // The presentation's copyright details, made while the tab is chosen: what the
+        // workspace's copyright display (Settings → Copyright) shows of it
+        Loader {
+            id: copyrightTab
+
+            x: 12
+            width: parent.width - 26
+            active: inspector.tab === "copyright" && inspector.hasCopyright
+            visible: active
+
+            sourceComponent: Column {
+                spacing: 6
+
+                Repeater {
+                    model: [["title", "Title"], ["artist", "Artist"], ["author", "Author"], ["publisher", "Publisher"],
+                            ["year", "Year"], ["songNumber", "Song #"], ["album", "Album"]]
+
+                    delegate: Line {
+                        id: detailLine
+
+                        required property var modelData
+                        readonly property bool number: modelData[0] === "year" || modelData[0] === "songNumber"
+                        readonly property var value: inspector.copyright[modelData[0]]
+
+                        caption: modelData[1]
+
+                        AppTextField {
+                            objectName: "copyright-" + detailLine.modelData[0]
+                            width: copyrightTab.width - 78
+                            height: 28
+                            font.pixelSize: 13
+                            validator: detailLine.number ? digits : null
+                            text: detailLine.number ? (detailLine.value > 0 ? String(detailLine.value) : "") : detailLine.value ?? ""
+                            onEditingFinished: {
+                                const wanted = detailLine.number ? Number(text.trim() === "" ? 0 : text) : text
+                                if (wanted !== (detailLine.number ? detailLine.value ?? 0 : detailLine.value ?? ""))
+                                    inspector.setCopyright({ [detailLine.modelData[0]]: wanted })
+                            }
+                        }
+                    }
+                }
+
+                AppCheck {
+                    objectName: "copyrightShown"
+                    width: parent.width
+                    text: "Display Copyright"
+                    checked: inspector.copyright.display === true
+                    onToggled: (checked) => inspector.setCopyright({ display: checked })
+                }
+
+                Note {
+                    width: parent.width
+                    text: "Shown over the slides on the audience screens where the copyright display is enabled, on the slides "
+                          + "it is set to, in Settings → Copyright. Songs from SongSelect come with these."
+                }
+
+                IntValidator {
+                    id: digits
+
+                    bottom: 0
+                }
+            }
+        }
+
         // The builds (EditorBuilds), made while the tab is chosen
         Loader {
             id: buildTab
@@ -1251,6 +1329,7 @@ Rectangle {
                         : kind === "clock" ? "System Clock"
                         : kind === "videoCountdown" ? "Video Countdown"
                         : kind === "marker" ? (inspector.element.linkMarkerTime ? "Time to Marker" : "Marker Name")
+                        : kind === "copyright" ? "Copyright"
                         : kind === "stageMessage" ? "Stage Message"
                         : "Its Own Text"
 
@@ -1323,6 +1402,9 @@ Rectangle {
                                                                      linkTimerHundredths: Timers.None })
                                         inspector.setProperties(changes, false)
                                     } }))) },
+                            // The live presentation's copyright, as the workspace's copyright display
+                            // has it (see Settings → Copyright): what its template's box shows
+                            { label: "Copyright", current: linkLine.kind === "copyright", run: () => inspector.setProperties({ linkKind: "copyright" }, false) },
                             { label: "Stage Message", current: linkLine.kind === "stageMessage", run: () => {
                                 // The first time, set to flash, in the red the boxes
                                 // of ProPresenter's own stage layouts flash.

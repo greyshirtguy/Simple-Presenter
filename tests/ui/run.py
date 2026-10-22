@@ -2006,6 +2006,57 @@ def after_transports(workspace, test_dir):
     ]
 
 
+def prepare_copyright(workspace, test_dir):
+    """The copyright display's test (copyright): every presentation of the library as it was given
+    (copyright-pro-before/), and that the workspace has no copyright display's file yet, as Act has none."""
+    if os.path.exists(os.path.join(workspace, "Configuration", "CCLI")):
+        raise RuntimeError("the copyright test wants a workspace with no Configuration/CCLI")
+    os.makedirs(os.path.join(test_dir, "copyright-pro-before"))
+    for path in glob.glob(os.path.join(glob.escape(workspace), "Libraries", "*", "*.pro")):
+        shutil.copy(path, os.path.join(test_dir, "copyright-pro-before", os.path.basename(path)))
+
+
+def after_copyright(workspace, test_dir):
+    """The copyright display's file and the presentation the test gave made-up details, read with protoc and not by
+    the app: the file made with the display enabled, the licence number, the first and last slides, the layout as the
+    test left it (ProPresenter's but for the publisher, with the CCLI song number last), and the template's box where
+    the test moved it, linked to the copyright; the presentation's details as typed, shown, and the rest of it as it
+    was; every other presentation to the byte."""
+    def decoded(path, message="rv.data.Presentation", proto="presentation.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    path = os.path.join(workspace, "Configuration", "CCLI")
+    ccli = decoded(path, "rv.data.CCLIDocument", "ccli.proto") if os.path.exists(path) else ""
+    tokens = re.findall(r"token_type: (\w+)", ccli)
+    changed, same = [], 0
+    for path in sorted(glob.glob(os.path.join(glob.escape(workspace), "Libraries", "*", "*.pro"))):
+        with open(path, "rb") as source:
+            data = source.read()
+        with open(os.path.join(test_dir, "copyright-pro-before", os.path.basename(path)), "rb") as source:
+            old = source.read()
+        if data == old:
+            same += 1
+        else:
+            changed.append((decoded(os.path.join(test_dir, "copyright-pro-before", os.path.basename(path))), decoded(path)))
+    was, now = changed[0] if len(changed) == 1 else ("", "")
+    block = lambda text: (re.search(r"(?ms)^ccli \{\n.*?^\}\n", text) or re.search("$", "")).group(0)
+    details = block(now)
+    return [
+        said(ccli != "", "the copyright display's file was made"),
+        said("enable_ccli_display: true" in ccli and 'ccli_license: "998877"' in ccli and "display_type: DISPLAY_TYPE_FIRST_AND_LAST_SLIDE" in ccli,
+             "with the display enabled, the licence number, and the first and last slides", ccli[:200]),
+        said(tokens == ["Title", "Artist", "CopyrightYear", "LicenseNumber", "SongNumber"],
+             "the layout as the test left it: ProPresenter's, but for the publisher, with the CCLI song number last", ",".join(tokens)),
+        said(re.search(r"origin \{\n\s*x: 60\n\s*y: 700\n", ccli) is not None and "ccli_text {" in ccli,
+             "the template's box where the test moved it, linked to the copyright", ""),
+        said(len(changed) == 1 and same > 0, "one presentation was changed, and every other is as it was, to the byte", "%d changed, %d the same" % (len(changed), same)),
+        said('song_title: "A Made Up Song"' in details and 'artist_credits: "Someone"' in details and "copyright_year: 2001" in details
+             and "display: true" in details, "its details as typed, shown", details[:300]),
+        said(was.replace(block(was), "") == now.replace(details, ""), "and the rest of it as it was"),
+    ]
+
+
 def prepare_markers(workspace, test_dir):
     """The playback markers' test (markers): a media bin of the test's own (TRANSPORT_BIN's form) with one playlist
     "Run" of a white video of twelve seconds that stops at its end and a still, made with ffmpeg in the test's folder;
@@ -2957,6 +3008,7 @@ TESTS = {
     "playacts": test("Act", timeout=300, prepare=prepare_playacts, after=after_playacts),
     "transports": test("Act", timeout=300, prepare=prepare_transports, after=after_transports),
     "markers": test("Act", timeout=360, prepare=prepare_markers, after=after_markers),
+    "copyright": test("Act", timeout=300, prepare=prepare_copyright, after=after_copyright),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

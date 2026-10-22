@@ -116,6 +116,8 @@ struct Presentation
     QString destination;
     // Its Slide Show, in seconds; 0 for none
     double slideShow = 0;
+    // Its copyright details
+    QVariantMap ccli;
 
     Cue cue(int index) const
     {
@@ -129,6 +131,7 @@ struct Presentation
         cue.next = slides.value(index + 1).toMap();
         cue.destination = destination;
         cue.slideShow = slideShow;
+        cue.ccli = ccli;
         return cue;
     }
 };
@@ -1194,6 +1197,41 @@ private slots:
         QVERIFY(show.props.isEmpty() && !show.hasMedia);
         QVERIFY(noted(effects, "\"Tidy\" run by hand: 2 actions"));
         QVERIFY(show.runMacro("no such", w).isEmpty());
+    }
+
+    // ---- the copyright display
+
+    void theCopyrightLineIsOnTheSlidesTheDisplaySays()
+    {
+        State show;
+        Workspace w = workspace();
+        const QVariantList tokens {QVariantMap {{"kind", "title"}}, QVariantMap {{"kind", "text"}, {"text", " / "}},
+                                   QVariantMap {{"kind", "license"}}};
+        w.copyright = {{"enabled", true}, {"license", "998877"}, {"display", "firstAndLast"}, {"tokens", tokens}};
+        Presentation song;
+        song.slides = {slide("a"), slide("b"), slide("c")};
+        song.ccli = {{"title", "A Made Up Song"}, {"display", true}};
+        show.goLive(song.cue(0), false, w);
+        QCOMPARE(show.copyright, QStringLiteral("A Made Up Song / 998877"));
+        show.goLive(song.cue(1), false, w);
+        QVERIFY(show.copyright.isEmpty());
+        show.goLive(song.cue(2), false, w);
+        QCOMPARE(show.copyright, QStringLiteral("A Made Up Song / 998877"));
+        // Gone with the slide when it is cleared
+        show.clearSlide();
+        QVERIFY(show.copyright.isEmpty());
+        // None where the display is off, or the presentation does not show its details
+        w.copyright.insert("enabled", false);
+        show.goLive(song.cue(0), false, w);
+        QVERIFY(show.copyright.isEmpty());
+        w.copyright.insert("enabled", true);
+        song.ccli.insert("display", false);
+        show.goLive(song.cue(0), false, w);
+        QVERIFY(show.copyright.isEmpty());
+        // A workspace with no display at all has none
+        song.ccli.insert("display", true);
+        show.goLive(song.cue(0), false, workspace());
+        QVERIFY(show.copyright.isEmpty());
     }
 
     void aPlaybackMarkersActionsAreRunAsAMacrosAre()

@@ -80,7 +80,7 @@ benchmark/run.py                       # times a fixed run against a baseline
 pictures of a fixed run; run it before and after a change to anything that draws and
 compare them. Anything its log says with `qrc:` in it is a QML error: there must be none.
 
-**What you cannot run.** The scripted tests (`tests/ui/run.py`, sixty-four scripts
+**What you cannot run.** The scripted tests (`tests/ui/run.py`, sixty-five scripts
 that work the whole app) need workspaces that are not in this repository, because they
 are not the repository's to publish. So on anyone's computer but the maintainer's, the
 unit tests, the self-test and the benchmark are all there is. Say so when you report

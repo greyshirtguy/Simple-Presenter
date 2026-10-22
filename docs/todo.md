@@ -109,6 +109,9 @@ the top of the [README](../README.md).
       Still to come: Cut, Copy and Paste of markers; dragging an action, a show control
       or a file onto a marker, or under the list for a marker of its own; and the link
       that colours a shape by a marker.
+- [ ] **Copyright display**: it is there (see [Copyright display](features/copyright.md)).
+      Still to come: ProPresenter's CCLI reporting, and its "Show House of Worship
+      Integrations" switch.
 - [ ] **The audio bin**: it is there (see [Audio](features/audio.md)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, how loud it
       is, and its own fades, which ProPresenter's inspector sets and which are kept

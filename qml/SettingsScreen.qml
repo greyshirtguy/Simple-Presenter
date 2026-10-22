@@ -57,6 +57,8 @@ Rectangle {
     signal screensFailed(string text)
     // The menu of where a screen can go is to be shown (see ScreensSettings)
     signal screenMenuWanted(var rows, var item, real x, real y)
+    // Settings → Copyright's Edit Template: the editor on the copyright display's template
+    signal copyrightTemplateWanted()
     signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
     signal videoDecodingEdited(string mode)
@@ -224,11 +226,11 @@ Rectangle {
     readonly property string platform: Qt.platform.pluginName
     readonly property var sections: Qt.platform.os === "linux"
         ? [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
-           { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
+           { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Copyright", path: "copyright" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
            { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Network", path: "network" }, { name: "Devices", path: "devices" }, { name: "Inputs", path: "inputs" }, { name: "Windows", path: "windows" },
            { name: "About", path: "about" }]
         : [{ name: "Groups", path: "groups" }, { name: "Labels", path: "labels" }, { name: "Slides", path: "slides" },
-           { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
+           { name: "Chords", path: "chords" }, { name: "Bibles", path: "bibles" }, { name: "Copyright", path: "copyright" }, { name: "Simple View", path: "simple" }, { name: "Screens", path: "screens" },
            { name: "Video", path: "video" }, { name: "Audio", path: "audio" }, { name: "Network", path: "network" }, { name: "Devices", path: "devices" }, { name: "Inputs", path: "inputs" }, { name: "About", path: "about" }]
     property string section: "groups"
     readonly property var palette: [
@@ -1277,6 +1279,23 @@ Rectangle {
                     text: "These are only how a song looks in the two chord editors. Nothing in a song's file says any of them: the stage "
                         + "shows chords in the colour its layout gives them, and ProPresenter in its own."
                 }
+            }
+        }
+
+        // Copyright: the workspace's copyright display (see CopyrightSettings)
+        Loader {
+            anchors.left: sectionList.right
+            anchors.right: parent.right
+            anchors.top: done.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 18
+            anchors.topMargin: 12
+            active: screen.section === "copyright"
+            visible: active
+
+            sourceComponent: CopyrightSettings {
+                showMenu: (rows, item, x, y) => screen.screenMenuWanted(rows, item, x, y)
+                editTemplate: () => screen.copyrightTemplateWanted()
             }
         }
 

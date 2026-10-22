@@ -231,6 +231,27 @@ Item {
         }
     }
 
+    // The copyright display's line over the live slide (see Show.copyrightText,
+    // CopyrightDisplay): its template slide, whose box shows the line, while there is one.
+    // Of the slide layer, so a look that keeps the slides from the screen keeps it too.
+    // Made only while there is a line: most slides of most workspaces have none. (A GUESS
+    // at ProPresenter: that it comes and goes with its slide, at once and not by the
+    // slide's transition.)
+    Loader {
+        id: copyrightLayer
+
+        objectName: "copyrightLayer"
+        anchors.fill: parent
+        active: Show.copyrightText !== "" && scene.slideOn
+        visible: active
+
+        sourceComponent: Slide {
+            slide: CopyrightDisplay.templateSlide
+            pictures: scene.pictures
+            logName: "copyright"
+        }
+    }
+
     // The announcements, over the slides and under the props. Made when the first
     // announcement is shown, and kept: a show that has none has nothing made for them.
     Loader {

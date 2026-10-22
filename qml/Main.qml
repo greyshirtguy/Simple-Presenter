@@ -2874,6 +2874,18 @@ Window {
                                                                                               : "of which there are none"))
     }
 
+    // The editor on the copyright display's template slide (Settings → Copyright, Edit
+    // Template): its file made first, as a workspace with none is taken to have it.
+    function startEditingCopyright() {
+        if (editing || !report(CopyrightDisplay.makeFile()) || !report(CopyrightDisplay.reload())
+            || !report(editScreen.openCopyright(CopyrightDisplay.path, catalog.workspacePath)))
+            return
+        notice = ""
+        editing = true
+        editScreen.takeFocus()
+        Log.note("edit", "the editor opened on the copyright display's template")
+    }
+
     // The editor on a theme, at one of its slides (or its first): the same editor that
     // edits a presentation's slides, since a theme's slides are slides.
     function startEditingTheme(place, slideId) {
@@ -2914,6 +2926,11 @@ Window {
         if (kind === "masks") {
             // A screen that is given one of them shows it as it now is.
             report(Masks.reload())
+            return
+        }
+        if (kind === "copyright") {
+            // The screens draw the line in the template as it now is.
+            report(CopyrightDisplay.reload())
             return
         }
         if (kind === "theme") {
@@ -3398,7 +3415,7 @@ Window {
     function cueAt(presentation, key, playlist, index) {
         return { key: key, playlistId: playlist, presentation: presentation.name, index: index, count: presentation.slides.length,
                  slide: presentation.slides[index] ?? ({}), next: presentation.slides[index + 1] ?? ({}),
-                 destination: presentation.destination ?? "", slideShow: presentation.slideShow ?? 0 }
+                 destination: presentation.destination ?? "", slideShow: presentation.slideShow ?? 0, ccli: presentation.ccli ?? ({}) }
     }
 
     // The same for a presentation that has been read again, to tell the show where
@@ -3728,6 +3745,8 @@ Window {
         // The communication devices (see src/devices.h): the workspace's, as this
         // computer keeps them
         Devices.open(path)
+        // The copyright display (see src/copyrightdisplay.h)
+        report(CopyrightDisplay.open(path))
         // And the video inputs (see src/videoinputs.h): ProPresenter's list, with this
         // computer's devices for them
         const inputs = VideoInputs.open(path)
@@ -4773,6 +4792,13 @@ Window {
         value: win.catalog
     }
 
+    // The copyright display's settings, which the show lays the line over the slides by
+    Binding {
+        target: Show
+        property: "copyright"
+        value: CopyrightDisplay.settings
+    }
+
     // A video input's sound is played where the app's audio is (see VideoInputs)
     Binding {
         target: VideoInputs
@@ -5626,6 +5652,10 @@ Window {
         groups: win.groups
         onGroupsEdited: (groups) => win.setGroups(groups)
         onScreenMenuWanted: (rows, item, x, y) => menu.show(rows, item, x, y)
+        onCopyrightTemplateWanted: {
+            settingsOpen = false
+            startEditingCopyright()
+        }
         otherHotkeys: win.otherHotkeys
         actionIconOpacity: win.actionIconOpacity
         onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ccli.pb.h"
 #include "presentation.pb.h"
 #include "proMask.pb.h"
 #include "propDocument.pb.h"
@@ -47,7 +48,7 @@ class PresentationEditor : public QAbstractListModel
     QML_ELEMENT
     Q_PROPERTY(QString path READ path NOTIFY documentChanged)
     Q_PROPERTY(QString name READ name NOTIFY documentChanged)
-    // What is open: "presentation", "props", "stage", "theme" or "masks"
+    // What is open: "presentation", "props", "stage", "theme", "masks" or "copyright"
     Q_PROPERTY(QString kind READ kind NOTIFY documentChanged)
     Q_PROPERTY(int count READ count NOTIFY documentChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
@@ -65,6 +66,9 @@ class PresentationEditor : public QAbstractListModel
     // so that revertToOpened() has something to do; and whether a revert has just been made
     // that takeBackRevert() can still take back.
     Q_PROPERTY(bool canRevert READ canRevert NOTIFY historyChanged)
+    // The presentation's copyright details, as ccli::describe has them (see ccli.h): the
+    // editor's Copyright tab. Empty for what is not a presentation.
+    Q_PROPERTY(QVariantMap copyright READ copyright NOTIFY historyChanged)
     Q_PROPERTY(bool canTakeBackRevert READ canTakeBackRevert NOTIFY historyChanged)
 
 public:
@@ -101,6 +105,14 @@ public:
     // The workspace's masks: `path` is the workspace's set-up file, and the masks are
     // the rows. A workspace that has no such file yet has no masks, and opens so.
     Q_INVOKABLE QString openMasks(const QString &path, const QString &workspace);
+    // The copyright display's template slide (see CopyrightDisplay): `path` is the
+    // workspace's Configuration/CCLI, which must be there (CopyrightDisplay.makeFile).
+    // Saving a change reads that file as it then is and puts the template into it.
+    Q_INVOKABLE QString openCopyrightTemplate(const QString &path, const QString &workspace);
+    // Changes the presentation's copyright details (as ccli::change takes changes) and
+    // saves it, as a step that can be undone
+    Q_INVOKABLE QString setCopyright(const QVariantMap &changes);
+    QVariantMap copyright() const;
     Q_INVOKABLE void close();
 
     Q_INVOKABLE QVariantMap slideAt(int row) const;
@@ -321,7 +333,7 @@ signals:
     void restructured();
 
 private:
-    enum class Kind { Presentation, Props, Stage, Theme, Masks };
+    enum class Kind { Presentation, Props, Stage, Theme, Masks, Copyright };
     // Where a row's slide is: which cue of the presentation or of the props, or which
     // stage layout; and for a presentation's slide, its group.
     struct Row
@@ -405,6 +417,9 @@ private:
     rv::data::Template::Document m_theme;
     // (The masks alone, out of the file they are in: see openMasks.)
     rv::data::MaskCollection m_masks;
+    // The copyright display's settings (Configuration/CCLI), of which the template slide
+    // is what is edited
+    rv::data::CCLIDocument m_ccli;
     QString m_path;
     QString m_name;
     QString m_workspace;

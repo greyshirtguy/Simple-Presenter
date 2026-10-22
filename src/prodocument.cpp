@@ -1,6 +1,7 @@
 #include "prodocument.h"
 
 #include "builds.h"
+#include "ccli.h"
 #include "chords.h"
 #include "arrangementedit.h"
 #include "groupedit.h"
@@ -173,6 +174,7 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
     }
     document.destination = destinationOf(presentation);
     document.slideShow = presentation.has_slide_show_duration() ? presentation.slide_show_duration() : 0;
+    document.ccli = ccli::describe(presentation.ccli());
     if (presentation.has_transition())
         document.transition = builds::describeTransition(presentation.transition());
 
