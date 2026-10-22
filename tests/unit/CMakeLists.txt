@@ -384,3 +384,12 @@ qt_add_executable(tst_calendarfile
 target_include_directories(tst_calendarfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_calendarfile PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME calendarfile COMMAND tst_calendarfile)
+
+qt_add_executable(tst_textscroller
+    tst_textscroller.cpp
+    ${PROJECT_SOURCE_DIR}/src/textscroller.h
+    ${PROJECT_SOURCE_DIR}/src/textscroller.cpp
+)
+target_include_directories(tst_textscroller PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_textscroller PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME textscroller COMMAND tst_textscroller)

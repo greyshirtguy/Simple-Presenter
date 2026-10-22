@@ -496,10 +496,13 @@ Item {
         }
     }
 
+    // (A box whose words scroll has them drawn by ScrollingText, below, where it is on
+    // show; elsewhere, still, here.)
     StrokedText {
         anchors.fill: parent
         anchors.margins: -element.textBleed * element.unit
         visible: !element.chorded && (element.source.hasText || element.textOverride !== undefined)
+                 && (element.source.scroll === undefined || element.pictures === null)
         content: element.textOverride !== undefined ? element.textOverride : element.source.displayText
         replacement: element.textOverride !== undefined ? undefined : element.liveLinkText
         replacementColor: element.textOverride !== undefined ? undefined : element.liveLinkColor
@@ -524,11 +527,37 @@ Item {
         }
     }
 
+    // A box's words drawn otherwise than by the StrokedText above: with their chords over
+    // them (ChordedText), or going across or up or down the box (Scrolling Text: see
+    // ScrollingText), which it does on a screen or in the operator's preview of one and
+    // nowhere else. (One Loader for the two, made for every element, and nothing made in
+    // it for one that is neither: an element costs every slide it is on, everywhere.)
     Loader {
         anchors.fill: parent
-        active: element.chorded
+        active: element.chorded || (element.source.scroll !== undefined && element.pictures !== null
+                                    && (element.source.hasText || element.textOverride !== undefined))
+        // (Each only for its own: the two are not both told at once that a box has changed)
+        sourceComponent: element.chorded ? chordedWords : element.source.scroll !== undefined ? scrollingWords : null
+    }
 
-        sourceComponent: ChordedText {
+    Component {
+        id: scrollingWords
+
+        ScrollingText {
+            source: element.source
+            content: element.textOverride !== undefined ? element.textOverride : element.source.displayText
+            replacement: element.textOverride !== undefined ? undefined : element.liveLinkText
+            replacementColor: element.textOverride !== undefined ? undefined : element.liveLinkColor
+            unit: element.unit
+            bleed: element.textBleed
+            effects: element.effects
+        }
+    }
+
+    Component {
+        id: chordedWords
+
+        ChordedText {
             // Reading the revision is what has this follow what is live, and the key.
             lines: Show.revision >= 0
                    ? Show.chordLines(element.source.linkSlideNext, element.source.linkSlideSource, element.source.linkSlideName,

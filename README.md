@@ -68,6 +68,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 
 - <a id="editing"></a><a id="quick-edit"></a>**[Editing](docs/features/editing.md)**: text boxes, shapes and pictures added, moved, sized, turned and styled, with words edited where they stand. Every change is saved as it is made and can be undone, and Quick Edit puts a slide's words right without leaving the show.
 - <a id="builds"></a>**[Builds](docs/features/builds.md)**: the things on a slide coming on one after another and going again, set up in ProPresenter's Build tab. A theme's builds are run too.
+- <a id="scrolling-text"></a>**[Scrolling text](docs/features/scrolling-text.md)**: a text box's words going left, right, up or down across it, once or over and over, feathered at its ends, as ProPresenter's Scrolling Text does.
 - <a id="transitions"></a>**[Transitions](docs/features/transitions.md)**: an equivalent of every slide transition ProPresenter has, under its names, and eighteen more.
 - <a id="themes"></a>**[Themes](docs/features/themes.md)**: ProPresenter's themes dress the slides, for good, or on one screen only through a look.
 - <a id="reflow"></a>**[Reflow](docs/features/reflow.md)**: a song's words as one table, for moving words between slides, splitting a slide and joining two.

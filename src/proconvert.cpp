@@ -1,6 +1,8 @@
 #include "builds.h"
 #include "proconvert.h"
 
+#include "textscroller.h"
+
 #include "clocktext.h"
 #include "fontresolver.h"
 #include "linejoin.h"
@@ -548,6 +550,10 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     // The start of its own words on one line, for naming an element that has no name
     map.insert("words", words.plainText().simplified().left(60));
     map.insert("verticalAlignment", toQtVerticalAlignment(text.vertical_alignment()));
+    // Its Scrolling Text, for a box that scrolls (see textscroller.h): said only of one
+    // that does, the maps being made of every element
+    if (slideElement.has_text_scroller() && slideElement.text_scroller().should_scroll())
+        map.insert("scroll", textscroller::describe(slideElement.text_scroller()));
     map.insert("textScale", int(text.scale_behavior()));
     map.insert("marginLeft", text.margins().left());
     map.insert("marginTop", text.margins().top());
@@ -1477,6 +1483,9 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
     if (anyKeyStartsWith(changes, QStringLiteral("textShadow")))
         applyShadow(element->mutable_text()->mutable_shadow(), QStringLiteral("textShadow"), changes);
 
+    // Its Scrolling Text: ProPresenter's fields of it, and nothing else
+    if (textscroller::asks(changes))
+        textscroller::change(slideElement->mutable_text_scroller(), changes);
     if (changes.contains("textScale"))
         element->mutable_text()->set_scale_behavior(Text::ScaleBehavior(qBound(0, changes.value("textScale").toInt(), 4)));
     if (changes.contains("verticalAlignment")) {

@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are forty:
+So far there are forty-one:
 
 | Test | What it tries |
 | --- | --- |
@@ -55,6 +55,7 @@ So far there are forty:
 | `tst_playbackmarkers` | ProPresenter's Playback Markers (`src/playbackmarkers.h`), on a media action as ProPresenter writes one: a video or audio takes them and a picture does not; a new one's colour, at random, one its media's others have not; added in the order of their times, and taken away to the byte; renamed, recoloured and moved; their actions added, changed and taken off; a duplicate with ids of its own; and which marker a stage link means (first, previous, next, last, by name) |
 | `tst_ccli` | The copyright display (`src/ccli.h`): the settings in ProPresenter's CCLI file read and changed with the rest kept; what a workspace with none has; a presentation's details; the line its details make by the layout, a detail it has not leaving its words out; and which slides show it |
 | `tst_calendarfile` | ProPresenter's Calendar (`src/calendarfile.h`), on a calendar made as ProPresenter wrote the one looked at: read; each change (a name, a description, a start, the days, "ends on", the calendar on and off) changing that and nothing else, to the byte; an action written in both of the file's forms as ProPresenter writes them, another action the event had kept; events added and deleted; when events come due, once, every week, through the end of summer time on Sydney's clock, up to "ends on" and not on a day left out; how late one may still run; the window's list both ways; and dates and times written and typed |
+| `tst_textscroller` | ProPresenter's Scrolling Text (`src/textscroller.h`): the two boxes of ProPresenter's that were looked at, read; each change of the editor's (the way the words go, the speed, repeating, the gap, starting off the box, the feathering, switched off) changing that and nothing else, to the byte, a field ProPresenter's descriptions do not name kept; a box switched to scrolling given ProPresenter's settings for a new one, or keeping its own; how fast a Speed is; and where the words are as they go, once and over and over |
 | `tst_audiolevel` | The arithmetic of sound (`src/audiolevel.h`): the loudest sample of each channel of a stretch of sound, however its samples are written; how far up a meter that comes, by decibels, and how the meter rises and falls; and that two pieces crossing are together as loud all the way as either is alone |
 | `tst_clocktext` | How a date and a time are written for a text box linked to the system clock (`src/clocktext.h`): each of the five ways ProPresenter names for each, the twelve and the twenty-four hour clock, both together, in the words of the locale it is given, and where in a pattern the clock goes |
 | `tst_messagefile` | Messages (`src/messagefile.h`), on a file made as ProPresenter wrote the one that was looked at: a message read; a text as its words and its tokens in order; a message made, named, moved and removed; a text with tokens of each kind written as the file keeps them, a token the message has left as it is and one no longer in the text taken out; what a token is given; its theme; how it goes away; and after each, what else of the file is still as it was, to the byte; and what an action that shows a message gives its tokens, read as ProPresenter writes it (a timer token's setting among them), and words given to its text tokens with all else it says kept |
@@ -258,6 +259,14 @@ Slide and Disable Slide from a slide's menu, kept in the file; a Go To Next Time
 over a disabled slide; and the next slide the operator is shown being the next that is
 not disabled. The file is read with `protoc` after: three cues changed, and nothing else.
 
+`scrolling` works Scrolling Text, on the same presentation, whose slides have thirteen
+boxes ProPresenter made to scroll, behind the lyrics: on the output the box's words going
+by one shader, at the speed its slider says, and drawn moving; going in the operator's
+preview and still in the thumbnail and the editor; the editor's Text tab with
+ProPresenter's settings, changed (going right, from off the box, quicker, feathered at one
+end, once), shown again so, and gone once across; switched off and on again; and set
+going down, its words then as wide as the box. The file is read with `protoc` after.
+
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two
 outputs, one that can key as a linked pair of connectors can, and one that cannot, and
@@ -323,7 +332,8 @@ rewrites every address as ProPresenter writes one on a Mac.
 list of steps; each step does something and says how many milliseconds to wait before
 the next, so that the app can draw in between. Where the script has `//COMMON`, the
 runner puts in the helpers every script shares (`t/common.txt`: `check()`, finding an
-item by its `objectName`, clicking it); `t/lib.js` has more. Because the script is
+item by its `objectName`, clicking it, the panel it is in scrolled to it first if it is out
+of sight there, as a person would); `t/lib.js` has more. Because the script is
 loaded in the operator window's own scope, it calls the window's functions and reads its
 properties by name. Then give it a line in the `TESTS` table of `run.py`, which says the
 workspace it runs on and whether it has to be really drawn.

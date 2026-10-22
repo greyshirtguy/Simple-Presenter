@@ -22,9 +22,10 @@ the top of the [README](../README.md).
 - [ ] **Editor**: text boxes, shapes and pictures can be added, moved, resized, turned
       and removed, and their text and looks changed; slides can be added, copied,
       pasted and deleted; a song's chords can be put on; builds (see
-      [Builds](features/builds.md)). Still to do: reordering
+      [Builds](features/builds.md)); a text box's scrolling (see
+      [Scrolling text](features/scrolling-text.md)). Still to do: reordering
       slides, the rest of ProPresenter's shapes, picking several elements at once,
-      lists and scrolling text, builds of a text a part at a time (ProPresenter's
+      lists, builds of a text a part at a time (ProPresenter's
       Delivery), and a
       theme for a new slide (everything that makes a new slide, which is the `+` over
       the editor's slides, New Slide in a slide's menu, media dropped between slides

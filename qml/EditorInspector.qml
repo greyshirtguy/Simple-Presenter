@@ -1276,6 +1276,189 @@ Rectangle {
                 }
             }
 
+            // Scrolling Text (ScrollingText, src/textscroller.h), as ProPresenter's Text tab
+            // has it: "Scrolling", and with it the way the words go, where they start
+            // (Automatic, where they are; or Off-Screen), how fast, the feathering at the
+            // two ends (locked together, or each its own), and whether they go again and
+            // how far after. The sliders are ProPresenter's own, 0 to 1. (A GUESS at the
+            // order and the words of the controls, from ProPresenter's help.)
+            Heading {
+                text: "Scrolling"
+            }
+
+            CheckLine {
+                objectName: "scrollingOn"
+                text: "Scrolling"
+                checked: inspector.element ? inspector.element.scroll !== undefined : false
+                onToggled: (checked) => inspector.setProperties({ scrollOn: checked }, false)
+            }
+
+            // (Made only for a box that scrolls: the inspector's controls are told of every change
+            // to the element, at every step of a drag, and these are not wanted for any other box)
+            Loader {
+                width: parent.width
+                active: inspector.element !== null && inspector.element.scroll !== undefined
+
+                sourceComponent: Column {
+                    id: scrolling
+
+                    readonly property var settings: inspector.element && inspector.element.scroll !== undefined ? inspector.element.scroll : null
+                    property bool locked: true
+
+                    spacing: 6
+
+                    Line {
+                        caption: "Direction"
+
+                        Repeater {
+                            model: [["left", "←"], ["right", "→"], ["up", "↑"], ["down", "↓"]]
+
+                            delegate: Rectangle {
+                                required property var modelData
+                                readonly property bool chosen: scrolling.settings !== null && scrolling.settings.direction === modelData[0]
+
+                                objectName: "scrollDirection:" + modelData[0]
+                                width: 36
+                                height: 26
+                                radius: 5
+                                color: chosen ? "#ff8a1f" : arrowMouse.containsMouse ? "#45484e" : "#3a3c42"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    color: parent.chosen ? "black" : "#e6e6e6"
+                                    font.pixelSize: 15
+                                    text: parent.modelData[1]
+                                }
+
+                                MouseArea {
+                                    id: arrowMouse
+
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: inspector.setProperties({ scrollDirection: parent.modelData[0] }, false)
+                                }
+                            }
+                        }
+                    }
+
+                    Line {
+                        caption: "Start"
+
+                        AppComboBox {
+                            objectName: "scrollStart"
+                            width: textTab.width - 78
+                            model: ["Automatic", "Off-Screen"]
+                            currentIndex: scrolling.settings !== null && scrolling.settings.offScreen ? 1 : 0
+                            onActivated: (index) => inspector.setProperties({ scrollOffScreen: index === 1 }, false)
+                        }
+                    }
+
+                    Line {
+                        caption: "Speed"
+
+                        AppSlider {
+                            objectName: "scrollSpeed"
+                            width: textTab.width - 78
+                            from: 0
+                            to: 1
+                            value: scrolling.settings !== null ? scrolling.settings.rate : 0.5
+                            onMoved: inspector.setProperties({ scrollRate: Math.round(value * 1000) / 1000 }, true)
+                            onPressedChanged: {
+                                if (!pressed)
+                                    inspector.settle()
+                            }
+                        }
+                    }
+
+                    // The feathering at the start and the end of the box, which move together
+                    // while the lock is on
+                    Line {
+                        caption: "Feather"
+
+                        AppSlider {
+                            objectName: "scrollFadeLeft"
+                            width: (textTab.width - 78 - 30) / 2
+                            from: 0
+                            to: 0.5
+                            value: scrolling.settings !== null ? scrolling.settings.fadeLeft : 0
+                            onMoved: {
+                                const v = Math.round(value * 1000) / 1000
+                                inspector.setProperties(scrolling.locked ? { scrollFadeLeft: v, scrollFadeRight: v } : { scrollFadeLeft: v }, true)
+                            }
+                            onPressedChanged: {
+                                if (!pressed)
+                                    inspector.settle()
+                            }
+                        }
+
+                        Rectangle {
+                            objectName: "scrollFadeLock"
+                            width: 22
+                            height: 22
+                            radius: 5
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: scrolling.locked ? "#ff8a1f" : lockMouse.containsMouse ? "#45484e" : "#3a3c42"
+
+                            Text {
+                                anchors.centerIn: parent
+                                color: scrolling.locked ? "black" : "#e6e6e6"
+                                font.pixelSize: 11
+                                font.bold: true
+                                text: "="
+                            }
+
+                            MouseArea {
+                                id: lockMouse
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: scrolling.locked = !scrolling.locked
+                            }
+                        }
+
+                        AppSlider {
+                            objectName: "scrollFadeRight"
+                            width: (textTab.width - 78 - 30) / 2
+                            from: 0
+                            to: 0.5
+                            value: scrolling.settings !== null ? scrolling.settings.fadeRight : 0
+                            onMoved: {
+                                const v = Math.round(value * 1000) / 1000
+                                inspector.setProperties(scrolling.locked ? { scrollFadeLeft: v, scrollFadeRight: v } : { scrollFadeRight: v }, true)
+                            }
+                            onPressedChanged: {
+                                if (!pressed)
+                                    inspector.settle()
+                            }
+                        }
+                    }
+
+                    CheckLine {
+                        objectName: "scrollRepeat"
+                        text: "Repeat"
+                        checked: scrolling.settings !== null && scrolling.settings.repeat
+
+                        onToggled: (checked) => inspector.setProperties({ scrollRepeat: checked }, false)
+
+                        AppSlider {
+                            objectName: "scrollDistance"
+                            width: textTab.width - 78
+                            anchors.verticalCenter: parent.verticalCenter
+                            enabled: scrolling.settings !== null && scrolling.settings.repeat
+                            opacity: enabled ? 1 : 0.45
+                            from: 0
+                            to: 1
+                            value: scrolling.settings !== null ? scrolling.settings.distance : 0.05
+                            onMoved: inspector.setProperties({ scrollDistance: Math.round(value * 1000) / 1000 }, true)
+                            onPressedChanged: {
+                                if (!pressed)
+                                    inspector.settle()
+                            }
+                        }
+                    }
+                }
+            }
+
             Heading {
                 text: "Linked text"
             }

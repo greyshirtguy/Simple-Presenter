@@ -2006,6 +2006,42 @@ def after_transports(workspace, test_dir):
     ]
 
 
+def prepare_scrolling(workspace, test_dir):
+    """The scrolling text's test (scrolling): "It Is Well" as it was given (scrolling-before.pro)."""
+    shutil.copy(os.path.join(workspace, "Libraries", "Demo", "It Is Well.pro"), os.path.join(test_dir, "scrolling-before.pro"))
+
+
+def after_scrolling(workspace, test_dir):
+    """"It Is Well" once the test has changed its scrolling box, read with protoc and not by the app: the box scrolling
+    down, from off the box, at 0.8, once, feathered 0.3 at its start and as it was at its end, with the distance it had;
+    every other text_scroller in the file as it was; and the file otherwise as it was but for that box's."""
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    was = decoded(os.path.join(test_dir, "scrolling-before.pro"))
+    now = decoded(os.path.join(workspace, "Libraries", "Demo", "It Is Well.pro"))
+    blocks = lambda text: [m.group(0) for m in re.finditer(r"(?ms)^( *)text_scroller \{\n.*?^\1\}\n", text)]
+    before, after = blocks(was), blocks(now)
+    changed = [(a, b) for a, b in zip(before, after) if a != b]
+    old, new = changed[0] if len(changed) == 1 else ("", "")
+    field = lambda block, name: (re.search(r"\n\s*" + name + r": ([^\n]+)", block) or re.search("$", "")).group(1) if re.search(r"\n\s*" + name + ": ", block) else None
+    rest_was = was
+    for block in before:
+        rest_was = rest_was.replace(block, "", 1)
+    rest_now = now
+    for block in after:
+        rest_now = rest_now.replace(block, "", 1)
+    return [
+        said(len(before) == len(after) and len(changed) == 1, "one box's scrolling changed, and every other as it was", "%d changed of %d" % (len(changed), len(before))),
+        said(field(new, "should_scroll") == "true" and field(new, "scrolling_direction") == "DIRECTION_DOWN" and field(new, "starts_off_screen") == "true"
+             and field(new, "scroll_rate") == "0.8" and field(new, "should_repeat") is None and field(new, "fade_left") == "0.3"
+             and field(new, "fade_right") == field(old, "fade_right") and field(new, "repeat_distance") == field(old, "repeat_distance"),
+             "scrolling down, from off the box, at 0.8, once, feathered at its start, its distance and its end's feathering kept", new),
+        said(rest_was == rest_now, "and nothing else of the file changed"),
+    ]
+
+
 def prepare_disabled(workspace, test_dir):
     """The disabled slides' test (disabled): "It Is Well" as it was given (disabled-before.pro)."""
     shutil.copy(os.path.join(workspace, "Libraries", "Demo", "It Is Well.pro"), os.path.join(test_dir, "disabled-before.pro"))
@@ -3098,6 +3134,7 @@ TESTS = {
     "copyright": test("Act", timeout=300, prepare=prepare_copyright, after=after_copyright),
     "calendar": test("Act", timeout=300, prepare=prepare_calendar, after=after_calendar),
     "disabled": test("Demo", timeout=240, prepare=prepare_disabled, after=after_disabled),
+    "scrolling": test("Demo", timeout=300, prepare=prepare_scrolling, after=after_scrolling),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

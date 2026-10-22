@@ -71,6 +71,8 @@ qt_add_executable(SimplePresenter
     src/ccli.h
     src/calendarfile.cpp
     src/calendarfile.h
+    src/textscroller.cpp
+    src/textscroller.h
     src/audioprobe.cpp
     src/audioprobe.h
     src/playlistfile.cpp
@@ -152,6 +154,7 @@ qt_add_qml_module(SimplePresenter
         qml/CopyrightSettings.qml
         qml/CalendarWindow.qml
         qml/CalendarGlyph.qml
+        qml/ScrollingText.qml
         qml/TransportTabs.qml
         qml/VideoInputView.qml
         qml/AnnouncementLayer.qml
@@ -324,6 +327,8 @@ qt_add_qml_module(SimplePresenter
         src/cleargroups.cpp
         src/calendarevents.cpp
         src/calendarevents.h
+        src/textscrolling.cpp
+        src/textscrolling.h
         src/labelfile.h
         src/labelfile.cpp
         src/labels.h
@@ -456,6 +461,7 @@ qt_add_shaders(SimplePresenter "shaders"
         shaders/push.frag
         shaders/randomPixels.frag
         shaders/randomSquaresFlicker.frag
+        shaders/scroll.frag
         shaders/reveal.frag
         shaders/ripple.frag
         shaders/swap.frag

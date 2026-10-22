@@ -40,8 +40,25 @@
         return documents.find(d => d.name === name && openable(d))
     }
 
+    // The middle of an item, in its window, to click at: with the panel it is in scrolled to it first if it is out of
+    // sight there, as a person would scroll to it
     function centre(item) {
+        reveal(item)
         return item.mapToItem(null, item.width / 2, item.height / 2)
+    }
+
+    // The nearest Flickable an item is in scrolled up or down, if need be, so that the item is in sight in it
+    function reveal(item) {
+        let view = item.parent
+        while (view && !(view.contentY !== undefined && view.contentHeight !== undefined && view.flicking !== undefined))
+            view = view.parent
+        if (!view || !view.contentItem)
+            return
+        const top = item.mapToItem(view.contentItem, 0, 0).y
+        if (top < view.contentY)
+            view.contentY = Math.max(0, top - 20)
+        else if (top + item.height > view.contentY + view.height)
+            view.contentY = Math.max(0, Math.min(view.contentHeight - view.height, top + item.height - view.height + 20))
     }
 
     function click(p, button) {
