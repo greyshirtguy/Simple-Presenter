@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.108" date="2026-10-22">
+      <description>
+        <p>
+          Playback markers on the transport, as flags over its bar that are dragged to move
+          them and right-clicked to change them; and a marker changed while its media plays
+          is where that media runs it from then on.
+        </p>
+      </description>
+    </release>
     <release version="0.107" date="2026-10-22">
       <description>
         <p>

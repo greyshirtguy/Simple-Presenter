@@ -6,6 +6,17 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.108](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.108) · 2026-10-22
+
+- [Playback markers](docs/features/playback-markers.md) on the transport: small flags over
+  its bar, their points on the top of the slider's handle, so that a click on the slider is
+  the slider's as ever; dragged to move a marker (the live media left where it is), showing
+  its time and name under the pointer, and right-clicked for the Media Inspector's menu,
+  with Rename typed over the media's name. The Inspector draws the same flags, larger.
+- A marker moved, renamed or given actions while its media plays, on the transport or in
+  the Inspector, is what that media goes by from then on.
+- The README's screenshot taken again.
+
 ## [0.107](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.107) · 2026-10-22
 
 - [Playback markers](docs/features/playback-markers.md), as ProPresenter has them: points
