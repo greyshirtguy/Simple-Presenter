@@ -201,6 +201,10 @@ public:
     Q_INVOKABLE QVariantMap addMarker(const QVariantMap &place, double time);
     // The colours the marker menu offers by name (playbackmarkers::palette)
     Q_INVOKABLE QVariantList markerPalette() const;
+    // The markers of the media of a `place` as its file has them now (as
+    // playbackmarkers::describe gives them), for what is playing it to go by after a
+    // change; empty where there is none
+    Q_INVOKABLE QVariantList markersAt(const QVariantMap &place) const;
     Q_INVOKABLE QString changeMarker(const QVariantMap &place, const QString &id, const QVariantMap &changes);
     Q_INVOKABLE QString removeMarker(const QVariantMap &place, const QString &id);
     Q_INVOKABLE QVariantMap duplicateMarker(const QVariantMap &place, const QString &id);

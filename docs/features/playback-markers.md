@@ -36,10 +36,12 @@ A new marker is a colour, picked at random, that the media's other markers have 
 (any of the seven but white, once each has one), so that markers added one after
 another are told apart.
 
-Over the bar, each marker is a flag of its colour. A flag is **dragged** along the bar
-to move its marker, the player following it to show where it is going, and the time it
-is going to shown over it; let go, the marker is kept there. A click on a flag takes the
-player to it, and a right click has its menu.
+Over the bar, each marker is a flag of its colour, a little shield whose point at the
+foot is the marker's place, sitting on the top of the slider's handle so that it covers
+neither the handle nor the bar. A flag is **dragged** along the bar to move its marker,
+the player following it to show where it is going, and the time it is going to shown
+over it; let go, the marker is kept there. A click on a flag takes the player to it,
+and a right click has its menu.
 
 Every change is kept at once, in the file the media is in: the presentation, or the
 bin's playlist file, as ProPresenter keeps them, on the action that plays the media.
@@ -51,10 +53,20 @@ That holds for the video on the media layer, the video under an announcement's s
 and the audio bin's pieces. A video that goes round runs its markers again each time
 round.
 
-The [transport](media.md#the-transport) draws the markers of what it works on its bar
-(where they are not moved: the media there is live),
-and has a **Marker** menu at the right of its buttons, listing them by time and name:
-one picked takes the media there and runs its actions, once.
+The [transport](media.md#the-transport) draws the markers of what it works as the same
+flags, smaller, over its bar, where a click on the slider anywhere but on a flag is the
+slider's as ever. Under the pointer a flag shows its time and name. A flag is dragged to
+move its marker, kept where it is let go; the media, being live, is not moved with it.
+A right click has the same menu as in the Media Inspector, its **Rename** typed over the
+media's name. That holds for media played from a slide, from the media bin or from the
+audio bin, which is where its markers are kept; media played any other way has its
+flags drawn and not changed.
+
+A marker changed while its media plays, on the transport or in the Media Inspector, is
+where that media runs it from then on, and where the next showing of it has it.
+
+The transport also has a **Marker** menu at the right of its buttons, listing them by
+time and name: one picked takes the media there and runs its actions, once.
 
 ## On the stage
 
@@ -75,8 +87,8 @@ The time is set out as a timer's is.
 - The time to a marker that has been passed counts up from it.
 - The colours offered, a new marker's at random, and blue for a marker that has none in
   its file, are this app's.
-- ProPresenter's help moves a marker with Move to Playhead; dragging its flag is this
-  app's as well.
+- ProPresenter's help moves a marker with Move to Playhead; dragging its flag, in the
+  Inspector and on the transport, is this app's as well, and so is the flags' shape.
 - Not here yet: ProPresenter's Cut, Copy and Paste of markers; dragging an action, a
   show control or a file onto a marker; dropping an action under the list for a marker
   of its own; and the link that colours a shape by a marker.

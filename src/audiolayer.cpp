@@ -306,8 +306,10 @@ void AudioLayer::start(const QVariantMap &audio)
     // Its playback markers, for a piece that has any: looked at as the player says where
     // it is, and for no other
     voice->markers = audio.value("markers").toList();
-    if (!voice->markers.isEmpty())
+    if (!voice->markers.isEmpty()) {
+        voice->watchingMarkers = true;
         connect(voice->player, &QMediaPlayer::positionChanged, this, [this, play] { passMarkers(play); });
+    }
     if (voice->playback == QLatin1String("loop") && loopSeconds > 0) {
         // One that goes round for a length of time has come to its end when the time is up.
         voice->limit = new QTimer(this);
@@ -401,6 +403,19 @@ void AudioLayer::nearing(int play)
         followMusic();
         emit finished(play);
         return;
+    }
+}
+
+void AudioLayer::setMarkers(int play, const QVariantList &markers)
+{
+    for (Voice *voice : std::as_const(m_voices)) {
+        if (voice->play != play)
+            continue;
+        voice->markers = markers;
+        if (!markers.isEmpty() && !voice->watchingMarkers) {
+            voice->watchingMarkers = true;
+            connect(voice->player, &QMediaPlayer::positionChanged, this, [this, play] { passMarkers(play); });
+        }
     }
 }
 

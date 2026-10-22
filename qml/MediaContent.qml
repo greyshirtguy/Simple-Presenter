@@ -64,6 +64,10 @@ Item {
     // number of its playing (`playId`), so that a playing that has gone since is not
     // taken for the one there is now.
     signal ended(int playId)
+    // The markers a playing of a video goes by: (playId, its own) => the markers now, which
+    // are the show's for what is live (they may have been moved since it started: see
+    // Show.setLiveMarkers); or null, for its own alone
+    property var markersOf: null
     // Playback has reached one of the video's playback markers (`marker` as
     // playbackmarkers::describe has it), for its actions to be run (Show.runMarker); said
     // by the scene that plays it, with the number of its playing, as `ended` is.
@@ -221,7 +225,8 @@ Item {
             // one back does too unless it is to the first second, as going round is: then
             // the markers from the start are said again. (GUESSES at ProPresenter, whose
             // help says only that they run when playback reaches them.)
-            readonly property var markers: root.content?.markers ?? []
+            readonly property var markers: root.markersOf ? root.markersOf(root.content?.playId ?? 0, root.content?.markers ?? [])
+                                                          : root.content?.markers ?? []
             property real lastAt: -1
 
             function passMarkers(now) {

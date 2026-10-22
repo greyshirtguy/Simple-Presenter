@@ -672,6 +672,26 @@ QString ProDocument::changeCueMedia(const QString &path, const QString &cueId, c
     });
 }
 
+bool ProDocument::readCueMedia(const QString &path, const QString &cueId, const std::function<void(const rv::data::Action &)> &look)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return false;
+    for (const rv::data::Cue &cue : presentation.cues()) {
+        if (QString::fromStdString(cue.uuid().string()) != cueId)
+            continue;
+        // (The same action changeCueMedia changes)
+        for (const rv::data::Action &action : cue.actions()) {
+            if (action.isenabled() && isVisualMedia(action)) {
+                look(action);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 QString ProDocument::setCueMediaSettings(const QString &path, const QString &cueId, const QVariantMap &changes)
 {
     return changeCue(path, cueId, [&](rv::data::Cue *cue) {

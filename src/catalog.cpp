@@ -719,6 +719,19 @@ QVariantList Catalog::markerPalette() const
     return playbackmarkers::palette();
 }
 
+QVariantList Catalog::markersAt(const QVariantMap &place) const
+{
+    QVariantList markers;
+    const auto look = [&](const rv::data::Action &media) { markers = playbackmarkers::describe(media, actions::describe); };
+    const QString kind = place.value("kind").toString();
+    if (kind == QLatin1String("slide"))
+        ProDocument::readCueMedia(place.value("path").toString(), place.value("slideId").toString(), look);
+    else if (kind == QLatin1String("mediaRow") || kind == QLatin1String("audioRow"))
+        PlaylistFile::readMediaAction(m_root, kind == QLatin1String("mediaRow") ? PlaylistFile::Media : PlaylistFile::Audio,
+                                      place.value("item").toString(), look);
+    return markers;
+}
+
 QString Catalog::changeMarker(const QVariantMap &place, const QString &id, const QVariantMap &changes)
 {
     return changeMarkers(place, [&](rv::data::Action *media) { return playbackmarkers::change(media, id, changes); });

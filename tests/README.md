@@ -221,7 +221,10 @@ Clear and a prop's Trigger, coloured from the menu and with Other…'s picker, d
 deleted, dragged along the bar by its flag (the player following) and moved to the
 player, and a flag clicked; the video played over a live slide, the
 first marker clearing the slide and the second putting the prop on as playback reaches
-them; the transport's marks and its Marker menu; a stage layout's box linked in the
+them; the transport's Marker menu, and its flags: on the top of the handle, a click on
+the bar under one still the slider's, one dragged (shown as it goes, the live video left
+where it is) and kept, and run at its new time as the video plays on, its right-click
+menu and Rename; the audio tab's flag; a stage layout's box linked in the
 editor to the previous marker's name in its colour, empty before it and drawn red after;
 and the tone's Inspector, with that tab alone, and its marker run as it plays. The bins
 are read with `protoc` after.

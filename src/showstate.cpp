@@ -126,6 +126,25 @@ bool State::announcementAt(const QString &key, const QString &playlistId) const
 
 namespace {
 
+// Where the markers of the media a cue's slide brings are kept: the slide of its
+// presentation's file (see Catalog.addMarker's places)
+QVariantMap slidePlace(const Cue &cue)
+{
+    const QString id = cue.slide.value("id").toString();
+    if (cue.file.isEmpty() || id.isEmpty())
+        return {};
+    return {{"kind", QStringLiteral("slide")}, {"path", cue.file}, {"slideId", id}};
+}
+
+// The media of a layer with `markers` in place of its own (none taken away)
+void putMarkers(QVariantMap *media, const QVariantList &markers)
+{
+    if (markers.isEmpty())
+        media->remove("markers");
+    else
+        media->insert("markers", markers);
+}
+
 // What of a piece of media's Media Inspector settings (as mediasettings::describe has
 // them) changes how it looks or plays. The same file in two places can differ in the
 // rest, the moment its thumbnail is taken from or the size and length its file says it
@@ -291,6 +310,7 @@ Effects State::goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Works
             // is given the slide alone, which takes the media off.
             announcementHasMedia = false;
             announcementMedia.clear();
+            announcementMediaPlace.clear();
             effects << withMedia(Effect::AnnouncementWithMedia, QVariantMap());
         } else {
             effects << plain(Effect::Announcement);
@@ -300,6 +320,7 @@ Effects State::goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Works
     } else {
         announcementHasMedia = true;
         announcementMedia = cueMedia;
+        announcementMediaPlace = slidePlace(cue);
         effects << withMedia(Effect::AnnouncementWithMedia, cueMedia);
     }
 
@@ -374,6 +395,7 @@ Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &worksp
         hasMedia = true;
         media = cueMedia;
         mediaPlaylistId.clear();
+        mediaPlace = slidePlace(cue);
         effects << withMedia(Effect::SlideWithMedia, cueMedia);
     }
 
@@ -490,6 +512,11 @@ Effects State::showMedia(const QVariantMap &asked, const QString &playlist)
     hasMedia = true;
     media = asked;
     mediaPlaylistId = playlist;
+    // (Media already playing is the same playing, kept where it was.)
+    if (!playing)
+        mediaPlace = playlist.isEmpty() || asked.value("id").toString().isEmpty()
+                         ? QVariantMap()
+                         : QVariantMap {{"kind", QStringLiteral("mediaRow")}, {"item", asked.value("id").toString()}};
     if (!playing)
         effects << withMedia(Effect::Media, asked);
     return effects;
@@ -517,6 +544,7 @@ void State::clearMedia(Effects &effects)
     hasMedia = false;
     media.clear();
     mediaPlaylistId.clear();
+    mediaPlace.clear();
     effects << plain(Effect::NoMedia);
 }
 
@@ -571,6 +599,7 @@ void State::clearAnnouncements(Effects &effects)
     announcement.cleared = true;
     announcementHasMedia = false;
     announcementMedia.clear();
+    announcementMediaPlace.clear();
     effects << plain(Effect::NoAnnouncements);
 }
 
@@ -1116,6 +1145,37 @@ Effects State::runMacro(const QString &id, const Workspace &workspace)
     effects << note("macro", quoted(macro.value("name").toString()) + QStringLiteral(" run by hand: ") + actionsWord(actions.size()));
     runActions(actions, 1, workspace, effects);
     return effects;
+}
+
+QVariantMap State::placeOf(const QString &layer) const
+{
+    if (layer == QLatin1String("media"))
+        return hasMedia ? mediaPlace : QVariantMap();
+    if (layer == QLatin1String("announcements"))
+        return announcementHasMedia ? announcementMediaPlace : QVariantMap();
+    if (layer == QLatin1String("audio") && hasMusic && !musicPlaylistId.isEmpty() && !music.value("id").toString().isEmpty())
+        return {{"kind", QStringLiteral("audioRow")}, {"item", music.value("id").toString()}};
+    return {};
+}
+
+QStringList State::setMarkers(const QVariantMap &place, const QVariantList &markers)
+{
+    QStringList changed;
+    if (place.isEmpty())
+        return changed;
+    if (placeOf(QStringLiteral("media")) == place) {
+        putMarkers(&media, markers);
+        changed << QStringLiteral("media");
+    }
+    if (placeOf(QStringLiteral("announcements")) == place) {
+        putMarkers(&announcementMedia, markers);
+        changed << QStringLiteral("announcements");
+    }
+    if (placeOf(QStringLiteral("audio")) == place) {
+        putMarkers(&music, markers);
+        changed << QStringLiteral("audio");
+    }
+    return changed;
 }
 
 Effects State::runMarker(const QVariantMap &marker, const QString &media, const Workspace &workspace)

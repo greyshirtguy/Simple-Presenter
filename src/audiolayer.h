@@ -109,6 +109,9 @@ public:
     // `play`, the number of this playing of it): music in place of the music that is
     // playing, a sound effect over whatever is.
     Q_INVOKABLE void start(const QVariantMap &audio);
+    // The playback markers of the piece playing as `play` have been changed (from the
+    // transport, or in the Media Inspector): it goes by `markers` from now.
+    Q_INVOKABLE void setMarkers(int play, const QVariantList &markers);
     // Stops the music; and every sound effect.
     Q_INVOKABLE void stopMusic();
     Q_INVOKABLE void stopSounds();
@@ -154,6 +157,8 @@ private:
         // passMarkers)
         QVariantList markers;
         double lastAt = -1;
+        // Its player is looked at for them (once there have been any)
+        bool watchingMarkers = false;
         // It goes round for so long, and has so long left of that
         QTimer *limit = nullptr;
     };

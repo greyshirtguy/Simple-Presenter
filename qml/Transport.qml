@@ -10,10 +10,17 @@ import QtMultimedia
 // playing there is nothing to work, and it is greyed. Which player it is the tabs over
 // it pick (see TransportTabs, in PreviewPanel).
 //
-// Media with playback markers has them drawn on the bar in their colours, as
-// ProPresenter's transport has, and a Marker menu at the right of the buttons, which
-// lists them by time and name: one picked takes the media there and runs its actions
-// (the operator window's showTransportMarkers).
+// Media with playback markers has them drawn over the bar in their colours, as
+// ProPresenter's transport has, each a small flag whose point is at the top of the
+// slider's handle (MarkerFlag): there it covers neither the handle nor the bar, and a
+// click on the slider anywhere else is the slider's, the flags being small and fine to
+// be hard to hit. A flag is dragged along the bar to move its marker, kept where it is
+// let go (the operator window's moveLiveMarker); the media, being live, is not moved
+// with it. A right click has the Media Inspector's menu of the marker (Rename typed
+// over the media's name here). Under the pointer or held, a flag shows its time and
+// name. And a Marker menu at the right of the buttons lists them by time and name: one
+// picked takes the media there and runs its actions (the operator window's
+// showTransportMarkers).
 //
 // What it costs. A player says where it has got to twenty times a second, and anything
 // drawn straight from that is drawn twenty times a second, with the whole operator
@@ -37,8 +44,21 @@ Item {
     // Its playback markers (see playbackmarkers.h), drawn on the bar; and the Marker menu
     // asked for, by its button (`item`), which the operator window puts up
     readonly property var markers: media !== null ? media.markers ?? [] : []
+    // Whether they can be changed here: the media has a file they are kept in (see
+    // Show.livePlace); otherwise they are drawn and no more
+    property bool editable: false
+    // A marker being dragged and where it is so far, in seconds ("" for none); and one
+    // whose name is being typed
+    property string draggedMarker: ""
+    property real draggedTime: 0
+    property string renaming: ""
 
     signal markersAsked(var item)
+    // A marker dragged to `seconds`; one's menu asked for, on its flag `item` at a point
+    // of it; and one renamed
+    signal markerMoved(string id, real seconds)
+    signal markerMenuAsked(var marker, var item, real x, real y)
+    signal markerRenamed(string id, string name)
     // Something that says `relayed` whenever the window is about to be drawn again for
     // the video's sake anyway, or null: the preview's FrameRelay
     property var pulse: null
@@ -65,6 +85,24 @@ Item {
         const minutes = Math.floor(seconds / 60) % 60
         const rest = String(seconds % 60).padStart(2, "0")
         return hours > 0 ? hours + ":" + String(minutes).padStart(2, "0") + ":" + rest : minutes + ":" + rest
+    }
+
+    // Where along the slider a marker's flag is: over where the middle of the handle is
+    // at that time, so that a marker at the playhead has its flag right over the handle;
+    // and the time at a point of the slider
+    function markerX(seconds) {
+        return slider.leftPadding + slider.handle.width / 2
+               + Math.max(0, Math.min(1, seconds * 1000 / Math.max(1, duration))) * (slider.availableWidth - slider.handle.width)
+    }
+
+    function timeAt(x) {
+        const along = (x - slider.leftPadding - slider.handle.width / 2) / Math.max(1, slider.availableWidth - slider.handle.width)
+        return Math.max(0, Math.min(1, along)) * duration / 1000
+    }
+
+    // A marker's time to the tenth of a second
+    function markerClock(seconds) {
+        return clock(Math.floor(seconds)) + "." + Math.floor((seconds % 1) * 10)
     }
 
     function look() {
@@ -121,6 +159,38 @@ Item {
 
         function onPositionChanged() {
             transport.look()
+        }
+    }
+
+    // A marker's name typed (Rename in its menu), over the media's name: Enter keeps it,
+    // Esc gives it up. Made only while it is typed: the transport is made at start.
+    Loader {
+        x: 0
+        y: 0
+        z: 3
+        width: parent.width
+        height: 22
+        active: transport.renaming !== ""
+
+        sourceComponent: AppTextField {
+            objectName: "transportMarkerName"
+            font.pixelSize: 12
+            Component.onCompleted: {
+                const marker = transport.markers.find(m => m.id === transport.renaming)
+                text = marker ? marker.name : ""
+                forceActiveFocus()
+                selectAll()
+            }
+            onAccepted: {
+                const id = transport.renaming
+                const name = text.trim()
+                transport.renaming = ""
+                transport.markerRenamed(id, name)
+            }
+            Keys.onEscapePressed: {
+                transport.renaming = ""
+                transport.markerRenamed("", "")
+            }
         }
     }
 
@@ -193,24 +263,97 @@ Item {
                     value: transport.position
                 }
 
-                // The playback markers, each a mark of its colour on the bar, outlined
-                // so as to be seen on the part played as well. (Moved in the Media
-                // Inspector, where they are made, and not here, where the media is live.)
+                // The playback markers' flags (see the top of this file)
                 Repeater {
                     model: transport.working ? transport.markers : []
 
-                    delegate: Rectangle {
+                    delegate: MarkerFlag {
+                        id: flag
+
                         required property var modelData
+                        readonly property bool dragged: transport.draggedMarker === modelData.id
 
                         objectName: "transportMarkerMark"
-                        x: slider.leftPadding + Math.min(1, modelData.time * 1000 / transport.duration) * slider.availableWidth - 2.5
-                        y: slider.height / 2 - 8
-                        width: 5
-                        height: 16
-                        radius: 1.5
+                        x: transport.markerX(dragged ? transport.draggedTime : modelData.time) - width / 2
+                        // (its point touching the top of the handle)
+                        y: slider.handle.y - height + 1
+                        z: dragged ? 2 : 1
+                        width: 9
+                        height: 10
                         color: modelData.color
-                        border.width: 1
-                        border.color: "#15161a"
+                        lit: dragged || flagMouse.containsMouse
+
+                        // Its time and name, while it is under the pointer or held
+                        Rectangle {
+                            objectName: "transportMarkerTag"
+                            visible: flag.dragged || flagMouse.containsMouse
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: -height - 3
+                            width: tagText.implicitWidth + 10
+                            height: 18
+                            radius: 4
+                            color: "#15161a"
+                            border.width: 1
+                            border.color: "#5c5f66"
+
+                            Text {
+                                id: tagText
+
+                                anchors.centerIn: parent
+                                color: "#e6e6e6"
+                                font.pixelSize: 11
+                                text: transport.markerClock(flag.dragged ? transport.draggedTime : flag.modelData.time)
+                                      + (flag.modelData.name !== "" ? "  " + flag.modelData.name : "")
+                            }
+                        }
+
+                        MouseArea {
+                            id: flagMouse
+
+                            property real pressedAt: 0
+                            // Whether this press has dragged the marker (and so is no click)
+                            property bool moved: false
+
+                            objectName: "transportMarkerHandle"
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            acceptedButtons: transport.editable ? Qt.LeftButton | Qt.RightButton : Qt.NoButton
+                            cursorShape: !transport.editable ? Qt.ArrowCursor : flag.dragged ? Qt.ClosedHandCursor : Qt.SizeHorCursor
+                            preventStealing: true
+                            onPressed: (mouse) => {
+                                pressedAt = mapToItem(slider, mouse.x, 0).x
+                                moved = false
+                            }
+                            onPositionChanged: (mouse) => {
+                                if (!pressed || !(pressedButtons & Qt.LeftButton))
+                                    return
+                                const along = mapToItem(slider, mouse.x, 0).x
+                                if (!flag.dragged && Math.abs(along - pressedAt) < 3)
+                                    return
+                                transport.draggedTime = transport.timeAt(along)
+                                transport.draggedMarker = flag.modelData.id
+                            }
+                            // Kept once the press is over: keeping it gives the transport
+                            // the markers again, which makes this flag anew, so what is done
+                            // then is done by the transport, which stays.
+                            onReleased: (mouse) => {
+                                if (mouse.button !== Qt.LeftButton || !flag.dragged)
+                                    return
+                                moved = true
+                                const owner = transport
+                                const id = flag.modelData.id
+                                const seconds = owner.draggedTime
+                                Qt.callLater(() => {
+                                    owner.draggedMarker = ""
+                                    owner.markerMoved(id, seconds)
+                                })
+                            }
+                            onCanceled: transport.draggedMarker = ""
+                            onClicked: (mouse) => {
+                                if (!moved && mouse.button === Qt.RightButton)
+                                    transport.markerMenuAsked(flag.modelData, flag, mouse.x, mouse.y)
+                            }
+                        }
                     }
                 }
             }

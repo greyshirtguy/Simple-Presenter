@@ -586,6 +586,14 @@ Rectangle {
             badged: works !== "audio"
             nothing: works === "audio" ? "No music" : "No media"
             onMarkersAsked: (item) => sidePanel.win.showTransportMarkers(works, markers, player, item)
+            // Its markers changed from here, where the media on its layer keeps them (asked
+            // again as the media changes, which is when that can change)
+            editable: media !== null && Show.livePlace(works).kind !== undefined
+            onMarkerMoved: (id, seconds) => sidePanel.win.moveLiveMarker(works, id, seconds)
+            onMarkerMenuAsked: (marker, item, x, y) => sidePanel.win.showLiveMarkerMenu(works, marker, item, x, y,
+                                                                                         player ? player.position / 1000 : 0,
+                                                                                         id => transport.renaming = id)
+            onMarkerRenamed: (id, name) => sidePanel.win.renameLiveMarker(works, id, name)
         }
     }
 

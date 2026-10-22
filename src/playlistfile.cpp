@@ -475,6 +475,25 @@ rv::data::Action *mediaActionOf(rv::data::PlaylistItem *item)
 
 } // namespace
 
+bool PlaylistFile::readMediaAction(const QString &root, Kind kind, const QString &itemId,
+                                   const std::function<void(const rv::data::Action &)> &look)
+{
+    if (kind != Media && kind != Audio)
+        return false;
+    rv::data::PlaylistDocument document;
+    QString error;
+    if (!read(root, kind, &document, &error))
+        return false;
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    if (!item || !item->has_cue())
+        return false;
+    const rv::data::Action *action = kind == Media ? mediaActionOf(item) : audiocue::audioOf(item->mutable_cue());
+    if (!action)
+        return false;
+    look(*action);
+    return true;
+}
+
 QString PlaylistFile::changeMediaAction(const QString &root, Kind kind, const QString &itemId,
                                         const std::function<QString(rv::data::Action *)> &change)
 {

@@ -233,17 +233,33 @@ Rectangle {
         problem = made.error
         Log.note("media", "Media Inspector: a marker added to " + (media?.name ?? "") + " at " + seconds.toFixed(2) + " s"
                  + (made.error === "" ? "" : ", which failed: " + made.error))
-        reread()
+        afterMarkerChange()
     }
 
     // A marker being dragged along the bar, and where it is so far, in seconds; "" for none
     property string draggedMarker: ""
     property real draggedTime: 0
 
-    // Where along the bar a marker's flag is: where it is being dragged to, or its time
+    // Where along the bar a marker's flag is (where it is being dragged to, or its time):
+    // over where the middle of the slider's handle is at that time, so that a marker at
+    // the player has its flag right over the handle; and the time at a point of the bar.
     function markerX(marker) {
         const time = draggedMarker === marker.id ? draggedTime : marker.time
-        return bar.leftPadding + Math.max(0, Math.min(1, time * 1000 / Math.max(1, duration))) * bar.availableWidth
+        return bar.leftPadding + bar.handle.width / 2
+               + Math.max(0, Math.min(1, time * 1000 / Math.max(1, duration))) * (bar.availableWidth - bar.handle.width)
+    }
+
+    function timeAt(x) {
+        const along = (x - bar.leftPadding - bar.handle.width / 2) / Math.max(1, bar.availableWidth - bar.handle.width)
+        return Math.max(0, Math.min(1, along)) * duration / 1000
+    }
+
+    // The markers have been changed: read again, and whatever is playing that media goes
+    // by them as they now are (the operator window's markersEdited)
+    function afterMarkerChange() {
+        reread()
+        if (keeper && keeper.place)
+            owner.markersEdited(keeper.place, false)
     }
 
     // A marker let go of where it was dragged to: kept at its new time
@@ -254,7 +270,7 @@ Rectangle {
         problem = owner.catalog.changeMarker(keeper.place, id, { time: seconds })
         Log.note("media", "Media Inspector: a marker of " + (media?.name ?? "") + " dragged to " + seconds.toFixed(2) + " s"
                  + (problem === "" ? "" : ", which failed: " + problem))
-        reread()
+        afterMarkerChange()
     }
 
     function renameMarker(id, name) {
@@ -262,7 +278,7 @@ Rectangle {
         if (!keeper || !keeper.place)
             return
         problem = owner.catalog.changeMarker(keeper.place, id, { name: name.trim() })
-        reread()
+        afterMarkerChange()
         focusTaker.forceActiveFocus()
     }
 
@@ -532,11 +548,12 @@ Rectangle {
 
                 // The bar: where the player is, with the part that plays marked in
                 // blue under it, and where the picture is taken from as a white mark;
-                // over it, a band for the flags of the playback markers.
+                // over it, a band for the flags of the playback markers, whose points
+                // are at the top of the handle (see MarkerFlag).
                 Item {
                     width: parent.width
                     height: 26 + markerBand
-                    readonly property int markerBand: panel.markers.length > 0 ? 15 : 0
+                    readonly property int markerBand: panel.markers.length > 0 ? 12 : 0
 
                     Rectangle {
                         objectName: "inspectorTrimBar"
@@ -548,24 +565,6 @@ Rectangle {
                         // (Blue, and not the orange of the part played, above it)
                         color: "#4da3ff"
                         opacity: panel.trimmedIn || panel.settings.trimmedOut ? 1 : 0.35
-                    }
-
-                    // The stems of the markers' flags, from their heads (over the slider,
-                    // below) down to the bar, under the slider's handle
-                    Repeater {
-                        model: panel.duration > 0 ? panel.markers : []
-
-                        delegate: Rectangle {
-                            required property var modelData
-
-                            x: panel.markerX(modelData) - 1
-                            y: 10
-                            width: 2
-                            // (to the middle of the slider's track)
-                            height: parent.markerBand + 13 - 10
-                            color: modelData.color
-                            opacity: 0.8
-                        }
                     }
 
                     Rectangle {
@@ -600,46 +599,35 @@ Rectangle {
                         acceptedButtons: Qt.RightButton
                         enabled: panel.timed && panel.duration > 0 && panel.keeper !== null && panel.keeper.place !== undefined
                         onClicked: (mouse) => {
-                            const along = Math.max(0, Math.min(1, (mouse.x - bar.leftPadding) / Math.max(1, bar.availableWidth)))
-                            const seconds = along * panel.duration / 1000
+                            const seconds = panel.timeAt(mapToItem(bar, mouse.x, 0).x)
                             panel.owner.showMenu([{ label: "Add Marker Here", run: () => panel.addMarker(seconds) }], this, mouse.x, mouse.y)
                         }
                     }
 
-                    // The heads of the markers' flags: each dragged along the bar to move
-                    // its marker, the player following it to show where it is going (let
-                    // go, it is kept there); clicked, the player taken to it; right-clicked,
-                    // its menu. (ProPresenter's help says a marker is moved with Move to
-                    // Playhead; that it can be dragged as well is A GUESS, asked for here.)
+                    // The markers' flags (see MarkerFlag), the transport's shape and larger:
+                    // each dragged along the bar to move its marker, the player following it
+                    // to show where it is going (let go, it is kept there); clicked, the
+                    // player taken to it; right-clicked, its menu. (ProPresenter's help says
+                    // a marker is moved with Move to Playhead; that it can be dragged as well
+                    // is A GUESS, asked for here.)
                     Repeater {
                         model: panel.duration > 0 ? panel.markers : []
 
-                        delegate: Item {
+                        delegate: MarkerFlag {
                             id: flag
 
                             required property var modelData
-                            readonly property color color: modelData.color
                             readonly property bool dragged: panel.draggedMarker === modelData.id
 
                             objectName: "inspectorMarkerMark"
                             x: panel.markerX(modelData) - width / 2
-                            y: 0
+                            // (its point touching the top of the handle)
+                            y: bar.y + bar.handle.y - height + 1
                             z: dragged ? 1 : 0
-                            width: 20
-                            height: 18
-
-                            // A diamond, as in the list of markers
-                            Rectangle {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                y: 2
-                                width: 11
-                                height: 11
-                                rotation: 45
-                                radius: 1.5
-                                color: flag.color
-                                border.width: 1
-                                border.color: flag.dragged || flagMouse.containsMouse ? "white" : "#15161a"
-                            }
+                            width: 14
+                            height: 16
+                            color: modelData.color
+                            lit: dragged || flagMouse.containsMouse
 
                             // Where it is going, while it is dragged
                             Rectangle {
@@ -686,7 +674,7 @@ Rectangle {
                                     const along = mapToItem(bar, mouse.x, 0).x
                                     if (!flag.dragged && Math.abs(along - pressedAt) < 4)
                                         return
-                                    const seconds = Math.max(0, Math.min(1, (along - bar.leftPadding) / Math.max(1, bar.availableWidth))) * panel.duration / 1000
+                                    const seconds = panel.timeAt(along)
                                     panel.draggedTime = seconds
                                     panel.draggedMarker = flag.modelData.id
                                     panel.settling = false
@@ -695,12 +683,13 @@ Rectangle {
                                 // Kept once the press is over: keeping it reads the markers
                                 // again, which makes this flag anew.
                                 onReleased: (mouse) => {
-                                    if (!flag.dragged)
+                                    if (mouse.button !== Qt.LeftButton || !flag.dragged)
                                         return
                                     moved = true
+                                    const owner = panel
                                     const id = flag.modelData.id
-                                    const seconds = panel.draggedTime
-                                    Qt.callLater(() => panel.moveMarker(id, seconds))
+                                    const seconds = owner.draggedTime
+                                    Qt.callLater(() => owner.moveMarker(id, seconds))
                                 }
                                 onCanceled: panel.draggedMarker = ""
                                 onClicked: (mouse) => {
@@ -708,7 +697,7 @@ Rectangle {
                                         return
                                     if (mouse.button === Qt.RightButton) {
                                         panel.owner.showMarkerMenu(panel.keeper.place, flag.modelData, flag, mouse.x, mouse.y,
-                                                                   previewPlayer.position / 1000, () => panel.reread(),
+                                                                   previewPlayer.position / 1000, () => panel.afterMarkerChange(),
                                                                    id => panel.renaming = id)
                                         return
                                     }
@@ -1207,7 +1196,7 @@ Rectangle {
                                 onClicked: (mouse) => {
                                     if (mouse.button === Qt.RightButton) {
                                         panel.owner.showMarkerMenu(panel.keeper.place, markerRow.modelData, markerRow, mouse.x, mouse.y,
-                                                                   previewPlayer.position / 1000, () => panel.reread(),
+                                                                   previewPlayer.position / 1000, () => panel.afterMarkerChange(),
                                                                    id => panel.renaming = id)
                                         return
                                     }

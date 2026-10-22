@@ -10,6 +10,8 @@ AuxWindow {
 
     signal mediaEnded(int playId)
     signal markerReached(int playId, var marker, string layer)
+    // The markers a playing goes by now (see MediaContent.markersOf)
+    property var markersOf: null
 
     property alias shader: scene.shader
     property alias options: scene.options
@@ -73,5 +75,6 @@ AuxWindow {
         anchors.fill: parent
         onMediaEnded: (playId) => win.mediaEnded(playId)
         onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
+        markersOf: win.markersOf
     }
 }

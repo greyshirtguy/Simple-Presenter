@@ -26,6 +26,7 @@ show::Cue cueFrom(const QVariantMap &map)
     cue.destination = map.value("destination").toString();
     cue.slideShow = map.value("slideShow").toDouble();
     cue.ccli = map.value("ccli").toMap();
+    cue.file = map.value("file").toString();
     return cue;
 }
 
@@ -556,6 +557,16 @@ void Show::setProp(const QString &id, bool on)
 void Show::runMacro(const QString &id)
 {
     change([&] { return m_state.runMacro(id, m_workspace); });
+}
+
+QStringList Show::setLiveMarkers(const QVariantMap &place, const QVariantList &markers)
+{
+    QStringList changed;
+    change([&] {
+        changed = m_state.setMarkers(place, markers);
+        return show::Effects();
+    });
+    return changed;
 }
 
 void Show::runMarker(const QVariantMap &marker, const QString &media)

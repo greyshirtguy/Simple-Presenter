@@ -161,6 +161,9 @@ struct ProDocument
     // `change`, which returns an error message: what its playback markers are changed
     // through (playbackmarkers.h).
     static QString changeCueMedia(const QString &path, const QString &cueId, const std::function<QString(rv::data::Action *)> &change);
+    // That media action as the file has it, handed to `look`; false where the file, the
+    // slide or its media is not there
+    static bool readCueMedia(const QString &path, const QString &cueId, const std::function<void(const rv::data::Action &)> &look);
     // What the Media Inspector sets of the media the cue triggers (the same media its
     // slide's `media` is read from), as mediasettings::apply takes changes; and that
     // media replaced by another file, keeping what mediasettings::carryOver keeps. Each

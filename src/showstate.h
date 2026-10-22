@@ -87,6 +87,9 @@ struct Cue
     // The presentation's copyright details (see ccli::describe), for the workspace's
     // copyright display: empty for none
     QVariantMap ccli;
+    // The presentation's file: where the playback markers of the media its slide brings
+    // are kept (see State::mediaPlace)
+    QString file;
 };
 
 // One thing to be done outside, as the outcome of a change.
@@ -173,6 +176,11 @@ public:
     bool hasMedia = false;
     QVariantMap media;
     QString mediaPlaylistId;
+    // Where the playback markers of the media on the media layer are kept (see
+    // playbackmarkers.h), for them to be changed from the transport: { kind "slide",
+    // path, slideId } for a slide's, { kind "mediaRow", item } for a row of the media
+    // bin; empty where it was played from neither.
+    QVariantMap mediaPlace;
 
     // The announcements layer: a second presentation, shown at the same time as the
     // one on the slide and media layers and over both. A presentation whose
@@ -201,6 +209,8 @@ public:
     Place announcement;
     bool announcementHasMedia = false;
     QVariantMap announcementMedia;
+    // Where its markers are kept, as mediaPlace says for the media layer's (a slide's)
+    QVariantMap announcementMediaPlace;
 
     // The audio layer. Music is one piece at a time: what is playing, as a row of the
     // audio bin (see playlistfile.h), and the playlist of the bin it was played from
@@ -419,6 +429,15 @@ public:
     // are. `marker` is { name, time, actions } as playbackmarkers::describe has it, and
     // `media` what it is on, in a few words, for the log.
     Effects runMarker(const QVariantMap &marker, const QString &media, const Workspace &workspace);
+    // Where the markers of a layer's media are kept, as mediaPlace has it: "media",
+    // "announcements", or "audio" (the music's: { kind "audioRow", item } for a piece
+    // played from the audio bin). Empty for none.
+    QVariantMap placeOf(const QString &layer) const;
+    // The markers of the media kept at `place` have been changed (in its file): each
+    // layer playing that media goes by `markers` from now, as playbackmarkers::describe
+    // has them, so that the transport draws them where they are and what plays the media
+    // runs them there. Returns the layers changed: none if nothing playing is kept there.
+    QStringList setMarkers(const QVariantMap &place, const QVariantList &markers);
 
     // Gives a stage screen a layout ("" for the plain view).
     void setStageLayout(const QString &screenId, const QString &layoutId);

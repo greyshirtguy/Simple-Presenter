@@ -42,6 +42,15 @@ QtObject {
         return mediaFiles.find(m => m.name === name)
     }
 
+    function transport() {
+        return Lib.find(sidePanel, i => i.objectName === "transport")
+    }
+
+    // The flags on the transport
+    function transportFlags() {
+        return Lib.findAll(transport(), i => i.objectName === "transportMarkerMark" && i.visible)
+    }
+
     // A marker's flag over the Inspector's bar
     function flagOf(id) {
         return Lib.find(box(), i => i.objectName === "inspectorMarkerMark" && i.modelData !== undefined && i.modelData.id === id)
@@ -282,7 +291,9 @@ QtObject {
                 // The first marker's flag dragged a quarter of the way along the bar (3 s)
                 kept.dragged = panel().markers[0].id
                 const flag = flagOf(kept.dragged)
-                check("a marker's flag is over the bar, larger than a mark was", flag !== null && flag.width >= 16 && flag.height >= 14, flag ? flag.width + "x" + flag.height : "none")
+                check("a marker's flag is over the bar, the transport's shape larger", flag !== null && flag.width === 14 && flag.height === 16
+                      && Math.abs(flag.mapToItem(null, 0, flag.height - 1).y - named("inspectorScrub").handle.mapToItem(null, 0, 0).y) <= 1.5,
+                      flag ? flag.width + "x" + flag.height : "none")
                 const bar = named("inspectorScrub")
                 kept.from = centre(flag)
                 kept.to = { x: bar.mapToItem(null, bar.leftPadding + bar.availableWidth * 0.25, 0).x, y: kept.from.y }
@@ -397,6 +408,106 @@ QtObject {
                       liveProps.length + " " + output.livePlayer.position)
                 check("once", logged(/from the Marker menu/).length === 1 && logged(/the marker at [0-9.]+ s of the video "Count.mp4"/).length === kept.runs,
                       logged(/marker/).slice(-3).join(" | "))
+                // ---- The transport's flags, with the video paused so that nothing runs by itself
+                output.livePlayer.pause()
+                Show.clearProps()
+                return 400
+            },
+            () => {
+                const tr = transport()
+                check("(the transport's rename field not made until it is wanted)", named("transportMarkerName") === null)
+                kept.slider = Lib.find(tr, i => i.handle !== undefined && i.availableWidth !== undefined)
+                const flags = transportFlags()
+                const point = f => f.mapToItem(null, f.width / 2, f.height - 1).y
+                const handleTop = kept.slider.handle.mapToItem(null, 0, 0).y
+                check("on the transport each marker is a small flag, its point on the top of the handle", flags.length === 2
+                      && flags.every(f => f.width === 9 && f.height === 10 && Math.abs(point(f) - handleTop) <= 1.5),
+                      flags.map(f => f.width + "x" + f.height + " at " + point(f).toFixed(1)).join(", ") + "; handle " + handleTop.toFixed(1))
+                check("and they can be changed there: the video is a row of the media bin", tr.editable && liveProps.length === 0)
+                // A click on the bar itself under the first flag is the slider's: the video goes there.
+                const first = flags.find(f => f.modelData.name === "Lights")
+                click({ x: first.mapToItem(null, first.width / 2, 0).x, y: kept.slider.mapToItem(null, 0, kept.slider.height / 2).y })
+                return 700
+            },
+            () => {
+                const lights = row("Count.mp4").markers[0]
+                check("a click on the bar under a flag is still the slider's: the video goes there", Math.abs(output.livePlayer.position / 1000 - lights.time) < 0.6
+                      && transport().draggedMarker === "" && row("Count.mp4").markers[0].time === lights.time, output.livePlayer.position + " " + lights.time)
+                // The second marker's flag dragged to nine seconds
+                const tr = transport()
+                const flag = transportFlags().find(f => f.modelData.name !== "Lights")
+                kept.second = flag.modelData.id
+                kept.from = centre(flag)
+                kept.to = { x: kept.slider.mapToItem(null, tr.markerX(9), 0).x, y: kept.from.y }
+                kept.position = output.livePlayer.position
+                testInput.mouse(0, kept.from.x, kept.from.y)
+                for (let i = 1; i <= 10; ++i)
+                    testInput.mouse(1, kept.from.x + (kept.to.x - kept.from.x) * i / 10, kept.from.y)
+                return 400
+            },
+            () => {
+                const tr = transport()
+                const flag = transportFlags().find(f => f.modelData.id === kept.second)
+                check("dragged on the transport, it follows the pointer, with its time over it", tr.draggedMarker === kept.second && Math.abs(tr.draggedTime - 9) < 0.3
+                      && Math.abs(centre(flag).x - kept.to.x) < 2 && texts(flag).some(t => t.startsWith("0:09.")), tr.draggedTime + " " + texts(flag).join())
+                check("and the live video is not moved with it", Math.abs(output.livePlayer.position - kept.position) < 100,
+                      output.livePlayer.position + " " + kept.position)
+                testInput.grab("1-transport-drag")
+                testInput.mouse(2, kept.to.x, kept.to.y)
+                return 800
+            },
+            () => {
+                const marker = row("Count.mp4").markers.find(m => m.id === kept.second)
+                const live = (Show.liveMedia.markers ?? []).find(m => m.id === kept.second)
+                const flag = transportFlags().find(f => f.modelData.id === kept.second)
+                check("let go, it is kept there, in the media bin's file, with its action", marker !== undefined && Math.abs(marker.time - 9) < 0.3 && marker.actions.length === 1,
+                      JSON.stringify(marker))
+                check("and the live video goes by it: the transport draws it there", live !== undefined && Math.abs(live.time - marker.time) < 0.001
+                      && flag !== undefined && Math.abs(centre(flag).x - kept.to.x) < 2 && transport().draggedMarker === "", live ? live.time : "none")
+                check("(the log says so)", logged(/a playback marker dragged on the transport to 9\./).length === 1, logged(/dragged/).join(" | "))
+                // Played from eight seconds, it runs where it now is.
+                output.livePlayer.position = 8000
+                output.livePlayer.play()
+                return 100
+            },
+            until(() => liveProps.length === 1, 4000, () => 100),
+            () => {
+                check("played from eight seconds, the moved marker runs at nine, and not at six", liveProps.length === 1
+                      && output.livePlayer.position / 1000 > 8.7 && output.livePlayer.position / 1000 < 10.3, output.livePlayer.position)
+                output.livePlayer.pause()
+                Show.clearProps()
+                click(centre(transportFlags().find(f => f.modelData.id === kept.second)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                check("its right-click menu on the transport is the Media Inspector's", /^\[Marker at 9\.[0-9]+ s\], Rename, Color, Add Action, Remove Action, --, Duplicate, Move to Playhead, Delete$/.test(labels()),
+                      labels())
+                click(menuRow("Rename"))
+                return 400
+            },
+            () => {
+                const field = named("transportMarkerName")
+                check("Rename has its name typed over the media's name", field !== null && field.visible && field.activeFocus)
+                testInput.type("Prop Cue")
+                testInput.key(Qt.Key_Return)
+                return 600
+            },
+            () => {
+                const marker = row("Count.mp4").markers.find(m => m.id === kept.second)
+                const live = (Show.liveMedia.markers ?? []).find(m => m.id === kept.second)
+                check("and the name kept, in the file and on the live video, the field gone and the keys back with the show", marker.name === "Prop Cue"
+                      && live.name === "Prop Cue" && named("transportMarkerName") === null && !win.activeFocusItem?.objectName?.startsWith("transport"),
+                      marker.name + " " + (live ? live.name : ""))
+                // Under the pointer, a flag says what it is
+                const flag = transportFlags().find(f => f.modelData.id === kept.second)
+                const at = centre(flag)
+                testInput.mouse(1, at.x, at.y)
+                return 300
+            },
+            () => {
+                const flag = transportFlags().find(f => f.modelData.id === kept.second)
+                check("under the pointer, a flag shows its time and name", flag.lit && texts(flag).some(t => /^0:09\.[0-9]  Prop Cue$/.test(t)), texts(flag).join())
+                testInput.mouse(1, 5, 5)
                 Show.clearMedia()
                 Show.clearProps()
                 return 400
@@ -528,6 +639,13 @@ QtObject {
             () => {
                 check("the tone reaching its marker runs it: the props are cleared", liveProps.length === 0
                       && logged(/the marker at 1\.[0-9]+ s of the audio "Tune": 1 action/).length === 1, logged(/marker/).slice(-2).join(" | "))
+                sidePanel.transportLayer = "audio"
+                return 400
+            },
+            () => {
+                check("the music's transport has its flag, which can be changed there: it is a piece of the audio bin", transport().editable
+                      && transportFlags().length === 1, transportFlags().length)
+                sidePanel.transportLayer = "media"
                 Show.clearAudio()
                 const wrong = testInput.readText(Log.path).split("\n").filter(l => /qrc:|TypeError|ReferenceError/.test(l))
                 check("nothing went wrong in the windows' scripts", wrong.length === 0, wrong.join(" | "))

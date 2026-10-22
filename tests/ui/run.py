@@ -2088,7 +2088,8 @@ def prepare_markers(workspace, test_dir):
 def after_markers(workspace, test_dir):
     """The bins once the test has given their rows playback markers, read with protoc and not by the app: the video's
     two markers on its media action, in the order of their times, as ProPresenter's message has them (the first named,
-    red, at two and a half seconds, clearing the slide; the second at about six, putting a prop on), the duplicate made
+    red, at two and a half seconds, clearing the slide; the second dragged on the transport to about nine and named
+    there, putting a prop on), the duplicate made
     and deleted gone; the tone's one marker, clearing the props; and each file otherwise as it was given."""
     def decoded(path):
         with open(path, "rb") as source:
@@ -2116,8 +2117,8 @@ def after_markers(workspace, test_dir):
         said('name: "Lights"' in first and abs(time(first) - 2.5) < 0.05 and "red: 0.898" in first and "type: ACTION_TYPE_CLEAR" in first
              and re.search(r"uuid \{\n\s*string: \"[0-9A-F-]{36}\"", first) is not None,
              "the first is named, red, at two and a half seconds, with an id, and clears", first[:600]),
-        said(abs(time(second) - 6.0) < 0.4 and "type: ACTION_TYPE_PROP" in second and "name:" not in second.split("actions {")[0],
-             "the second is at about six seconds, with no name, and puts a prop on", second[:600]),
+        said(abs(time(second) - 9.0) < 0.4 and "type: ACTION_TYPE_PROP" in second and 'name: "Prop Cue"' in second.split("actions {")[0],
+             "the second is at about nine seconds, where it was dragged on the transport, named there, and puts a prop on", second[:600]),
         said(len(tone) == 1 and abs(time(tone[0]) - 1.0) < 0.3 and "type: ACTION_TYPE_CLEAR" in tone[0],
              "the tone has its one marker, at about a second, clearing", tone[0][:400] if tone else "none"),
         said(media_now.index("markers {") > media_now.index("video {") if "markers {" in media_now else False,

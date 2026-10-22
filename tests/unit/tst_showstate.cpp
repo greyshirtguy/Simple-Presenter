@@ -118,6 +118,8 @@ struct Presentation
     double slideShow = 0;
     // Its copyright details
     QVariantMap ccli;
+    // Its file
+    QString file = "/library/song.pro";
 
     Cue cue(int index) const
     {
@@ -132,6 +134,7 @@ struct Presentation
         cue.destination = destination;
         cue.slideShow = slideShow;
         cue.ccli = ccli;
+        cue.file = file;
         return cue;
     }
 };
@@ -1247,6 +1250,77 @@ private slots:
         // One with no name is told by its time; one with no actions does nothing.
         QVERIFY(noted(show.runMarker({{"time", 3.0}}, "the music", w), "the marker at 3.00 s of the music: 0 actions"));
         QCOMPARE(outside(show.runMarker({{"time", 3.0}}, "the music", w)), "");
+    }
+
+    // Where the markers of each layer's media are kept: a slide's, a row of the media bin,
+    // a piece of the audio bin, or nowhere; gone with the media
+    void theMediaOfEachLayerSaysWhereItsMarkersAreKept()
+    {
+        State show;
+        const Workspace w = workspace();
+        Presentation song = plainSong();
+        song.slides[1] = slide("s1", video("waves.mp4"));
+        show.goLive(song.cue(1), false, w);
+        const QVariantMap atSlide {{"kind", "slide"}, {"path", "/library/song.pro"}, {"slideId", "s1"}};
+        QCOMPARE(show.placeOf("media"), atSlide);
+        // A slide that leaves the media playing leaves it where it was kept
+        show.goLive(song.cue(2), false, w);
+        QCOMPARE(show.placeOf("media"), atSlide);
+        // A row of the media bin, and media that is neither
+        QVariantMap row = video("sea.mp4");
+        row.insert("id", "row-7");
+        show.showMedia(row, "bin");
+        QCOMPARE(show.placeOf("media"), (QVariantMap {{"kind", "mediaRow"}, {"item", "row-7"}}));
+        show.showMedia(video("other.mp4"), "");
+        QVERIFY(show.placeOf("media").isEmpty());
+        show.showMedia(row, "bin");
+        show.clearMedia();
+        QVERIFY(show.placeOf("media").isEmpty());
+        // The announcements' media, by its slide
+        Presentation foyer = notices();
+        foyer.file = "/library/notices.pro";
+        foyer.slides[0] = slide("n0", video("loop.mp4"));
+        show.goLive(foyer.cue(0), false, w);
+        QCOMPARE(show.placeOf("announcements"), (QVariantMap {{"kind", "slide"}, {"path", "/library/notices.pro"}, {"slideId", "n0"}}));
+        QVERIFY(show.placeOf("media").isEmpty());
+        // The music, by its row of the audio bin; none for music no playlist played
+        QVariantMap piece = tune("Prelude");
+        piece.insert("id", "tune-1");
+        show.playAudio(piece, "list");
+        QCOMPARE(show.placeOf("audio"), (QVariantMap {{"kind", "audioRow"}, {"item", "tune-1"}}));
+        show.playAudio(piece, "");
+        QVERIFY(show.placeOf("audio").isEmpty());
+        QVERIFY(show.placeOf("no such layer").isEmpty());
+    }
+
+    // Markers changed where the live media's are kept are what that media goes by from
+    // then on; a change anywhere else changes nothing that is live
+    void changedMarkersAreTheLiveMediasWhereItIsKept()
+    {
+        State show;
+        const Workspace w = workspace();
+        Presentation song = plainSong();
+        QVariantMap waves = video("waves.mp4");
+        waves.insert("markers", QVariantList {QVariantMap {{"id", "m1"}, {"time", 2.0}}});
+        song.slides[0] = slide("s0", waves);
+        show.goLive(song.cue(0), false, w);
+        const QVariantList moved {QVariantMap {{"id", "m1"}, {"time", 5.0}}};
+        QVERIFY(show.setMarkers({{"kind", "slide"}, {"path", "/library/song.pro"}, {"slideId", "s3"}}, moved).isEmpty());
+        QVERIFY(show.setMarkers({}, moved).isEmpty());
+        QCOMPARE(show.media.value("markers").toList().first().toMap().value("time").toDouble(), 2.0);
+        QCOMPARE(show.setMarkers(show.placeOf("media"), moved), QStringList {"media"});
+        QCOMPARE(show.media.value("markers").toList(), moved);
+        QCOMPARE(show.media.value("name").toString(), QStringLiteral("waves.mp4"));
+        // None left takes the list away
+        QCOMPARE(show.setMarkers(show.placeOf("media"), {}), QStringList {"media"});
+        QVERIFY(!show.media.contains("markers"));
+        // The music's
+        QVariantMap piece = tune("Prelude");
+        piece.insert("id", "tune-1");
+        show.playAudio(piece, "list");
+        QCOMPARE(show.setMarkers({{"kind", "audioRow"}, {"item", "tune-1"}}, moved), QStringList {"audio"});
+        QCOMPARE(show.music.value("markers").toList(), moved);
+        QVERIFY(show.music.value("play").toInt() > 0);
     }
 
     // A slide's communication actions are handed out to be sent, in their order with

@@ -312,6 +312,12 @@ public:
     // menu: its actions are run (see show::State::runMarker). `media` is what it is on,
     // in a few words, for the log.
     Q_INVOKABLE void runMarker(const QVariantMap &marker, const QString &media);
+    // Where the markers of a layer's media are kept ("media", "announcements" or "audio":
+    // see show::State::placeOf), for the transport to change them; empty for none
+    Q_INVOKABLE QVariantMap livePlace(const QString &layer) const { return m_state.placeOf(layer); }
+    // The markers kept at `place` have been changed: the layers playing that media go by
+    // `markers` from now (see show::State::setMarkers). Returns the layers changed.
+    Q_INVOKABLE QStringList setLiveMarkers(const QVariantMap &place, const QVariantList &markers);
 
     // Says which saved look the live look came from, without making anything live: what
     // is known from the workspace's file when it is opened (see show::State::adoptLook).

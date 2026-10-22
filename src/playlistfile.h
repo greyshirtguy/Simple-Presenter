@@ -140,6 +140,10 @@ struct PlaylistFile
     // bin (Audio) by `change`, which returns an error message, and writes the file if
     // there is none: what a row's playback markers are changed through
     // (playbackmarkers.h).
+    // The media action of such a row as the file has it, handed to `look`; false where
+    // the file, the row or its media is not there. (What its markers are read from.)
+    static bool readMediaAction(const QString &root, Kind kind, const QString &itemId,
+                                const std::function<void(const rv::data::Action &)> &look);
     static QString changeMediaAction(const QString &root, Kind kind, const QString &itemId,
                                      const std::function<QString(rv::data::Action *)> &change);
     // What follows a row when its video has played to its end (see mediacue.h): `next`

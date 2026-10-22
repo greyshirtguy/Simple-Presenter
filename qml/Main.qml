@@ -3417,7 +3417,8 @@ Window {
     function cueAt(presentation, key, playlist, index) {
         return { key: key, playlistId: playlist, presentation: presentation.name, index: index, count: presentation.slides.length,
                  slide: presentation.slides[index] ?? ({}), next: presentation.slides[index + 1] ?? ({}),
-                 destination: presentation.destination ?? "", slideShow: presentation.slideShow ?? 0, ccli: presentation.ccli ?? ({}) }
+                 destination: presentation.destination ?? "", slideShow: presentation.slideShow ?? 0, ccli: presentation.ccli ?? ({}),
+                 file: presentation.path ?? "" }
     }
 
     // The same for a presentation that has been read again, to tell the show where
@@ -3673,6 +3674,83 @@ Window {
                 Show.runMarker(marker, what + ", from the Marker menu")
             }
         }))), item)
+    }
+
+    // The markers a playing of a video goes by (see MediaContent.markersOf): for what is
+    // live on the media layer or the announcements layer, the show's, which a change from
+    // the transport or the Media Inspector has put in (Show.setLiveMarkers); for any other
+    // (one on its way out), the ones it started with.
+    function liveMarkersOf(playId, own) {
+        if (lastPlayed !== null && lastPlayed.playId === playId && Show.liveMedia)
+            return Show.liveMedia.markers ?? []
+        if (lastAnnouncementPlayed !== null && lastAnnouncementPlayed.playId === playId && Show.liveAnnouncementMedia)
+            return Show.liveAnnouncementMedia.markers ?? []
+        return own
+    }
+
+    // The markers kept at `place` (see Catalog.addMarker) have been changed: whatever is
+    // playing that media goes by them as they now are, from the file (Show.setLiveMarkers,
+    // and the audio layer for the music). With `lists`, which the transport's changes ask
+    // for, what shows that media is read again too, so that it plays them so the next time
+    // it is shown: the presentation in view, or the media bin's or the audio bin's list.
+    // (The Media Inspector has those read again when it is put away. A live presentation
+    // that is not in view is read again when it is next opened; the media it is playing,
+    // which is what the transport works, has them already.)
+    function markersEdited(place, lists) {
+        if (!place || !place.kind)
+            return
+        const markers = catalog.markersAt(place)
+        const layers = Show.setLiveMarkers(place, markers)
+        if (layers.includes("audio") && Show.liveMusic)
+            AudioLayer.setMarkers(Show.liveMusic.play, markers)
+        if (!lists)
+            return
+        if (place.kind === "slide" && document && document.path === place.path) {
+            reloadDocument()
+        } else if (place.kind === "mediaRow" && mediaPlaylistId !== "") {
+            const scrolledTo = mediaBin.contentY
+            mediaFiles = catalog.mediaIn(mediaPlaylistId)
+            mediaBin.contentY = scrolledTo
+        } else if (place.kind === "audioRow" && audioPlaylistId !== "") {
+            audioFiles = catalog.audioIn(audioPlaylistId)
+        }
+    }
+
+    // A marker of the media on a layer the transport works ("media", "announcements" or
+    // "audio") has been dragged to `seconds` along its bar: kept there, in the file the
+    // media's markers are kept in (Show.livePlace). Media played from somewhere that has
+    // no such place has its markers drawn and not moved.
+    function moveLiveMarker(layer, id, seconds) {
+        const place = Show.livePlace(layer)
+        if (!place.kind)
+            return
+        const error = catalog.changeMarker(place, id, { time: Math.max(0, seconds) })
+        Log.note("edit", "a playback marker dragged on the transport to " + seconds.toFixed(2) + " s" + (error === "" ? "" : ", which failed: " + error))
+        report(error)
+        markersEdited(place, true)
+    }
+
+    // A marker's name typed on the transport (Rename in its menu); an empty `id` for one
+    // given up. Either way the keys go back to the show.
+    function renameLiveMarker(layer, id, name) {
+        const place = Show.livePlace(layer)
+        if (id !== "" && place.kind) {
+            const error = catalog.changeMarker(place, id, { name: name })
+            Log.note("edit", "a playback marker renamed on the transport" + (error === "" ? "" : ", which failed: " + error))
+            report(error)
+            markersEdited(place, true)
+        }
+        takeFocus()
+    }
+
+    // The right-click menu of a marker on the transport: the Media Inspector's (see
+    // showMarkerMenu), for the media on `layer`, with `playhead` where the transport's
+    // player is and `rename` starting its name typed on the transport
+    function showLiveMarkerMenu(layer, marker, item, x, y, playhead, rename) {
+        const place = Show.livePlace(layer)
+        if (!place.kind)
+            return
+        showMarkerMenu(place, marker, item, x, y, playhead, () => markersEdited(place, true), rename)
     }
 
     function mediaEnded(playId) {
@@ -4331,6 +4409,7 @@ Window {
                     lookFade: win.lookFade
                     onMediaEnded: (playId) => win.mediaEnded(playId)
                     onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
+                    markersOf: win.liveMarkersOf
                     shader: transitionCatalogue.shaderUrl(win.transition)
                     options: win.transitionUniforms.options
                     tint: win.transitionUniforms.tint
@@ -4375,6 +4454,7 @@ Window {
                         lookFade: win.lookFade
                         onMediaEnded: (playId) => win.mediaEnded(playId)
                         onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
+                        markersOf: win.liveMarkersOf
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint
@@ -4422,6 +4502,7 @@ Window {
                         lookFade: win.lookFade
                         onMediaEnded: (playId) => win.mediaEnded(playId)
                         onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
+                        markersOf: win.liveMarkersOf
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint

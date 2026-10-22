@@ -205,6 +205,7 @@ qt_add_qml_module(SimplePresenter
         qml/MediaContent.qml
         qml/MediaEffects.qml
         qml/MediaInspector.qml
+        qml/MarkerFlag.qml
         qml/MediaLook.qml
         qml/MediaPicture.qml
         qml/MidiControl.qml
