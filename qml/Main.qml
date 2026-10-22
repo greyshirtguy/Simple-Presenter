@@ -2128,9 +2128,11 @@ Window {
                 run: () => changed(catalog.changeMarker(place, marker.id, { color: choice.color }), "made " + choice.name.toLowerCase()) }))).concat([
                 { divider: true },
                 { label: "Other…", current: !markerColors.some(choice => choice.color === String(marker.color).toLowerCase()), run: () => {
-                    markerColorPicker.chosen = (colour) => changed(catalog.changeMarker(place, marker.id, { color: colour }), "made " + colour)
-                    markerColorPicker.selectedColor = marker.color
-                    markerColorPicker.open()
+                    markerColorPicker.active = true
+                    const picker = markerColorPicker.item
+                    picker.chosen = (colour) => changed(catalog.changeMarker(place, marker.id, { color: colour }), "made " + colour)
+                    picker.selectedColor = marker.color
+                    picker.open()
                 } }
             ]) },
             { label: "Add Action", items: [{ header: "Add Action" }].concat(addActionItems(target)) }
@@ -4222,15 +4224,21 @@ Window {
     }
 
     // The system's colour picker, for a playback marker's Color → Other… (see
-    // showMarkerMenu): `chosen` is handed the colour picked, as "#rrggbb".
-    ColorDialog {
+    // showMarkerMenu): `chosen` is handed the colour picked, as "#rrggbb". Made when it is
+    // first wanted, and kept: made at start, it cost every start some milliseconds
+    // (benchmark, 0.107), for what is seldom picked.
+    Loader {
         id: markerColorPicker
 
-        property var chosen: (colour) => {}
+        active: false
 
-        objectName: "markerColorPicker"
-        title: "Marker Colour"
-        onAccepted: chosen(String(selectedColor).substring(0, 7).toLowerCase())
+        sourceComponent: ColorDialog {
+            property var chosen: (colour) => {}
+
+            objectName: "markerColorPicker"
+            title: "Marker Colour"
+            onAccepted: chosen(String(selectedColor).substring(0, 7).toLowerCase())
+        }
     }
 
     // Presentations go into the library last browsed, playlists where a new one would.

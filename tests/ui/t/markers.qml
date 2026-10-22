@@ -230,15 +230,16 @@ QtObject {
             },
             () => {
                 const now = panel().markers[0].color
+                check("(the colour picker not made until it is wanted)", markerColorPicker.item === null)
                 check("Color has the palette, the marker's own colour ticked, and Other…",
                       labels() === "[Color], " + catalog.markerPalette().map(c => (c.color === now ? "*" : "") + c.name).join(", ") + ", --, Other…", labels())
                 click(menuRow("Other…"))
                 return 600
             },
             () => {
-                check("Other… opens the system's colour picker", markerColorPicker.visible)
-                markerColorPicker.selectedColor = "#123456"
-                markerColorPicker.accept()
+                check("Other… opens the system's colour picker, made then", markerColorPicker.item !== null && markerColorPicker.item.visible)
+                markerColorPicker.item.selectedColor = "#123456"
+                markerColorPicker.item.accept()
                 return 700
             },
             () => {
