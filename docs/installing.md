@@ -9,11 +9,11 @@ for seeing it run without building it first.
 
 There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers, which
 is what the app is made and tested on, with the standard desktop. Download
-`simplepresenter_0.106_amd64.deb` from the
+`simplepresenter_0.107_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.106_amd64.deb
+sudo apt install ./simplepresenter_0.107_amd64.deb
 ```
 
 That also installs what it needs, from Ubuntu's own packages, and puts Simple Presenter
@@ -136,7 +136,7 @@ those numbers back into names is made from the program as it was built, and belo
 with the package it was made for:
 
 ```
-nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.106_symbols.txt.xz
+nm -C -n --defined-only SimplePresenter | xz > simplepresenter_0.107_symbols.txt.xz
 ```
 
 A place such as `SimplePresenter(+0x8ae5ac)` is in the function on the last line of

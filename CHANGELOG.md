@@ -6,6 +6,21 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.107](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.107) · 2026-10-22
+
+- [Playback markers](docs/features/playback-markers.md), as ProPresenter has them: points
+  in a video of a slide or of the media bin, or in a piece of the audio bin, whose actions
+  run as playback reaches them. Made in the Media Inspector's Playback Markers tab, renamed,
+  coloured (a colour at random to begin with, or any colour), given actions, duplicated,
+  moved to the player or dragged along the bar by their flags; shown on the transport's bar
+  with a Marker menu; and a stage text box can show a marker's name or the time to it.
+- [The copyright display](docs/features/copyright.md), as ProPresenter's is: a song's
+  copyright laid over its first, last or every slide on the audience screens, for a
+  church's CCLI licence. Set up in Settings → Copyright, with a layout of the song's
+  details and a template edited in the editor; a presentation's details are typed in the
+  editor's new Copyright tab. Kept in ProPresenter's own files.
+- ProPresenter's pictures for the audio tabs and for the transport's presentation tab.
+
 ## [0.106](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.106) · 2026-10-21
 
 - [Next Cue](docs/features/media.md#next-cue) for a video in a media playlist, as

@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.107" date="2026-10-22">
+      <description>
+        <p>
+          Playback markers: points in a video or a piece of audio whose actions run as
+          playback reaches them, as ProPresenter's do. And the copyright display, which lays
+          a song's copyright over its slides for a church's CCLI licence.
+        </p>
+      </description>
+    </release>
     <release version="0.106" date="2026-10-21">
       <description>
         <p>
