@@ -26,6 +26,7 @@ found it.
 - [Installing](#installing)
 - [Helping yourself, with an AI](#helping-yourself-with-an-ai)
 - [About the experiment](#about-the-experiment)
+- [In short](docs/guide.md): its own features, what it does not do and its keys, as the ? at the right of its toolbar shows them
 - [What it cannot do yet](docs/todo.md) · [How it is made](docs/how-it-is-made.md) · [Licence](#licence)
 
 ## What it can do

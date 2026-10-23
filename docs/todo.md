@@ -127,7 +127,6 @@ Bigger things, nearly all of which ProPresenter does and this does not. No order
 no promise that any of them will turn out to be possible this way: that is the
 experiment.
 
-- [ ] **A simple help file**: the app's own features explained in one place, in the app
 - [ ] **Clear to logo**
 - [ ] **Timer markers** (an idea of my own)
 - [ ] **Text formatter**

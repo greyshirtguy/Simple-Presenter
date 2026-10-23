@@ -3181,6 +3181,7 @@ TESTS = {
     "disabled": test("Demo", timeout=240, prepare=prepare_disabled, after=after_disabled),
     "scrolling": test("Demo", timeout=300, prepare=prepare_scrolling, after=after_scrolling),
     "disabledates": test("Demo", timeout=240, prepare=prepare_disabledates, after=after_disabledates),
+    "guide": test("Demo", timeout=120),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

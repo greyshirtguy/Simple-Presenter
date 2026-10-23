@@ -80,7 +80,7 @@ benchmark/run.py                       # times a fixed run against a baseline
 pictures of a fixed run; run it before and after a change to anything that draws and
 compare them. Anything its log says with `qrc:` in it is a QML error: there must be none.
 
-**What you cannot run.** The scripted tests (`tests/ui/run.py`, sixty-nine scripts
+**What you cannot run.** The scripted tests (`tests/ui/run.py`, seventy scripts
 that work the whole app) need workspaces that are not in this repository, because they
 are not the repository's to publish. So on anyone's computer but the maintainer's, the
 unit tests, the self-test and the benchmark are all there is. Say so when you report
@@ -103,6 +103,8 @@ what you checked; do not say "the tests pass" and mean a part of them.
   are for the use of whoever downloaded them, and none of their code goes here. Nor is a key for api.bible: a build takes one
   from `packaging/api-bible-key.txt`, which git ignores, and a person's own is in their
   settings.
+- A feature that is the app's own, or a new key, goes in `docs/guide.md` as well as in
+  its page: the app shows that file behind the ? at the right of its toolbar.
 - Words the user reads say plainly what a thing does. They never promise help, never
   call the app a product, and never say or suggest that it is fit to be relied on.
 - A thing ProPresenter has a picture for is shown with ProPresenter's picture, not a

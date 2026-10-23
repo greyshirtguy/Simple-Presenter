@@ -349,6 +349,22 @@ Rectangle {
             onClicked: toolbar.win.settingsOpen = true
         }
 
+        // The guide (GuideWindow.qml): what is this app's own, what it does not do, its keys.
+        // Small, being seldom wanted; lit while it is open.
+        AppButton {
+            objectName: "guideButton"
+            anchors.verticalCenter: parent.verticalCenter
+            width: 24
+            height: 24
+            leftPadding: 0
+            rightPadding: 0
+            font.pixelSize: 13
+            font.bold: true
+            text: "?"
+            highlighted: toolbar.win.guideOpen
+            onClicked: toolbar.win.toggleGuide()
+        }
+
         // Sets the switches apart from the window's own buttons
         Item {
             width: 8

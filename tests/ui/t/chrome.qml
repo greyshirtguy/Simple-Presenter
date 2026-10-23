@@ -38,7 +38,8 @@ QtObject {
                       texts(toolbar).join(" | "))
                 const title = Lib.find(toolbar, item => item.text === ("Simple Presenter " + Qt.application.version))
                 check("in the middle of the window", title !== null && near(title.mapToItem(null, title.width / 2, 0).x, win.width / 2), title ? title.mapToItem(null, title.width / 2, 0).x + " of " + win.width : "none")
-                const windowButtons = Lib.findAll(toolbar, item => item.down !== undefined && item.text !== undefined && item.popup === undefined)
+                // (The guide's ? beside them is the guide test's)
+                const windowButtons = Lib.findAll(toolbar, item => item.down !== undefined && item.text !== undefined && item.popup === undefined && item.objectName !== "guideButton")
                 check("and has the window's three buttons", windowButtons.length === 3 && windowButtons.map(b => b.text).join("") === "–□✕", windowButtons.map(b => b.text).join(""))
                 const switches = Lib.findAll(toolbar, item => item.label !== undefined && item.kind !== undefined).map(item => item.label)
                 const leftOf = (label) => { const item = Lib.find(toolbar, i => i.label === label && i.kind !== undefined); return item.mapToItem(null, 0, 0).x }

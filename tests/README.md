@@ -268,6 +268,12 @@ ProPresenter's settings, changed (going right, from off the box, quicker, feathe
 end, once), shown again so, and gone once across; switched off and on again; and set
 going down, its words then as wide as the box. The file is read with `protoc` after.
 
+`guide` works the guide: the ? at the right of the toolbar putting up its window, which
+shows `docs/guide.md` from its first heading on, made rich text from its Markdown with its
+links in the app's orange, the app's line in it; the button again and the window's own
+close putting it away; and the app quitting with it open. (Esc is not tried: the test's
+desktop makes no window active that a person's own click did not open.)
+
 The Screen Preview test (`screenpreview`) also checks that what moves on the output moves
 in a picture of it on the stage: a slide brought in by its transition, mixed in the
 picture too, and a box of words that scrolls, with the stage's pixels along its line

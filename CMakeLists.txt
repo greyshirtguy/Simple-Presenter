@@ -158,6 +158,7 @@ qt_add_qml_module(SimplePresenter
         qml/CalendarGlyph.qml
         qml/ScrollingText.qml
         qml/DisableDatePanel.qml
+        qml/GuideWindow.qml
         qml/TransportTabs.qml
         qml/VideoInputView.qml
         qml/AnnouncementLayer.qml
@@ -334,6 +335,8 @@ qt_add_qml_module(SimplePresenter
         src/textscrolling.h
         src/disabledates.cpp
         src/disabledates.h
+        src/guide.cpp
+        src/guide.h
         src/labelfile.h
         src/labelfile.cpp
         src/labels.h
@@ -407,6 +410,13 @@ qt_add_qml_module(SimplePresenter
 # ProPresenter's own pictures, for what this app has that ProPresenter has too: read as
 # :/icons/<name>.png by IconProvider (src/iconprovider.h). icons/README.md says where
 # they are from, and icons/make.py made these files from them.
+# The guide the ? button shows (src/guide.h): the repository's page, carried in the app
+qt_add_resources(SimplePresenter "guide"
+    PREFIX "/"
+    FILES
+        docs/guide.md
+)
+
 qt_add_resources(SimplePresenter "icons"
     PREFIX "/"
     FILES

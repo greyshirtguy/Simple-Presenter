@@ -14,6 +14,7 @@
 | Ctrl+E | Edit mode: the editor, for the presentation being viewed |
 | Ctrl+R | The [reflow editor](reflow.md), for the presentation being viewed |
 | Ctrl+Alt+B | [Bible mode](bibles.md) on or off |
+| Ctrl+Alt+C | The [Calendar](calendar.md) |
 | Ctrl+S | Show mode: out of the editor, whichever one is up |
 | Ctrl+F | [Search](search.md) |
 | Ctrl+V | Show or hide the media bin |

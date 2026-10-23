@@ -1375,6 +1375,30 @@ Window {
         Show.runMacro(id)
     }
 
+    // ---- The guide (GuideWindow.qml, src/guide.h): the ? at the right of the toolbar
+
+    // Its window is open; it is made the first time it is wanted, and kept
+    property bool guideOpen: false
+    property bool guideMade: false
+
+    function toggleGuide() {
+        guideMade = true
+        guideOpen = !guideOpen
+    }
+
+    Loader {
+        active: win.guideMade
+
+        sourceComponent: GuideWindow {
+            objectName: "guideWindow"
+            owner: win
+            visible: win.guideOpen
+            // (Let close, and put away: a window that will not close keeps the app from
+            // quitting, as the Calendar's once did)
+            onClosing: win.guideOpen = false
+        }
+    }
+
     // ---- The Calendar (CalendarWindow.qml, src/calendarevents.h)
 
     // Its window is open; it is made the first time it is wanted, and kept
