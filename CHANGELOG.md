@@ -6,6 +6,21 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.111](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.111) · 2026-10-24
+
+- [Screen Previews that move](docs/features/stage-layouts.md#screen-preview): a Screen
+  Preview on a stage layout changes as its screen does, by the screen's transition, with
+  scrolling text and a video input in a shape going in it; before, a change in it was a
+  cut and it stood still.
+- In the operator window, the same for the Screen Previews in a stage layout the preview
+  shows, and the preview itself changes by its screen's transitions, each with a switch in
+  Settings → Windows, on to begin with. On the laptop this is made on, the preview's
+  transitions bring the output's slides and transitions some four or five thousandths of a
+  second later; off, the preview changes by a cut.
+- [A guide](docs/guide.md) behind a ? at the right of the toolbar: the features that are
+  this app's own, what it does not do, its keys and where it keeps things.
+- The keys page gains Ctrl+Alt+C, the Calendar.
+
 ## [0.110](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.110) · 2026-10-23
 
 - [A slide disabled at a date](docs/features/disabled-slides.md#at-a-date), this app's own:

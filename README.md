@@ -124,20 +124,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.111: Screen Previews that move, and a guide.** A Screen Preview on a stage layout now changes by the screen's transitions, with its scrolling text and video inputs going, and so does the operator window's preview, each with a switch in Settings → Windows; and a ? at the right of the toolbar puts up the app in short: its own features, what it does not do, and its keys. See [Stage layouts](docs/features/stage-layouts.md#screen-preview) and [In short](docs/guide.md).
 - **0.110: Quicker drags in the editor, and slides disabled at a date.** A slider or a handle dragged in the editor takes half the work it did, every step in its frame on an old laptop; and Disable On… in a slide's menu has the slide disabled by itself at a day and a time. See [Editing](docs/features/editing.md) and [Disabled slides](docs/features/disabled-slides.md#at-a-date).
 - **0.109: The Calendar, scrolling text and disabled slides.** Events that take a playlist's presentation live or run a macro at their times, as ProPresenter's Calendar; a text box's words scrolling across or up and down it; and slides switched off from their menu, passed over by everything but a click. See [Calendar](docs/features/calendar.md), [Scrolling text](docs/features/scrolling-text.md) and [Disabled slides](docs/features/disabled-slides.md).
 - **0.108: Markers on the transport.** The transport's playback markers are small flags over its bar, dragged to move them and right-clicked for the same menu as in the Media Inspector; a marker moved while its media plays runs where it now is. See [Playback markers](docs/features/playback-markers.md).
 - **0.107: Playback markers, and the copyright display.** Points in a video or a piece of audio whose actions run as playback reaches them, made and dragged in the Media Inspector, on the transport's bar and on the stage; and a song's copyright, from SongSelect or typed in the editor, laid over its slides for a church's CCLI licence, as ProPresenter's display is. See [Playback markers](docs/features/playback-markers.md) and [Copyright display](docs/features/copyright.md).
-- **0.106: Next Cue, and a transport for each layer.** A video in a media playlist can go on to another of its playlist when it ends, as ProPresenter's Next Cue; and tabs over the transport work the media layer's video, the announcements' video or the audio bin's music. See [Next Cue](docs/features/media.md#next-cue) and [the transport](docs/features/media.md#the-transport).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.110_amd64.deb` from the
+`simplepresenter_0.111_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.110_amd64.deb
+sudo apt install ./simplepresenter_0.111_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes
