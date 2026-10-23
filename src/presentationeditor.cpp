@@ -156,6 +156,7 @@ void PresentationEditor::start(Kind kind, const QString &path, const QString &wo
     m_beforeRevert.clear();
     m_previewRow = -1;
     m_previewBefore.clear();
+    clearPreviewElements();
     m_rows.clear();
     if (kind != Kind::Presentation)
         m_presentation.Clear();
@@ -384,6 +385,7 @@ void PresentationEditor::close()
     m_beforeRevert.clear();
     m_previewRow = -1;
     m_previewBefore.clear();
+    clearPreviewElements();
     endResetModel();
     emit documentChanged();
     emit historyChanged();
@@ -667,7 +669,7 @@ QString PresentationEditor::change(int row, Change apply)
 }
 
 template <typename Change>
-void PresentationEditor::preview(int row, Change apply)
+void PresentationEditor::preview(int row, const QString &element, Change apply)
 {
     if (m_previewRow >= 0 && m_previewRow != row)
         commitPreview();
@@ -680,7 +682,19 @@ void PresentationEditor::preview(int row, Change apply)
         m_previewBefore = unit->SerializeAsString();
     }
     apply(slide);
+    if (!m_previewElements.contains(element)) {
+        m_previewElements.append(element);
+        emit previewElementsChanged();
+    }
     refresh(row);
+}
+
+void PresentationEditor::clearPreviewElements()
+{
+    if (m_previewElements.isEmpty())
+        return;
+    m_previewElements.clear();
+    emit previewElementsChanged();
 }
 
 QString PresentationEditor::commitPreview()
@@ -691,6 +705,7 @@ QString PresentationEditor::commitPreview()
     const std::string before = m_previewBefore;
     m_previewRow = -1;
     m_previewBefore.clear();
+    clearPreviewElements();
     return commit(row, before);
 }
 
@@ -703,6 +718,7 @@ void PresentationEditor::cancelPreview()
         unit->ParseFromString(m_previewBefore);
     m_previewRow = -1;
     m_previewBefore.clear();
+    clearPreviewElements();
     refresh(row);
 }
 
@@ -715,7 +731,7 @@ QString PresentationEditor::setProperties(int row, const QString &element, const
 
 void PresentationEditor::previewProperties(int row, const QString &element, const QVariantMap &changes)
 {
-    preview(row, [&](rv::data::Slide *slide) { proconvert::applyChanges(slide, element, changes); });
+    preview(row, element, [&](rv::data::Slide *slide) { proconvert::applyChanges(slide, element, changes); });
 }
 
 QVariant PresentationEditor::notes(int row) const
@@ -792,7 +808,7 @@ QString PresentationEditor::formatText(int row, const QString &element, int star
 
 void PresentationEditor::previewFormat(int row, const QString &element, int start, int end, const QVariantMap &format)
 {
-    preview(row, [&](rv::data::Slide *slide) {
+    preview(row, element, [&](rv::data::Slide *slide) {
         if (rv::data::Slide::Element *target = findElement(slide, element)) {
             rv::data::Graphics::Text *text = target->mutable_element()->mutable_text();
             proconvert::writeText(text, proconvert::readText(*text).formatted(start, end, format));

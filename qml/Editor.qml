@@ -938,8 +938,12 @@ Rectangle {
             anchors.bottom: parent.bottom
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            // The last element is drawn in front, so it comes first here.
-            model: canvas.elements.slice().reverse()
+            // How many there are, and not the elements themselves, as the canvas's own
+            // layers have it: each step of a drag in the inspector describes the slide
+            // anew, and a new list for a model has every row thrown away and made again,
+            // which was some two fifths of the work of a step (found by Qt's QML
+            // profiler, 2026-10-23). Each row reads its element by its place.
+            model: canvas.elements.length
 
             ScrollBar.vertical: ScrollBar {}
 
@@ -948,7 +952,9 @@ Rectangle {
             delegate: Rectangle {
                 id: entry
 
-                required property var modelData
+                required property int index
+                // The last element is drawn in front, so it comes first here.
+                readonly property var modelData: canvas.elementOf(canvas.elements.length - 1 - index)
                 readonly property bool selected: modelData.id === canvas.selectedId
                 readonly property bool renaming: screen.renamingId !== "" && screen.renamingId === modelData.id
 

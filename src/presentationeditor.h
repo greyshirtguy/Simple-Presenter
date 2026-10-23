@@ -62,6 +62,13 @@ class PresentationEditor : public QAbstractListModel
     // ProPresenter shows them in, which the file keeps beside it: "" likewise.
     Q_PROPERTY(QString key READ key NOTIFY keyChanged)
     Q_PROPERTY(QString shownKey READ shownKey NOTIFY keyChanged)
+    // The elements a preview under way has changed (see previewProperties and
+    // previewFormat), by id: empty when none is under way. The canvas hands out every
+    // other element of the slide as the object it already was while a change is
+    // dragged out, so that nothing of theirs is worked out again at every step (see
+    // EditorCanvas.elementOf). It is emptied before the slide is described again at the
+    // end of the preview, so that what follows is fresh.
+    Q_PROPERTY(QStringList previewElements READ previewElements NOTIFY previewElementsChanged)
     // Whether the presentation's file is no longer what it was when it was opened here,
     // so that revertToOpened() has something to do; and whether a revert has just been made
     // that takeBackRevert() can still take back.
@@ -90,6 +97,7 @@ public:
     QString backupPath() const { return m_backupPath; }
     QString key() const;
     QString shownKey() const;
+    QStringList previewElements() const { return m_previewElements; }
     bool canRevert() const { return m_revertible; }
     bool canTakeBackRevert() const { return !m_beforeRevert.isEmpty(); }
 
@@ -324,6 +332,7 @@ signals:
     void documentChanged();
     void historyChanged();
     void keyChanged();
+    void previewElementsChanged();
     // The slide in this row is not as it was.
     void slideChanged(int row);
     // An undo or a redo changed the slide in this row.
@@ -389,7 +398,8 @@ private:
     template <typename Change>
     QString change(int row, Change apply);
     template <typename Change>
-    void preview(int row, Change apply);
+    void preview(int row, const QString &element, Change apply);
+    void clearPreviewElements();
     QString commit(int row, const std::string &before);
     QString restore(QList<Step> *from, QList<Step> *to, bool forwards);
     void backUp();
@@ -463,4 +473,6 @@ private:
     bool m_joinNext = false;
     int m_previewRow = -1;
     std::string m_previewBefore;
+    // The elements the preview has changed (see previewElements)
+    QStringList m_previewElements;
 };

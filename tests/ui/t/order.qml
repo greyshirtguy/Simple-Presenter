@@ -26,8 +26,8 @@ QtObject {
         return canvas.elements.map(nameOf).join()
     }
 
-    // (A row is known by what it has, and not by a name: the rows are made again at every step of a change
-    // that is dragged in the inspector, and are given nothing they can do without.)
+    // (A row is known by what it has, and not by a name: the rows are given nothing they can do without. Row i shows
+    // the element `canvas.elements.length - 1 - i`, the list's model being only how many there are.)
     function rows() {
         return Lib.findAll(list, i => i.renaming !== undefined && i.selected !== undefined && i.modelData !== undefined).sort((a, b) => a.y - b.y)
     }
@@ -203,7 +203,7 @@ QtObject {
             },
             () => {
                 const last = rows()[rows().length - 1]
-                check("the last row of the list is the element drawn first", last.modelData.id === kept.back && list.model[list.count - 1].id === kept.back)
+                check("the last row of the list is the element drawn first", last.modelData.id === kept.back && canvas.elements[0].id === kept.back)
                 hold(last, list.width / 2, -14)
                 return 900
             },
@@ -312,7 +312,7 @@ QtObject {
                 // The front one, let go at that landing: it has that many rows over it, less the one it was itself
                 const index = canvas.elements.findIndex(e => e.id === kept.front)
                 check("let go there, the element is where the line was, counted in the rows that had scrolled out of sight as well",
-                      index === kept.count - 1 - (kept.landing - 1) && list.model[kept.landing - 1].id === kept.front && kept.landing > 9, index + " of " + kept.count + ", landing " + kept.landing)
+                      index === kept.count - 1 - (kept.landing - 1) && canvas.elements[canvas.elements.length - kept.landing].id === kept.front && kept.landing > 9, index + " of " + kept.count + ", landing " + kept.landing)
                 const lines = testInput.readText(Log.path).split("\n")
                 check("nothing went wrong on the way", lines.filter(l => /PROBLEM|WARNING|ERROR/.test(l) && !l.includes("qt.qpa.theme") && !l.includes("not an image")).length === 0,
                       lines.filter(l => /PROBLEM|WARNING|ERROR/.test(l)).slice(0, 3).join(" | "))

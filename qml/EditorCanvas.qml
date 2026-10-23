@@ -54,9 +54,16 @@ Item {
     // what was typed is kept, and `dismissed` is sent.
     property bool textOnly: false
 
-    readonly property var elements: slide ? slide.elements : []
+    // The slide's elements, each copied into an object of JavaScript's own. As the
+    // slide has them they are references into it (Qt's V4ReferenceObject), which tie
+    // everything bound to an element to `slide` itself, so that all of it is worked out
+    // again whenever the slide is described anew, even for an element that has not
+    // changed; copied, they can be handed out as they were (see elementOf).
+    readonly property var elements: slide ? Array.from(slide.elements, element => Object.assign({}, element)) : []
     // The last element there was: see elementAt()
     readonly property var spare: ({ element: null })
+    // Each element as it was last handed out, by id: see elementOf()
+    readonly property var handedOut: ({})
     // Changes to an element that are being dragged out, on a slider or a handle, and
     // have yet to be shown: { format, row, id, changes }, with `format` set if they are
     // to its text's format. They are shown once a frame, however many arrive in that
@@ -158,11 +165,27 @@ Item {
     }
 
     // The element that the item at this place draws: as Slide.elementAt().
+    //
+    // While a change is being dragged out (a preview, see the editor's previewElements),
+    // an element it cannot have changed is handed out as the very object it was before,
+    // and not as the new one the slide, described again at every step, has for it: a
+    // binding that gives the same object again tells nothing that depends on it, so its
+    // drawing, its outline and its row are not worked out again. That was most of the
+    // work of a step (Qt's QML profiler, 2026-10-23). What it cannot have changed: an
+    // element the preview has not changed, whose words do not come from another (a
+    // link) and whose showing does not turn on another's (visibility rules). The others,
+    // and every element once the preview is over, are handed out as they now are.
     function elementOf(index) {
         const element = elements[Math.min(index, elements.length - 1)]
-        if (element)
-            spare.element = element
-        return element ?? spare.element
+        if (!element)
+            return spare.element
+        const was = handedOut[element.id]
+        const kept = was !== undefined && editor.previewElements.length > 0 && !editor.previewElements.includes(element.id)
+                     && element.linkKind === "none" && !element.visibilityRules
+        const given = kept ? was : element
+        handedOut[element.id] = given
+        spare.element = given
+        return given
     }
 
     // Shows the changes that were waiting for the next frame, if any were. Whatever
@@ -187,8 +210,14 @@ Item {
         pending = { format: format, row: row, id: selectedId, changes: Object.assign({}, pending ? pending.changes : {}, changes) }
     }
 
+    // (The slide is kept as an object of JavaScript's own, copied once from what the
+    // editor gives: kept as it comes, the editor's map, every read of `slide`, even
+    // `slide !== null`, made the whole of it over again for JavaScript, some quarter of
+    // a millisecond a read, and the editor reads it in several places at every step of a
+    // drag.)
     function reload() {
-        slide = row >= 0 && row < editor.count ? editor.slideAt(row) : null
+        const described = row >= 0 && row < editor.count ? editor.slideAt(row) : null
+        slide = described ? Object.assign({}, described) : null
     }
 
     // Shows another slide. Whatever was under way on this one is finished first, while
