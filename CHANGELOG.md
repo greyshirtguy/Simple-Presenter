@@ -6,6 +6,19 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.110](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.110) · 2026-10-23
+
+- [A slide disabled at a date](docs/features/disabled-slides.md#at-a-date), this app's own:
+  Disable On… in a slide's menu sets a day and a time for the slide to be disabled by
+  itself; until then it is marked with the day. The dates are kept in the workspace, as
+  ProPresenter keeps no field it does not know in a presentation.
+- The editor's drags, a slider in its inspector or a handle on the slide, take half the work
+  they did: the list of elements is no longer made again at every step, and the elements
+  that a step has not changed are not worked out again.
+- The README's screenshot taken again.
+- 0.109's notes, which said a slider in the editor had become slower, were wrong, and are
+  corrected: it did the same work as in 0.108.
+
 ## [0.109](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.109) · 2026-10-23
 
 - [The Calendar](docs/features/calendar.md), as ProPresenter's: events at a date and time,

@@ -39,6 +39,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.110" date="2026-10-23">
+      <description>
+        <p>
+          A slide disabled by itself at a date set from its menu; and the editor's drags,
+          a slider or a handle, taking half the work they did.
+        </p>
+      </description>
+    </release>
     <release version="0.109" date="2026-10-23">
       <description>
         <p>
