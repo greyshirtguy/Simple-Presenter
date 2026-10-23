@@ -5,8 +5,11 @@ import "lib.js" as Lib
 // A shape filled with a Screen Preview, a picture of what one of the screens is showing (qml/ScreenPicture.qml):
 // ProPresenter's own, read from the stage layouts it wrote, each naming one of the workspace's screens; on the
 // stage screen, a picture of the output, which is red while a red picture is on the media layer and black while
-// nothing is, with the live slide in it, and a video in it frame for frame; the same in what the operator sees of
-// the stage; a picture of the stage screen itself, which has no picture inside it; in the editor, the fill chosen in
+// nothing is, with the live slide in it, and a video in it frame for frame; what moves on the output moving in it (a
+// slide brought in by its transition, a box that scrolls), and in the operator window's preview of the stage, unless
+// Screen Previews that move is switched off, when a change there is a cut and the words stand still; the preview of
+// the output making the output's transition, unless The preview's transitions is switched off; the same in what the
+// operator sees of the stage; a picture of the stage screen itself, which has no picture inside it; in the editor, the fill chosen in
 // the Fill menu, the screen chosen, what is in the file afterwards with the rest of the element as it was, and the
 // file byte for byte as it was once another fill is chosen; and such a slide on the output, whose picture of the
 // output has no picture inside it, while a thumbnail of it draws none; and, where NDI's library is here, a stage
@@ -43,6 +46,18 @@ QtObject {
     function shareOf(item, root) {
         const at = item.mapToItem(root, item.width * 0.1, item.height * 0.1)
         return { x: at.x / root.width, y: at.y / root.height, width: item.width * 0.8 / root.width, height: item.height * 0.8 / root.height }
+    }
+
+    // The stage's pixels at forty places across a picture on it, along a line of the slide in it (a share of its
+    // height; the picture's screen being of the picture's own proportions)
+    function stageLine(picture, along) {
+        const root = stageContent()
+        const found = []
+        for (let i = 0; i < 40; ++i) {
+            const at = picture.mapToItem(root, picture.width * (i + 0.5) / 40, picture.height * along)
+            found.push(testInput.pixel(true, at.x / root.width, at.y / root.height))
+        }
+        return found.join()
     }
 
     function stageRed(picture) {
@@ -145,10 +160,150 @@ QtObject {
             },
             () => {
                 kept.picture = stagePictures().find(p => p.screen !== null && p.screen.name === "Main Hall Projector")
-                const slide = kept.picture ? Lib.find(kept.picture, item => item.slide !== undefined && item.elements !== undefined && item.visible) : null
+                // (The picture's slide layer has two slides, the one on show and the one the next change is made with)
+                const slide = kept.picture ? Lib.find(kept.picture, item => item.slide !== undefined && item.slide !== null && item.elements !== undefined && item.visible) : null
                 check("the live slide is in the picture", slide !== null && slide.slide !== null && slide.slide.id === liveSlide.id,
                       slide && slide.slide ? slide.slide.id : "none")
                 testInput.grabStage("2-slide-on-stage")
+                // ---- What moves on the screen moves in the picture: another slide of the presentation, brought in by
+                // the transition the output makes, which the picture makes too
+                // (One with words, and nothing that gives the stage another layout or brings media)
+                kept.next = document.slides.findIndex((s, i) => i !== kept.index && s.media === undefined && !s.actions.some(a => a.kind === "stage")
+                                                             && s.elements.some(e => e.hasText))
+                check("(another slide, with words)", kept.next >= 0, document.slides.length)
+                goLive(kept.next)
+                return 150
+            },
+            () => {
+                const layer = Lib.find(kept.picture, i => i.blending !== undefined && i.shaderName !== undefined && i.visible)
+                check("a slide changed by a transition on the output is changed by it in the picture: mixing the two",
+                      layer !== null && layer.blending === true && layer.progress > 0 && layer.progress < 1, layer ? layer.progress : "none")
+                return 1000
+            },
+            () => {
+                const layer = Lib.find(kept.picture, i => i.blending !== undefined && i.shaderName !== undefined && i.visible)
+                const slide = layer ? layer.currentItem : null
+                check("and once it is over the picture has the new slide, as the output has", layer !== null && !layer.blending && slide !== null
+                      && slide.slide !== null && slide.slide.id === liveSlide.id && Show.liveIndex === kept.next)
+                check("the log has the picture's transition", testInput.readText(Log.path).includes("screen preview: "))
+                // A box of the live slide made to scroll (Scrolling Text), in the editor
+                const slides = document.slides
+                kept.scrolled = slides[kept.next].elements.find(e => e.hasText && e.id !== kept.element.id) ?? slides[kept.next].elements.find(e => e.hasText)
+                check("(a box with words on the slide)", kept.scrolled !== undefined)
+                startEditing(currentEntry(), slides[kept.next].id)
+                return 900
+            },
+            () => {
+                editScreen.canvas.pick(kept.scrolled.id)
+                editScreen.canvas.setProperties({ scrollOn: true, scrollDirection: "left", scrollRate: 0.8 }, false)
+                return 400
+            },
+            () => {
+                stopEditing()
+                return 800
+            },
+            () => {
+                goLive(kept.next)
+                return 1200
+            },
+            () => {
+                const scroller = () => Lib.find(kept.picture, i => i.settings !== undefined && i.travelled !== undefined && i.places !== undefined && i.visible)
+                kept.travelled = scroller() ? scroller().travelled : -1
+                kept.line = (kept.scrolled.y + kept.scrolled.height / 2) / 1080
+                kept.samples = stageLine(kept.picture, kept.line)
+                check("a box that scrolls on the output scrolls in the picture", scroller() !== null && kept.travelled > 0, kept.travelled)
+                return 700
+            },
+            () => {
+                const scroller = Lib.find(kept.picture, i => i.settings !== undefined && i.travelled !== undefined && i.places !== undefined && i.visible)
+                check("and goes on going", scroller !== null && scroller.travelled > kept.travelled + 20, scroller ? scroller.travelled + " after " + kept.travelled : "none")
+                check("drawn moving: the picture on the stage, along the box's line, is not what it was", stageLine(kept.picture, kept.line) !== kept.samples)
+                testInput.grabStage("2-scrolling-on-stage")
+                // ---- The same in this window: the preview picked to show the stage screen, whose layout has the picture
+                kept.previewWas = pickedPreviewScreen
+                pickPreviewScreen(Screens.stage[0].id)
+                return 800
+            },
+            () => {
+                const scroller = () => {
+                    const p = operatorPictures().find(p => p.screen !== null && p.screen.name === "Main Hall Projector")
+                    return p ? Lib.find(p, i => i.settings !== undefined && i.travelled !== undefined && i.places !== undefined && i.visible) : null
+                }
+                kept.opScroller = scroller()
+                kept.opTravelled = kept.opScroller ? kept.opScroller.travelled : -1
+                check("the preview of the stage screen, here, has the picture of the output, scrolling too", movingPreviews && kept.opScroller !== null && kept.opTravelled > 0,
+                      operatorPictures().length + " pictures here")
+                return 500
+            },
+            () => {
+                check("(and going on)", kept.opScroller !== null && kept.opScroller.travelled > kept.opTravelled)
+                goLive(kept.index)
+                return 150
+            },
+            () => {
+                const p = operatorPictures().find(p => p.screen !== null && p.screen.name === "Main Hall Projector")
+                const layer = p ? Lib.find(p, i => i.blending !== undefined && i.shaderName !== undefined && i.visible) : null
+                check("and it makes the output's transition, here as on the stage", layer !== null && layer.blending === true, layer ? layer.progress : "none")
+                // Switched off in the settings: a cut, and still
+                movingPreviews = false
+                return 900
+            },
+            () => {
+                goLive(kept.next)
+                return 150
+            },
+            () => {
+                const p = operatorPictures().find(p => p.screen !== null && p.screen.name === "Main Hall Projector")
+                const layer = p ? Lib.find(p, i => i.blending !== undefined && i.shaderName !== undefined) : null
+                const slide = p ? Lib.find(p, i => i.slide !== undefined && i.slide !== null && i.elements !== undefined && i.visible) : null
+                const scroller = p ? Lib.find(p, i => i.settings !== undefined && i.travelled !== undefined && i.places !== undefined && i.visible) : null
+                check("with Screen Previews that move switched off, it changes by a cut, at once, and its words stand still", p !== null && layer === null && slide !== null
+                      && slide.slide.id === liveSlide.id && scroller === null, slide && slide.slide ? slide.slide.id : "none")
+                check("while the stage's own picture still moves", Lib.find(kept.picture, i => i.blending !== undefined && i.shaderName !== undefined && i.visible) !== null)
+                movingPreviews = true
+                // (The preview picked to show the output)
+                pickPreviewScreen(Screens.audience.find(s => s.name === "Main Hall Projector").id)
+                return 600
+            },
+            // ---- The preview of the output itself: by the output's transition too, unless The preview's transitions is off
+            () => {
+                goLive(kept.index)
+                return 150
+            },
+            () => {
+                const layer = named("previewSlide")
+                check("the preview of the output makes the output's transition too", movingPreview && layer !== null && layer.blending === true, layer ? layer.blending : "none")
+                movingPreview = false
+                return 900
+            },
+            () => {
+                goLive(kept.next)
+                return 150
+            },
+            () => {
+                const slide = named("previewSlide")
+                check("with The preview's transitions switched off, it changes by a cut, at once", slide !== null && slide.blending === undefined
+                      && slide.slide !== null && slide.slide.id === liveSlide.id, slide && slide.slide ? slide.slide.id : "none")
+                movingPreview = true
+                pickPreviewScreen(kept.previewWas)
+                return 600
+            },
+            () => {
+                // (Switched off again, the presentation as the rest of the test has it)
+                startEditing(currentEntry(), document.slides[kept.next].id)
+                return 900
+            },
+            () => {
+                editScreen.canvas.pick(kept.scrolled.id)
+                editScreen.canvas.setProperties({ scrollOn: false }, false)
+                return 400
+            },
+            () => {
+                stopEditing()
+                goLive(kept.index)
+                return 1000
+            },
+            () => {
                 // ---- A video: the slide of the workspace's with one, if it has one
                 kept.video = null
                 for (const lib of catalog.libraries) {

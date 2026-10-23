@@ -72,7 +72,9 @@ Item {
     // screen is showing. Null where it is only being looked at (a thumbnail, the
     // editor), where such a fill draws nothing, or its stand-in if standIns says so:
     // a grid of thumbnails, each drawing a screen and borrowing a video's frames, would
-    // cost more than the show itself.
+    // cost more than the show itself. Or, in a Screen Preview's own slides, the picture's
+    // `onShow` ({ inPicture: true }): on show, so that what moves (scrolling text, a
+    // video input) moves, but with no Screen Preview of its own (see ScreenPicture).
     property var pictures: null
     // The words of an element whose words change while it is shown, or undefined for an
     // element that shows what its map says: a timer's time (see Timers); the words or
@@ -272,7 +274,8 @@ Item {
             readonly property string kind: !element.boxFilled ? "none"
                                          : element.source.fillKind === "input" ? "input"
                                          : element.source.fillKind !== "screen" ? element.source.fillKind
-                                         : element.pictures !== null ? "screen" : element.standIns ? "color" : "none"
+                                         : element.pictures !== null && element.pictures.inPicture !== true ? "screen"
+                                         : element.standIns ? "color" : "none"
             readonly property bool cut: element.source.shape !== "rectangle"
             // Which way a gradient runs: its angle is anticlockwise from pointing right
             readonly property real along: element.source.fillGradientAngle * Math.PI / 180

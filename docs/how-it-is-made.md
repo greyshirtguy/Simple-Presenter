@@ -21,6 +21,7 @@ with Intel HD 620 graphics. On it, when each of these was last measured:
 | Thumbnails for 112 videos, 47 of them 4K, the first time they are seen | 2.5 seconds, while the window stays responsive |
 | Putting a still on the output, even one of 8000 by 4500 | read in the background; the window is not held up |
 | A 1080p video under the words, with a [Screen Preview](features/stage-layouts.md#screen-preview) of the output on the stage | a quarter of one processor core, against a tenth without the Screen Preview; every frame on both screens, none late (measured by the benchmark, in a desktop of its own) |
+| [Scrolling text](features/scrolling-text.md) on the output, a ticker along the foot of the slide | a quarter of one processor core, the output drawn at each of its sixty frames a second; a third with a Screen Preview of the output on the stage, scrolling it too; no frame late (the benchmark) |
 | Memory, with a workspace open | about 290 MB, of which 160 MB is what Qt needs for any window; up to 450 MB while a 4K video plays |
 
 What gets it there:

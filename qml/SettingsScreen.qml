@@ -16,6 +16,9 @@ Rectangle {
 
     // Whether to run through X11 on a Wayland desktop from the next launch.
     property bool useX11: false
+    // See movingPreviews and movingPreview in Main.qml
+    property bool movingPreviews: true
+    property bool movingPreview: true
     // Who decodes video, "auto", "processor" or "hardware": see the Video section
     property string videoDecoding: "auto"
     // The colour of a chord's name on the chord sheet, and of a chord in the ChordPro
@@ -61,6 +64,8 @@ Rectangle {
     signal copyrightTemplateWanted()
     signal actionIconOpacityEdited(real opacity)
     signal useX11Edited(bool useX11)
+    signal movingPreviewsEdited(bool on)
+    signal movingPreviewEdited(bool on)
     signal videoDecodingEdited(string mode)
     signal chordSheetColorEdited(string color)
     signal audioDeviceEdited(string id)
@@ -1640,6 +1645,98 @@ Rectangle {
             anchors.topMargin: 12
             spacing: 14
             visible: screen.section === "windows"
+
+            // Whether the preview in this window changes by its screen's transitions
+            Row {
+                spacing: 12
+
+                Rectangle {
+                    objectName: "movingPreview"
+                    width: 44
+                    height: 24
+                    radius: 12
+                    color: screen.movingPreview ? "#ff8a1f" : "#45484e"
+
+                    Rectangle {
+                        x: screen.movingPreview ? parent.width - width - 3 : 3
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 18
+                        radius: 9
+                        color: "#e6e6e6"
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: screen.movingPreviewEdited(!screen.movingPreview)
+                    }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 15
+                    text: "The preview's transitions"
+                }
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: "The preview in this window changes as the screen it shows does, by its transitions. "
+                    + "Off, it changes by a cut. On, this window draws every frame of a transition beside "
+                    + "the output, which on the laptop this is made on brought the output's slides and "
+                    + "transitions some four or five thousandths of a second later."
+            }
+
+            // Whether the Screen Previews in what the preview shows move as the screens do
+            Row {
+                spacing: 12
+
+                Rectangle {
+                    objectName: "movingPreviews"
+                    width: 44
+                    height: 24
+                    radius: 12
+                    color: screen.movingPreviews ? "#ff8a1f" : "#45484e"
+
+                    Rectangle {
+                        x: screen.movingPreviews ? parent.width - width - 3 : 3
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 18
+                        radius: 9
+                        color: "#e6e6e6"
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: screen.movingPreviewsEdited(!screen.movingPreviews)
+                    }
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 15
+                    text: "Screen Previews that move"
+                }
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: "The Screen Previews in what the preview in this window shows, such as those of a stage "
+                    + "layout, change as the screens do, by their transitions, with their scrolling text and "
+                    + "video inputs going. Off, they change by a cut and stand still. On, this window draws "
+                    + "every frame of a transition beside the output while the preview shows such a layout, "
+                    + "which costs the output a little. The preview itself changes by a cut either way, and "
+                    + "the Screen Previews on the screens themselves move either way."
+            }
 
             Row {
                 spacing: 12

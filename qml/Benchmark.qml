@@ -216,7 +216,7 @@ QtObject {
 
     // The same with a transition between the slides, which is a run of frames: how
     // many a second there were of them, and the longest wait for one.
-    function crossing(name, count) {
+    function crossing(name, count, prefix = "") {
         const rates = []
         const gaps = []
         const starts = []
@@ -230,7 +230,7 @@ QtObject {
                 one()
                 return
             }
-            const label = "transition (" + transition.name + ") through " + name
+            const label = prefix + "transition (" + transition.name + ") through " + name
             bench.record(label + ": to its first frame, median", median(starts), "ms")
             bench.record(label + ": frames a second, median", median(rates), "fps")
             bench.record(label + ": longest wait between frames, worst", worst(gaps), "ms")
@@ -426,6 +426,47 @@ QtObject {
             after(1000)
         })
         showing("Words", "stage preview: show", 18)
+        // The same by a transition, which the Screen Preview makes again at its size
+        jobs.push(() => {
+            transitionIndex = 1
+            transitionDuration = 0.5
+            next()
+        })
+        crossing("Words", 8, "stage preview: ")
+        // And the same with this window's preview showing the stage screen, whose layout's
+        // Screen Preview moves here too (as Screen Previews that move has it: see movingPreviews
+        // in Main.qml)
+        jobs.push(() => {
+            pickPreviewScreen(Screens.stage[0] ? Screens.stage[0].id : "")
+            after(800)
+        })
+        crossing("Words", 8, "stage preview, in this window's preview too: ")
+        jobs.push(() => {
+            pickPreviewScreen("")
+            selectTransition("Cut")
+            after(500)
+        })
+
+        // ---- Scrolling text: a ticker along the foot of the slide on the output, for some
+        // seconds with the stage's plain view and some with its Screen Preview, which
+        // scrolls it too, nothing being done
+        jobs.push(() => {
+            Show.stageLayoutId = ""
+            openEntry(presentation("Scrolling"))
+            goLive(0)
+            after(1500)
+        })
+        playing("scrolling text, the stage's plain view", 6)
+        jobs.push(() => {
+            Show.stageLayoutId = previewLayout()
+            after(1500)
+        })
+        playing("scrolling text, a Screen Preview on the stage", 6)
+        jobs.push(() => {
+            Show.clearSlide()
+            Show.stageLayoutId = previewLayout()
+            after(500)
+        })
 
         // ---- A video playing under the slides, with the stage screen's plain view and
         // then with its Screen Preview of the output: where the workspace has the video,

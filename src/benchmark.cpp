@@ -75,6 +75,15 @@ void addWords(rv::data::Slide *slide, const QString &words, double y, double hei
     applyChanges(slide, id, {{"x", 120.0}, {"y", y}, {"width", 1680.0}, {"height", height}});
 }
 
+// Adds a ticker to a slide: a text box of these words along its foot, scrolling to the
+// left over and over (Scrolling Text: see textscroller.h), at ProPresenter's middle speed.
+void addTicker(rv::data::Slide *slide, const QString &words)
+{
+    addWords(slide, words, 950, 90, 56);
+    const QString id = idOf(slide->elements(slide->elements_size() - 1));
+    applyChanges(slide, id, {{"scrollOn", true}, {"scrollDirection", "left"}, {"scrollRate", 0.5}});
+}
+
 // Adds a shape to a slide, in this box, changed as asked.
 void addShape(rv::data::Slide *slide, const QString &shape, const QRectF &box, QVariantMap changes = {})
 {
@@ -263,6 +272,16 @@ QString Benchmark::makeWorkspace(const QString &folder)
                               [&](rv::data::Presentation *, rv::data::Cue *cue, rv::data::Slide *slide, int i) {
         addWords(slide, words(i, 2), 340, 400, 110);
         background(cue, pictures.at(i % 4));
+    });
+    if (!error.isEmpty())
+        return error;
+
+    // Scrolling: words with a ticker along the foot of the slide, what a notice or a
+    // lower third that scrolls is
+    error = writePresentation(library + "/Scrolling.pro", "Scrolling", 6,
+                              [&](rv::data::Presentation *, rv::data::Cue *, rv::data::Slide *slide, int i) {
+        addWords(slide, words(i, 2), 340, 400, 110);
+        addTicker(slide, words(i + 1, 1) + QStringLiteral("  ·  ") + words(i + 2, 1) + QStringLiteral("  ·  ") + words(i + 3, 1));
     });
     if (!error.isEmpty())
         return error;

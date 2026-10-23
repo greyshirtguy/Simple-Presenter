@@ -194,6 +194,13 @@ Window {
     readonly property var transitionUniforms: transitionCatalogue.uniforms(transition, transitionChoices[transition.name])
     // Seconds
     property real transitionDuration: 0.6
+    // The shader of `transition`, for the Screen Previews (ScreenPicture), which make the
+    // screens' transitions again
+    readonly property string transitionShader: transitionCatalogue.shaderUrl(transition)
+    // The last change of the live slide, and the transition the screens were told to make
+    // it by (a slide's own, or null for theirs): what a Screen Preview makes its change by
+    // (see ScreenPicture.present). The serial goes up with each.
+    property var slideChange: ({ serial: 0, transition: null })
     property bool mediaBinVisible: true
     property bool outputEnabled: true
     property bool stageEnabled: true
@@ -413,6 +420,17 @@ Window {
     property bool slidesRearranged: false
     // Read by main.cpp at the next launch; see the Windows section of the settings screen.
     property bool useX11: false
+    // Whether the Screen Previews in what this window's preview shows (a stage layout's,
+    // say) move as the screens do: changed by their transitions, with their scrolling text
+    // and video inputs going (see ScreenPicture). This computer's own choice, on to begin
+    // with; off, they change by a cut and stand still, which spares the output a little
+    // while a transition runs. (The preview itself changes by a cut either way.)
+    property bool movingPreviews: true
+    // Whether the preview in this window itself changes as the screen it shows does, by
+    // its transitions (see ScreenPicture). This computer's own choice, on to begin with; off,
+    // it changes by a cut, which spares the output a few milliseconds at a slide change and
+    // a transition, on a modest computer (benchmark, 2026-10-23).
+    property bool movingPreview: true
     // Who decodes video: "auto" (the graphics chip where it can be trusted to), or
     // "processor" (the processor alone), or "hardware" (the graphics chip where it can,
     // whatever the guard says of this computer). It is acted on as the app starts,
@@ -4041,6 +4059,8 @@ Window {
         outputEnabled = String(saved("outputEnabled", true)) === "true"
         stageEnabled = String(saved("stageEnabled", true)) === "true"
         useX11 = String(saved("useX11", false)) === "true"
+        movingPreviews = String(saved("movingPreviews", true)) === "true"
+        movingPreview = String(saved("movingPreview", true)) === "true"
         const fade = Number(saved("audioFade", audioFade))
         audioFade = isFinite(fade) ? Math.max(0, Math.min(30, fade)) : 1
         audioCrossfade = String(saved("audioCrossfade", false)) === "true"
@@ -4327,6 +4347,18 @@ Window {
         }
     }
 
+    onMovingPreviewChanged: {
+        save("movingPreview", movingPreview)
+        if (restored)
+            Log.note("settings", movingPreview ? "the preview in this window changes by its screen's transitions"
+                                               : "the preview in this window changes by a cut")
+    }
+    onMovingPreviewsChanged: {
+        save("movingPreviews", movingPreviews)
+        if (restored)
+            Log.note("settings", movingPreviews ? "the previews in this window move as the screens do"
+                                                : "the previews in this window change by a cut and stand still")
+    }
     onUseX11Changed: {
         save("useX11", useX11)
         if (restored)
@@ -4813,6 +4845,7 @@ Window {
                 win.buildStarts = ({})
             if (built || win.liveBuildTimes !== null)
                 win.liveBuildTimes = built ? [Date.now() + (shader !== "" ? length : 0)] : null
+            win.slideChange = { serial: win.slideChange.serial + 1, transition: transition }
             win.eachAudienceScene((scene, id) => {
                 const dressed = dressings[id]
                 if (showing === Show.WithMedia)
@@ -4825,6 +4858,7 @@ Window {
         }
 
         function onSlideCleared() {
+            win.slideChange = { serial: win.slideChange.serial + 1, transition: null }
             if (win.liveBuildTimes !== null)
                 win.liveBuildTimes = null
             if (Object.keys(win.buildStarts).length > 0)
@@ -5947,6 +5981,10 @@ Window {
         onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))
         useX11: win.useX11
         onUseX11Edited: (useX11) => win.useX11 = useX11
+        movingPreviews: win.movingPreviews
+        onMovingPreviewsEdited: (on) => win.movingPreviews = on
+        movingPreview: win.movingPreview
+        onMovingPreviewEdited: (on) => win.movingPreview = on
         videoDecoding: win.videoDecoding
         onVideoDecodingEdited: (mode) => win.videoDecoding = mode
         audioDevice: win.audioDevice

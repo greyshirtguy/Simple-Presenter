@@ -14,7 +14,13 @@ import SimplePresenterApp
 // cheap parts of them:
 //
 //   - The slide is drawn again, at this size, which is little more than its words.
-//     A change is a cut: the transition the screen makes is not made here as well.
+//     Its builds run as the screen's do. On a screen (a stage layout's Screen Preview,
+//     say), it changes as the screen's does, by the screen's transition when the live
+//     slide changes, made again at this size (a cut for any other change, such as a look
+//     giving the screen another theme), and its moving parts move (scrolling text, a
+//     video input in a shape: see below). In the operator window the same, the preview
+//     and the pictures in what it shows (the Screen Previews of a stage layout), unless
+//     the settings for them are off, when a change is a cut (see `moving`).
 //   - A still picture is the small one the thumbnails already have, and read from its
 //     file at this size only for a picture too large for that to look right.
 //   - A video is not played again. Its frames are borrowed from the decoder that is
@@ -26,8 +32,9 @@ import SimplePresenterApp
 //   - The props, the messages and the announcements are their layers again, as the
 //     screens have them, with nothing of their own to play.
 // So a picture costs roughly a slide more to draw, and to draw again as often as the
-// screen changes. A screen that shows nothing new has a picture that is not drawn
-// again either.
+// screen changes: at every frame while a transition, a build or scrolling text moves
+// on the screen, as the screen itself is. A screen that shows nothing new has a picture
+// that is not drawn again either. (Measured: see benchmark/README.md.)
 //
 // It is of a screen by its id, or failing that by its name, which is how ProPresenter's
 // file names it; with neither found, it shows nothing. Of an audience screen it shows
@@ -41,7 +48,9 @@ import SimplePresenterApp
 // preview, which stands for a screen, shows the pictures the screen shows (`inner`),
 // and a picture on a screen shows its screen without any. (A GUESS at ProPresenter,
 // whose screens are drawn in another way, and which may well show the picture inside
-// itself, once or more.)
+// itself, once or more.) Where it moves (`moving`), its slides are told all the same that
+// they are on show, by `onShow` in place of the operator window: what moves on a screen
+// moves in them, and a Screen Preview in them draws nothing (see SlideElement).
 Item {
     id: picture
 
@@ -84,8 +93,57 @@ Item {
     readonly property var look: screen !== null && !stage && Looks.live !== undefined ? Looks.liveOf(screen.id)
                                                                                       : ({ slide: true, media: true, props: true, messages: true, theme: "" })
     readonly property var mask: screen !== null && !stage ? win.maskSlide(look.mask) : null
-    // The slides of the picture, with or without pictures of their own
-    readonly property var pictures: inner ? win : null
+    // The slides of the picture, with pictures of their own or only told that they are on
+    // show (see the top)
+    readonly property var onShow: ({ inPicture: true })
+    readonly property var pictures: inner ? win : moving ? onShow : null
+    // Whether the picture is on a screen, and not in the operator window (see the top).
+    // (Set as the picture is put in a window. Not called onScreen, which QML takes for a
+    // handler of `screen`'s changes.)
+    property bool drawnOnScreen: false
+    // Whether it moves as the screen does: on a screen, always; in the operator window, as
+    // the settings there say, one for the preview itself (movingPreview in Main.qml) and one
+    // for the pictures in what the preview shows, the Screen Previews of a stage layout, say
+    // (movingPreviews). The preview moving costs the output some milliseconds at every slide
+    // change and transition, the operator window drawing beside it (benchmark, 2026-10-23).
+    readonly property bool moving: drawnOnScreen || (inner ? win.movingPreview : win.movingPreviews)
+    Window.onWindowChanged: {
+        picture.drawnOnScreen = picture.Window.window !== null && picture.Window.window !== picture.win
+    }
+    // The live slide as the screen has it, for the slide layer below. (Asked of the
+    // operator window here, and not kept in a property of the operator window's for this
+    // to read: passed on that way, a slide cost the benchmark's slides of shapes two
+    // milliseconds more a click, in the operator's preview alone. Handed the look, which
+    // follows the live look: asked for inside slideFor, it is no part of the binding, and
+    // a look giving the screen another theme while a slide is on show went unseen here
+    // until the next slide.)
+    readonly property var shownSlide: !moving || screen === null || stage ? null : win.slideFor(screen.id, win.liveSlide, look)
+    // The last change of the live slide this has made (see Main's slideChange)
+    property int changesSeen: -1
+
+    // Brings in the slide as it now is: by the transition the screens make, if the live
+    // slide has changed since the last time, and otherwise at once. (Called a moment after
+    // the slide is known to have changed, by when the operator window has said whether
+    // that was the live slide changing: see slideChange, which it says as the screens
+    // are told, after the slide has changed.)
+    function present() {
+        if (!movingSlide.item)
+            return
+        const change = win.slideChange
+        const live = change.serial !== changesSeen
+        changesSeen = change.serial
+        movingSlide.item.show(shownSlide, { buildTimes: screen !== null ? win.buildTimesFor(screen.id) : null },
+                        live ? change.transition : { name: "", shader: "", duration: 0 })
+    }
+
+    onShownSlideChanged: presenting.restart()
+
+    // (A timer of its own rather than Qt.callLater, which can come after the picture is
+    // gone: one of a shape's fill goes when the shape does)
+    property Timer presenting: Timer {
+        interval: 0
+        onTriggered: picture.present()
+    }
 
     function name(part) {
         return namePrefix === "" ? "" : namePrefix + part
@@ -111,7 +169,10 @@ Item {
             announcements.item.clear()
     }
 
-    Component.onCompleted: win.pictureMade(picture)
+    Component.onCompleted: {
+        drawnOnScreen = Window.window !== null && Window.window !== win
+        win.pictureMade(picture)
+    }
     Component.onDestruction: win.pictureGone(picture)
 
     // The screen. Each layer fills the picture and fits itself in it, as it does on the
@@ -204,22 +265,71 @@ Item {
             interval: picture.videoInterval
         }
 
-        // The slide that is live, as it is in the theme the look gives the screen. (Asked
-        // of the operator window here, and not kept in a property of the picture's for
-        // this to read: passed on that way, a slide cost the benchmark's slides of
-        // shapes two milliseconds more a click, in the operator's preview alone.)
-        Slide {
-            objectName: picture.name("Slide")
+        // The slide that is live, as it is in the theme the look gives the screen. In the
+        // operator window: drawn as it is, each change a cut. (Asked of the operator window
+        // here, and not kept in a property of the picture's for this to read: passed on that
+        // way, a slide cost the benchmark's slides of shapes two milliseconds more a click,
+        // in the operator's preview alone. Handed the look, which follows the live look:
+        // asked for inside slideFor, it is no part of the binding, and a look giving the
+        // screen another theme while a slide is on show went unseen here until the next
+        // slide.)
+        Loader {
             anchors.fill: parent
-            visible: !picture.stage && picture.look.slide
-            // (Handed the look, which follows the live look: asked for inside slideFor,
-            // it is no part of the binding, and a look giving the screen another theme
-            // while a slide is on show went unseen here until the next slide.)
-            slide: picture.screen === null || picture.stage ? null : picture.win.slideFor(picture.screen.id, picture.win.liveSlide, picture.look)
-            // Its builds run as the screen's do, from the same times
-            buildTimes: picture.screen !== null ? picture.win.buildTimesFor(picture.screen.id) : null
-            effects: picture.effects
-            pictures: picture.pictures
+            active: !picture.moving
+            visible: active && !picture.stage && picture.look.slide
+
+            sourceComponent: Slide {
+                objectName: picture.name("Slide")
+                slide: picture.screen === null || picture.stage ? null : picture.win.slideFor(picture.screen.id, picture.win.liveSlide, picture.look)
+                // Its builds run as the screen's do, from the same times
+                buildTimes: picture.screen !== null ? picture.win.buildTimesFor(picture.screen.id) : null
+                effects: picture.effects
+                pictures: picture.pictures
+            }
+        }
+
+        // On a screen: changed as the screen changes it, through the same transition, drawn
+        // at this size (shownSlide, present()). While one runs, the two slides are drawn into
+        // textures and mixed by its shader, and the screen this is on is drawn at every frame
+        // of it, as the screen it is of is; between them the slide is drawn as it is.
+        Loader {
+            id: movingSlide
+
+            anchors.fill: parent
+            active: picture.moving
+            visible: active && !picture.stage && picture.look.slide
+            onLoaded: {
+                picture.changesSeen = picture.win.slideChange.serial
+                picture.present()
+            }
+
+            sourceComponent: TransitionLayer {
+                // (The slide on show, as the plain Slide above has it, for the tests)
+                readonly property var slide: currentItem ? currentItem.slide : null
+
+                objectName: picture.name("Slide")
+                name: "screen preview"
+                shaderName: picture.win.transition.name
+                shader: picture.win.transitionShader
+                options: picture.win.transitionUniforms.options
+                tint: picture.win.transitionUniforms.tint
+                direction: picture.win.transitionUniforms.direction
+                duration: Math.round(picture.win.transitionDuration * 1000)
+                delegate: Slide {
+                    effects: picture.effects
+                    pictures: picture.pictures
+                    logName: "screen preview"
+                }
+            }
+        }
+
+        // Its builds run as the screen's do, from the same times, which change as each
+        // step of them is begun
+        Binding {
+            target: movingSlide.item ? movingSlide.item.currentItem : null
+            when: movingSlide.item !== null && movingSlide.item.currentItem !== null
+            property: "buildTimes"
+            value: picture.screen !== null ? picture.win.buildTimesFor(picture.screen.id) : null
         }
 
         // The copyright display's line over it, as the screens have it (see OutputScene)

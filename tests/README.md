@@ -268,6 +268,13 @@ ProPresenter's settings, changed (going right, from off the box, quicker, feathe
 end, once), shown again so, and gone once across; switched off and on again; and set
 going down, its words then as wide as the box. The file is read with `protoc` after.
 
+The Screen Preview test (`screenpreview`) also checks that what moves on the output moves
+in a picture of it on the stage: a slide brought in by its transition, mixed in the
+picture too, and a box of words that scrolls, with the stage's pixels along its line
+changing; the same in the operator window's preview of the stage, and the preview of the
+output making the output's transition, each unless its switch in Settings → Windows is
+off.
+
 `disabledates` works disable dates, on "Holy Holy Holy" of the Demo workspace, with a file
 of dates the runner leaves in the workspace before the app starts, one of them long past:
 at open that slide disabled and the date gone from the file; then from a slide's menu,

@@ -51,18 +51,30 @@ about a quarter of one of the processor's cores, where with the stage showing it
 view it used a tenth: a stage drawing every frame of a video costs about what the
 output itself does. Nothing else was held up, and no frame of the output was late. A
 picture that took fifteen frames a second instead, tried for comparison, used a sixth.
-(The benchmark measures this: see [Built for modest hardware](../how-it-is-made.md#built-for-modest-hardware).)
+The same holds for whatever else moves in the picture: while scrolling text moves on the
+output, the stage draws every frame of it as well, and the app used a third of a core
+against a quarter with the stage's plain view; a transition the picture makes as the
+output does left the output's own frames as they were, its first frame two thousandths
+of a second later. (The benchmark measures this: see [Built for modest hardware](../how-it-is-made.md#built-for-modest-hardware).)
 
 Guesses at ProPresenter, and choices of this app's own: the screen is fitted into the
-shape whole, on black where it shows nothing, and the shape is empty around it; a slide
-coming or going is a cut in the picture, without the transition the screen makes; its
-slides have shadows only where the shape is a quarter of the screen's height or more;
-a picture's own slides have no pictures in them, so that a screen with a picture of
-itself shows it once and not without end; a screen the link names that the workspace
-does not have shows nothing; and the thumbnails show nothing for it, nor does the
-editor, where the shape has the fill ProPresenter keeps beside the link (black, in its
-own) and a yellow mark that says which screen. ProPresenter's stage editor also adds a
-Screen Preview with its `+`; here a shape is added and its fill made one.
+shape whole, on black where it shows nothing, and the shape is empty around it; what
+moves on the screen moves in the picture: a slide coming or going by the transition the
+screen makes, made again at the picture's size, its builds, scrolling text and a video
+input in a shape (media coming and going, and a look giving the screen another theme,
+are cuts in the picture); the same in the operator window, in the Screen Previews of a
+stage layout its preview shows, unless **Screen Previews that move** is switched off in
+Settings → Windows, when a change there is a cut and nothing in them moves; and the
+preview itself changes by its screen's transitions, unless **The preview's transitions**
+is switched off there (on, it brought the output's slides and transitions four or five
+thousandths of a second later, on the laptop this is made on); its slides have shadows
+only where the shape is a quarter of the screen's height or more; a picture's own slides
+have no pictures in them, so that a screen with a picture of itself shows it once and not
+without end; a screen the link names that the workspace does not have shows nothing;
+and the thumbnails show nothing for it, nor does the editor, where the shape has the fill
+ProPresenter keeps beside the link (black, in its own) and a yellow mark that says which
+screen. ProPresenter's stage editor also adds a Screen Preview with its `+`; here a shape
+is added and its fill made one.
 
 Along the bottom of the tab is the **stage message**: a box to type in what the people
 on the stage are to be told, and a button that shows it and hides it. Enter in the box

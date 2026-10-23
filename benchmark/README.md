@@ -41,7 +41,12 @@ Anything less is as likely to be the machine as the app.
 - **Memory**: how much the app holds at the end, and the most it held.
 - **A Screen Preview on the stage**: the slides shown again, as above, with the stage
   screen showing a stage layout whose one shape is a picture of the output, most of
-  the stage's size.
+  the stage's size; and the same by a transition, which the picture makes too, and again
+  with the operator window's preview showing the stage screen, whose picture moves there
+  as well.
+- **Scrolling text**: a ticker scrolling along the foot of the slides, for six seconds
+  with the stage's plain view and six with the Screen Preview, which scrolls it as well,
+  nothing else being done: the same measures as for the video below.
 - **Video**: a 1080p video playing under the words, for eight seconds with the stage's
   plain view and eight with the Screen Preview, nothing being done. Over each, how many
   frames a second the output drew, how many the video's decoder gave, and how many the
@@ -59,7 +64,8 @@ say whether the desktop drew it at all.
 The presentations are words (large text, as most slides are), shapes (one of each
 kind the app draws, with a gradient, pictures cut to shapes and feathered edges, which
 is the slide that costs most to draw), pictures (words over a picture the slide
-brings with it as its background), and words over the video.
+brings with it as its background), words with a scrolling ticker, and words over the
+video.
 
 ## The baseline
 
