@@ -574,37 +574,76 @@ Item {
 
                         // Its Go To Next Timer, for a slide that has one: an arrowhead
                         // against a bar for the next slide, or an arrow going round
-                        // for the first ("Loop to Beginning"), and the seconds. A
-                        // right click on it has the timer's panel.
+                        // for the first ("Loop to Beginning"), and the seconds. And its
+                        // disable date, this app's own (see DisableDates), for a slide
+                        // that has one: a calendar's page and the day. A right click on
+                        // either has its panel. (One Loader for the two, which few slides
+                        // have: a Loader is a thing more made for every slide, and one of
+                        // its own for the date cost opening the benchmark's Shapes some
+                        // 8 ms, 2026-10-23.)
                         Loader {
-                            active: cell.modelData.goToNext !== undefined
+                            active: cell.modelData.goToNext !== undefined || slides.win.disableDates[cell.modelData.id] !== undefined
                             visible: active
 
-                            sourceComponent: ActionIcon {
-                                id: nextIcon
+                            sourceComponent: Row {
+                                readonly property double disableAt: slides.win.disableDates[cell.modelData.id] ?? 0
 
-                                objectName: "goToNextBadge"
-                                width: 21 + nextLabel.implicitWidth
-                                strength: slides.win.actionIconOpacity
+                                spacing: 3
 
-                                function open() {
-                                    slides.win.editGoToNext(cell.index)
+                                ActionIcon {
+                                    id: nextIcon
+
+                                    objectName: "goToNextBadge"
+                                    visible: cell.modelData.goToNext !== undefined
+                                    width: 21 + nextLabel.implicitWidth
+                                    strength: slides.win.actionIconOpacity
+
+                                    function open() {
+                                        slides.win.editGoToNext(cell.index)
+                                    }
+
+                                    ActionGlyph {
+                                        x: 3
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        kind: cell.modelData.goToNext?.loop ? "loop" : "next"
+                                    }
+
+                                    Text {
+                                        id: nextLabel
+
+                                        x: 17
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: "#e3e5e9"
+                                        font.pixelSize: 10
+                                        text: cell.modelData.goToNext !== undefined ? Number(cell.modelData.goToNext.seconds.toFixed(2)) + "s" : ""
+                                    }
                                 }
 
-                                ActionGlyph {
-                                    x: 3
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    kind: cell.modelData.goToNext.loop ? "loop" : "next"
-                                }
+                                ActionIcon {
+                                    objectName: "disableDateBadge"
+                                    visible: parent.disableAt > 0
+                                    width: 25 + dateLabel.implicitWidth
+                                    strength: slides.win.actionIconOpacity
 
-                                Text {
-                                    id: nextLabel
+                                    function open() {
+                                        slides.win.editDisableDate(cell.index)
+                                    }
 
-                                    x: 17
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: "#e3e5e9"
-                                    font.pixelSize: 10
-                                    text: Number(cell.modelData.goToNext.seconds.toFixed(2)) + "s"
+                                    CalendarGlyph {
+                                        x: 3
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        ink: "#e3e5e9"
+                                    }
+
+                                    Text {
+                                        id: dateLabel
+
+                                        x: 23
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: "#e3e5e9"
+                                        font.pixelSize: 10
+                                        text: parent.parent.disableAt > 0 ? CalendarEvents.dateText(parent.parent.disableAt) : ""
+                                    }
                                 }
                             }
                         }

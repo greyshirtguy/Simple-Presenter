@@ -69,7 +69,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a slide's menu has Copy and Paste, and Paste waits for a copy", /\[Slide\], Copy, Paste\(off\), Copy Text Style(\(off\))?, Paste Text Style\(off\), Disable Slide, Delete Slide…$/.test(labels()), labels())
+                check("a slide's menu has Copy and Paste, and Paste waits for a copy", /\[Slide\], Copy, Paste\(off\), Copy Text Style(\(off\))?, Paste Text Style\(off\), Disable Slide, Disable On…, Delete Slide…$/.test(labels()), labels())
                 click(menuRow("Copy"))
                 return 300
             },
@@ -80,7 +80,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("now Paste can be chosen", /\[Slide\], Copy, Paste, Copy Text Style(\(off\))?, Paste Text Style\(off\), Disable Slide, Delete Slide…$/.test(labels()), labels())
+                check("now Paste can be chosen", /\[Slide\], Copy, Paste, Copy Text Style(\(off\))?, Paste Text Style\(off\), Disable Slide, Disable On…, Delete Slide…$/.test(labels()), labels())
                 click(menuRow("Paste"))
                 return 500
             },

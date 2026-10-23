@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are forty-one:
+So far there are forty-two:
 
 | Test | What it tries |
 | --- | --- |
@@ -56,6 +56,7 @@ So far there are forty-one:
 | `tst_ccli` | The copyright display (`src/ccli.h`): the settings in ProPresenter's CCLI file read and changed with the rest kept; what a workspace with none has; a presentation's details; the line its details make by the layout, a detail it has not leaving its words out; and which slides show it |
 | `tst_calendarfile` | ProPresenter's Calendar (`src/calendarfile.h`), on a calendar made as ProPresenter wrote the one looked at: read; each change (a name, a description, a start, the days, "ends on", the calendar on and off) changing that and nothing else, to the byte; an action written in both of the file's forms as ProPresenter writes them, another action the event had kept; events added and deleted; when events come due, once, every week, through the end of summer time on Sydney's clock, up to "ends on" and not on a day left out; how late one may still run; the window's list both ways; and dates and times written and typed |
 | `tst_textscroller` | ProPresenter's Scrolling Text (`src/textscroller.h`): the two boxes of ProPresenter's that were looked at, read; each change of the editor's (the way the words go, the speed, repeating, the gap, starting off the box, the feathering, switched off) changing that and nothing else, to the byte, a field ProPresenter's descriptions do not name kept; a box switched to scrolling given ProPresenter's settings for a new one, or keeping its own; how fast a Speed is; and where the words are as they go, once and over and over |
+| `tst_disabledatefile` | Disable dates (`src/disabledatefile.h`), this app's own: a file of them with keys the app does not know, read, and one that says too little left out; a date set, changed and taken out, with the rest of the file kept, its unknown keys included; a file that is not one said to be so; where the file is; and which dates have come and which is next |
 | `tst_audiolevel` | The arithmetic of sound (`src/audiolevel.h`): the loudest sample of each channel of a stretch of sound, however its samples are written; how far up a meter that comes, by decibels, and how the meter rises and falls; and that two pieces crossing are together as loud all the way as either is alone |
 | `tst_clocktext` | How a date and a time are written for a text box linked to the system clock (`src/clocktext.h`): each of the five ways ProPresenter names for each, the twelve and the twenty-four hour clock, both together, in the words of the locale it is given, and where in a pattern the clock goes |
 | `tst_messagefile` | Messages (`src/messagefile.h`), on a file made as ProPresenter wrote the one that was looked at: a message read; a text as its words and its tokens in order; a message made, named, moved and removed; a text with tokens of each kind written as the file keeps them, a token the message has left as it is and one no longer in the text taken out; what a token is given; its theme; how it goes away; and after each, what else of the file is still as it was, to the byte; and what an action that shows a message gives its tokens, read as ProPresenter writes it (a timer token's setting among them), and words given to its text tokens with all else it says kept |
@@ -266,6 +267,16 @@ preview and still in the thumbnail and the editor; the editor's Text tab with
 ProPresenter's settings, changed (going right, from off the box, quicker, feathered at one
 end, once), shown again so, and gone once across; switched off and on again; and set
 going down, its words then as wide as the box. The file is read with `protoc` after.
+
+`disabledates` works disable dates, on "Holy Holy Holy" of the Demo workspace, with a file
+of dates the runner leaves in the workspace before the app starts, one of them long past:
+at open that slide disabled and the date gone from the file; then from a slide's menu,
+Disable On…, the panel with the start of tomorrow, a time a few seconds on typed and said in
+words, one that cannot be read, saved; the slide marked in the grid, its menu saying the
+date, the file having it; at that time the slide disabled and its mark gone; a date set
+and taken off with Remove Date; and a time that has passed, disabling a slide at once. The
+presentation is read with `protoc` after (three cues disabled, each in that alone), and the
+file of dates (none left, its own key kept).
 
 And `decklink` sends a screen out through a Blackmagic DeckLink card's output, with no
 card: with `SP_TEST_DECKLINK` set (which `run.py` does for it), the app pretends two

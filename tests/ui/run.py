@@ -2006,6 +2006,51 @@ def after_transports(workspace, test_dir):
     ]
 
 
+def prepare_disabledates(workspace, test_dir):
+    """The disable dates' test (disabledates): "Holy Holy Holy" as it was given (disabledates-before.pro), and a file of
+    dates in the workspace with one for its third slide long past, a key of the file's and one of the date's that this
+    app does not know; the slide's id in disabledates-preset.txt, for the script."""
+    pro = os.path.join(workspace, "Libraries", "Demo", "Holy Holy Holy.pro")
+    shutil.copy(pro, os.path.join(test_dir, "disabledates-before.pro"))
+    with open(pro, "rb") as source:
+        text = protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+    presentation = re.search(r'(?m)^uuid \{\n  string: "([^"]+)"', text).group(1)
+    cues = re.findall(r'(?m)^cues \{\n  uuid \{\n    string: "([^"]+)"', text)
+    os.makedirs(os.path.join(workspace, "SimplePresenter"))
+    with open(os.path.join(workspace, "SimplePresenter", "Disable Dates.json"), "w") as out:
+        json.dump({"kept": "as it is", "dates": [{"presentation": presentation, "path": "Libraries/Demo/Holy Holy Holy.pro",
+                                                  "name": "Holy Holy Holy", "slide": cues[2], "at": "2020-01-01T00:00:00+11:00",
+                                                  "note": "not the app's"}]}, out)
+    with open(os.path.join(test_dir, "disabledates-preset.txt"), "w") as out:
+        out.write(cues[2])
+
+
+def after_disabledates(workspace, test_dir):
+    """"Holy Holy Holy" once the test has done with it, read with protoc and not by the app: three of its cues disabled (the
+    one the file had a date for, and the two whose dates came), each changed in that alone, and nothing else of the file
+    changed; and the file of dates with no dates in it, its own key kept."""
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    was = decoded(os.path.join(test_dir, "disabledates-before.pro"))
+    now = decoded(os.path.join(workspace, "Libraries", "Demo", "Holy Holy Holy.pro"))
+    cue = lambda text: [m.group(0) for m in re.finditer(r"(?ms)^cues \{\n.*?^\}\n", text)]
+    before, after = cue(was), cue(now)
+    changed = [(a, b) for a, b in zip(before, after) if a != b]
+    only_enabled = all(a.replace("\n  isEnabled: true\n", "\n") == b.replace("\n  isEnabled: true\n", "\n") and "\n  isEnabled: true\n" not in b
+                       for a, b in changed)
+    rest = lambda text, cues: "".join(text.split("".join(cues))) if "".join(cues) in text else None
+    with open(os.path.join(workspace, "SimplePresenter", "Disable Dates.json")) as source:
+        dates = json.load(source)
+    return [
+        said(len(before) == len(after) and len(changed) == 3 and only_enabled, "three cues disabled, each changed in that alone",
+             "%d changed of %d" % (len(changed), len(before))),
+        said(rest(was, before) == rest(now, after), "and nothing else of the file changed"),
+        said(dates.get("dates") == [] and dates.get("kept") == "as it is", "the file of dates has none left, and its own key kept", json.dumps(dates)[:200]),
+    ]
+
+
 def prepare_scrolling(workspace, test_dir):
     """The scrolling text's test (scrolling): "It Is Well" as it was given (scrolling-before.pro)."""
     shutil.copy(os.path.join(workspace, "Libraries", "Demo", "It Is Well.pro"), os.path.join(test_dir, "scrolling-before.pro"))
@@ -3135,6 +3180,7 @@ TESTS = {
     "calendar": test("Act", timeout=300, prepare=prepare_calendar, after=after_calendar),
     "disabled": test("Demo", timeout=240, prepare=prepare_disabled, after=after_disabled),
     "scrolling": test("Demo", timeout=300, prepare=prepare_scrolling, after=after_scrolling),
+    "disabledates": test("Demo", timeout=240, prepare=prepare_disabledates, after=after_disabledates),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
     "simple": test("Demo"),

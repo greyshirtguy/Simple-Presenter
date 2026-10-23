@@ -73,6 +73,8 @@ qt_add_executable(SimplePresenter
     src/calendarfile.h
     src/textscroller.cpp
     src/textscroller.h
+    src/disabledatefile.cpp
+    src/disabledatefile.h
     src/audioprobe.cpp
     src/audioprobe.h
     src/playlistfile.cpp
@@ -155,6 +157,7 @@ qt_add_qml_module(SimplePresenter
         qml/CalendarWindow.qml
         qml/CalendarGlyph.qml
         qml/ScrollingText.qml
+        qml/DisableDatePanel.qml
         qml/TransportTabs.qml
         qml/VideoInputView.qml
         qml/AnnouncementLayer.qml
@@ -329,6 +332,8 @@ qt_add_qml_module(SimplePresenter
         src/calendarevents.h
         src/textscrolling.cpp
         src/textscrolling.h
+        src/disabledates.cpp
+        src/disabledates.h
         src/labelfile.h
         src/labelfile.cpp
         src/labels.h

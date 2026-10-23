@@ -2694,6 +2694,8 @@ Window {
             // ProPresenter's Enable/Disable: a disabled slide is passed over by Next and
             // Previous and what goes on by itself, and shown when clicked (see setSlideEnabled)
             { label: slide.disabled === true ? "Enable Slide" : "Disable Slide", run: () => setSlideEnabled(index, slide.disabled === true) },
+            // This app's own: a date the slide is disabled at (see editDisableDate)
+            disableDateRow(index),
             // Asked twice, since it is for good. (Not the last one there is: a
             // presentation with no slides is not one ProPresenter makes.)
             { label: "Delete Slide…", danger: true, disabled: new Set(document.slides.map(s => s.id)).size < 2,
@@ -2703,6 +2705,56 @@ Window {
                 { label: "Cancel", run: () => {} }
             ], item, x, y) }
         ], item, x, y)
+    }
+
+    // The disable dates of the presentation being viewed, by slide: what the slides' grid
+    // marks a slide by (see SlideGrid)
+    readonly property var disableDates: DisableDates.revision >= 0 && document && document.uuid ? DisableDates.datesOf(document.uuid) : ({})
+
+    // The slide menu's row for a slide's disable date: "Disable On…", or with the date it
+    // has. Only a presentation of the workspace's libraries can have one (DisableDates
+    // keeps it by the presentation's uuid and where it is in the workspace), and a slide
+    // that is disabled already has nothing to be disabled at, unless a date was left on it.
+    function disableDateRow(index) {
+        const slide = document.slides[index]
+        const at = DisableDates.dateOf(document.uuid ?? "", slide.id)
+        return { label: at > 0 ? "Disable On " + CalendarEvents.whenText(at) + "…" : "Disable On…",
+                 disabled: bibleMode || !document.uuid || (slide.disabled === true && at <= 0), run: () => editDisableDate(index) }
+    }
+
+    // Puts up the panel for a slide's disable date: the one it has, or the start of
+    // tomorrow to begin from (this app's own choice).
+    function editDisableDate(index) {
+        const slide = document.slides[index]
+        const at = DisableDates.dateOf(document.uuid, slide.id)
+        disableDateLoader.active = true
+        disableDateLoader.item.show("Slide " + (index + 1) + " of “" + document.name + "”",
+                                    at > 0 ? at : CalendarEvents.withTime(CalendarEvents.now() + 86400, "12:00 am"), at > 0,
+                                    (when) => setDisableDate(index, when))
+    }
+
+    // Gives a slide a date to be disabled at, or with 0 takes its date off. A date that
+    // has passed disables it at once (see DisableDates.set).
+    function setDisableDate(index, at) {
+        const slide = document.slides[index]
+        const error = at > 0 ? DisableDates.set(document.uuid, document.path, document.name, slide.id, at)
+                             : DisableDates.clear(document.uuid, slide.id)
+        Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name)
+                 + (at > 0 ? " to be disabled on " + CalendarEvents.whenText(at) : " has no disable date now")
+                 + (error === "" ? "" : ", which failed: " + error))
+        report(error)
+    }
+
+    // A slide disabled by its date: the presentation is read again if it is the one being
+    // viewed, and the show (which goes by what is viewed: see disabledOf) with it. (One
+    // that is live and not viewed has it next time it is opened.)
+    Connections {
+        target: DisableDates
+
+        function onDisabled(path, slide) {
+            if (win.document && win.document.path === path)
+                win.reloadDocument()
+        }
     }
 
     // A slide enabled or disabled (ProPresenter's cue's isEnabled), in its file at once;
@@ -3946,6 +3998,9 @@ Window {
         // The calendar (see src/calendarevents.h), whose clock starts from now: what came
         // due before the workspace was opened is not run
         report(CalendarEvents.open(path))
+        // The slides to be disabled at a date (see src/disabledates.h): those whose date
+        // came while the workspace was not open are disabled now
+        report(DisableDates.open(path))
         // And the video inputs (see src/videoinputs.h): ProPresenter's list, with this
         // computer's devices for them
         const inputs = VideoInputs.open(path)
@@ -5755,6 +5810,21 @@ Window {
     // window: there are some thirty things in it.
     // The seconds of a Go To Next Timer or of a Slide Show: made when one is first to
     // be typed, as the label's panel is.
+    // A slide's disable date: made when one is first to be typed, as the Go To Next
+    // Timer's panel is
+    Loader {
+        id: disableDateLoader
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 30
+        active: false
+
+        sourceComponent: DisableDatePanel {
+            onClosed: win.takeFocus()
+        }
+    }
+
     Loader {
         id: goToNextLoader
 

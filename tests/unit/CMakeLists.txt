@@ -393,3 +393,12 @@ qt_add_executable(tst_textscroller
 target_include_directories(tst_textscroller PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_textscroller PRIVATE Qt6::Core Qt6::Test proproto)
 add_test(NAME textscroller COMMAND tst_textscroller)
+
+qt_add_executable(tst_disabledatefile
+    tst_disabledatefile.cpp
+    ${PROJECT_SOURCE_DIR}/src/disabledatefile.h
+    ${PROJECT_SOURCE_DIR}/src/disabledatefile.cpp
+)
+target_include_directories(tst_disabledatefile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_disabledatefile PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME disabledatefile COMMAND tst_disabledatefile)
