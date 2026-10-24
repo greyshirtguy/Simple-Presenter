@@ -6,6 +6,20 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.112](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.112) · 2026-10-24
+
+- A video playing on the output stutters less as slides change over it, as measured: a
+  slide shown by a cut is drawn once, where a second frame a moment later took the video's
+  turn; transitions, scrolling text and builds move by each screen's own refreshes, and
+  in the refreshes a playing video leaves free, where Qt's own animations ran on a timer
+  of sixty-two and a half a second; and the stage, switched off, no longer lays out the
+  slides' words at every click. Over a video of thirty frames a second, video frames late
+  at a cut went from 7 to 11 in thirty to 1 to 4, and scrolling words now move on by the
+  same in every frame. Words with a shadow still cost the video a frame at a cut. See
+  [How it is made](docs/how-it-is-made.md#built-for-modest-hardware).
+- The benchmark follows each frame of a video to the screen, and how evenly scrolling
+  words move.
+
 ## [0.111](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.111) · 2026-10-24
 
 - [Screen Previews that move](docs/features/stage-layouts.md#screen-preview): a Screen
