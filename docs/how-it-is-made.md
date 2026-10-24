@@ -21,7 +21,8 @@ with Intel HD 620 graphics. On it, when each of these was last measured:
 | Thumbnails for 112 videos, 47 of them 4K, the first time they are seen | 2.5 seconds, while the window stays responsive |
 | Putting a still on the output, even one of 8000 by 4500 | read in the background; the window is not held up |
 | A 1080p video under the words, with a [Screen Preview](features/stage-layouts.md#screen-preview) of the output on the stage | a quarter of one processor core, against a tenth without the Screen Preview; every frame on both screens, none late (measured by the benchmark, in a desktop of its own) |
-| [Scrolling text](features/scrolling-text.md) on the output, a ticker along the foot of the slide | a quarter of one processor core, the output drawn at each of its sixty frames a second; a third with a Screen Preview of the output on the stage, scrolling it too; no frame late (the benchmark) |
+| [Scrolling text](features/scrolling-text.md) on the output, a ticker along the foot of the slide | a quarter of one processor core, the output drawn at each of its sixty frames a second, the words moving on by the same in each; a third with a Screen Preview of the output on the stage, scrolling it too; no frame late (the benchmark) |
+| Slides changed over a video of thirty frames a second, 1080p or 4K, the stage off | by a cut, a frame of the video a refresh late at about one cut in twelve (one in three before it was mended); by a dissolve, at about one in two, mostly as it begins (one or more each before); none while nothing is done. Words with a shadow are drawn through layers of Qt's that draw two frames more after a change, and a cut to them costs the video a frame. With a Screen Preview of the output on the stage, a cut costs the video a frame about one time in two (a little better than before): the output then takes nine thousandths of a second to take in a slide's change, against two without, for a reason not yet found |
 | Memory, with a workspace open | about 290 MB, of which 160 MB is what Qt needs for any window; up to 450 MB while a 4K video plays |
 
 What gets it there:
@@ -62,6 +63,16 @@ What gets it there:
   have changed are cleared, drawn and sent to the graphics chip again, which brings it
   to about a tenth of a core. In the thumbnails, where hundredths cannot be read, it
   is five times a second.
+- **What moves keeps to the screen.** A transition, scrolling text and a build are moved
+  on once at each frame of the screen they are on, by that screen's own refreshes, and
+  on a screen playing a video in the refreshes the video leaves free (see
+  `src/frameclock.h`). Qt's own animations, which these were, are stepped by a timer of
+  sixty-two and a half a second while two windows are showing, as here: scrolling words
+  jumped twice as far in one frame in twenty-five, and the step that came twice in a
+  refresh took the turn of the video's next frame, which stayed on a refresh too long.
+  And a slide changed by a cut is drawn once: it was drawn a second time a moment later,
+  for the textures a transition would be drawn from, and on a screen playing a video that
+  frame took the video's turn too.
 - **The log is written when something happens, never when something is drawn.** A line
   of it costs four millionths of a second and is handed to the system at once: nothing
   waits for the disk, and nothing is written for a frame. See [Log](features/log.md).

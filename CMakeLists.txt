@@ -281,6 +281,10 @@ qt_add_qml_module(SimplePresenter
         src/decodingguard.cpp
         src/firstframe.h
         src/firstframe.cpp
+        src/frameclock.h
+        src/frameclock.cpp
+        src/framepacing.h
+        src/framepacing.cpp
         src/framerelay.h
         src/framerelay.cpp
         src/presentationeditor.h

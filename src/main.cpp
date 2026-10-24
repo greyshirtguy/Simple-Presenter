@@ -131,6 +131,11 @@
 //     made on worker threads, once, and kept on disk (src/thumbnailprovider.h); a
 //     still put on the output is read on another thread and brought in when it is
 //     ready (qml/MediaContent.qml).
+//   - What moves on a screen (a transition, scrolling text, a build) moves by that
+//     screen's own frames, one step at each refresh, and on a screen playing a video
+//     in the refreshes the video leaves free (src/frameclock.h): not by Qt's own
+//     animations, which step by a timer of their own while two windows are showing,
+//     and so in uneven steps that took the video's turn and had it stutter.
 //   - Nothing is drawn when nothing changes. With a still slide up, the app does
 //     nothing but answer, once a second, the question of whether it is still answering
 //     (src/sessionlog.h); a running timer has what shows it drawn again once a second,

@@ -21,6 +21,13 @@ import QtQuick
 //
 // It knows nothing about presentations. It is handed things to show (a slide map, or a
 // media file) and shows them; what is live is Show's business.
+//
+// Left as it was, for now: the fades of the layers as a look changes (lookFade), and of
+// the props and messages as they come and go, are Qt's own animations (a Behavior, a
+// NumberAnimation), which Qt steps by a timer of its own while two windows are showing,
+// out of time with the screen, where a transition, scrolling text and builds keep to the
+// screen's refreshes (see src/frameclock.h). They come seldom, beside the slides'
+// changes; moved to a FrameClock, they would not take a playing video's turn either.
 Item {
     id: scene
 
@@ -209,6 +216,12 @@ Item {
             if (!waiting && scene.heldSlide !== undefined)
                 scene.showSlide(scene.heldSlide, scene.heldHow.transition, scene.heldHow.times)
         }
+    }
+
+    // The video on the media layer, while one plays, is what the screen's frames keep to
+    // (see src/frameclock.h)
+    FramePace {
+        video: scene.liveVideoSink
     }
 
     TransitionLayer {

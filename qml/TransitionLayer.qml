@@ -11,10 +11,12 @@ import SimplePresenterApp
 //
 // A transition is a fragment shader. For as long as one runs, neither instance is drawn
 // to the window: each is drawn into a texture instead, and the only thing drawn is the
-// shader, which is handed both textures and a `progress` that an animation takes from 0
-// to 1, and decides for every pixel what mix of the outgoing and incoming pictures to
-// show. That is all a transition is, so adding one is adding a shader file, and it costs
-// the same whatever is on the layer: text, a still, or two videos playing at once.
+// shader, which is handed both textures and a `progress` that goes from 0 to 1 as the
+// window makes its frames (by a FrameClock, which keeps to the screen's own refreshes:
+// see src/frameclock.h), and decides for every pixel what mix of the outgoing and
+// incoming pictures to show. That is all a transition is, so adding one is adding a
+// shader file, and it costs the same whatever is on the layer: text, a still, or two
+// videos playing at once.
 //
 // When no transition is running there is nothing to mix, and the front instance is
 // simply drawn. That matters on modest graphics hardware: going through the textures
@@ -97,6 +99,10 @@ Item {
     property string activeName: ""
     property double beganAt: 0
     property int framesBefore: 0
+    // When the transition under way began, on the clock of the window's frames, and how
+    // long it lasts, in milliseconds
+    property double startedAt: 0
+    property double length: 0
     // The two instances as textures, which nothing draws but the shader below. Each is
     // given its instance only while a transition runs. A source that has an item follows
     // it, and when what is in the item changes it asks for the window to be drawn again,
@@ -120,8 +126,8 @@ Item {
     // and `instead` is a transition to make in place of the layer's own (see `asked`);
     // either can be left out.
     function show(content, given, instead) {
-        if (transition.running) {
-            transition.stop()
+        if (blending) {
+            backstop.stop()
             commit("cut short at " + Math.round(progress * 100) + "% by the next change")
         }
         // Whatever was being waited for is given up for this.
@@ -147,6 +153,9 @@ Item {
         patience.stop()
         const chosen = asked ?? { name: shaderName, shader: shader, options: options, tint: tint, direction: direction, duration: duration }
         const animated = chosen.shader !== "" && chosen.duration > 0
+        // (Before the clock is started, by `blending`, which it is worked out from)
+        startedAt = clock.now()
+        length = chosen.duration
         // Before the incoming instance is let be seen, or it would be drawn straight
         // over the outgoing one.
         blending = animated
@@ -166,8 +175,21 @@ Item {
         activeOptions = chosen.options
         activeTint = chosen.tint
         activeDirection = chosen.direction
-        transition.duration = chosen.duration
-        transition.start()
+        backstop.interval = chosen.duration + 1000
+        backstop.restart()
+    }
+
+    // Where the transition is at `now`, on the clock of the window's frames: eased in and
+    // out (Qt's Easing.InOutQuad, which it ran by before the clock), and over at the end.
+    function step(now) {
+        if (!blending)
+            return
+        const t = Math.min(1, Math.max(0, (now - startedAt) / length))
+        progress = t < 0.5 ? 2 * t * t : 1 - (2 - 2 * t) * (2 - 2 * t) / 2
+        if (t >= 1) {
+            backstop.stop()
+            commit("done")
+        }
     }
 
     // What the transition has been set to, where that is anything but nothing, for the log
@@ -284,14 +306,23 @@ Item {
         }
     }
 
-    NumberAnimation {
-        id: transition
+    // The frames of the window, while a transition runs
+    FrameClock {
+        id: clock
 
-        target: layer
-        property: "progress"
-        from: 0
-        to: 1
-        easing.type: Easing.InOutQuad
-        onFinished: layer.commit("done")
+        running: layer.blending
+        onTicked: (now) => layer.step(now)
+    }
+
+    // A transition the window makes no frames for (its screen switched off, or a screen
+    // drawn for NDI that nothing is taking, which draws once a second) is not left
+    // waiting on them: it is over a second after it should be.
+    Timer {
+        id: backstop
+
+        onTriggered: {
+            if (layer.blending)
+                layer.commit("done, the screen having drawn too few frames to end it")
+        }
     }
 }

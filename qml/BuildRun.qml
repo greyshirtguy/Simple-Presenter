@@ -16,8 +16,9 @@ import SimplePresenterApp
 //
 // While nothing is building, nothing is drawn: a timer waits for the next moment
 // anything starts or ends, and in between, an element before its Build In, or after its
-// Build Out, is simply not drawn. While a build runs, each frame is counted
-// (FrameAnimation) and the element is drawn by its transition's shader, the same shader
+// Build Out, is simply not drawn. While a build runs, each frame of the window is
+// counted (FrameClock, which keeps to the screen's refreshes: see src/frameclock.h) and
+// the element is drawn by its transition's shader, the same shader
 // a slide's transition would be drawn by (see TransitionCatalogue), between nothing and
 // the element: from nothing to it as it builds in, from it to nothing as it builds out.
 // For that the element is drawn into a texture of its own, the size of its box (and as
@@ -143,10 +144,10 @@ Item {
     }
 
     // Each frame while something builds
-    FrameAnimation {
+    FrameClock {
         id: frames
 
-        onTriggered: run.update()
+        onTicked: run.update()
     }
 
     // The next moment anything starts or ends, while nothing builds

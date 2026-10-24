@@ -282,6 +282,11 @@ at the screen's refreshes, a frame at each, and ends when it should. (Words with
 are drawn through layers of Qt's, which draw two frames more after any change, whatever the
 app does; on those slides the counts are not this app's to keep.)
 
+The scrolling test (`scrolling`) also checks, at every sync of the output, that the words
+move on by the same in each frame (a probe of the benchmark's, MotionTiming in
+`src/benchmark.h`): Qt's own animations stepped by a timer of their own, and one frame in
+twenty-five or so, every 0.4 s, moved them twice as far.
+
 The Screen Preview test (`screenpreview`) also checks that what moves on the output moves
 in a picture of it on the stage: a slide brought in by its transition, mixed in the
 picture too, and a box of words that scrolls, with the stage's pixels along its line

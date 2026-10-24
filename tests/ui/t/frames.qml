@@ -2,14 +2,15 @@ import QtQuick
 import SimplePresenterApp
 import "lib.js" as Lib
 
-// How often the output is drawn as slides change (qml/TransitionLayer.qml), on the Demo workspace's "All Hail King
-// Jesus", on slides whose words have no shadow (a shadow is drawn through layers of Qt's, which have Qt draw two
-// frames more after a change, whatever this app does): a slide shown by a cut, with nothing playing, is drawn once,
-// and not a second time a moment later for the textures a transition would be drawn from, which on a screen playing
-// a video took the video's turn and had it stutter; five cuts while a video from the media bin plays under them draw
-// a frame of their own each at most (VideoTiming, src/benchmark.h, counts them), and not two each; and a dissolve
-// with nothing playing is drawn at the screen's refreshes, a frame at each for as long as it lasts, and ends when it
-// should.
+// How often the output is drawn as slides change (qml/TransitionLayer.qml, src/frameclock.h), on the Demo workspace's
+// "All Hail King Jesus", on slides whose words have no shadow (a shadow is drawn through layers of Qt's, which have
+// Qt draw two frames more after a change, whatever this app does: see FramePace): a slide shown by a cut, with
+// nothing playing, is drawn once, and not a second time a moment later for the textures a transition would be drawn
+// from, which on a screen playing a video took the video's turn and had it stutter; five cuts while a video from the
+// media bin plays under them draw a frame of their own each at most (VideoTiming, src/benchmark.h, counts them), and
+// not two each; a dissolve over the video, which keeps to the video's frames, ends on time when the video is cleared
+// half way through it; and a dissolve with nothing playing is drawn at the screen's refreshes, a frame at each for as
+// long as it lasts, and ends when it should.
 QtObject {
     id: t
 
@@ -87,7 +88,23 @@ QtObject {
                       kept.cuts === 5 && video.frames > 50 && video.others <= 6, kept.cuts + " cuts; others, ms after their cut: " + after.join(" ")
                       + "; held " + video.held + ", not shown " + video.notShown)
                 kept.timer.destroy()
+                // A dissolve over the video, the video cleared half way through it
+                selectTransition("Dissolve")
+                transitionDuration = 0.5
+                goLive(kept.index + 1)
+                return 250
+            },
+            () => {
                 clearMedia()
+                return 800
+            },
+            () => {
+                const done = testInput.readText(Log.path).split("\n").filter(l => l.includes("slide layer: Dissolve done"))
+                const last = done.length > 0 ? done[done.length - 1] : ""
+                const seconds = Number((last.match(/frames in ([\d.]+) s/) ?? [])[1])
+                check("a dissolve over a video that is cleared half way through it ends when it should all the same, the screen drawing by its own refreshes again",
+                      last !== "" && !last.includes("too few") && seconds >= 0.48 && seconds <= 0.58, last.slice(-70))
+                selectTransition("Cut")
                 goLive(kept.index)
                 return 800
             },

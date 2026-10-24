@@ -5,7 +5,7 @@ import "lib.js" as Lib
 // Scrolling Text (src/textscroller.h, qml/ScrollingText.qml), on the Demo workspace's "It Is Well", which has a box
 // ProPresenter made to scroll left, over and over, showing the slide's lyrics on one line (a link to its Lyrics box): the box's words going left on the output, by the speed its slider
 // says, and in the operator's preview, and still in the slide's thumbnail; drawn moving (the output's pixels there
-// change); then in the editor's Text tab, Scrolling ticked with ProPresenter's settings, and changed: going right, Start
+// change), and by the same in every frame of the output (by FrameClock, src/frameclock.h); then in the editor's Text tab, Scrolling ticked with ProPresenter's settings, and changed: going right, Start
 // Off-Screen, a quicker Speed, the feathering unlocked and set at one end, Repeat off; shown again going right from off
 // the box, and gone once past it; Scrolling switched off, and on again with the settings it had; and set going down, its
 // words then laid out as wide as the box. after_scrolling in run.py reads the
@@ -73,6 +73,14 @@ QtObject {
                 check("and are drawn moving: the output's pixels along the box are not what they were", pixels.join() !== kept.pixels.join())
                 check("over and over: the next going is " + "on its way", out.settings.repeat && out.places(), out.cycle.toFixed(0))
                 testInput.grabOutput("1-scrolling")
+                // How far they go in each frame of the output, for two seconds
+                testInput.watchMotion(out, "travelled")
+                return 2000
+            },
+            () => {
+                const motion = testInput.motionSoFar()
+                check("and go on by the same in every frame of the output, the screen's own frames being what they go by",
+                      motion.frames > 90 && motion.uneven <= 2 && motion.stopped <= 1, JSON.stringify(motion))
                 startEditing(currentEntry(), document.slides[kept.index].id)
                 return 900
             },

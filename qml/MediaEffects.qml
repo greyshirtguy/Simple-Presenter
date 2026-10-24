@@ -40,9 +40,18 @@ Item {
     property real time: animated ? 0 : 1.25
     readonly property bool moving: animated && effects.some(effect => effect.animated)
 
-    FrameAnimation {
+    // At each frame of the window, on by the time since the last (FrameClock keeps to the
+    // screen's refreshes: see src/frameclock.h)
+    FrameClock {
+        property double last: -1
+
         running: chain.moving && chain.visible
-        onTriggered: chain.time += frameTime
+        onRunningChanged: last = -1
+        onTicked: (now) => {
+            if (last >= 0)
+                chain.time += (now - last) / 1000
+            last = now
+        }
     }
 
     Repeater {

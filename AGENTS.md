@@ -105,6 +105,11 @@ what you checked; do not say "the tests pass" and mean a part of them.
   settings.
 - A feature that is the app's own, or a new key, goes in `docs/guide.md` as well as in
   its page: the app shows that file behind the ? at the right of its toolbar.
+- Something new that moves on a screen moves by a `FrameClock` (`src/frameclock.h`),
+  not by Qt's `NumberAnimation` or `FrameAnimation`: while two windows are showing, Qt
+  steps those by a timer of its own, out of time with the screen, and a video under them
+  stutters. (Transitions, scrolling text, builds and media effects do; the fades of a
+  look's layers, of props and of messages in `OutputScene` are older and still Qt's.)
 - Words the user reads say plainly what a thing does. They never promise help, never
   call the app a product, and never say or suggest that it is fit to be relied on.
 - A thing ProPresenter has a picture for is shown with ProPresenter's picture, not a

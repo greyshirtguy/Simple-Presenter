@@ -402,3 +402,12 @@ qt_add_executable(tst_disabledatefile
 target_include_directories(tst_disabledatefile PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_disabledatefile PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME disabledatefile COMMAND tst_disabledatefile)
+
+qt_add_executable(tst_framepacing
+    tst_framepacing.cpp
+    ${PROJECT_SOURCE_DIR}/src/framepacing.h
+    ${PROJECT_SOURCE_DIR}/src/framepacing.cpp
+)
+target_include_directories(tst_framepacing PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_framepacing PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME framepacing COMMAND tst_framepacing)

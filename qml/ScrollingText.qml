@@ -135,8 +135,18 @@ Item {
         property real fadeEnd: scroller.settings.fadeRight
     }
 
-    FrameAnimation {
+    // At each frame of the window, the words go on by as far as they go in the time since
+    // the last (FrameClock keeps to the screen's refreshes, so they go on by the same at
+    // each: see src/frameclock.h)
+    FrameClock {
+        property double last: -1
+
         running: scroller.visible && scroller.going
-        onTriggered: scroller.travelled += TextScrolling.speed(scroller.settings.rate) * frameTime
+        onRunningChanged: last = -1
+        onTicked: (now) => {
+            if (last >= 0)
+                scroller.travelled += TextScrolling.speed(scroller.settings.rate) * (now - last) / 1000
+            last = now
+        }
     }
 }
