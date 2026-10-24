@@ -12,11 +12,15 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QPainter>
+#include <QQuickWindow>
 #include <QScreen>
 #include <QSysInfo>
 #include <QTextStream>
+#include <QVideoFrame>
+#include <QVideoSink>
 #include <QWindow>
 
+#include <algorithm>
 #include <ctime>
 #include <unistd.h>
 
@@ -153,6 +157,244 @@ double Benchmark::sinceStart()
     timespec now;
     clock_gettime(CLOCK_BOOTTIME, &now);
     return double(now.tv_sec) * 1000.0 + double(now.tv_nsec) / 1e6 - started;
+}
+
+VideoTiming::VideoTiming(QQuickWindow *window, QVideoSink *sink, QObject *parent)
+    : QObject(parent), m_window(window), m_sink(sink)
+{
+    // (Each of these is run on the thread that sends it: the player's, and the output's
+    // drawing thread. The VideoOutput connected itself to its sink when it was made,
+    // before this was, so its own queued call is made before this one's and run first.)
+    connect(sink, &QVideoSink::videoFrameChanged, this, [this](const QVideoFrame &) {
+        const double now = Benchmark::sinceStart();
+        qsizetype index;
+        {
+            QMutexLocker locked(&m_lock);
+            index = m_arrived.size();
+            m_arrived.append(now);
+            m_seen.append(-1);
+        }
+        QMetaObject::invokeMethod(this, [this, index] {
+            const double now = Benchmark::sinceStart();
+            QMutexLocker locked(&m_lock);
+            if (index < m_seen.size())
+                m_seen[index] = now;
+        }, Qt::QueuedConnection);
+    }, Qt::DirectConnection);
+    connect(window, &QQuickWindow::beforeSynchronizing, this, [this] {
+        const double now = Benchmark::sinceStart();
+        QMutexLocker locked(&m_lock);
+        m_syncFrom.append(now);
+    }, Qt::DirectConnection);
+    connect(window, &QQuickWindow::afterSynchronizing, this, [this] {
+        const double now = Benchmark::sinceStart();
+        QMutexLocker locked(&m_lock);
+        m_syncTo.append(now);
+    }, Qt::DirectConnection);
+    connect(window, &QQuickWindow::frameSwapped, this, [this] {
+        const double now = Benchmark::sinceStart();
+        QMutexLocker locked(&m_lock);
+        m_swapped.append(now);
+    }, Qt::DirectConnection);
+}
+
+QVariantMap VideoTiming::summary()
+{
+    if (m_sink)
+        disconnect(m_sink, nullptr, this, nullptr);
+    if (m_window)
+        disconnect(m_window, nullptr, this, nullptr);
+    QMutexLocker locked(&m_lock);
+    const QVector<double> &arrived = m_arrived;
+    const QVector<double> &seen = m_seen;
+    const qsizetype frames = arrived.size();
+    QVariantMap result{{"frames", int(frames)}};
+    if (frames < 3)
+        return result;
+
+    // How long a frame of the video lasts: the commonest gap between two coming
+    std::vector<double> gaps;
+    for (qsizetype i = 1; i < frames; ++i)
+        gaps.push_back(arrived[i] - arrived[i - 1]);
+    std::nth_element(gaps.begin(), gaps.begin() + gaps.size() / 2, gaps.end());
+    const double interval = gaps[gaps.size() / 2];
+
+    // Which frame each sync took: the newest that had come before it began, if the
+    // app's thread had got to one since the sync before (the calls are run in the order
+    // they were made, so `seen` only goes up)
+    const qsizetype syncs = m_syncFrom.size();
+    QVector<qsizetype> taken(syncs, -1);
+    qsizetype seenUpTo = 0;
+    qsizetype cameUpTo = 0;
+    qsizetype shown = -1;
+    for (qsizetype k = 0; k < syncs; ++k) {
+        bool marked = false;
+        while (seenUpTo < frames && seen[seenUpTo] >= 0 && seen[seenUpTo] < m_syncFrom[k]) {
+            ++seenUpTo;
+            marked = true;
+        }
+        while (cameUpTo < frames && arrived[cameUpTo] < m_syncFrom[k])
+            ++cameUpTo;
+        if (marked)
+            shown = std::max(shown, cameUpTo - 1);
+        taken[k] = shown;
+    }
+    // The frames the output drew for something else: that took no new frame of the video
+    // (and when each began, for reading them against what was done)
+    int others = 0;
+    QVariantList othersAt;
+    for (qsizetype k = 1; k < syncs; ++k) {
+        if (taken[k] == taken[k - 1]) {
+            ++others;
+            othersAt.append(m_syncFrom[k]);
+        }
+    }
+
+    // When each frame was first on the screen: at the first swap after a sync that took
+    // it, or one after it; -1 for a frame no swap showed
+    QVector<double> onScreen(frames, -1);
+    qsizetype sync = -1;
+    qsizetype highest = -1;
+    int notShown = 0;
+    for (const double swap : std::as_const(m_swapped)) {
+        while (sync + 1 < syncs && m_syncFrom[sync + 1] < swap)
+            ++sync;
+        if (sync < 0 || taken[sync] <= highest)
+            continue;
+        notShown += int(taken[sync] - highest - 1);
+        highest = taken[sync];
+        onScreen[highest] = swap;
+    }
+
+    // How long each was on the screen: until the next one shown came
+    int held = 0;
+    double toScreen = 0;
+    qsizetype last = -1;
+    for (qsizetype i = 0; i < frames; ++i) {
+        if (onScreen[i] < 0)
+            continue;
+        toScreen = std::max(toScreen, onScreen[i] - arrived[i]);
+        if (last >= 0 && onScreen[i] - onScreen[last] > interval * 1.25)
+            ++held;
+        last = i;
+    }
+    double waitForThread = 0;
+    for (qsizetype i = 0; i < frames; ++i) {
+        if (seen[i] >= 0)
+            waitForThread = std::max(waitForThread, seen[i] - arrived[i]);
+    }
+    double longestSync = 0;
+    for (qsizetype k = 0; k < std::min(syncs, m_syncTo.size()); ++k)
+        longestSync = std::max(longestSync, m_syncTo[k] - m_syncFrom[k]);
+
+    result.insert("others", others);
+    result.insert("othersAt", othersAt);
+    result.insert("notShown", notShown);
+    result.insert("held", held);
+    result.insert("interval", interval);
+    result.insert("waitForThread", waitForThread);
+    result.insert("sync", longestSync);
+    result.insert("toScreen", toScreen);
+    return result;
+}
+
+MotionTiming::MotionTiming(QQuickWindow *window, QObject *item, const QByteArray &property, QObject *parent)
+    : QObject(parent), m_window(window), m_item(item), m_property(property)
+{
+    connect(window, &QQuickWindow::beforeSynchronizing, this, [this] {
+        // (The app's thread is waiting for the sync, so the item stands still.)
+        const double where = m_item ? m_item->property(m_property.constData()).toDouble() : 0;
+        QMutexLocker locked(&m_lock);
+        m_where.append(where);
+    }, Qt::DirectConnection);
+}
+
+QVariantMap MotionTiming::summary()
+{
+    if (m_window)
+        disconnect(m_window, nullptr, this, nullptr);
+    QMutexLocker locked(&m_lock);
+    std::vector<double> steps;
+    for (qsizetype i = 1; i < m_where.size(); ++i)
+        steps.push_back(m_where[i] - m_where[i - 1]);
+    QVariantMap result{{"frames", int(m_where.size())}};
+    if (steps.size() < 10)
+        return result;
+    std::vector<double> sorted = steps;
+    std::nth_element(sorted.begin(), sorted.begin() + sorted.size() / 2, sorted.end());
+    const double middle = sorted[sorted.size() / 2];
+    int uneven = 0;
+    int stopped = 0;
+    for (const double step : steps) {
+        if (qAbs(step - middle) > qAbs(middle) * 0.25)
+            ++uneven;
+        if (step == 0 && middle != 0)
+            ++stopped;
+    }
+    result.insert("uneven", uneven);
+    result.insert("stopped", stopped);
+    return result;
+}
+
+void Benchmark::watchMotion(QObject *window, QObject *item, const QString &property)
+{
+    delete m_motion;
+    m_motion = nullptr;
+    if (auto *quickWindow = qobject_cast<QQuickWindow *>(window); quickWindow && item)
+        m_motion = new MotionTiming(quickWindow, item, property.toUtf8(), this);
+}
+
+QVariantMap Benchmark::motionTiming()
+{
+    if (!m_motion)
+        return {};
+    const QVariantMap result = m_motion->summary();
+    m_motion->deleteLater();
+    m_motion = nullptr;
+    return result;
+}
+
+void Benchmark::watchVideo(QObject *window, QObject *sink)
+{
+    delete m_video;
+    m_video = nullptr;
+    auto *quickWindow = qobject_cast<QQuickWindow *>(window);
+    auto *videoSink = qobject_cast<QVideoSink *>(sink);
+    if (quickWindow && videoSink)
+        m_video = new VideoTiming(quickWindow, videoSink, this);
+}
+
+QVariantMap Benchmark::videoTiming(const QVariantList &marks)
+{
+    if (!m_video)
+        return {};
+    const QVariantMap result = m_video->summary();
+    const QString folder = qEnvironmentVariable("SP_BENCHMARK_VIDEO_TRACE");
+    if (!folder.isEmpty()) {
+        static int traces = 0;
+        QFile trace(QStringLiteral("%1/video-%2.txt").arg(folder).arg(++traces));
+        if (trace.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            QTextStream out(&trace);
+            const auto line = [&out](const char *name, const QVector<double> &values) {
+                out << name;
+                for (const double value : values)
+                    out << " " << QString::number(value, 'f', 3);
+                out << "\n";
+            };
+            QVector<double> marked;
+            for (const QVariant &mark : marks)
+                marked.append(mark.toDouble());
+            line("marks", marked);
+            line("arrived", m_video->arrivedTimes());
+            line("seen", m_video->seenTimes());
+            line("syncFrom", m_video->syncFromTimes());
+            line("syncTo", m_video->syncToTimes());
+            line("swapped", m_video->swappedTimes());
+        }
+    }
+    m_video->deleteLater();
+    m_video = nullptr;
+    return result;
 }
 
 QObject *Benchmark::window(const QString &name) const

@@ -1,5 +1,6 @@
 #include "testhook.h"
 
+#include "benchmark.h"
 #include "decklink.h"
 #include "ndi.h"
 #include "richtext.h"
@@ -19,7 +20,9 @@
 #include <QQmlComponent>
 #include <QQmlContext>
 #include <QQuickItem>
+#include <QPointer>
 #include <QQuickWindow>
+#include <QVideoSink>
 #include <QTcpSocket>
 #include <QTextStream>
 #include <QTimer>
@@ -335,6 +338,49 @@ public:
         return picture.pixelColor(qBound(0, int(x * picture.width()), picture.width() - 1),
                                   qBound(0, int(y * picture.height()), picture.height() - 1)).name(QColor::HexArgb);
     }
+    // Begins keeping how evenly `property` of `item` changes at each sync of the output (MotionTiming, in
+    // benchmark.h): what each frame of the output draws of it. And what was kept, which stops keeping it: frames, and
+    // uneven (frames it moved by a quarter more or less than in most) and stopped (frames it did not move in).
+    Q_INVOKABLE void watchMotion(QObject *item, const QString &property)
+    {
+        delete motion;
+        QQuickWindow *output = named("output");
+        motion = output && item ? new MotionTiming(output, item, property.toUtf8(), this) : nullptr;
+    }
+    Q_INVOKABLE QVariantMap motionSoFar()
+    {
+        if (!motion)
+            return {};
+        const QVariantMap kept = motion->summary();
+        motion->deleteLater();
+        motion = nullptr;
+        return kept;
+    }
+    QPointer<MotionTiming> motion;
+    // The same for what becomes of the frames of the video playing on the output (VideoTiming, in benchmark.h): from
+    // now, and what became of them, which stops keeping it: frames, others (frames of the output for anything but the
+    // video), held, notShown, and the longest waits
+    Q_INVOKABLE void watchVideo()
+    {
+        delete video;
+        video = nullptr;
+        QQuickWindow *output = named("output");
+        QObject *sink = output ? output->property("liveVideoSink").value<QObject *>() : nullptr;
+        if (auto *videoSink = qobject_cast<QVideoSink *>(sink))
+            video = new VideoTiming(output, videoSink, this);
+    }
+    // Milliseconds since the app started, the clock VideoTiming's times are on
+    Q_INVOKABLE double sinceStart() { return Benchmark::sinceStart(); }
+    Q_INVOKABLE QVariantMap videoSoFar()
+    {
+        if (!video)
+            return {};
+        const QVariantMap kept = video->summary();
+        video->deleteLater();
+        video = nullptr;
+        return kept;
+    }
+    QPointer<VideoTiming> video;
     // Which pass (of those that draw every screen going out through a card together) drew that picture; -1 if none
     Q_INVOKABLE int deckLinkPass(QObject *screen)
     {

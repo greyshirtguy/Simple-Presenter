@@ -46,16 +46,30 @@ Anything less is as likely to be the machine as the app.
   as well.
 - **Scrolling text**: a ticker scrolling along the foot of the slides, for six seconds
   with the stage's plain view and six with the Screen Preview, which scrolls it as well,
-  nothing else being done: the same measures as for the video below.
+  nothing else being done: the same measures as for the video below, and how evenly the
+  words go: in how many frames of the output they moved by a quarter more or less than
+  in most, and in how many they did not move at all. (On a screen drawing at every
+  refresh, words that move by the same at each frame look as if they glide.)
 - **Video**: a 1080p video playing under the words, for eight seconds with the stage's
   plain view and eight with the Screen Preview, nothing being done. Over each, how many
   frames a second the output drew, how many the video's decoder gave, and how many the
   stage drew; the longest gap between two frames of the output (a gap much over a
   thirtieth of a second is a frame of the video that was not shown); the processor
   used; and the longest the app's own thread was too busy to look at the clock, which
-  is how long a click would have waited. Then slides changed over the video, with the
-  work in each click and the same longest wait. These are what to watch as more is
-  added that keeps drawing.
+  is how long a click would have waited. Then slides changed over the video, by a cut
+  and then by a dissolve, with the work in each click and the same longest wait. These
+  are what to watch as more is added that keeps drawing.
+
+  And over each, what became of every frame of the video on its way to the screen (see
+  VideoTiming in `src/benchmark.h`): how many were on the screen too long, which is
+  the frame before a late one and is what a stutter is; how many were never shown; how
+  many frames the output drew for anything but the video (a slide's change should be
+  one, or none where it falls in a frame of the video); and the longest each step took, from a frame coming from the player to the app's thread
+  getting to it, a sync of the output, and the frame being on the screen. A frame of
+  the video is late when something else takes its turn to be drawn, or when the app's
+  thread is busy as it comes. With `SP_BENCHMARK_VIDEO_TRACE` set to a folder, every
+  time kept is written there, a file for each spell, with the times of the clicks, for
+  reading the frames against them.
 
 The stage screen fills a display of its own where there are two, as it does in a
 church; with one, it is a window of 1280 by 720 over the output. Its frames a second

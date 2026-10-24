@@ -264,6 +264,58 @@ QtObject {
         })
     }
 
+    // Begins keeping what becomes of each frame of the video on the output, if one is
+    // playing (see VideoTiming in src/benchmark.h)
+    function watchVideo() {
+        if (output && output.liveVideoSink)
+            bench.watchVideo(output, output.liveVideoSink)
+    }
+
+    // What became of them, as lines of the report: how many frames of the video were on
+    // the screen for longer than a frame of it lasts (a stutter), how many were never
+    // shown, and the longest wait at each step on the way
+    function recordVideo(label, marks) {
+        const timing = bench.videoTiming(marks || [])
+        if (!timing.frames || timing.frames < 3)
+            return
+        bench.record(label + ": video frames held on the screen too long", timing.held, "frames")
+        bench.record(label + ": video frames not shown", timing.notShown, "frames")
+        bench.record(label + ": frames of the output for anything but the video", timing.others, "frames")
+        bench.record(label + ": longest a video frame waited for the app's thread", timing.waitForThread, "ms")
+        bench.record(label + ": longest sync of the output", timing.sync, "ms")
+        bench.record(label + ": longest from a video frame coming to its being on the screen", timing.toScreen, "ms")
+    }
+
+    // The first item under `item`, itself included, that `test` is true of, or null
+    function findItem(item, test) {
+        if (test(item))
+            return item
+        for (const child of item.children) {
+            const found = findItem(child, test)
+            if (found)
+                return found
+        }
+        return null
+    }
+
+    // Begins keeping how evenly the words of a scrolling text box on the output go, if
+    // there is one (see MotionTiming in src/benchmark.h)
+    function watchMotion() {
+        const scroller = output ? findItem(output.contentItem, item => item.travelled !== undefined && item.settings !== undefined && item.visible) : null
+        if (scroller)
+            bench.watchMotion(output, scroller, "travelled")
+    }
+
+    // How evenly, as lines of the report: how many frames' steps of the words were a
+    // quarter more or less than most, and how many did not move them
+    function recordMotion(label) {
+        const timing = bench.motionTiming()
+        if (!timing.frames || timing.frames < 10)
+            return
+        bench.record(label + ": frames the words moved unevenly in", timing.uneven, "frames")
+        bench.record(label + ": frames the words stood still in", timing.stopped, "frames")
+    }
+
     // Some seconds of whatever is playing, with nothing being done: see the top.
     function playing(label, seconds) {
         let from = 0
@@ -281,10 +333,14 @@ QtObject {
             stall = 0
             lookedAt = 0
             keepingStall = true
+            watchVideo()
+            watchMotion()
             after(seconds * 1000)
         })
         jobs.push(() => {
             keepingStall = false
+            recordVideo(label)
+            recordMotion(label)
             const lasted = (bench.now() - from) / 1000
             bench.record(label + ": output frames a second", (outputFrames - output) / lasted, "fps")
             bench.record(label + ": video frames decoded a second", (videoFrames - decoded) / lasted, "fps")
@@ -296,28 +352,33 @@ QtObject {
         })
     }
 
-    // Slides of a presentation put on the output one after another, a little apart,
-    // while something plays: the work in each click, and the longest the app was too
-    // busy to answer while they changed. (Not the time to the output, which is drawing
+    // Slides of a presentation put on the output one after another, `spacing`
+    // milliseconds apart, while something plays: the work in each click, and the longest
+    // the app was too busy to answer while they changed; and what became of the video's
+    // frames meanwhile (see recordVideo). (Not the time to the output, which is drawing
     // a frame of the video every thirtieth of a second anyway.)
-    function changing(name, label, count) {
+    function changing(name, label, count, spacing = 700) {
         const calls = []
+        const clicks = []
         jobs.push(() => {
             stall = 0
             lookedAt = 0
             keepingStall = true
+            watchVideo()
             next()
         })
         for (let index = 1; index <= count; ++index) {
             jobs.push(() => {
                 const from = bench.now()
+                clicks.push(from)
                 goLive(index)
                 calls.push(bench.now() - from)
-                after(700)
+                after(spacing)
             })
         }
         jobs.push(() => {
             keepingStall = false
+            recordVideo(label, clicks)
             bench.record(label + ": work in the click itself, median", median(calls), "ms")
             bench.record(label + ": longest the app was too busy to answer", stall, "ms")
             next()
@@ -489,7 +550,15 @@ QtObject {
                 })
                 playing("video, a Screen Preview on the stage", 8)
                 changing("Video", "video, a Screen Preview on the stage, slides changed", 10)
+                // And by a dissolve, each over before the next
                 jobs.push(() => {
+                    selectTransition("Dissolve")
+                    transitionDuration = 0.5
+                    after(500)
+                })
+                changing("Video", "video, a Screen Preview on the stage, slides dissolved", 8, 1200)
+                jobs.push(() => {
+                    selectTransition("Cut")
                     clearMedia()
                     after(500)
                 })
