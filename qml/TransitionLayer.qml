@@ -97,14 +97,20 @@ Item {
     property string activeName: ""
     property double beganAt: 0
     property int framesBefore: 0
-    // The two instances as textures. Nothing draws these but the shader below, so while
-    // it is hidden they cost nothing.
+    // The two instances as textures, which nothing draws but the shader below. Each is
+    // given its instance only while a transition runs. A source that has an item follows
+    // it, and when what is in the item changes it asks for the window to be drawn again,
+    // shader or no shader: so a slide shown by a cut was drawn twice, the second time a
+    // thousandth of a second or two after the first, for nothing. On a screen that is
+    // playing a video that second frame took the turn of the video's next frame, which
+    // then came a refresh late and showed as a stutter: at about one cut in three over a
+    // video, on the laptop this is made on (benchmark, video lines, 2026-10-24).
     property ShaderEffectSource textureA: ShaderEffectSource {
-        sourceItem: holderA
+        sourceItem: layer.blending ? holderA : null
         hideSource: layer.blending
     }
     property ShaderEffectSource textureB: ShaderEffectSource {
-        sourceItem: holderB
+        sourceItem: layer.blending ? holderB : null
         hideSource: layer.blending
     }
 

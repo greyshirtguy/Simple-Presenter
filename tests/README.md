@@ -274,6 +274,14 @@ links in the app's orange, the app's line in it; the button again and the window
 close putting it away; and the app quitting with it open. (Esc is not tried: the test's
 desktop makes no window active that a person's own click did not open.)
 
+`frames` counts the output's frames as slides change, on slides with nothing that moves and
+no shadows: a cut is drawn once, and not again a moment later for the textures a transition
+would be drawn from; five cuts over a video from the media bin draw a frame of their own
+each at most (VideoTiming in `src/benchmark.h`, through the test hook); a dissolve is drawn
+at the screen's refreshes, a frame at each, and ends when it should. (Words with a shadow
+are drawn through layers of Qt's, which draw two frames more after any change, whatever the
+app does; on those slides the counts are not this app's to keep.)
+
 The Screen Preview test (`screenpreview`) also checks that what moves on the output moves
 in a picture of it on the stage: a slide brought in by its transition, mixed in the
 picture too, and a box of words that scrolls, with the stage's pixels along its line
