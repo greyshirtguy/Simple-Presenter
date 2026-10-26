@@ -339,6 +339,10 @@ at every point of its frames, and now and then two in one; with an output chosen
 the Clock Source's menu, one in each of them, never two, and the screen's settings saying
 what it is drawn by; then Automatic again.
 
+`statistics` ticks Show Performance Statistics On Screen: the audience screen shows its
+lines, lit at its top left, and the operator's preview does not; given a video delay
+they say so, shown at once over the delayed picture; unticked, they are gone.
+
 **What a run leaves.** A line for each test, and its failures:
 
 ```

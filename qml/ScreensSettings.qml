@@ -495,6 +495,14 @@ Flickable {
             text: Screens.screens.length + " of the " + Screens.limit + " screens a workspace can have."
         }
 
+        // As ProPresenter's Screens settings have it, in its words (see OutputScene)
+        AppCheck {
+            objectName: "showStatistics"
+            text: "Show Performance Statistics On Screen"
+            checked: Screens.showStatistics
+            onToggled: (checked) => Screens.showStatistics = checked
+        }
+
         // The clock: once there are card outputs to choose from, or one has been chosen
         Column {
             width: parent.width

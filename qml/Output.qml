@@ -39,6 +39,9 @@ AuxWindow {
     property alias videoDelay: scene.videoDelay
     // How long a frame of it is, in milliseconds: a refresh of the display it is on
     readonly property real frameInterval: scene.frameInterval
+    // Its statistics (see OutputScene)
+    property alias showStatistics: scene.showStatistics
+    property alias statisticsTitle: scene.statisticsTitle
     readonly property var liveVideoSink: scene.liveVideoSink
     readonly property var livePlayer: scene.livePlayer
     readonly property var liveAnnouncementPlayer: scene.liveAnnouncementPlayer
@@ -83,5 +86,6 @@ AuxWindow {
         onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
         markersOf: win.markersOf
         frameInterval: Screens.refreshIntervalOf(win.screen ? win.screen.name : "")
+        drawnBy: "the refreshes of the display it is on"
     }
 }

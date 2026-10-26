@@ -85,6 +85,33 @@ more at most (8 MB a picture at 1920 × 1080: some 150 MB for fifteen frames whi
 video plays). It needs OpenGL, which is what the app draws with; where it draws
 otherwise (the self-test's drawing in software), the setting says so and is shut.
 
+## Performance statistics
+
+**Show Performance Statistics On Screen**, in Settings → Screens (ProPresenter's setting,
+by its name), shows at the top left of every audience screen how it is doing: its name
+and size; how many times it was drawn in the last second, and the longest time between
+two of those; how often its own frames come (its display's refresh, or the rate it goes
+out at); what it is drawn by (its display's refreshes, the app's clock, or a card's own
+frames: see [Blackmagic DeckLink](decklink.md)); its video delay; and how late its sound
+is heard, as far as the app can see.
+
+The app draws a screen only when something on it changes. So a screen standing still is
+drawn once a second (for the statistics' own numbers), and one playing a video or a
+transition at each of its frames: one that should be drawn at every frame, and is drawn
+at fewer, is one the computer is not keeping up with.
+
+The sound line is the app's own share of the sound's delay: what its mixer keeps in hand,
+and what Qt holds for the device. The system's sound service and the sound card hold more
+after that, which Qt does not ask them about, so the whole delay is longer by an amount
+the app does not know (with PipeWire, `pw-top` shows its own share as the quantum). What
+the eye and the ear make of it, a clap filmed with the screen in shot, is the measure to
+set a video delay by.
+
+The statistics are drawn over the screen, and not delayed with it; the operator's
+preview leaves them out. They are this computer's, as ProPresenter keeps the setting in
+its preferences. What ProPresenter's show is not known here beyond its name and its frame
+rates, and these lines are the app's own. Stage screens do not show them, for now.
+
 ## A screen in a window
 
 The small window with a slim title bar that floats over the operator window, or

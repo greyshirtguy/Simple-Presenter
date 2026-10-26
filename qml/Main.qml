@@ -4654,6 +4654,8 @@ Window {
                     mask: win.maskSlide(audienceHost.look.mask)
                     pictures: win
                     videoDelay: audienceHost.screen.videoDelay ?? 0
+                    showStatistics: Screens.showStatistics
+                    statisticsTitle: audienceHost.screen.name
                     keyTarget: keys
                     Component.onCompleted: win.sceneMade(audienceHost.modelData, this, true)
                     Component.onDestruction: win.sceneGone(audienceHost.modelData, this)
@@ -4701,6 +4703,9 @@ Window {
                         pictures: win
                         videoDelay: audienceHost.screen.videoDelay ?? 0
                         frameInterval: 1000 * Screens.rateOf(audienceHost.screen.ndiRate).denominator / Screens.rateOf(audienceHost.screen.ndiRate).numerator
+                        showStatistics: Screens.showStatistics
+                        statisticsTitle: audienceHost.screen.name + " · NDI"
+                        drawnBy: "the app's clock, at the rate set for it"
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, ndiScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, ndiScene)
                     }
@@ -4753,6 +4758,9 @@ Window {
                         pictures: win
                         videoDelay: audienceHost.screen.videoDelay ?? 0
                         frameInterval: cardSender.frameInterval
+                        showStatistics: Screens.showStatistics
+                        statisticsTitle: audienceHost.screen.name + " · " + audienceHost.screen.decklinkName + " · " + audienceHost.screen.decklinkFormat
+                        drawnBy: cardSender.clock !== "" ? "the frames of " + cardSender.clock + ", the Clock Source" : "the app's clock, at the format's rate"
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, cardScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, cardScene)
                     }

@@ -97,6 +97,12 @@ Item {
     // sent at). 0 for none, which is every screen until one is set.
     property int videoDelay: 0
     property real frameInterval: 1000 / 60
+    // Its performance statistics, shown over all of it while asked for (ProPresenter's Show
+    // Performance Statistics On Screen; Screens.showStatistics): what the screen is, and
+    // what it is drawn by, as whoever has it says
+    property bool showStatistics: false
+    property string statisticsTitle: ""
+    property string drawnBy: ""
 
     // `slide` is a slide map from Catalog.open(); null clears the layer. `transition`
     // is the slide's own, or its presentation's, to be made in place of the one above
@@ -388,5 +394,70 @@ Item {
         source: content
         frames: scene.videoDelay
         frameInterval: scene.frameInterval
+    }
+
+    // The statistics: over the delay's copy and not in it, so that they are of now. Made
+    // only while asked for, and nothing of them otherwise; while they are, the screen is
+    // drawn once a second more, for their numbers. What the app can see of the sound is
+    // its own share of its delay (AudioMixer.heardAfter): Qt does not ask the system's
+    // sound service how late it plays, so the rest is not known, and is said not to be.
+    Loader {
+        anchors.fill: parent
+        active: scene.showStatistics
+        sourceComponent: Component {
+            Item {
+                id: statistics
+
+                readonly property real margin: Math.max(6, Math.round(scene.height / 60))
+                readonly property var heard: AudioMixer.heardAfter
+                // A rate in a few figures: 60, 59.94, 29.97
+                function rate(perSecond) {
+                    return String(Number(perSecond.toFixed(2)))
+                }
+
+                FramesDrawn {
+                    id: drawn
+
+                    counting: true
+                }
+
+                Rectangle {
+                    x: statistics.margin
+                    y: statistics.margin
+                    width: lines.width + 2 * statistics.margin
+                    height: lines.height + statistics.margin
+                    radius: statistics.margin / 2
+                    color: "#d8000000"
+
+                    Text {
+                        id: lines
+
+                        objectName: "statistics"
+                        x: statistics.margin
+                        y: statistics.margin / 2
+                        width: Math.min(implicitWidth, scene.width - 4 * statistics.margin)
+                        wrapMode: Text.Wrap
+                        color: "white"
+                        font.pixelSize: Math.max(11, Math.round(scene.height / 54))
+                        text: {
+                            const frame = scene.frameInterval
+                            const heard = statistics.heard
+                            const size = Math.round(scene.width * Screen.devicePixelRatio) + " × " + Math.round(scene.height * Screen.devicePixelRatio)
+                            return [(scene.statisticsTitle !== "" ? scene.statisticsTitle + " · " : "") + size,
+                                    "Drawn " + drawn.perSecond + (drawn.perSecond === 1 ? " time" : " times") + " in the last second, at most "
+                                    + Math.round(drawn.longestGap) + " ms apart; its own frames come " + statistics.rate(1000 / frame) + " times a second",
+                                    "Drawn by " + scene.drawnBy,
+                                    "Video delay: " + (scene.videoDelay > 0 ? scene.videoDelay + (scene.videoDelay === 1 ? " frame, " : " frames, ")
+                                                                              + Math.round(scene.videoDelay * frame) + " ms" : "none"),
+                                    "Sound: " + (heard.total === undefined ? "none heard yet"
+                                                 : "heard at least " + heard.total + " ms after it is played, " + (heard.total / frame).toFixed(1)
+                                                   + " of these frames (" + heard.mixer + " ms in the app's mixer, up to " + heard.qt
+                                                   + " in Qt's; the system's sound service and the card hold more, which the app is not told)")
+                                   ].join("\n")
+                        }
+                    }
+                }
+            }
+        }
     }
 }

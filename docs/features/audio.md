@@ -168,10 +168,12 @@ of half a minute after the last sound. The cost is a little delay: sound is hear
 its picture by as much as the mixer keeps in hand, which is as much as a player hands
 over at once and the device takes at once, and a little more, and then by what Qt, the
 system's sound service and the card hold. The log says how much the app's share is for
-each piece of media: on the tests' sound device it was 79 ms for a video's sound (49
-kept by the mixer and up to 30 by Qt; the device there takes sound 21 ms at a time), and
-what the sound service and the card hold is not told to the app. A screen's
-[video delay](screens.md#video-delay) can hold the picture back to meet it.
+each piece of media, and so do the screens'
+[performance statistics](screens.md#performance-statistics): on the tests' sound device
+it was 79 ms for a video's sound (49 kept by the mixer and up to 30 by Qt; the device
+there takes sound 21 ms at a time), and what the sound service and the card hold is not
+told to the app. A screen's [video delay](screens.md#video-delay) can hold the picture
+back to meet it.
 
 What is a guess, ProPresenter's own audio bin having been described and not looked at,
 and one file of its own having been read (version 21.4, six pieces):

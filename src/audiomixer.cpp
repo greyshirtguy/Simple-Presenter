@@ -635,11 +635,14 @@ void AudioMixer::watch()
         // How far behind its player it is heard, once: what is not lip sync is here
         if (!it->told && feed->heldWhenHeard() > 0) {
             it->told = true;
+            const int kept = feed->heldWhenHeard() * 1000 / qMax(1, m_rate);
             SessionLog::write("audio", QStringLiteral("The sound of %1 is heard at least %2 ms after it is played: %3 ms kept for it by the mixer, up to %4 by Qt, and what the system's sound service and the card hold")
                                            .arg(quoted(name))
-                                           .arg(feed->heldWhenHeard() * 1000 / qMax(1, m_rate) + m_heldMs)
-                                           .arg(feed->heldWhenHeard() * 1000 / qMax(1, m_rate))
+                                           .arg(kept + m_heldMs)
+                                           .arg(kept)
                                            .arg(m_heldMs));
+            m_heardAfter = {{"total", kept + m_heldMs}, {"mixer", kept}, {"qt", m_heldMs}};
+            emit heardAfterChanged();
         }
         if (underruns > 0)
             SessionLog::write("audio", QStringLiteral("The sound of %1 broke off and came back %2 times: its player was late with it, or was sent elsewhere in its file")

@@ -70,6 +70,11 @@ class AudioMixer : public QObject
     // Whether this computer's routing is read from and kept in the settings (not for
     // the self-test)
     Q_PROPERTY(bool remember MEMBER m_remember NOTIFY rememberChanged)
+    // How late the sound last begun is heard, as far as the app can see, in milliseconds:
+    // { total, mixer, qt }, what the mixer kept of it when it was first heard and what Qt
+    // holds (the system's sound service and the card hold more, which Qt does not ask
+    // them about); empty before anything has been heard. For the screens' statistics.
+    Q_PROPERTY(QVariantMap heardAfter READ heardAfter NOTIFY heardAfterChanged)
 
 public:
     explicit AudioMixer(QObject *parent = nullptr);
@@ -85,6 +90,7 @@ public:
     int deviceChannels() const { return m_deviceChannels; }
     QVariantList deviceRoutes() const;
     bool deviceRoutesOwn() const { return m_routesOwn; }
+    QVariantMap heardAfter() const { return m_heardAfter; }
 
     // Reads the channels of a workspace folder. Answers with what went wrong, or nothing.
     Q_INVOKABLE QString open(const QString &workspace);
@@ -132,6 +138,7 @@ signals:
     void deviceChanged();
     void routesChanged();
     void rememberChanged();
+    void heardAfterChanged();
 
 private:
     friend class MixOutput;
@@ -164,6 +171,7 @@ private:
     int m_rate = 48000;
     // How much the device holds, in milliseconds, as it said when it was opened
     int m_heldMs = 0;
+    QVariantMap m_heardAfter;
     audiorouting::Routes m_routes;
     bool m_routesOwn = false;
     // The device they are for

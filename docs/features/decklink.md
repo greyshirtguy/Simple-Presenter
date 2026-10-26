@@ -69,11 +69,12 @@ more for the frame to be handed over, which is a guess at what a card needs), an
 moves on the screens moves by them. The card's frames are read from the card itself, on
 the thread that hands it its frames. A screen at another rate keeps the app's clock, and
 so does every display, which is drawn at its own refreshes whatever this is set to. The
-settings say what each screen is drawn by. Which output it is is this computer's, kept
-with the app's settings, as ProPresenter keeps its clock source in its preferences; what
-ProPresenter calls it is not known here, and the name is that of its preferences' field.
-It has been tried against the outputs the app pretends for its tests, whose frames are
-made two percent longer than their format's, and not yet on a card.
+settings say what each screen is drawn by, and so do the screens'
+[performance statistics](screens.md#performance-statistics). Which output it is is this
+computer's, kept with the app's settings, as ProPresenter keeps its clock source in its
+preferences; what ProPresenter calls it is not known here, and the name is that of its
+preferences' field. It has been tried against the outputs the app pretends for its tests,
+whose frames are made two percent longer than their format's, and not yet on a card.
 
 **Blackmagic's library is not part of this app.** It comes with *Desktop Video*, the
 drivers for the card, from Blackmagic Design, which a computer with a card has installed

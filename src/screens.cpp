@@ -73,6 +73,21 @@ void Screens::readDisplays()
     }
 }
 
+void Screens::setShowStatistics(bool show)
+{
+    if (show == m_showStatistics)
+        return;
+    m_showStatistics = show;
+    if (m_remember) {
+        QSettings settings;
+        if (show)
+            settings.setValue("screens/showStatistics", true);
+        else
+            settings.remove("screens/showStatistics");
+    }
+    emit showStatisticsChanged();
+}
+
 int Screens::mostVideoDelay() const
 {
     return delayline::kMostFrames;
@@ -123,6 +138,11 @@ QString Screens::open(const QString &workspace)
     m_outputs.clear();
     if (m_remember) {
         QSettings settings;
+        const bool show = settings.value("screens/showStatistics", false).toBool();
+        if (show != m_showStatistics) {
+            m_showStatistics = show;
+            emit showStatisticsChanged();
+        }
         for (const screenfile::Screen &screen : std::as_const(m_list)) {
             QVariantMap kept;
             for (const QString &key : outputKeys) {

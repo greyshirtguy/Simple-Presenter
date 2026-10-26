@@ -624,7 +624,8 @@ private:
         return source && source->m_cardClock.period > 0 && screen->m_sending && screen->m_period == source->m_period;
     }
 
-    // Each screen says which output's frames it is drawn by, if any (for the settings)
+    // Each screen says which output's frames it is drawn by, if any (for the settings,
+    // and the statistics on the screens)
     void keptTo()
     {
         const DeckLinkScreen *source = clockScreen();

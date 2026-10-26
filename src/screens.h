@@ -75,6 +75,10 @@ class Screens : public QObject
     // here at all (the app drawing with OpenGL: see FrameDelay)
     Q_PROPERTY(int mostVideoDelay READ mostVideoDelay CONSTANT)
     Q_PROPERTY(bool videoDelayPossible READ videoDelayPossible CONSTANT)
+    // Whether the audience screens show how they are doing (ProPresenter's Show Performance
+    // Statistics On Screen; see OutputScene): this computer's, in the app's settings, as
+    // ProPresenter keeps it in its preferences
+    Q_PROPERTY(bool showStatistics READ showStatistics WRITE setShowStatistics NOTIFY showStatisticsChanged)
     // Whether what the screens are sent out through is read from the settings and kept
     // in them. A test or the self-test, which must not go by what was last set up on
     // this computer nor change it, has it off; set it before open().
@@ -92,6 +96,8 @@ public:
     int limit() const { return screenfile::limit; }
     int mostVideoDelay() const;
     bool videoDelayPossible() const;
+    bool showStatistics() const { return m_showStatistics; }
+    void setShowStatistics(bool show);
 
     // Reads the screens of a workspace folder. Answers with what went wrong, or nothing.
     Q_INVOKABLE QString open(const QString &workspace);
@@ -120,6 +126,7 @@ signals:
     void changed();
     void displaysChanged();
     void rememberChanged();
+    void showStatisticsChanged();
 
 private:
     QVariantList ofKind(bool stage) const;
@@ -135,4 +142,5 @@ private:
     // What has been set here for each screen's output, by the screen's id
     QMap<QString, QVariantMap> m_outputs;
     bool m_remember = true;
+    bool m_showStatistics = false;
 };
