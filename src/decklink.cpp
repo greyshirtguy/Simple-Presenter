@@ -14,9 +14,13 @@
 #include <QQuickRenderControl>
 #include <QQuickRenderTarget>
 #include <QQuickWindow>
+#include <QSettings>
 #include <QTimer>
 
+#include <algorithm>
 #include <cstdlib>
+#include <mutex>
+#include <utility>
 #include <vector>
 
 #ifndef GL_BGRA
@@ -76,14 +80,49 @@ public:
     virtual const uchar *bytes(int frame) = 0;
     // Hands a frame to the card, to be its next. Says whether the card took it.
     virtual bool display(int frame) = 0;
+    // The card's own frames, now: how far into one it is, and how long they are, in
+    // nanoseconds, by the clock its frames go out by; false if it cannot say. (On the
+    // thread display() is on: a card busy with a frame may keep its caller waiting.)
+    virtual bool readClock(qint64 *inFrame, qint64 *period) = 0;
+    // For the tests: for each frame handed over since this was last asked, which of the
+    // card's own frames it came in (counted from any start) and how far into it, in
+    // milliseconds (the pretend card's only)
+    virtual QList<QPointF> handedAt() { return {}; }
     virtual void close() = 0;
 };
+
+// The passes' clock (see Passes), in nanoseconds: steady, from the first time it is
+// asked, and the same on every thread (the card's frames are read on the card's)
+qint64 passesClock()
+{
+    static const QElapsedTimer started = [] {
+        QElapsedTimer timer;
+        timer.start();
+        return timer;
+    }();
+    return started.nsecsElapsed();
+}
+
+// The output chosen as the clock (DeckLink::setClockSource): by its id, or failing that
+// its name, as a screen finds its output; none for Automatic
+struct ClockChoice
+{
+    QString id;
+    QString name;
+};
+
+ClockChoice &clockChoice()
+{
+    static ClockChoice choice;
+    return choice;
+}
 
 }
 
 namespace {
 
 using decklink::Card;
+using decklink::passesClock;
 using decklinkformats::Format;
 
 struct Output
@@ -371,6 +410,20 @@ public:
 
     bool display(int frame) override { return m_output->DisplayVideoFrameSync(m_frames.at(frame)) == S_OK; }
 
+    // The card's hardware clock, which its frames go out by (asked for in nanoseconds:
+    // the SDK gives it in whatever units it is asked for)
+    bool readClock(qint64 *inFrame, qint64 *period) override
+    {
+        BMDTimeValue hardware = 0;
+        BMDTimeValue within = 0;
+        BMDTimeValue ticks = 0;
+        if (!m_output || !m_enabled || m_output->GetHardwareReferenceClock(1'000'000'000, &hardware, &within, &ticks) != S_OK || ticks <= 0)
+            return false;
+        *inFrame = within;
+        *period = ticks;
+        return true;
+    }
+
     void close() override
     {
         if (m_keyer) {
@@ -405,7 +458,12 @@ private:
     std::vector<DeckLinkBuffer *> m_buffers;
 };
 
-// The tests' card: frames in memory, taken as soon as they are handed over
+// The tests' card: frames in memory, taken as soon as they are handed over. Its own
+// frames go by a clock of its own, as a card's do, from a moment after it was opened:
+// two percent slower than the format's, which no card's crystal is (theirs are a few
+// parts in a hundred thousand from the computer's), so that a test of a few seconds
+// sees plainly whether the screens keep to the card's frames or to the app's. It keeps
+// which of those each frame handed to it came in, and how far into it.
 class PretendCard : public Card
 {
 public:
@@ -423,6 +481,8 @@ public:
         m_rowBytes = format.width * 4;
         for (auto &frame : m_frames)
             frame.assign(size_t(m_rowBytes) * size_t(format.height), 0);
+        m_period = decklinkformats::period(format) + decklinkformats::period(format) / 50;
+        m_origin = passesClock() + 7'000'000;
         return {};
     }
     int frames() const override { return 3; }
@@ -430,12 +490,40 @@ public:
     uchar *beginWriting(int frame) override { return m_frames[frame].data(); }
     void endWriting(int) override {}
     const uchar *bytes(int frame) override { return m_frames[frame].data(); }
-    bool display(int) override { return true; }
+    bool display(int) override
+    {
+        const qint64 now = passesClock();
+        const qint64 since = now - m_origin;
+        const QPointF at(double(since >= 0 ? since / m_period : -1 - (-since - 1) / m_period), double(inFrame(now)) / 1e6);
+        std::lock_guard<std::mutex> lock(m_handing);
+        m_handedAt << at;
+        // (Kept for a test to read; not without end, if none does)
+        if (m_handedAt.size() > 1000)
+            m_handedAt.removeFirst();
+        return true;
+    }
+    bool readClock(qint64 *inFrame, qint64 *period) override
+    {
+        *inFrame = this->inFrame(passesClock());
+        *period = m_period;
+        return true;
+    }
+    QList<QPointF> handedAt() override
+    {
+        std::lock_guard<std::mutex> lock(m_handing);
+        return std::exchange(m_handedAt, {});
+    }
     void close() override {}
 
 private:
+    qint64 inFrame(qint64 now) const { return ((now - m_origin) % m_period + m_period) % m_period; }
+
     int m_rowBytes = 0;
     std::vector<uchar> m_frames[3];
+    qint64 m_period = 33'366'666;
+    qint64 m_origin = 0;
+    std::mutex m_handing;
+    QList<QPointF> m_handedAt;
 };
 
 }
@@ -450,36 +538,52 @@ class Passes : public QObject
 public:
     static Passes &the()
     {
-        static QPointer<Passes> made;
-        if (!made)
-            made = new Passes(QCoreApplication::instance());
-        return *made;
+        if (!made())
+            made() = new Passes(QCoreApplication::instance());
+        return *made();
     }
 
-    qint64 now() const { return m_clock.nsecsElapsed(); }
+    // The one there is, or null while no screen has gone out through a card
+    static QPointer<Passes> &made()
+    {
+        static QPointer<Passes> passes;
+        return passes;
+    }
+
+    qint64 now() const { return passesClock(); }
 
     void join(DeckLinkScreen *screen)
     {
         if (!m_screens.contains(screen))
             m_screens << screen;
+        keptTo();
     }
 
-    void leave(DeckLinkScreen *screen) { m_screens.removeAll(screen); }
+    void leave(DeckLinkScreen *screen)
+    {
+        m_screens.removeAll(screen);
+        screen->setClock(QString());
+        keptTo();
+    }
+
+    // The output chosen as the clock has changed, or the card's frames have been read
+    // for the first time since a screen started going out through it
+    void clockChanged()
+    {
+        keptTo();
+        schedule();
+    }
 
     // A pass when the soonest of the screens waiting is due, unless one is coming sooner.
     // (Asked at every change of every screen, which is many a frame in a transition: it
     // only looks at the few screens there are.)
     void schedule()
     {
-        QList<decklinkformats::Waiting> waiting;
-        for (DeckLinkScreen *screen : std::as_const(m_screens)) {
-            if (screen->waiting())
-                waiting << screen->beat();
-        }
-        const qint64 due = decklinkformats::passDue(waiting);
+        const qint64 now = this->now();
+        const qint64 due = decklinkformats::passDue(waitingNow(now, nullptr));
         if (due < 0)
             return;
-        const int wait = int(qMax<qint64>(0, due - now()) / 1'000'000);
+        const int wait = int(qMax<qint64>(0, due - now) / 1'000'000);
         if (m_timer.isActive() && m_timer.remainingTime() <= wait)
             return;
         m_timer.start(wait);
@@ -492,7 +596,64 @@ private:
         m_timer.setSingleShot(true);
         m_timer.setTimerType(Qt::PreciseTimer);
         connect(&m_timer, &QTimer::timeout, this, &Passes::pass);
-        m_clock.start();
+    }
+
+    // The screen going out through the output chosen as the clock, if one is: by its id,
+    // or failing that its name, as a screen finds its output
+    DeckLinkScreen *clockScreen() const
+    {
+        const ClockChoice &choice = clockChoice();
+        if (choice.id.isEmpty())
+            return nullptr;
+        DeckLinkScreen *byName = nullptr;
+        for (DeckLinkScreen *screen : m_screens) {
+            if (!screen->m_sending)
+                continue;
+            if (screen->m_output == choice.id)
+                return screen;
+            if (!byName && !choice.name.isEmpty() && screen->m_outputName == choice.name)
+                byName = screen;
+        }
+        return byName;
+    }
+
+    // Whether a screen is drawn by the clock's card's frames: it is going out at the rate
+    // that card is going out at (one of another rate keeps the app's beat)
+    static bool keptToClock(const DeckLinkScreen *screen, const DeckLinkScreen *source)
+    {
+        return source && source->m_cardClock.period > 0 && screen->m_sending && screen->m_period == source->m_period;
+    }
+
+    // Each screen says which output's frames it is drawn by, if any (for the settings)
+    void keptTo()
+    {
+        const DeckLinkScreen *source = clockScreen();
+        for (DeckLinkScreen *screen : std::as_const(m_screens))
+            screen->setClock(keptToClock(screen, source) ? source->m_sentName : QString());
+    }
+
+    // The screens waiting to be drawn, and what each is waiting for: kept to the clock's
+    // card's frames if it is of that card's rate. (The card's frames as last read, which
+    // is as each frame is handed over to it: read again if that was a second ago, and
+    // until the new reading comes, the old one, which is the card's frames still, near
+    // enough. Its crystal and the computer's are a few parts in a hundred thousand apart.)
+    QList<decklinkformats::Waiting> waitingNow(qint64 now, QList<DeckLinkScreen *> *who)
+    {
+        DeckLinkScreen *source = clockScreen();
+        if (source && (source->m_cardClock.period <= 0 || now - source->m_cardClock.at > 1'000'000'000))
+            source->readClockSoon();
+        QList<decklinkformats::Waiting> waiting;
+        for (DeckLinkScreen *screen : std::as_const(m_screens)) {
+            if (!screen->waiting())
+                continue;
+            decklinkformats::Waiting beat = screen->beat();
+            if (keptToClock(screen, source))
+                beat = decklinkformats::onCard(beat, source->m_cardClock, m_lead, now);
+            waiting << beat;
+            if (who)
+                *who << screen;
+        }
+        return waiting;
     }
 
     // Each screen the pass takes is drawn, then each is read back into a frame of its
@@ -500,20 +661,20 @@ private:
     void pass()
     {
         const qint64 now = this->now();
-        QList<decklinkformats::Waiting> waiting;
-        for (DeckLinkScreen *screen : std::as_const(m_screens)) {
-            if (screen->waiting())
-                waiting << screen->beat();
-        }
+        QList<DeckLinkScreen *> screens;
+        const QList<decklinkformats::Waiting> waiting = waitingNow(now, &screens);
         // Not yet: it waits for a card to give a frame back (or the clock woke it early)
         if (decklinkformats::passDue(waiting) - now > 1'000'000) {
             schedule();
             return;
         }
         QList<DeckLinkScreen *> taken;
-        for (DeckLinkScreen *screen : std::as_const(m_screens)) {
-            if (screen->waiting() && decklinkformats::drawnInPass(screen->beat(), now))
-                taken << screen;
+        QList<decklinkformats::Waiting> beats;
+        for (qsizetype i = 0; i < screens.size(); ++i) {
+            if (decklinkformats::drawnInPass(waiting[i], now)) {
+                taken << screens[i];
+                beats << waiting[i];
+            }
         }
         if (!taken.isEmpty()) {
             ++m_passes;
@@ -532,8 +693,15 @@ private:
                 if (frames[i] >= 0)
                     drawn[i]->handOver(frames[i], m_passes, spent);
             }
-            for (DeckLinkScreen *screen : std::as_const(taken))
-                screen->m_next = decklinkformats::nextAfter(screen->beat(), now);
+            for (qsizetype i = 0; i < taken.size(); ++i)
+                taken[i]->m_next = decklinkformats::nextAfter(beats[i], now);
+            // How long before the card's frames the passes are to be: by the longest of
+            // the last thirty or so
+            m_spent << spent;
+            if (m_spent.size() > 32)
+                m_spent.removeFirst();
+            const DeckLinkScreen *source = clockScreen();
+            m_lead = decklinkformats::leadFor(*std::max_element(m_spent.cbegin(), m_spent.cend()), source ? source->m_period : 33'366'666);
         }
         // Any still waiting: one not due yet, or one that changed again as it was drawn
         schedule();
@@ -541,17 +709,86 @@ private:
 
     QList<DeckLinkScreen *> m_screens;
     QTimer m_timer;
-    QElapsedTimer m_clock;
     int m_passes = 0;
+    // How long passes have taken lately, and so how long before a card's frame a pass is
+    // to be, while a card's frames are the clock
+    QList<qint64> m_spent;
+    qint64 m_lead = decklinkformats::leadFor(0, 33'366'666);
 };
 
 }
 
 using decklink::Passes;
 
+namespace {
+
+// The card's frames, read now, on the passes' clock; none if the card cannot say
+decklinkformats::CardClock readCardClock(decklink::Card *card)
+{
+    decklinkformats::CardClock clock;
+    if (!card->readClock(&clock.inFrame, &clock.period))
+        return {};
+    clock.at = decklink::passesClock();
+    return clock;
+}
+
+}
+
 DeckLink::DeckLink(QObject *parent)
     : QObject(parent)
 {
+}
+
+QString DeckLink::clockSource() const
+{
+    return decklink::clockChoice().id;
+}
+
+QString DeckLink::clockSourceName() const
+{
+    return decklink::clockChoice().name;
+}
+
+void DeckLink::setRemember(bool remember)
+{
+    if (remember == m_remember)
+        return;
+    m_remember = remember;
+    emit rememberChanged();
+    if (remember) {
+        const QSettings settings;
+        choose(settings.value("decklink/clockSource").toString(), settings.value("decklink/clockSourceName").toString());
+    }
+}
+
+void DeckLink::setClockSource(const QString &id, const QString &name)
+{
+    if (m_remember) {
+        QSettings settings;
+        if (id.isEmpty()) {
+            settings.remove("decklink/clockSource");
+            settings.remove("decklink/clockSourceName");
+        } else {
+            settings.setValue("decklink/clockSource", id);
+            settings.setValue("decklink/clockSourceName", name);
+        }
+    }
+    choose(id, name);
+}
+
+void DeckLink::choose(const QString &id, const QString &name)
+{
+    decklink::ClockChoice &choice = decklink::clockChoice();
+    if (id == choice.id && name == choice.name)
+        return;
+    choice = {id, id.isEmpty() ? QString() : name};
+    SessionLog::write("decklink", id.isEmpty() ? QStringLiteral("the screens going out through a card are drawn by the app's own clock")
+                                               : QStringLiteral("the screens going out through a card at the rate of \"%1\" are drawn by its frames, "
+                                                                "while it is going out").arg(name));
+    // (Only if there are passes: none are made for it, on a computer with no card)
+    if (Passes::made())
+        Passes::the().clockChanged();
+    emit clockSourceChanged();
 }
 
 bool DeckLink::available() const
@@ -877,12 +1114,16 @@ bool DeckLinkScreen::start()
     m_drawings = 0;
     m_drawingTotal = 0;
     m_drawingLongest = 0;
+    m_cardClock = {};
+    m_clockAsked = false;
     m_problem.clear();
     SessionLog::write("decklink", QStringLiteral("a screen goes out through \"%1\" as %2%3").arg(m_outputName, m_format,
                                   keyed ? QStringLiteral(", keyed %1ly, %2, at %3%").arg(m_key, m_alpha).arg(m_blend) : QString()));
     emit statusChanged();
     emit framesSentChanged();
     Passes::the().join(this);
+    // (The card's frames, from the start: for when it is the clock)
+    readClockSoon();
     schedule();
     return true;
 }
@@ -903,6 +1144,7 @@ void DeckLinkScreen::stop()
     m_free.clear();
     m_sending = false;
     m_lastSlot = -1;
+    m_cardClock = {};
     // (With how long drawing took, the other screens going out through a card with it:
     // what an older computer can keep up with is in that.)
     SessionLog::write("decklink", QStringLiteral("the screen sent through \"%1\" has stopped, after %2 %3%4").arg(m_sentName).arg(m_framesSent)
@@ -983,12 +1225,65 @@ void DeckLinkScreen::handOver(int slot, int pass, qint64 took)
     const int run = m_run;
     QMetaObject::invokeMethod(m_worker, [card, run, slot, self] {
         const bool ok = card->display(slot);
+        // The card's frames, read as each frame is handed over, here on the card's thread
+        // (see Passes): what the passes keep to while this card is the clock
+        const decklinkformats::CardClock clock = readCardClock(card);
         if (self)
-            QMetaObject::invokeMethod(self.data(), [self, run, slot, ok] {
+            QMetaObject::invokeMethod(self.data(), [self, run, slot, ok, clock] {
                 if (self)
-                    self->shown(run, slot, ok);
+                    self->shown(run, slot, ok, clock);
             }, Qt::QueuedConnection);
     }, Qt::QueuedConnection);
+}
+
+void DeckLinkScreen::readClockSoon()
+{
+    if (!m_sending || m_clockAsked)
+        return;
+    m_clockAsked = true;
+    decklink::Card *card = m_card.get();
+    QPointer<DeckLinkScreen> self(this);
+    const int run = m_run;
+    QMetaObject::invokeMethod(m_worker, [card, run, self] {
+        const decklinkformats::CardClock clock = readCardClock(card);
+        if (self)
+            QMetaObject::invokeMethod(self.data(), [self, run, clock] {
+                if (self)
+                    self->clockRead(run, clock);
+            }, Qt::QueuedConnection);
+    }, Qt::QueuedConnection);
+}
+
+void DeckLinkScreen::clockRead(int run, const decklinkformats::CardClock &clock)
+{
+    m_clockAsked = false;
+    if (!m_sending || run != m_run)
+        return;
+    takeClock(clock);
+    Passes::the().schedule();
+}
+
+void DeckLinkScreen::takeClock(const decklinkformats::CardClock &clock)
+{
+    if (clock.period <= 0)
+        return;
+    const bool first = m_cardClock.period <= 0;
+    m_cardClock = clock;
+    if (first)
+        Passes::the().clockChanged();
+}
+
+void DeckLinkScreen::setClock(const QString &name)
+{
+    if (name == m_clock)
+        return;
+    m_clock = name;
+    emit clockChanged();
+}
+
+QList<QPointF> DeckLinkScreen::handedAt() const
+{
+    return m_card ? m_card->handedAt() : QList<QPointF>();
 }
 
 void DeckLinkScreen::schedule()
@@ -997,10 +1292,11 @@ void DeckLinkScreen::schedule()
         Passes::the().schedule();
 }
 
-void DeckLinkScreen::shown(int run, int slot, bool ok)
+void DeckLinkScreen::shown(int run, int slot, bool ok, const decklinkformats::CardClock &clock)
 {
     if (!m_sending || run != m_run)
         return;
+    takeClock(clock);
     if (m_lastSlot >= 0 && !m_free.contains(m_lastSlot))
         m_free << m_lastSlot;
     // (The frame shown last is kept out of the turns until the next is shown: it is what

@@ -4022,6 +4022,7 @@ Window {
     // its stage layouts.
     function openShowControls(path) {
         Screens.remember = remember
+        DeckLink.remember = remember
         AudioMixer.remember = remember
         Devices.remember = remember
         VideoInputs.remember = remember

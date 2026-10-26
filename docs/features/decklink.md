@@ -44,8 +44,8 @@ been seen to work.
 read back into a frame the DeckLink card made, and handed to it. Only when something
 has changed: the card goes on showing the last frame it was given, so a still slide
 costs nothing, and a moving one costs a picture read back for each frame that changes.
-A frame goes out on the card's next frame after it is ready rather than being timed to
-the frame, which is a choice of less work over exact timing.
+A frame goes out on the card's next frame after it is ready; with the card as the
+Clock Source (below), it is made ready a little before that frame.
 
 **Together.** Every screen going out through a card is drawn in the same passes: each
 that has changed is drawn, then each is read back, then all are handed to their cards
@@ -55,6 +55,25 @@ the same frame of the cards depends on the cards' frames being lined up, which i
 known. Blackmagic's SDK can line outputs up exactly, but only for frames sent a few
 frames ahead, at every frame, which would cost a delay and work on a still slide: that
 is not done. The log's line for a screen that stops says how long its drawing took.
+
+**The Clock Source.** A card sends its frames by a clock of its own (its crystal, or what
+it is locked to), and the app draws by its own, at the format's rate: the two drift apart
+a little at every frame, so that while a screen moves, now and then a frame is shown
+twice or one is skipped. ProPresenter can have one of its outputs be the clock its
+drawing keeps to, and so can this: **Clock Source**, under the screens in Settings →
+Screens once a card's outputs have been found, is **Automatic**, the app's own clock, or
+one of the outputs. With an output chosen, and while a screen is going out through it,
+every screen going out through a card at its rate is drawn by its frames: once in each of
+them, a little before it begins (by the longest the drawing has taken lately, and 8 ms
+more for the frame to be handed over, which is a guess at what a card needs), and what
+moves on the screens moves by them. The card's frames are read from the card itself, on
+the thread that hands it its frames. A screen at another rate keeps the app's clock, and
+so does every display, which is drawn at its own refreshes whatever this is set to. The
+settings say what each screen is drawn by. Which output it is is this computer's, kept
+with the app's settings, as ProPresenter keeps its clock source in its preferences; what
+ProPresenter calls it is not known here, and the name is that of its preferences' field.
+It has been tried against the outputs the app pretends for its tests, whose frames are
+made two percent longer than their format's, and not yet on a card.
 
 **Blackmagic's library is not part of this app.** It comes with *Desktop Video*, the
 drivers for the card, from Blackmagic Design, which a computer with a card has installed

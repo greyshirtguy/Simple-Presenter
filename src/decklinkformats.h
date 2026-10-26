@@ -40,6 +40,20 @@
 // screen is drawn on its own, it stays out of step with the rest until the next pass
 // that waits for it. (Seen with a stand-in for the card that was slow to give frames
 // back: the screens fell into alternate passes.)
+//
+// The card's frames as the clock. That beat is the app's own clock's, at the format's
+// rate, and a card sends its frames by a clock of its own (its crystal, or what it is
+// locked to): the two drift apart, a little each frame, so that while a screen moves the
+// card now and then shows a frame twice, or a frame comes too late for its turn and the
+// one after it is skipped. ProPresenter lets one of its outputs be the "clock source" for
+// its drawing (in its Screens settings: its words for that are not known here, and the
+// setting is called Clock Source after the field of its preferences that keeps it), and
+// so can this app, for its screens going out through a card. While one of the card's
+// outputs is that, and is sending, every screen going out through a card at the same
+// rate is drawn by its frames: each is drawn `lead` before one of the card's frames
+// begins, as read from the card (CardClock), and never twice in one of its frames. A
+// screen of another rate keeps the app's beat. (A window on a display is drawn by the
+// display's own refreshes, whatever this is set to: see FrameClock.)
 namespace decklinkformats {
 
 struct Format
@@ -75,6 +89,9 @@ struct Waiting
     qint64 next = 0;
     qint64 period = 0;
     bool ready = true;
+    // Kept to a card's frames (onCard): drawn only at its moment, `next`, and not with
+    // another a little early
+    bool onCard = false;
 };
 
 // When the next pass is due: when the soonest of these that has a frame free may be
@@ -89,7 +106,36 @@ bool drawnInPass(const Waiting &screen, qint64 now);
 
 // When a screen drawn at `now` may next be drawn: a frame on from when it was due, if it
 // was drawn within a frame of that (on the beat of the frames before, or a little early),
-// and a frame from now if it was not (it comes after a while of nothing)
+// and a frame from now if it was not (it comes after a while of nothing). One kept to a
+// card's frames, half a frame from now: so that its next moment is in the card's next
+// frame, whichever way the card's frames have drifted from the format's.
 qint64 nextAfter(const Waiting &screen, qint64 now);
+
+// A card's own frames, as read from it at a moment of the passes' clock (`at`): how far
+// into one of its frames it was then, and how long its frames are (by its own clock: the
+// format's length, near enough, and what keeps the reading true for a while), all in
+// nanoseconds
+struct CardClock
+{
+    qint64 at = 0;
+    qint64 inFrame = 0;
+    qint64 period = 0;
+};
+
+// How late a pass can be woken and still be the one for its moment: a timer's lateness,
+// and the GUI thread finishing what it was doing (the lead has room for it)
+constexpr qint64 kLate = 3'000'000;
+
+// A screen waiting, kept to the card's frames: due `lead` before the first of the card's
+// frames that is to begin at or after when it may be drawn (and a moment ago, up to
+// kLate, is still now), and marked as kept to them
+Waiting onCard(Waiting screen, const CardClock &card, qint64 lead, qint64 now);
+
+// How long before a card's frame begins its pass is to be: the longest a pass has taken
+// lately, and 8 ms for handing the frame over, which with a 1080 frame is 8 MB on its
+// way to the card (a GUESS at what a card needs: the SDK's guide does not say how long
+// before its frame a frame handed over synchronously must come); no less than 4 ms, and
+// no more than three quarters of a frame
+qint64 leadFor(qint64 longestPass, qint64 period);
 
 }

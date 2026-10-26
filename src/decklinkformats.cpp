@@ -69,8 +69,10 @@ qint64 passDue(const QList<Waiting> &waiting)
     if (soonest < 0)
         return -1;
     qint64 due = soonest;
+    // (Not for one kept to a card's frames: waited for, the pass would be off the card's
+    // beat for all the others kept to it. It is drawn at its next moment instead.)
     for (const Waiting &screen : waiting) {
-        if (!screen.ready && screen.next - soonest <= screen.period / 2)
+        if (!screen.ready && !screen.onCard && screen.next - soonest <= screen.period / 2)
             due = qMax(due, soonest + screen.period / 2);
     }
     return due;
@@ -78,12 +80,44 @@ qint64 passDue(const QList<Waiting> &waiting)
 
 bool drawnInPass(const Waiting &screen, qint64 now)
 {
-    return screen.ready && screen.next - now <= screen.period / 2;
+    // (A millisecond, for one kept to a card's frames: a pass is woken by a timer of
+    // whole milliseconds, and is not run sooner than that before it is due)
+    return screen.ready && screen.next - now <= (screen.onCard ? 1'000'000 : screen.period / 2);
 }
 
 qint64 nextAfter(const Waiting &screen, qint64 now)
 {
+    if (screen.onCard)
+        return now + screen.period / 2;
     return now - screen.next < screen.period ? screen.next + screen.period : now + screen.period;
+}
+
+namespace {
+
+// a / b, rounded up, for any a and a positive b
+qint64 roundedUp(qint64 a, qint64 b)
+{
+    return a >= 0 ? (a + b - 1) / b : -(-a / b);
+}
+
+}
+
+Waiting onCard(Waiting screen, const CardClock &card, qint64 lead, qint64 now)
+{
+    if (card.period <= 0)
+        return screen;
+    // The card's frames begin at at - inFrame and every period on, so the moments are
+    // lead before each
+    const qint64 first = card.at - card.inFrame - lead;
+    const qint64 from = qMax(screen.next, now - kLate);
+    screen.next = first + roundedUp(from - first, card.period) * card.period;
+    screen.onCard = true;
+    return screen;
+}
+
+qint64 leadFor(qint64 longestPass, qint64 period)
+{
+    return qBound<qint64>(4'000'000, longestPass + 8'000'000, qMax<qint64>(4'000'000, period * 3 / 4));
 }
 
 }

@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QList>
 #include <QObject>
+#include <QPointF>
 #include <QPointer>
 #include <QQuickItem>
 #include <QSize>
@@ -98,6 +99,15 @@ class DeckLink : public QObject
     Q_PROPERTY(QVariantList outputs READ outputs NOTIFY changed)
     // Whether refresh() has been done, so that an empty list means there are none
     Q_PROPERTY(bool looked READ looked NOTIFY changed)
+    // The output whose own frames the screens going out through a card are drawn by, as
+    // ProPresenter has one of its outputs be the clock source for its drawing (see
+    // decklinkformats.h): by its id and the name it had; "" for Automatic, the app's own
+    // clock. This computer's, and kept in the app's settings, as ProPresenter keeps it in
+    // its preferences and not in the workspace.
+    Q_PROPERTY(QString clockSource READ clockSource NOTIFY clockSourceChanged)
+    Q_PROPERTY(QString clockSourceName READ clockSourceName NOTIFY clockSourceChanged)
+    // Whether that is read from the settings and kept in them (not for the self-test)
+    Q_PROPERTY(bool remember READ remember WRITE setRemember NOTIFY rememberChanged)
 
 public:
     explicit DeckLink(QObject *parent = nullptr);
@@ -107,12 +117,25 @@ public:
     QString problem() const;
     QVariantList outputs() const;
     bool looked() const;
+    QString clockSource() const;
+    QString clockSourceName() const;
+    bool remember() const { return m_remember; }
+    void setRemember(bool remember);
 
     // Looks for the library, if that has not been done, and for the outputs again.
     Q_INVOKABLE void refresh();
+    // The output whose frames are the clock, by its id and name; "" for Automatic
+    Q_INVOKABLE void setClockSource(const QString &id, const QString &name);
 
 signals:
     void changed();
+    void clockSourceChanged();
+    void rememberChanged();
+
+private:
+    void choose(const QString &id, const QString &name);
+
+    bool m_remember = false;
 };
 
 // One screen sent out through a card's output. (Started once all it is given is there,
@@ -140,6 +163,10 @@ class DeckLinkScreen : public QObject, public QQmlParserStatus
     // How long a frame of the format is, in milliseconds (for the screen's video delay,
     // which is in its frames)
     Q_PROPERTY(double frameInterval READ frameInterval NOTIFY settingsChanged)
+    // The output whose own frames it is drawn by (DeckLink's clockSource, while that is
+    // going out and this is going out at its rate), by name; "" while it is drawn by the
+    // app's clock
+    Q_PROPERTY(QString clock READ clock NOTIFY clockChanged)
     // Whether it is to be sent at all
     Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged)
     // What is drawn: the screen's scene, which is made to fill it
@@ -168,6 +195,7 @@ public:
     void setBlend(int blend);
     int width() const { return m_size.width(); }
     double frameInterval() const;
+    QString clock() const { return m_clock; }
     int height() const { return m_size.height(); }
     bool active() const { return m_active; }
     void setActive(bool active);
@@ -182,6 +210,10 @@ public:
     // Which of the passes (counted for all the screens together) drew that picture; -1
     // before there is one. (For the tests: screens drawn together have the same.)
     int shownPass() const;
+    // For each frame handed over to the card since this was last asked: which of the
+    // card's own frames it came in, and how far into it, in milliseconds (for the tests:
+    // the pretend card's only)
+    QList<QPointF> handedAt() const;
 
     void classBegin() override {}
     void componentComplete() override;
@@ -192,6 +224,7 @@ signals:
     void sceneChanged();
     void statusChanged();
     void framesSentChanged();
+    void clockChanged();
 
 private:
     // Brings what there is into line with what is wanted: started, stopped, or started
@@ -219,7 +252,13 @@ private:
     void fail(const QString &why);
     // A frame the card has shown, and so can be drawn into again (on this object's thread),
     // in the sending started `run`th
-    void shown(int run, int slot, bool ok);
+    void shown(int run, int slot, bool ok, const decklinkformats::CardClock &clock);
+    // The card's frames: read on the card's thread soon (once at a time), and the reading
+    // taken here; and which output's frames it is drawn by (Passes says)
+    void readClockSoon();
+    void clockRead(int run, const decklinkformats::CardClock &clock);
+    void takeClock(const decklinkformats::CardClock &clock);
+    void setClock(const QString &name);
 
     bool m_complete = false;
     bool m_settling = false;
@@ -267,6 +306,11 @@ private:
     // format it was started in is (both in nanoseconds)
     qint64 m_next = 0;
     qint64 m_period = 0;
+    // The card's own frames as last read (as each frame is handed over), whether a reading
+    // has been asked for, and which output's frames it is drawn by
+    decklinkformats::CardClock m_cardClock;
+    bool m_clockAsked = false;
+    QString m_clock;
     // The pass each of the card's frames was last drawn in
     QList<int> m_slotPass;
     // How many passes drew it, and how long they took, for the log when it stops

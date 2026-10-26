@@ -17,6 +17,11 @@ import SimplePresenterApp
 // output that can key, which a pair of connectors linked there for fill and key is, has
 // ProPresenter's alpha settings under it: the alpha type (none, premultiplied or
 // straight), internal or external keying, and the blend.
+//
+// Under the screens, once a card's outputs have been found, its Clock Source: Automatic,
+// or one of the outputs, whose own frames the screens going out through a card are then
+// drawn by (see decklinkformats.h). ProPresenter has one, kept with its preferences;
+// what it calls it on its settings is not known here, and the name is its field's.
 Flickable {
     id: section
 
@@ -40,6 +45,23 @@ Flickable {
         if (error !== "")
             failed(error)
     }
+
+    // The menu of what the screens going out through a card are drawn by: Automatic, the
+    // app's own clock, or one of the card's outputs, by its frames
+    function clockRows() {
+        const rows = [{ label: "Automatic", current: DeckLink.clockSource === "", run: () => DeckLink.setClockSource("", "") }]
+        for (const card of DeckLink.outputs) {
+            const id = card.id
+            const name = card.name
+            rows.push({ label: name, current: DeckLink.clockSource === id, run: () => DeckLink.setClockSource(id, name) })
+        }
+        if (DeckLink.clockSource !== "" && !DeckLink.outputs.some(card => card.id === DeckLink.clockSource))
+            rows.push({ label: DeckLink.clockSourceName + " (not here)", current: true, run: () => {} })
+        return rows
+    }
+
+    // The screens going out through a card that are drawn by the chosen output's frames now
+    readonly property var keptToClock: Object.values(senders).filter(sender => sender && sender.clock !== undefined && sender.clock !== "")
 
     contentHeight: column.height
     clip: true
@@ -374,6 +396,7 @@ Flickable {
                         : !row.sender.sending ? "Switched off with the " + (row.screen.kind === "stage" ? "stage" : "audience") + " screens, on the toolbar."
                         : "Going out through " + row.screen.decklinkName + " as " + row.screen.decklinkFormat
                           + (row.keyed ? ", keyed " + row.screen.decklinkKey + "ly, " + row.screen.decklinkAlpha + ", at " + row.screen.decklinkBlend + "%." : ".")
+                          + (row.sender.clock !== "" ? " Drawn in time with the frames of " + row.sender.clock + "." : "")
                           + (row.card === null && DeckLink.looked ? " (It is not among the outputs found now.)" : ""))
                     : !Ndi.available ? "NDI's library is not on this computer yet, so this screen is not being sent."
                     : row.sender === null ? ""
@@ -470,6 +493,53 @@ Flickable {
             color: "#9a9da3"
             font.pixelSize: 12
             text: Screens.screens.length + " of the " + Screens.limit + " screens a workspace can have."
+        }
+
+        // The clock: once there are card outputs to choose from, or one has been chosen
+        Column {
+            width: parent.width
+            spacing: 4
+            visible: (DeckLink.looked && DeckLink.available && DeckLink.outputs.length > 0) || DeckLink.clockSource !== ""
+
+            Row {
+                spacing: 8
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#9a9da3"
+                    font.pixelSize: 12
+                    text: "Clock Source"
+                }
+
+                AppButton {
+                    id: clockButton
+
+                    objectName: "clockSource"
+                    height: 28
+                    font.pixelSize: 13
+                    text: (DeckLink.clockSource === "" ? "Automatic" : DeckLink.clockSourceName) + "  ▾"
+                    onClicked: {
+                        DeckLink.refresh()
+                        section.menuWanted(section.clockRows(), clockButton, 0, clockButton.height)
+                    }
+                }
+            }
+
+            Text {
+                objectName: "clockSourceStatus"
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 12
+                text: DeckLink.clockSource === ""
+                      ? "Each display is drawn at its own refreshes, and each screen going out through a card by the app's own clock, at its "
+                        + "format's rate. A card goes by a clock of its own, and the two drift apart a little at every frame."
+                      : section.keptToClock.length === 0
+                      ? DeckLink.clockSourceName + " is not going out now, so the screens going out through a card are drawn by the app's own "
+                        + "clock, until it is."
+                      : "The screens going out through a card at the rate of " + DeckLink.clockSourceName + " are drawn in time with its frames, "
+                        + "each a little before one begins. A screen at another rate, and every display, keeps its own."
+            }
         }
 
         Text {

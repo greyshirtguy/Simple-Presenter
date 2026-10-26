@@ -87,7 +87,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="looks"></a>**[Looks](docs/features/looks.md)**: which layers each audience screen gets, so that the room has the words over the video while a stream has the words alone.
 - <a id="masks"></a>**[Masks](docs/features/masks.md)**: a slide laid over everything else a screen shows, to give it another outline or to keep a projector off a doorway.
 - <a id="ndi"></a>**[NDI](docs/features/ndi.md)**: a screen sent over the network for a vision mixer or OBS to pick up. NDI's library is not included: the app offers to fetch it, under NDI's own licence.
-- <a id="blackmagic-decklink"></a>**[Blackmagic DeckLink](docs/features/decklink.md)**: a screen out through a card's output, in ten formats, keyed or not. It has been tried so far on one card.
+- <a id="blackmagic-decklink"></a>**[Blackmagic DeckLink](docs/features/decklink.md)**: a screen out through a card's output, in ten formats, keyed or not, and drawn by the card's own frames if it is the Clock Source. It has been tried so far on one card.
 - <a id="the-api"></a>**[The API](docs/features/api.md)**: ProPresenter's own network API, so that Bitfocus Companion's module, and the remotes made for ProPresenter, can follow the show and work it. The page says what is there and what is not.
 - <a id="devices"></a>**[Devices](docs/features/devices.md)**: MIDI notes and RossTalk Custom Controls sent from slides and macros, and ProPresenter's MIDI Map, so that a MIDI device's notes work the show.
 

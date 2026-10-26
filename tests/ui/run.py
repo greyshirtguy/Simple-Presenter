@@ -3233,6 +3233,7 @@ TESTS = {
     "textstyle": test("Act", timeout=240),
     # (With the two Blackmagic outputs the app pretends for tests: there is no card here.)
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
+    "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
     "quickedit": test("Act"),
     "builds": test("Demo", timeout=300, prepare=prepare_builds, after=after_builds),

@@ -382,6 +382,18 @@ public:
     }
     QPointer<VideoTiming> video;
     // Which pass (of those that draw every screen going out through a card together) drew that picture; -1 if none
+    // For each frame handed to the pretend card since this was last asked: [which of its own frames it came in,
+    // how far into it in milliseconds] (see PretendCard, whose frames are two percent longer than the format's)
+    Q_INVOKABLE QVariantList deckLinkHandedAt(QObject *screen)
+    {
+        auto *sender = qobject_cast<DeckLinkScreen *>(screen);
+        QVariantList at;
+        if (sender) {
+            for (const QPointF &handed : sender->handedAt())
+                at << QVariant(QVariantList {handed.x(), handed.y()});
+        }
+        return at;
+    }
     Q_INVOKABLE int deckLinkPass(QObject *screen)
     {
         auto *sender = qobject_cast<DeckLinkScreen *>(screen);

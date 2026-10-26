@@ -1,6 +1,7 @@
 // What a screen sent out through a DeckLink card is sent as (src/decklinkformats.h): the
 // formats offered, each with its size, its rate and the SDK's code for it; its pictures
-// made straight from premultiplied; and the beat the screens are drawn on, together.
+// made straight from premultiplied; and the beat the screens are drawn on, together, by
+// the app's clock or by a card's frames.
 
 #include "decklinkformats.h"
 
@@ -34,6 +35,33 @@ QList<Drawn> simulated(QList<Waiting> screens, qint64 from, qint64 until)
         }
     }
     return drawn;
+}
+
+// The same with the screens kept to a card's frames, read once at `from`: when each pass was
+QList<qint64> simulatedOnCard(QList<Waiting> screens, const CardClock &card, qint64 lead, qint64 from, qint64 until)
+{
+    QList<qint64> passes;
+    const auto kept = [&](qint64 now) {
+        QList<Waiting> onIt;
+        for (const Waiting &screen : screens)
+            onIt << onCard(screen, card, lead, now);
+        return onIt;
+    };
+    for (qint64 now = qMax(from, passDue(kept(from))); now < until; now = qMax(now, passDue(kept(now)))) {
+        const QList<Waiting> onIt = kept(now);
+        bool any = false;
+        for (int i = 0; i < screens.size(); ++i) {
+            if (!drawnInPass(onIt[i], now))
+                continue;
+            any = true;
+            screens[i].next = nextAfter(onIt[i], now);
+        }
+        if (any)
+            passes << now;
+        else
+            ++now;
+    }
+    return passes;
 }
 
 }
@@ -156,6 +184,73 @@ private slots:
         const QList<Drawn> drawn = simulated({{start, frame}, {start, frame}, {start + 12'000'000, frame}}, start, start + 1'000'000'000);
         QCOMPARE(drawn[2].passes, drawn[0].passes);
         QCOMPARE(drawn[0].passes.size(), 30);
+    }
+
+    void onTheCardsFrames()
+    {
+        // A card at 29.97 read 10 ms into one of its frames at 100 ms: its frames begin at
+        // 90 ms, and every 33.37 ms; with 8 ms of lead, a screen is due 8 ms before each
+        const qint64 ms = 1'000'000;
+        const CardClock card {100 * ms, 10 * ms, 33'366'666};
+        const qint64 lead = 8 * ms;
+        const Waiting screen {0, card.period};
+        QCOMPARE(onCard(screen, card, lead, 100 * ms).next, 90 * ms + card.period - lead);
+        QVERIFY(onCard(screen, card, lead, 100 * ms).onCard);
+        // A moment just gone (the pass woken 2 ms late) is still that one's
+        QCOMPARE(onCard(screen, card, lead, 84 * ms).next, 82 * ms);
+        // and one long gone is not: the next
+        QCOMPARE(onCard(screen, card, lead, 86 * ms).next, 82 * ms + card.period);
+        // Never twice in one of the card's frames: drawn at 82, next in its next frame
+        Waiting drawn = onCard(screen, card, lead, 82 * ms);
+        QVERIFY(drawnInPass(drawn, 82 * ms));
+        QVERIFY(drawnInPass(drawn, 81 * ms));
+        QVERIFY(!drawnInPass(drawn, 80 * ms));
+        drawn.next = nextAfter(drawn, 82 * ms);
+        QCOMPARE(onCard(drawn, card, lead, 83 * ms).next, 82 * ms + card.period);
+        // A card that cannot be read leaves the screen as it was
+        QCOMPARE(onCard(screen, CardClock {}, lead, 100 * ms).next, qint64(0));
+        QVERIFY(!onCard(screen, CardClock {}, lead, 100 * ms).onCard);
+    }
+
+    void keptToACardThatIsNotTheComputersClock()
+    {
+        // A card whose frames are half a percent longer than the format says, and a second of
+        // a transition on two screens of its rate: every pass the same lead before one of the
+        // card's frames, a frame of the card's apart, none skipped
+        const qint64 ms = 1'000'000;
+        const qint64 format = 33'366'666;
+        const CardClock card {0, 0, format + format / 200};
+        const qint64 lead = 10 * ms;
+        const QList<qint64> passes = simulatedOnCard({{0, format}, {0, format}}, card, lead, 1'000 * ms, 2'000 * ms);
+        QVERIFY2(passes.size() == 29 || passes.size() == 30, qPrintable(QString::number(passes.size())));
+        for (qint64 pass : passes)
+            QCOMPARE((pass + lead) % card.period, qint64(0));
+        for (qsizetype i = 1; i < passes.size(); ++i)
+            QCOMPARE(passes[i] - passes[i - 1], card.period);
+    }
+
+    void keptToACardWithNoFrameFree()
+    {
+        // One kept to a card's frames whose card has not given a frame back is not waited
+        // for: the pass stays on the card's beat
+        const qint64 frame = 33'366'666;
+        const qint64 due = 1'000'000'000;
+        Waiting late {due, frame, false};
+        late.onCard = true;
+        Waiting other {due, frame};
+        other.onCard = true;
+        QCOMPARE(passDue({other, late}), due);
+        QVERIFY(!drawnInPass(late, due));
+    }
+
+    void theLeadIsThePassAndAMargin()
+    {
+        const qint64 ms = 1'000'000;
+        QCOMPARE(leadFor(2 * ms, 33'366'666), 10 * ms);
+        QCOMPARE(leadFor(0, 33'366'666), 8 * ms);
+        // no more than three quarters of a frame
+        QCOMPARE(leadFor(30 * ms, 33'366'666), qint64(33'366'666) * 3 / 4);
+        QCOMPARE(leadFor(10 * ms, 16'683'333), qint64(16'683'333) * 3 / 4);
     }
 
     void formatsOfDifferentRatesEachAtMostTheirOwn()
