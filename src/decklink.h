@@ -137,6 +137,9 @@ class DeckLinkScreen : public QObject, public QQmlParserStatus
     // The format's size
     Q_PROPERTY(int width READ width NOTIFY settingsChanged)
     Q_PROPERTY(int height READ height NOTIFY settingsChanged)
+    // How long a frame of the format is, in milliseconds (for the screen's video delay,
+    // which is in its frames)
+    Q_PROPERTY(double frameInterval READ frameInterval NOTIFY settingsChanged)
     // Whether it is to be sent at all
     Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged)
     // What is drawn: the screen's scene, which is made to fill it
@@ -164,6 +167,7 @@ public:
     int blend() const { return m_blend; }
     void setBlend(int blend);
     int width() const { return m_size.width(); }
+    double frameInterval() const;
     int height() const { return m_size.height(); }
     bool active() const { return m_active; }
     void setActive(bool active);

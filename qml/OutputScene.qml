@@ -22,6 +22,10 @@ import QtQuick
 // It knows nothing about presentations. It is handed things to show (a slide map, or a
 // media file) and shows them; what is live is Show's business.
 //
+// A screen can be given a video delay, as ProPresenter's outputs can: all of it then shown
+// so many of its frames late (`videoDelay`; FrameDelay says how), whether it is in a
+// window or sent out of sight.
+//
 // Left as it was, for now: the fades of the layers as a look changes (lookFade), and of
 // the props and messages as they come and go, are Qt's own animations (a Behavior, a
 // NumberAnimation), which Qt steps by a timer of its own while two windows are showing,
@@ -88,6 +92,11 @@ Item {
     property var heldHow: ({})
     // The operator window, for the Screen Previews on the slides here (see Slide)
     property var pictures: null
+    // The screen's video delay: so many of its frames late (see FrameDelay), and how long
+    // a frame of the screen is, in milliseconds (its display's refresh, or the rate it is
+    // sent at). 0 for none, which is every screen until one is set.
+    property int videoDelay: 0
+    property real frameInterval: 1000 / 60
 
     // `slide` is a slide map from Catalog.open(); null clears the layer. `transition`
     // is the slide's own, or its presentation's, to be made in place of the one above
@@ -161,199 +170,223 @@ Item {
             announcementsLayer.item.clear()
     }
 
-    // The video input layer, at the bottom: made only while an input is on it, which
-    // is what has the input captured (see VideoInputView). Its sound plays while the
-    // look gives this screen the layer, and not while it does not: an input's sound is
-    // played while it is on an audience screen (see VideoInputs). An input that takes
-    // the place of another is a cut. (A GUESS: ProPresenter has a transition of its own
-    // for video inputs, which is not done here yet.)
-    Loader {
-        id: videoInputLayer
-
-        objectName: "videoInputLayer"
-        anchors.fill: parent
-        active: scene.videoInput >= 0
-        opacity: scene.videoInputOn ? 1 : 0
-        visible: opacity > 0
-
-        Behavior on opacity {
-            NumberAnimation { duration: scene.lookFade }
-        }
-
-        sourceComponent: VideoInputView {
-            index: scene.videoInput
-            sound: scene.videoInputOn
-            shown: videoInputLayer.visible
-        }
-    }
-
-    TransitionLayer {
-        id: mediaLayer
-
-        anchors.fill: parent
-        opacity: scene.mediaOn ? 1 : 0
-        visible: opacity > 0
-
-        Behavior on opacity {
-            NumberAnimation { duration: scene.lookFade }
-        }
-        name: "media layer"
-        shaderName: scene.transitionName
-        shader: scene.shader
-        options: scene.options
-        tint: scene.tint
-        direction: scene.direction
-        duration: scene.duration
-        delegate: MediaContent {
-            leads: scene.leads
-            onEnded: (playId) => scene.mediaEnded(playId)
-            onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "media")
-            markersOf: scene.markersOf
-        }
-        // The media layer has stopped waiting, to make its change or because it was
-        // given something else to show: either way a slide held for it goes now.
-        onWaitingChanged: {
-            if (!waiting && scene.heldSlide !== undefined)
-                scene.showSlide(scene.heldSlide, scene.heldHow.transition, scene.heldHow.times)
-        }
-    }
-
-    // The video on the media layer, while one plays, is what the screen's frames keep to
-    // (see src/frameclock.h)
-    FramePace {
-        video: scene.liveVideoSink
-    }
-
-    TransitionLayer {
-        id: slideLayer
-
-        anchors.fill: parent
-        opacity: scene.slideOn ? 1 : 0
-        visible: opacity > 0
-
-        Behavior on opacity {
-            NumberAnimation { duration: scene.lookFade }
-        }
-        name: "slide layer"
-        shaderName: scene.transitionName
-        shader: scene.shader
-        options: scene.options
-        tint: scene.tint
-        direction: scene.direction
-        duration: scene.duration
-        delegate: Slide {
-            pictures: scene.pictures
-            logName: "slide layer"
-        }
-    }
-
-    // The copyright display's line over the live slide (see Show.copyrightText,
-    // CopyrightDisplay): its template slide, whose box shows the line, while there is one.
-    // Of the slide layer, so a look that keeps the slides from the screen keeps it too.
-    // Made only while there is a line: most slides of most workspaces have none. (A GUESS
-    // at ProPresenter: that it comes and goes with its slide, at once and not by the
-    // slide's transition.)
-    Loader {
-        id: copyrightLayer
-
-        objectName: "copyrightLayer"
-        anchors.fill: parent
-        active: Show.copyrightText !== "" && scene.slideOn
-        visible: active
-
-        sourceComponent: Slide {
-            slide: CopyrightDisplay.templateSlide
-            pictures: scene.pictures
-            logName: "copyright"
-        }
-    }
-
-    // The announcements, over the slides and under the props. Made when the first
-    // announcement is shown, and kept: a show that has none has nothing made for them.
-    Loader {
-        id: announcementsLayer
-
-        property bool wanted: false
-
-        anchors.fill: parent
-        active: wanted
-        opacity: scene.announcementsOn ? 1 : 0
-        visible: opacity > 0
-
-        Behavior on opacity {
-            NumberAnimation { duration: scene.lookFade }
-        }
-
-        sourceComponent: AnnouncementLayer {
-            leads: scene.leads
-            onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "announcements")
-            markersOf: scene.markersOf
-            pictures: scene.pictures
-            transitionName: scene.transitionName
-            shader: scene.shader
-            options: scene.options
-            tint: scene.tint
-            direction: scene.direction
-            duration: scene.duration
-        }
-    }
-
-    PropsLayer {
-        id: propsLayer
-
-        anchors.fill: parent
-        pictures: scene.pictures
-        opacity: scene.propsOn ? 1 : 0
-        visible: opacity > 0
-
-        Behavior on opacity {
-            NumberAnimation { duration: scene.lookFade }
-        }
-    }
-
-    // The messages' layer, over everything. It is the props' layer again, a message
-    // being a slide laid over the rest as a prop is. It is made when the first message
-    // is shown, and kept from then on (the last message to go fades in it): a show in
-    // which no message is ever shown has nothing made for them.
-    Loader {
-        id: messagesLayer
-
-        property bool wanted: false
-
-        anchors.fill: parent
-        active: wanted
-        opacity: scene.messagesOn ? 1 : 0
-        visible: opacity > 0
-
-        Behavior on opacity {
-            NumberAnimation { duration: scene.lookFade }
-        }
-
-        sourceComponent: PropsLayer {
-            props: scene.messages
-            duration: propsLayer.duration
-            pictures: scene.pictures
-        }
-    }
-
     onMessagesChanged: {
         if (messages.length > 0)
             messagesLayer.wanted = true
     }
 
-    // The mask: the top of everything. A slide like any other, which covers what is
-    // under it wherever something is drawn on it, and is there for as long as the look
-    // gives the screen one: it has no transition and nothing clears it. Made only for a
-    // screen that has one.
-    Loader {
-        id: maskLayer
+    // The layers, in one item, so that they can be drawn into a layer of Qt's for the
+    // screen's video delay (FrameDelay, below): while there is one, the layer is moved out
+    // of the window, where Qt still draws it and nothing of it is seen, and what is seen
+    // is the delay's copy of it from so many frames before. Without a delay it is drawn
+    // as it always was: no layer is made, and the move is none.
+    Item {
+        id: content
 
         anchors.fill: parent
-        active: scene.mask !== null
+        layer.enabled: frameDelay.active
+        transform: Translate { x: frameDelay.active ? -4 * (scene.width + 100) : 0 }
 
-        sourceComponent: Slide {
-            slide: scene.mask
-            pictures: scene.pictures
+        // The video input layer, at the bottom: made only while an input is on it, which
+        // is what has the input captured (see VideoInputView). Its sound plays while the
+        // look gives this screen the layer, and not while it does not: an input's sound is
+        // played while it is on an audience screen (see VideoInputs). An input that takes
+        // the place of another is a cut. (A GUESS: ProPresenter has a transition of its own
+        // for video inputs, which is not done here yet.)
+        Loader {
+            id: videoInputLayer
+
+            objectName: "videoInputLayer"
+            anchors.fill: parent
+            active: scene.videoInput >= 0
+            opacity: scene.videoInputOn ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                NumberAnimation { duration: scene.lookFade }
+            }
+
+            sourceComponent: VideoInputView {
+                index: scene.videoInput
+                sound: scene.videoInputOn
+                shown: videoInputLayer.visible
+            }
         }
+
+        TransitionLayer {
+            id: mediaLayer
+
+            anchors.fill: parent
+            opacity: scene.mediaOn ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                NumberAnimation { duration: scene.lookFade }
+            }
+            name: "media layer"
+            shaderName: scene.transitionName
+            shader: scene.shader
+            options: scene.options
+            tint: scene.tint
+            direction: scene.direction
+            duration: scene.duration
+            delegate: MediaContent {
+                leads: scene.leads
+                onEnded: (playId) => scene.mediaEnded(playId)
+                onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "media")
+                markersOf: scene.markersOf
+            }
+            // The media layer has stopped waiting, to make its change or because it was
+            // given something else to show: either way a slide held for it goes now.
+            onWaitingChanged: {
+                if (!waiting && scene.heldSlide !== undefined)
+                    scene.showSlide(scene.heldSlide, scene.heldHow.transition, scene.heldHow.times)
+            }
+        }
+
+        // The video on the media layer, while one plays, is what the screen's frames keep to
+        // (see src/frameclock.h)
+        FramePace {
+            video: scene.liveVideoSink
+        }
+
+        TransitionLayer {
+            id: slideLayer
+
+            anchors.fill: parent
+            opacity: scene.slideOn ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                NumberAnimation { duration: scene.lookFade }
+            }
+            name: "slide layer"
+            shaderName: scene.transitionName
+            shader: scene.shader
+            options: scene.options
+            tint: scene.tint
+            direction: scene.direction
+            duration: scene.duration
+            delegate: Slide {
+                pictures: scene.pictures
+                logName: "slide layer"
+            }
+        }
+
+        // The copyright display's line over the live slide (see Show.copyrightText,
+        // CopyrightDisplay): its template slide, whose box shows the line, while there is one.
+        // Of the slide layer, so a look that keeps the slides from the screen keeps it too.
+        // Made only while there is a line: most slides of most workspaces have none. (A GUESS
+        // at ProPresenter: that it comes and goes with its slide, at once and not by the
+        // slide's transition.)
+        Loader {
+            id: copyrightLayer
+
+            objectName: "copyrightLayer"
+            anchors.fill: parent
+            active: Show.copyrightText !== "" && scene.slideOn
+            visible: active
+
+            sourceComponent: Slide {
+                slide: CopyrightDisplay.templateSlide
+                pictures: scene.pictures
+                logName: "copyright"
+            }
+        }
+
+        // The announcements, over the slides and under the props. Made when the first
+        // announcement is shown, and kept: a show that has none has nothing made for them.
+        Loader {
+            id: announcementsLayer
+
+            property bool wanted: false
+
+            anchors.fill: parent
+            active: wanted
+            opacity: scene.announcementsOn ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                NumberAnimation { duration: scene.lookFade }
+            }
+
+            sourceComponent: AnnouncementLayer {
+                leads: scene.leads
+                onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "announcements")
+                markersOf: scene.markersOf
+                pictures: scene.pictures
+                transitionName: scene.transitionName
+                shader: scene.shader
+                options: scene.options
+                tint: scene.tint
+                direction: scene.direction
+                duration: scene.duration
+            }
+        }
+
+        PropsLayer {
+            id: propsLayer
+
+            anchors.fill: parent
+            pictures: scene.pictures
+            opacity: scene.propsOn ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                NumberAnimation { duration: scene.lookFade }
+            }
+        }
+
+        // The messages' layer, over everything. It is the props' layer again, a message
+        // being a slide laid over the rest as a prop is. It is made when the first message
+        // is shown, and kept from then on (the last message to go fades in it): a show in
+        // which no message is ever shown has nothing made for them.
+        Loader {
+            id: messagesLayer
+
+            property bool wanted: false
+
+            anchors.fill: parent
+            active: wanted
+            opacity: scene.messagesOn ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                NumberAnimation { duration: scene.lookFade }
+            }
+
+            sourceComponent: PropsLayer {
+                props: scene.messages
+                duration: propsLayer.duration
+                pictures: scene.pictures
+            }
+        }
+
+        // The mask: the top of everything. A slide like any other, which covers what is
+        // under it wherever something is drawn on it, and is there for as long as the look
+        // gives the screen one: it has no transition and nothing clears it. Made only for a
+        // screen that has one.
+        Loader {
+            id: maskLayer
+
+            anchors.fill: parent
+            active: scene.mask !== null
+
+            sourceComponent: Slide {
+                slide: scene.mask
+                pictures: scene.pictures
+            }
+        }
+    }
+
+    FrameDelay {
+        id: frameDelay
+
+        objectName: "frameDelay"
+        anchors.fill: parent
+        visible: active
+        source: content
+        frames: scene.videoDelay
+        frameInterval: scene.frameInterval
     }
 }

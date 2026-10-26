@@ -53,8 +53,10 @@ Rectangle {
     // The MIDI Map's commands this app does not do (see MidiControl), greyed on Devices
     property var midiNotHere: []
 
-    // What sends each screen that goes over NDI, by the screen's id: see ScreensSettings
+    // What sends each screen that goes over NDI or through a card, and the scene each
+    // audience screen is drawn with, by the screen's id: see ScreensSettings
     property var senders: ({})
+    property var scenes: ({})
 
     signal groupsEdited(var groups)
     signal screensFailed(string text)
@@ -772,6 +774,7 @@ Rectangle {
             anchors.topMargin: 12
             visible: screen.section === "screens"
             senders: screen.senders
+            scenes: screen.scenes
             onFailed: (text) => screen.screensFailed(text)
             onNdiWanted: ndiSetup.visible = true
             onMenuWanted: (rows, item, x, y) => screen.screenMenuWanted(rows, item, x, y)

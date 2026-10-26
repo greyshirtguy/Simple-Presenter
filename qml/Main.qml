@@ -4652,6 +4652,7 @@ Window {
                     messages: win.shownMessages
                     mask: win.maskSlide(audienceHost.look.mask)
                     pictures: win
+                    videoDelay: audienceHost.screen.videoDelay ?? 0
                     keyTarget: keys
                     Component.onCompleted: win.sceneMade(audienceHost.modelData, this, true)
                     Component.onDestruction: win.sceneGone(audienceHost.modelData, this)
@@ -4697,6 +4698,8 @@ Window {
                         messages: win.shownMessages
                         mask: win.maskSlide(audienceHost.look.mask)
                         pictures: win
+                        videoDelay: audienceHost.screen.videoDelay ?? 0
+                        frameInterval: 1000 * Screens.rateOf(audienceHost.screen.ndiRate).denominator / Screens.rateOf(audienceHost.screen.ndiRate).numerator
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, ndiScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, ndiScene)
                     }
@@ -4708,6 +4711,8 @@ Window {
             property Instantiator sentOverDeckLink: Instantiator {
                 model: audienceHost.overDeckLink ? 1 : 0
                 delegate: DeckLinkScreen {
+                    id: cardSender
+
                     objectName: "decklink-" + audienceHost.modelData
                     output: audienceHost.screen.decklinkOutput
                     outputName: audienceHost.screen.decklinkName
@@ -4745,6 +4750,8 @@ Window {
                         messages: win.shownMessages
                         mask: win.maskSlide(audienceHost.look.mask)
                         pictures: win
+                        videoDelay: audienceHost.screen.videoDelay ?? 0
+                        frameInterval: cardSender.frameInterval
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, cardScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, cardScene)
                     }
@@ -6039,6 +6046,7 @@ Window {
         onLabelEdited: (index) => win.editLabelPreset(index)
         onLabelRemoved: (index) => win.report(Labels.remove(index))
         senders: win.senders
+        scenes: win.scenes
         onScreensFailed: (text) => win.report(text)
         onClosed: {
             win.settingsOpen = false

@@ -58,6 +58,33 @@ fitted in it; the clears stretch to its height, and it stops where the show cont
 still have room for two timers. A double click on the line gives the preview back its
 16:9. How tall it was left is kept with the app's settings.
 
+## Video delay
+
+**Video Delay**, under each audience screen in Settings → Screens, shows all of that
+screen so many of its own frames late, from none to fifteen, as ProPresenter's video
+frame delay does for an output. It is for when the picture comes before the sound: the
+app's sound is heard a little after it is played (see
+[The app's channels](audio.md#the-apps-channels)), and a vision mixer, a recorder or a
+stream can hold back the sound or the picture further. The settings say what the delay
+comes to in milliseconds, by the screen's own frames: a refresh of the display it fills
+(of the one its window is on), or a frame of the rate it goes out over NDI or of its
+card's format. The operator's preview shows the screen as it is now, not delayed, and so
+does a Screen Preview of it on a stage layout or a slide, which is drawn again from what
+the screen is told (what ProPresenter's do is not known here: a guess, made because a
+stage is level with the sound in the room). The delay is this computer's,
+and is kept with what the screen is sent out through. ProPresenter keeps one with each of
+its own outputs, in the workspace's file, and that is left as it was.
+
+How it is done: the screen is drawn as it always is, but out of sight, and the graphics
+card keeps a copy each time it changes; at each of the screen's frames, the copy from so
+many frames before is what is shown. A screen with no delay is drawn as ever, at no cost.
+One with a delay costs a copy of the screen each time it changes, a copy onto the screen
+at each frame it draws, one frame more for each change, when its copy comes to be shown,
+and on the graphics card a picture of the screen for each frame of the delay and three
+more at most (8 MB a picture at 1920 × 1080: some 150 MB for fifteen frames while a
+video plays). It needs OpenGL, which is what the app draws with; where it draws
+otherwise (the self-test's drawing in software), the setting says so and is shut.
+
 ## A screen in a window
 
 The small window with a slim title bar that floats over the operator window, or

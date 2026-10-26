@@ -465,3 +465,12 @@ qt_add_executable(tst_mediachannels
 target_include_directories(tst_mediachannels PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_mediachannels PRIVATE Qt6::Core Qt6::Qml Qt6::Test PkgConfig::FFmpeg)
 add_test(NAME mediachannels COMMAND tst_mediachannels)
+
+qt_add_executable(tst_delayline
+    tst_delayline.cpp
+    ${PROJECT_SOURCE_DIR}/src/delayline.h
+    ${PROJECT_SOURCE_DIR}/src/delayline.cpp
+)
+target_include_directories(tst_delayline PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_delayline PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME delayline COMMAND tst_delayline)

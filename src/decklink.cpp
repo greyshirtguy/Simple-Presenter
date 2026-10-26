@@ -603,6 +603,12 @@ DeckLinkScreen::~DeckLinkScreen()
     releaseDrawing();
 }
 
+double DeckLinkScreen::frameInterval() const
+{
+    const decklinkformats::Format *format = decklinkformats::formatNamed(m_format);
+    return format ? decklinkformats::period(*format) / 1e6 : 1000.0 / 30;
+}
+
 void DeckLinkScreen::setOutput(const QString &output)
 {
     if (m_output == output)

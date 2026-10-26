@@ -1,4 +1,5 @@
 import QtQuick
+import SimplePresenterApp
 
 // An audience screen in a window: an OutputScene, in a small window of its own that can
 // fill a display, or filling the display the screen is set to (see AuxWindow, and
@@ -33,6 +34,11 @@ AuxWindow {
     property alias messages: scene.messages
     property alias mask: scene.mask
     property alias pictures: scene.pictures
+    // The screen's video delay, in its frames (see OutputScene); a frame being one of the
+    // display's refreshes
+    property alias videoDelay: scene.videoDelay
+    // How long a frame of it is, in milliseconds: a refresh of the display it is on
+    readonly property real frameInterval: scene.frameInterval
     readonly property var liveVideoSink: scene.liveVideoSink
     readonly property var livePlayer: scene.livePlayer
     readonly property var liveAnnouncementPlayer: scene.liveAnnouncementPlayer
@@ -76,5 +82,6 @@ AuxWindow {
         onMediaEnded: (playId) => win.mediaEnded(playId)
         onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
         markersOf: win.markersOf
+        frameInterval: Screens.refreshIntervalOf(win.screen ? win.screen.name : "")
     }
 }

@@ -298,8 +298,12 @@ qt_add_qml_module(SimplePresenter
         src/firstframe.cpp
         src/frameclock.h
         src/frameclock.cpp
+        src/framedelay.h
+        src/framedelay.cpp
         src/framepacing.h
         src/framepacing.cpp
+        src/delayline.h
+        src/delayline.cpp
         src/framerelay.h
         src/framerelay.cpp
         src/presentationeditor.h

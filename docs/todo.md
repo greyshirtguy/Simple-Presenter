@@ -124,8 +124,8 @@ the top of the [README](../README.md).
       input's sound through them, with ProPresenter's routing for an input; sound out
       through a DeckLink card and over NDI, which ProPresenter routes separately; the
       level, delay and tone of each of the device's channels, which ProPresenter's
-      matrix has; and making up for the delay the mixing adds, by holding the picture
-      back to meet it.
+      matrix has; and making up for the delay the mixing adds by itself (a screen's
+      [video delay](features/screens.md#video-delay) holds the picture back, set by hand).
 
 ## To try, and see what happens
 

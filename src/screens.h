@@ -19,7 +19,9 @@
 //     finds it.
 //   - What it is sent out through: `output`. That is this computer's, since another
 //     computer has other things plugged in, and is in the app's own settings, under the
-//     screen's id. It is one of
+//     screen's id (and so is its video delay, which goes with what it is sent out through:
+//     ProPresenter keeps one with each output, in the file, for its own outputs, and that
+//     is left as it is). It is one of
 //         "window"   a small window of its own that floats over the operator window,
 //                    and can be made to fill whatever display it is put on;
 //         "display"  one of the computer's displays, by its name, filled;
@@ -34,10 +36,10 @@
 // its file as it was found, and is not gone by here.
 //
 // That an output is one of a few kinds, each with its own settings, is meant to be
-// added to: a video card, or a screen sent out with a delay, colour correction or its
-// corners pinned, would be more of the same. So is what a screen shows being its own:
-// each screen is drawn by itself (see the operator window, which makes one scene per
-// screen), which is what lets a look, later, give each its own layers.
+// added to: a screen's colour corrected, or its corners pinned, would be more of the
+// same, as the card's outputs and the video delay are. So is what a screen shows being
+// its own: each screen is drawn by itself (see the operator window, which makes one
+// scene per screen), which is what lets a look, later, give each its own layers.
 //
 // There is one of these, which QML reaches by its name.
 class Screens : public QObject
@@ -49,13 +51,14 @@ class Screens : public QObject
     //   { id, name, kind ("audience" or "stage"), first (of its kind), width, height,
     //     output, display, displayThere, ndiName, ndiWidth, ndiHeight, ndiRate,
     //     decklinkOutput, decklinkName, decklinkFormat, decklinkAlpha, decklinkKey,
-    //     decklinkBlend }
+    //     decklinkBlend, videoDelay }
     // `display` is the name of the display a "display" output fills and `displayThere`
     // whether one of that name is plugged in. The ndi ones are an "ndi" output's name
     // on the network, its size, and its frames a second as text ("30", "59.94"). The
     // decklink ones are a "decklink" output's card output (by DeckLink's id, and the name
     // it had), its format ("1080p29.97"), and its keying: alpha "none", "premultiplied"
-    // or "straight", key "internal" or "external", and the blend, 0 to 100.
+    // or "straight", key "internal" or "external", and the blend, 0 to 100. `videoDelay` is
+    // how many of its frames late it is shown (see OutputScene), 0 to delayline::kMostFrames.
     Q_PROPERTY(QVariantList screens READ screens NOTIFY changed)
     // Those of each kind
     Q_PROPERTY(QVariantList audience READ audience NOTIFY changed)
@@ -63,11 +66,15 @@ class Screens : public QObject
     // The stage layout ProPresenter's file gives each stage screen, by the ids of both:
     // what a stage screen starts with where nothing else is remembered for it
     Q_PROPERTY(QVariantMap layouts READ layouts NOTIFY changed)
-    // The computer's displays: { name, label, width, height }
+    // The computer's displays: { name, label, width, height, refresh (times a second) }
     Q_PROPERTY(QVariantList displays READ displays NOTIFY displaysChanged)
     // The frame rates an NDI output can be sent at, as text
     Q_PROPERTY(QStringList rates READ rates CONSTANT)
     Q_PROPERTY(int limit READ limit CONSTANT)
+    // The most frames a screen's video can be delayed by, and whether a delay can be made
+    // here at all (the app drawing with OpenGL: see FrameDelay)
+    Q_PROPERTY(int mostVideoDelay READ mostVideoDelay CONSTANT)
+    Q_PROPERTY(bool videoDelayPossible READ videoDelayPossible CONSTANT)
     // Whether what the screens are sent out through is read from the settings and kept
     // in them. A test or the self-test, which must not go by what was last set up on
     // this computer nor change it, has it off; set it before open().
@@ -83,6 +90,8 @@ public:
     QVariantList displays() const { return m_displays; }
     QStringList rates() const;
     int limit() const { return screenfile::limit; }
+    int mostVideoDelay() const;
+    bool videoDelayPossible() const;
 
     // Reads the screens of a workspace folder. Answers with what went wrong, or nothing.
     Q_INVOKABLE QString open(const QString &workspace);
@@ -99,6 +108,13 @@ public:
 
     // A frame rate as two whole numbers, as video counts it: "59.94" is 60000 over 1001.
     Q_INVOKABLE QVariantMap rateOf(const QString &rate) const;
+    // How long a frame of a screen is (as `screens` has it), in milliseconds, for its video
+    // delay, which is in its frames: a refresh of the display it fills (of the first, for a
+    // window, which can be anywhere), a frame of its NDI rate or of its card's format
+    Q_INVOKABLE double frameIntervalOf(const QVariantMap &screen) const;
+    // A refresh of the display of that name, in milliseconds (a sixtieth of a second for
+    // one not known): for a window, by the display it is on
+    Q_INVOKABLE double refreshIntervalOf(const QString &display) const;
 
 signals:
     void changed();

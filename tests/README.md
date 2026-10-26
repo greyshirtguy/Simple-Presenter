@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are forty-seven:
+So far there are forty-eight:
 
 | Test | What it tries |
 | --- | --- |
@@ -65,6 +65,7 @@ So far there are forty-seven:
 | `tst_audiosetupfile` | The app's channels of sound in ProPresenter's set-up file (`src/audiosetupfile.h`), on folders made for the purpose: what is read from a workspace with no file and from one as ProPresenter writes it (four channels, a device of six with its matrix, and an output for SDI and NDI); what each change writes; and that the rest of the file, the device and its matrix most of all, goes back as it came |
 | `tst_mediachannels` | How many channels of sound a file has (`src/mediachannels.h`), read from files made for the purpose: WAV files of two and of six channels (the second with its layout said, as a surround file says it), a file that is not media, and one that is not there |
 | `tst_framepacing` | When a screen playing a video draws what else moves on it (`src/framepacing.h`): how long a frame of the video lasts, from when they came, one late frame not counting; the moments after a frame for videos of the usual rates on a 60 Hz screen and on a 50 Hz one; and when a video counts as stopped |
+| `tst_delayline` | The rules of a screen's video delay (`src/delayline.h`): which picture held is shown when, on a screen of sixty frames a second, with a picture drawn at each frame or now and then, a little before or after its moment; when the next is due; how many to hold |
 
 **Adding one.** A part can be unit tested if it compiles without the windows: it takes
 what it needs as values and says what is to happen as values, where the code round it
@@ -322,6 +323,14 @@ but the handing over is the app's own: the menu, the formats, the alpha settings
 drawing, the reading back, starting and stopping, and two screens at once, drawn in the
 same passes and handed over together, halfway through a dissolve as much as after a
 change. Whether a real card takes what it is given is not tested here.
+
+`videodelay` gives the first audience screen a video delay of twelve frames in Settings →
+Screens: a picture of four colours put on the media layer reaches the output that much
+later, the right way up and only where the screen's scene is (the window's title bar
+still over it), while the operator's preview has it at once; taken off, it goes late
+too; at none, a change is at once again. Then a screen through a pretend card, which is
+drawn with its rows the other way up: delayed by the card's frames, and the right way up
+too.
 
 **What a run leaves.** A line for each test, and its failures:
 

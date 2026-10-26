@@ -1,6 +1,8 @@
 #include "screens.h"
 
 #include "decklinkformats.h"
+#include "delayline.h"
+#include "framedelay.h"
 #include "sessionlog.h"
 
 #include <QGuiApplication>
@@ -12,7 +14,8 @@ namespace {
 const QStringList outputKeys {QStringLiteral("output"), QStringLiteral("display"), QStringLiteral("ndiName"),
                               QStringLiteral("ndiWidth"), QStringLiteral("ndiHeight"), QStringLiteral("ndiRate"),
                               QStringLiteral("decklinkOutput"), QStringLiteral("decklinkName"), QStringLiteral("decklinkFormat"),
-                              QStringLiteral("decklinkAlpha"), QStringLiteral("decklinkKey"), QStringLiteral("decklinkBlend")};
+                              QStringLiteral("decklinkAlpha"), QStringLiteral("decklinkKey"), QStringLiteral("decklinkBlend"),
+                              QStringLiteral("videoDelay")};
 const QStringList outputKinds {QStringLiteral("window"), QStringLiteral("display"), QStringLiteral("ndi"), QStringLiteral("decklink"),
                                QStringLiteral("none")};
 
@@ -65,8 +68,48 @@ void Screens::readDisplays()
                           .arg(size.width()).arg(size.height())},
             {"width", size.width()},
             {"height", size.height()},
+            {"refresh", screen->refreshRate()},
         };
     }
+}
+
+int Screens::mostVideoDelay() const
+{
+    return delayline::kMostFrames;
+}
+
+bool Screens::videoDelayPossible() const
+{
+    return FrameDelay::possible();
+}
+
+double Screens::refreshIntervalOf(const QString &display) const
+{
+    for (const QScreen *screen : QGuiApplication::screens()) {
+        if (screen->name() == display && screen->refreshRate() > 0)
+            return 1000.0 / screen->refreshRate();
+    }
+    return 1000.0 / 60;
+}
+
+double Screens::frameIntervalOf(const QVariantMap &screen) const
+{
+    const QString output = screen.value("output").toString();
+    if (output == QLatin1String("ndi")) {
+        const QVariantMap rate = rateOf(screen.value("ndiRate").toString());
+        return 1000.0 * rate.value("denominator").toDouble() / qMax(1.0, rate.value("numerator").toDouble());
+    }
+    if (output == QLatin1String("decklink")) {
+        const decklinkformats::Format *format = decklinkformats::formatNamed(screen.value("decklinkFormat").toString());
+        return format ? decklinkformats::period(*format) / 1e6 : 1000.0 / 30;
+    }
+    double refresh = 0;
+    for (const QVariant &entry : m_displays) {
+        const QVariantMap display = entry.toMap();
+        if (refresh <= 0 || (output == QLatin1String("display") && display.value("name") == screen.value("display")))
+            refresh = display.value("refresh").toDouble();
+    }
+    return 1000.0 / (refresh > 0 ? refresh : 60.0);
 }
 
 QString Screens::open(const QString &workspace)
@@ -141,6 +184,7 @@ QVariantMap Screens::outputOf(const screenfile::Screen &screen, bool first) cons
         {"decklinkAlpha", alphas.contains(alpha) ? alpha : QStringLiteral("none")},
         {"decklinkKey", kept.value("decklinkKey").toString() == QLatin1String("internal") ? QStringLiteral("internal") : QStringLiteral("external")},
         {"decklinkBlend", qBound(0, kept.value("decklinkBlend", 100).toInt(), 100)},
+        {"videoDelay", qBound(0, kept.value("videoDelay", 0).toInt(), delayline::kMostFrames)},
     };
 }
 

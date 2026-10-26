@@ -20,9 +20,11 @@ import SimplePresenterApp
 Flickable {
     id: section
 
-    // What sends each screen that goes over NDI, by the screen's id (see NdiScreen): to
-    // say how that is going
+    // What sends each screen that goes over NDI or through a card, by the screen's id (see
+    // NdiScreen, DeckLinkScreen): to say how that is going. And what each audience screen is
+    // drawn with (an OutputScene, or the window it is in), for how long its frames are.
     property var senders: ({})
+    property var scenes: ({})
 
     // Something went wrong changing the list
     signal failed(string text)
@@ -303,6 +305,51 @@ Flickable {
                         value: row.screen.decklinkBlend
                         onEdited: (value) => Screens.setOutput(row.screen.id, { decklinkBlend: Math.round(value) })
                     }
+                }
+            }
+
+            // Its video delay, as ProPresenter's outputs have one: all of the screen shown so
+            // many of its frames late, to be level with sound heard late, or with a screen
+            // whose picture is late for what it goes through (see OutputScene). An audience
+            // screen's alone, for now: a stage screen is drawn as it is.
+            Row {
+                spacing: 8
+                visible: row.screen.kind === "audience" && row.screen.output !== "none"
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#9a9da3"
+                    font.pixelSize: 12
+                    text: "Video Delay"
+                }
+
+                NumberField {
+                    objectName: "screenVideoDelay"
+                    width: 56
+                    from: 0
+                    to: Screens.mostVideoDelay
+                    enabled: Screens.videoDelayPossible
+                    value: row.screen.videoDelay
+                    // (Kept once the field has done with the edit: keeping it makes the list of
+                    // screens again, and this row with it)
+                    onEdited: (value) => {
+                        const id = row.screen.id
+                        Qt.callLater(() => Screens.setOutput(id, { videoDelay: Math.round(value) }))
+                    }
+                }
+
+                Text {
+                    objectName: "screenVideoDelayWords"
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#9a9da3"
+                    font.pixelSize: 12
+                    // (By the frames the screen is drawn at, as its scene has them: a window's
+                    // are those of the display it is on, which only the window knows)
+                    readonly property var scene: section.scenes[row.screen.id] ?? null
+                    readonly property real frame: scene !== null && scene.frameInterval > 0 ? scene.frameInterval : Screens.frameIntervalOf(row.screen)
+                    text: !Screens.videoDelayPossible ? "The app is not drawing with OpenGL here, which a delay needs."
+                        : (row.screen.videoDelay === 1 ? "frame" : "frames")
+                          + (row.screen.videoDelay > 0 ? ", " + Math.round(row.screen.videoDelay * frame) + " ms" : "")
                 }
             }
 

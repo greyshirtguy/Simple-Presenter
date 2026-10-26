@@ -3221,6 +3221,7 @@ TESTS = {
     "sound": test("Demo"),
     "audio": test("Act", timeout=300, prepare=prepare_audio, after=after_audio),
     "mediaaudio": test("Act", timeout=240, prepare=prepare_audio),
+    "videodelay": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_quarters_picture),
     # (Settings remembered, in the test's own folder of them: where the channels go on the device is kept there.)
     "routing": test("Act", timeout=240, env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_audio, after=after_routing,
                     record=("test-sink-8", 8, ",".join("AUX%d" % n for n in range(8)))),
