@@ -124,20 +124,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.113: Sound on many channels, routed as in ProPresenter.** Up to sixteen channels of the app's own, sent to a sound device's channels by a Channel Routing matrix with Mute, Solo and a test tone for each; and each piece of media's channels sent to them by an Audio tab in the Media Inspector, with its ramps in and out and a volume for each channel. See [The app's channels](docs/features/audio.md#the-apps-channels).
 - **0.112: Smoother video under slide changes, as measured.** A cut is drawn once, and transitions, scrolling text and builds move by each screen's own refreshes, in step with a video playing under them, where Qt's own animations ran on a timer of their own; scrolling words go evenly. The stutter was slight and is rarer, not gone. See [How it is made](docs/how-it-is-made.md#built-for-modest-hardware).
 - **0.111: Screen Previews that move, and a guide.** A Screen Preview on a stage layout now changes by the screen's transitions, with its scrolling text and video inputs going, and so does the operator window's preview, each with a switch in Settings → Windows; and a ? at the right of the toolbar puts up the app in short: its own features, what it does not do, and its keys. See [Stage layouts](docs/features/stage-layouts.md#screen-preview) and [In short](docs/guide.md).
 - **0.110: Quicker drags in the editor, and slides disabled at a date.** A slider or a handle dragged in the editor takes half the work it did, every step in its frame on an old laptop; and Disable On… in a slide's menu has the slide disabled by itself at a day and a time. See [Editing](docs/features/editing.md) and [Disabled slides](docs/features/disabled-slides.md#at-a-date).
 - **0.109: The Calendar, scrolling text and disabled slides.** Events that take a playlist's presentation live or run a macro at their times, as ProPresenter's Calendar; a text box's words scrolling across or up and down it; and slides switched off from their menu, passed over by everything but a click. See [Calendar](docs/features/calendar.md), [Scrolling text](docs/features/scrolling-text.md) and [Disabled slides](docs/features/disabled-slides.md).
-- **0.108: Markers on the transport.** The transport's playback markers are small flags over its bar, dragged to move them and right-clicked for the same menu as in the Media Inspector; a marker moved while its media plays runs where it now is. See [Playback markers](docs/features/playback-markers.md).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.112_amd64.deb` from the
+`simplepresenter_0.113_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.112_amd64.deb
+sudo apt install ./simplepresenter_0.113_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

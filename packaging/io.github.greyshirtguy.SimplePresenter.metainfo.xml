@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.113" date="2026-10-26">
+      <description>
+        <p>
+          Sound on many channels, routed as in ProPresenter: up to sixteen channels of the
+          app's own, a Channel Routing matrix to the sound device's, and an Audio tab in the
+          Media Inspector with ramps and each channel's routing and volume.
+        </p>
+      </description>
+    </release>
     <release version="0.112" date="2026-10-24">
       <description>
         <p>

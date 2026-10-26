@@ -6,6 +6,23 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.113](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.113) · 2026-10-26
+
+- [The app's channels](docs/features/audio.md#the-apps-channels), as ProPresenter's: up to
+  sixteen of the app's own between what plays and the sound device. Settings → Audio has
+  Channels and Channel Routing, a matrix of the app's channels against the device's, with
+  M, S and T beside each, M and S over them all, and Mapping's Auto and Clear. The
+  channels, their names, Mute and Solo are kept in ProPresenter's file of the workspace;
+  where they go on a device is this computer's, for each device.
+- An Audio tab in the [Media Inspector](docs/features/media.md#the-media-inspector), for a
+  video with sound and a piece of the audio bin: Ramp In and Ramp Out, the media's
+  channels against the app's, and each channel's volume and mute, in ProPresenter's
+  fields; a change taken back leaves the file as it was.
+- The app mixes its own sound, all but a video input's, on a thread of its own: sound is
+  heard a little after its picture (about a tenth of a second on the tests' sound
+  device), and the meter shows what goes to the device. Building it needs FFmpeg's
+  libswresample as well.
+
 ## [0.112](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.112) · 2026-10-24
 
 - A video playing on the output stutters less as slides change over it, as measured: a
