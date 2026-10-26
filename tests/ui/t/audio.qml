@@ -224,13 +224,23 @@ QtObject {
                 check("a click on the button that clears the audio clears it: nothing is said to be playing", liveMusic === null && liveSounds.length === 0 && !audioLive)
                 check("and the button is grey again", !red(named("clearAudio")))
                 check("it goes out over the fade's length: it is still sounding for the moment", AudioLayer.voices >= 1, AudioLayer.voices)
-                // (Three-quarters of the way: the meter shows the loudest that was sent since it last looked, a tenth of
-                // a second before, and a fade's curve goes down slowly at first)
-                return 300
+                kept.looks = []
+                return 100
             },
             () => {
-                check("part of the way through the fade the meter is part of the way down", AudioMeter.sounding && AudioMeter.left < kept.meter - 0.01 && AudioMeter.left > 0.05, AudioMeter.left + " from " + kept.meter)
-                return 600
+                // (Looked at every 40 ms through the fade and after it. The meter shows the loudest that was sent to
+                // the device since it last looked, a tenth of a second before; what is sent is behind the fade by what
+                // the mixer keeps in hand, which for a piece of the audio bin, handed over 4096 frames at a time, is
+                // over a tenth of a second more; and a fade's curve goes down slowly at first. So the moment it is
+                // part of the way down moves, and one look at one moment was found too soon, on a busy computer.)
+                kept.looks.push(AudioMeter.sounding ? AudioMeter.left : -1)
+                if (kept.looks.length < 15) {
+                    --at
+                    return 40
+                }
+                check("part of the way through the fade the meter is part of the way down", kept.looks.some(v => v > 0.05 && v < kept.meter - 0.01),
+                      kept.meter.toFixed(2) + " then " + kept.looks.map(v => v.toFixed(2)).join(" "))
+                return 300
             },
             () => {
                 check("and then nothing sounds", AudioLayer.voices === 0, AudioLayer.voices)
