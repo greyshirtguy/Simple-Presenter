@@ -12,8 +12,8 @@ import "lib.js" as Lib
 // over a live slide, the first marker clearing the slide as playback reaches it and the second putting the prop on;
 // the transport's marks and its Marker menu, which takes the video to a marker and runs it once. On the stage: a text
 // box of a stage layout linked, in the editor, to the presentation's previous marker's name in its colour, showing
-// nothing before the first and "Lights" after it. The tone: its Inspector with Playback Markers alone, a marker
-// clearing the props as it plays. after_markers in run.py reads the bins' files.
+// nothing before the first and "Lights" after it. The tone: its Inspector with Audio and Playback Markers alone, a
+// marker clearing the props as it plays. after_markers in run.py reads the bins' files.
 QtObject {
     id: t
 
@@ -595,8 +595,9 @@ QtObject {
                 return 900
             },
             () => {
-                check("which has Playback Markers and nothing else", panel().open && panel().tab === "markers"
-                      && Lib.findAll(box(), i => String(i.objectName).startsWith("inspectorTab-")).map(i => i.objectName).join() === "inspectorTab-markers")
+                check("which has Audio and Playback Markers and nothing else, and opens on its markers", panel().open && panel().tab === "markers"
+                      && Lib.findAll(box(), i => String(i.objectName).startsWith("inspectorTab-")).map(i => i.objectName).join() === "inspectorTab-audio,inspectorTab-markers",
+                      Lib.findAll(box(), i => String(i.objectName).startsWith("inspectorTab-")).map(i => i.objectName).join())
                 panel().player.pause()
                 panel().player.position = 1000
                 return 500

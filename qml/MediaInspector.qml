@@ -33,8 +33,16 @@ import SimplePresenterApp
 //    Remove Action, Duplicate, Move to Playhead, Delete: the operator window's
 //    showMarkerMenu). The markers are drawn over the bar too, each a flag of its colour,
 //    which is dragged along it to move the marker (the player following, to show where it
-//    is going), clicked to take the player there, and right-clicked for its menu. A piece
-//    of the audio bin is inspected for its markers alone: it has that tab and no other.
+//    is going), clicked to take the player there, and right-clicked for its menu.
+//  - Audio, for a video or a piece of audio whose file has sound (as ProPresenter's,
+//    which is there only then): its Ramp In and Ramp Out, in seconds (none unless set);
+//    and its channels, a row each, against the app's channels (RoutingMatrix), a cell
+//    lit where the one goes to the other, Auto (by ProPresenter's rule) until a cell is
+//    clicked, with Mapping's Auto and Clear; and each channel's volume in decibels and
+//    its M. In ProPresenter's fields of the media (mediasettings::sound); a change of
+//    mind puts back exactly what was there (mediasettings::soundChange).
+//
+// A piece of the audio bin has the last two tabs and no others.
 //
 // Every change is kept as it is made, in the file, as the menus' changes are (a
 // slider's when it is let go: until then it is only shown). Done, Esc or a click outside
@@ -47,9 +55,12 @@ import SimplePresenterApp
 // and transport controls; tabs for Information (name, thumbnail with a custom one,
 // details), Properties (alignment, scaling, cropping, rotation, playback behaviour,
 // retrigger, in and out points, delay, play rate), Transition, Effects, Audio and
-// Playback Markers. Only what the maintainer asked for is here: not alignment, delay,
-// play rate, retrigger, the transition, the audio tab or markers. A GUESS: how all of it
-// is laid out, the words on the buttons, and that its own player is silent.
+// Playback Markers; and of its Audio tab ("Audio Routing in ProPresenter"), the media's
+// channels on the left and ProPresenter's along the top, Mapping with Auto and Clear, a
+// volume for each channel. Only what the maintainer asked for is here: not alignment,
+// delay, play rate, retrigger or the transition. A GUESS: how all of it is laid out, the
+// words on the buttons, that its own player is silent, and the Audio tab's ramps, M and
+// decibels (the help does not show them).
 Rectangle {
     id: panel
 
@@ -94,10 +105,27 @@ Rectangle {
     // Whether it plays for a time, and so has a bar to move along and markers on it
     readonly property bool timed: isVideo || isAudio
     readonly property var markers: media && timed ? (media.markers ?? []) : []
-    readonly property var tabChoices: isAudio ? [["markers", "Playback Markers"]]
+    // Its sound, as the file has it (mediasettings::sound), and as it was when the
+    // inspector was first opened on it since the app started, which a change of mind
+    // goes back to exactly; kept for each media by where it is and what file it is
+    readonly property var sound: settings.sound ?? ({})
+    property var openedSound: ({})
+    property var firstSounds: ({})
+    // How many channels of sound its file has, once that has been read (MediaChannels):
+    // a video with none has no Audio tab, as in ProPresenter
+    readonly property int soundChannels: Math.max(0, channelsOfFile.channels)
+    readonly property bool hasSound: timed && soundChannels > 0
+    readonly property var tabChoices: isAudio ? (hasSound ? [["audio", "Audio"]] : []).concat([["markers", "Playback Markers"]])
                                     : [["information", "Information"], ["properties", "Properties"], ["effects", "Effects"]]
+                                      .concat(isVideo && hasSound ? [["audio", "Audio"]] : [])
                                       .concat(isVideo ? [["markers", "Playback Markers"]] : [])
     readonly property real duration: previewPlayer.duration
+
+    MediaChannels {
+        id: channelsOfFile
+
+        path: panel.timed && panel.media && !panel.media.missing ? (panel.media.path ?? "") : ""
+    }
     readonly property real boxAspect: media && media.box && media.box.width > 0 && media.box.height > 0
                                       ? media.box.width / media.box.height : 16 / 9
     readonly property var effects: settings.effects ?? []
@@ -113,6 +141,7 @@ Rectangle {
         panel.about = about
         panel.keeper = keeper
         settings = media.settings ?? ({})
+        rememberSound()
         pending = ({})
         problem = ""
         renaming = ""
@@ -164,8 +193,10 @@ Rectangle {
             const otherFile = !media || again.path !== media.path
             media = again
             settings = again.settings ?? ({})
-            if (otherFile)
+            if (otherFile) {
+                rememberSound()
                 showFirstFrame()
+            }
         }
     }
 
@@ -177,6 +208,33 @@ Rectangle {
         settling = isVideo
         if (isVideo)
             previewPlayer.play()
+    }
+
+    // Its sound as it is shown, as a whole ({ custom, channels: [{ outputs, volume,
+    // muted }] for each of its file's channels }), changed by `edit` (a function given a
+    // copy to change), and kept: the changes made from it are worked out in C++, so that
+    // a channel put back as it was is as it was in the file (mediasettings::soundChange)
+    function setSound(edit) {
+        const routes = AudioMixer.mediaRoutes(sound, soundChannels)
+        const entries = sound.channels ?? []
+        const wanted = { custom: sound.custom === true, channels: [] }
+        for (let index = 0; index < soundChannels; ++index) {
+            const entry = entries.find(c => c.index === index) ?? {}
+            wanted.channels.push({ outputs: (routes[index] ?? []).slice(), volume: entry.volume ?? 0, muted: entry.muted === true })
+        }
+        edit(wanted)
+        change(AudioMixer.soundChange(openedSound, wanted))
+    }
+
+    function rememberSound() {
+        const key = JSON.stringify(keeper?.place ?? {}) + "|" + (media?.path ?? "")
+        if (!(key in firstSounds))
+            firstSounds[key] = settings.sound ?? ({})
+        openedSound = firstSounds[key]
+    }
+
+    function soundChannel(index) {
+        return (sound.channels ?? []).find(c => c.index === index) ?? ({})
     }
 
     // The effects with one changed by `edit`, a function given a copy of it to change
@@ -815,7 +873,7 @@ Rectangle {
                 width: parent.width
                 clip: true
                 contentHeight: (panel.tab === "information" ? information : panel.tab === "properties" ? properties
-                                : panel.tab === "markers" ? markersPage : effectsPage).height
+                                : panel.tab === "markers" ? markersPage : panel.tab === "audio" ? audioPage : effectsPage).height
                 boundsBehavior: Flickable.StopAtBounds
 
                 // -------- Information
@@ -1133,6 +1191,162 @@ Rectangle {
                             color: "#8d9097"
                             font.pixelSize: 12
                             text: panel.duration > 0 ? "Plays " + panel.clock(Math.max(0, panel.playsTo - panel.playsFrom)) + " of " + panel.clock(panel.duration) : ""
+                        }
+                    }
+                }
+
+                // -------- Audio: its ramps, and where each of its channels goes among the
+                // app's, with how loud each is, as ProPresenter's Audio tab (made only while
+                // it is the tab shown)
+                Loader {
+                    id: audioPage
+
+                    width: page.width
+                    active: panel.tab === "audio" && panel.hasSound
+                    visible: active
+
+                    sourceComponent: Column {
+                        width: page.width
+                        spacing: 10
+
+                        SectionTitle { text: "Ramps" }
+
+                        Grid {
+                            columns: 3
+                            rowSpacing: 8
+                            columnSpacing: 10
+
+                            Text { color: "#8d9097"; font.pixelSize: 13; height: 30; verticalAlignment: Text.AlignVCenter; text: "Ramp In" }
+
+                            NumberField {
+                                objectName: "inspectorRampIn"
+                                width: 80
+                                from: 0
+                                to: 600
+                                decimals: 1
+                                step: 0.5
+                                suffix: " s"
+                                value: panel.sound.rampIn ?? 0
+                                onEdited: (value) => panel.setSound(wanted => wanted.rampIn = value)
+                            }
+
+                            Text { color: "#8d9097"; font.pixelSize: 12; height: 30; verticalAlignment: Text.AlignVCenter; text: "from where it starts to play" }
+
+                            Text { color: "#8d9097"; font.pixelSize: 13; height: 30; verticalAlignment: Text.AlignVCenter; text: "Ramp Out" }
+
+                            NumberField {
+                                objectName: "inspectorRampOut"
+                                width: 80
+                                from: 0
+                                to: 600
+                                decimals: 1
+                                step: 0.5
+                                suffix: " s"
+                                value: panel.sound.rampOut ?? 0
+                                onEdited: (value) => panel.setSound(wanted => wanted.rampOut = value)
+                            }
+
+                            Text { color: "#8d9097"; font.pixelSize: 12; height: 30; verticalAlignment: Text.AlignVCenter; text: "before where it stops" }
+                        }
+
+                        SectionTitle { text: "Channels" }
+
+                        // (Sideways, for a workspace with more channels than there is room for)
+                        Flickable {
+                            width: parent.width
+                            height: mediaMatrix.implicitHeight
+                            contentWidth: mediaMatrix.implicitWidth
+                            clip: true
+                            flickableDirection: Flickable.HorizontalFlick
+                            boundsBehavior: Flickable.StopAtBounds
+
+                            RoutingMatrix {
+                                id: mediaMatrix
+
+                                objectName: "mediaMatrix"
+                                headerWidth: 200
+                                rows: panel.soundChannels
+                                columns: AudioMixer.channels.length
+                                routes: AudioMixer.mediaRoutes(panel.sound, panel.soundChannels)
+                                columnsTitle: "THE APP'S CHANNELS"
+                                onToggled: (row, column) => panel.setSound(wanted => {
+                                    const to = wanted.channels[row].outputs
+                                    wanted.custom = true
+                                    wanted.channels[row].outputs = to.includes(column) ? to.filter(c => c !== column) : to.concat([column])
+                                })
+
+                                corner: AppComboBox {
+                                    objectName: "mediaMapping"
+                                    width: 120
+                                    height: 26
+                                    font.pixelSize: 13
+                                    model: ["Auto", "Clear"]
+                                    currentIndex: -1
+                                    displayText: "Mapping"
+                                    onActivated: (index) => {
+                                        panel.setSound(wanted => {
+                                            wanted.custom = index === 1
+                                            if (index === 1)
+                                                wanted.channels.forEach(channel => channel.outputs = [])
+                                        })
+                                        currentIndex = -1
+                                    }
+                                }
+
+                                // Its number and what it is, how loud (in decibels: 0 is as
+                                // the file has it), and M to mute it
+                                rowHeader: Item {
+                                    id: soundRow
+
+                                    property int row: 0
+                                    readonly property var entry: panel.soundChannel(row)
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 56
+                                        elide: Text.ElideRight
+                                        color: "#e6e6e6"
+                                        font.pixelSize: 13
+                                        text: (soundRow.row + 1) + (channelsOfFile.names.length > soundRow.row ? "  " + channelsOfFile.names[soundRow.row] : "")
+                                    }
+
+                                    NumberField {
+                                        objectName: "channelVolume:" + soundRow.row
+                                        x: 60
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 84
+                                        height: 26
+                                        font.pixelSize: 12
+                                        from: -60
+                                        to: 12
+                                        decimals: 1
+                                        suffix: " dB"
+                                        value: soundRow.entry.volume ?? 0
+                                        onEdited: (value) => panel.setSound(wanted => wanted.channels[soundRow.row].volume = value)
+                                    }
+
+                                    IconButton {
+                                        objectName: "channelMuted:" + soundRow.row
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 22
+                                        height: 22
+                                        text: "M"
+                                        on: soundRow.entry.muted === true
+                                        onClicked: panel.setSound(wanted => wanted.channels[soundRow.row].muted = !on)
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            color: "#8d9097"
+                            font.pixelSize: 12
+                            text: (panel.sound.custom === true ? "Its own mapping: each of its channels goes to the app's lit beside it."
+                                                                 : "Auto: its first channel to the app's first, and so on, round again from the first for any beyond the app's last; one channel to the first two.")
+                                + " The app's channels go on to the sound device by Channel Routing, in the settings."
                         }
                     }
                 }

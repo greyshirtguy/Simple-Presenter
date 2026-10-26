@@ -129,6 +129,19 @@ QtObject {
                 check("the one that goes round says that", Lib.find(row("Round"), item => item.objectName === "audioRowPlayback").kind === "loop")
                 check("there is a button that clears the audio, grey with nothing to clear", named("clearAudio") !== null && !red(named("clearAudio")) && !audioLive)
                 check("and no meter in the preview", named("audioMeter").item === null && !AudioMeter.sounding)
+                // The pieces go to the app's third and fourth channels, as ProPresenter's file has them (and as the
+                // maintainer's own has every piece of its audio bin), and this workspace has four, as ProPresenter
+                // has it. The test's sound device has two, which the app's first two go to by Auto, and the others
+                // nowhere: so the third and fourth are sent to its two as well, as they would be for a stereo device.
+                AudioMixer.look()
+                check("the workspace's four channels, as ProPresenter's file has them", AudioMixer.channels.length === 4 && AudioMixer.channels[2].name === "Pro Channel 3"
+                      && AudioMixer.channels.every(c => !c.muted && !c.solo && !c.tone), JSON.stringify(AudioMixer.channels))
+                check("a sound device of two channels, which the first two go to by Auto, and the others nowhere", AudioMixer.deviceChannels === 2 && !AudioMixer.deviceRoutesOwn
+                      && JSON.stringify(AudioMixer.deviceRoutes) === "[[0],[1],[],[]]", AudioMixer.deviceName + ": " + JSON.stringify(AudioMixer.deviceRoutes))
+                AudioMixer.toggleRoute(2, 0)
+                AudioMixer.toggleRoute(3, 1)
+                check("the third and fourth sent to its two as well, by this computer's routing", AudioMixer.deviceRoutesOwn && JSON.stringify(AudioMixer.deviceRoutes) === "[[0],[1],[0],[1]]",
+                      JSON.stringify(AudioMixer.deviceRoutes))
                 testInput.grab("1-audio-bin")
                 kept.clickedAt = Date.now()
                 click(centre(row("Walk In")))
@@ -211,11 +224,13 @@ QtObject {
                 check("a click on the button that clears the audio clears it: nothing is said to be playing", liveMusic === null && liveSounds.length === 0 && !audioLive)
                 check("and the button is grey again", !red(named("clearAudio")))
                 check("it goes out over the fade's length: it is still sounding for the moment", AudioLayer.voices >= 1, AudioLayer.voices)
-                return 200
+                // (Three-quarters of the way: the meter shows the loudest that was sent since it last looked, a tenth of
+                // a second before, and a fade's curve goes down slowly at first)
+                return 300
             },
             () => {
                 check("part of the way through the fade the meter is part of the way down", AudioMeter.sounding && AudioMeter.left < kept.meter - 0.01 && AudioMeter.left > 0.05, AudioMeter.left + " from " + kept.meter)
-                return 700
+                return 600
             },
             () => {
                 check("and then nothing sounds", AudioLayer.voices === 0, AudioLayer.voices)

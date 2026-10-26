@@ -152,9 +152,13 @@ struct MediaBehaviour
     int playback = 0;
     int loopCount = 0;
     double loopSeconds = 0;
+    // Where a video's sound goes and how, where that is anything but as it is
+    // (audiorouting::soundOf); empty for nearly every video
+    QVariantMap sound;
 
     // For the maps the views are handed: `foreground`, `loops`, `retriggers`,
-    // `volume`, `playback`, `loopCount` and `loopSeconds`.
+    // `volume`, `playback`, `loopCount` and `loopSeconds`; and `sound` where it is not
+    // empty.
     void describe(QVariantMap *media) const;
 };
 MediaBehaviour mediaBehaviour(const rv::data::Action &action);

@@ -1,11 +1,15 @@
 #include "mediasettings.h"
 
+#include "audiorouting.h"
 #include "mediaeffects.h"
 
 #include <QColor>
+#include <QHash>
 #include <QUuid>
 
+#include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace mediasettings {
 
@@ -55,6 +59,164 @@ void setColor(rv::data::Color *to, const QColor &color)
 QString newId()
 {
     return QUuid::createUuid().toString(QUuid::WithoutBraces).toUpper();
+}
+
+// The sound of media that has it (a video, a piece of audio), its transport, or null for
+// what has none (a picture)
+const rv::data::Media::AudioProperties *audioOf(const rv::data::Media &media)
+{
+    if (media.has_video())
+        return &media.video().audio();
+    if (media.has_audio())
+        return &media.audio().audio();
+    return nullptr;
+}
+
+rv::data::Media::AudioProperties *mutableAudioOf(rv::data::Media *media)
+{
+    if (media->has_video())
+        return media->mutable_video()->mutable_audio();
+    if (media->has_audio())
+        return media->mutable_audio()->mutable_audio();
+    return nullptr;
+}
+
+const Transport *transportOf(const rv::data::Media &media)
+{
+    if (media.has_video())
+        return &media.video().transport();
+    if (media.has_audio())
+        return &media.audio().transport();
+    return nullptr;
+}
+
+Transport *mutableTransportOf(rv::data::Media *media)
+{
+    if (media->has_video())
+        return media->mutable_video()->mutable_transport();
+    if (media->has_audio())
+        return media->mutable_audio()->mutable_transport();
+    return nullptr;
+}
+
+// The keys of the sound, which media that has sound has and other media does not
+bool isSoundKey(const QString &key)
+{
+    return key == QLatin1String("audioCustom") || key == QLatin1String("audioChannels") || key == QLatin1String("rampIn")
+           || key == QLatin1String("rampOut") || key == QLatin1String("fadeIn") || key == QLatin1String("fadeOut");
+}
+
+// Whether a channel's entry says nothing: no volume, no mute, no outputs, and nothing
+// else that this app does not know of
+bool saysNothing(const rv::data::Media::Audio::Channel &channel)
+{
+    rv::data::Media::Audio::Channel bare;
+    bare.set_index(channel.index());
+    return channel.SerializeAsString() == bare.SerializeAsString();
+}
+
+// Changes the sound of the media by the sound keys of `changes`; an error, empty on
+// success, in which case nothing has been changed
+QString applySound(rv::data::Media *media, const QVariantMap &changes)
+{
+    rv::data::Media::AudioProperties *audio = mutableAudioOf(media);
+    Transport *transport = mutableTransportOf(media);
+    if (!audio || !transport)
+        return QStringLiteral("Only a video or a piece of audio has sound");
+    for (const char *key : {"rampIn", "rampOut"}) {
+        if (changes.contains(key) && (!changes.value(key).canConvert<double>() || changes.value(key).toDouble() < 0 || changes.value(key).toDouble() > 600))
+            return QStringLiteral("A ramp is a number of seconds, from none to ten minutes");
+    }
+    const QVariantList given = changes.value("audioChannels").toList();
+    for (const QVariant &each : given) {
+        const QVariantMap channel = each.toMap();
+        const int index = channel.value("index", -1).toInt();
+        if (index < 0 || index >= 64)
+            return QStringLiteral("There is no such channel of the media");
+        if (channel.value("remove").toBool())
+            continue;
+        if (channel.contains("volume") && (!std::isfinite(channel.value("volume").toDouble()) || channel.value("volume").toDouble() < -120
+                                           || channel.value("volume").toDouble() > 24))
+            return QStringLiteral("A channel's volume is a number of decibels");
+        for (const QVariant &output : channel.value("outputs").toList()) {
+            if (output.toInt() < 0 || output.toInt() >= audiorouting::kMostChannels)
+                return QStringLiteral("There is no such channel of the app");
+        }
+    }
+
+    // A ramp is its length, and its switch on. ProPresenter writes every media with both
+    // switches on and no length (every one in the maintainer's files, and so this app's
+    // new pieces of audio: audiocue::make), so a ramp taken off again is its length
+    // cleared and its switch left as it is, and the media is as it was.
+    if (changes.contains("rampIn")) {
+        const double seconds = changes.value("rampIn").toDouble();
+        if (seconds > 0)
+            transport->set_should_fade_in(true);
+        transport->set_fade_in_duration(seconds > 0 ? seconds : 0);
+    }
+    if (changes.contains("rampOut")) {
+        const double seconds = changes.value("rampOut").toDouble();
+        if (seconds > 0)
+            transport->set_should_fade_out(true);
+        transport->set_fade_out_duration(seconds > 0 ? seconds : 0);
+    }
+    // Both fields exactly, as they were (soundChange: a ramp put back)
+    if (changes.contains("fadeIn")) {
+        const QVariantMap fade = changes.value("fadeIn").toMap();
+        transport->set_should_fade_in(fade.value("on").toBool());
+        transport->set_fade_in_duration(fade.value("seconds").toDouble());
+    }
+    if (changes.contains("fadeOut")) {
+        const QVariantMap fade = changes.value("fadeOut").toMap();
+        transport->set_should_fade_out(fade.value("on").toBool());
+        transport->set_fade_out_duration(fade.value("seconds").toDouble());
+    }
+    if (changes.contains("audioCustom"))
+        audio->set_is_custom_mapping(changes.value("audioCustom").toBool());
+    QList<int> touched;
+    for (const QVariant &each : given) {
+        const QVariantMap wanted = each.toMap();
+        const int index = wanted.value("index").toInt();
+        if (wanted.value("remove").toBool()) {
+            auto *channels = audio->mutable_audio_channels();
+            for (int at = channels->size() - 1; at >= 0; --at) {
+                if (int((*channels)[at].index()) == index)
+                    channels->DeleteSubrange(at, 1);
+            }
+            continue;
+        }
+        rv::data::Media::Audio::Channel *channel = nullptr;
+        for (auto &candidate : *audio->mutable_audio_channels()) {
+            if (int(candidate.index()) == index)
+                channel = &candidate;
+        }
+        if (!channel) {
+            channel = audio->add_audio_channels();
+            channel->set_index(uint32_t(index));
+        }
+        touched.append(index);
+        if (wanted.contains("volume"))
+            channel->set_volume(wanted.value("volume").toDouble());
+        if (wanted.contains("muted"))
+            channel->set_muted(wanted.value("muted").toBool());
+        if (wanted.contains("outputs")) {
+            channel->clear_outputs();
+            for (const QVariant &output : wanted.value("outputs").toList())
+                channel->add_outputs()->set_channel_index(output.toInt());
+        }
+    }
+    // An entry this change has left saying nothing, where the media goes by Auto, is
+    // taken out: so that a change and its undoing leave the file as it was. (Only one
+    // this change touched: ProPresenter writes entries that say nothing of their own,
+    // and those are left as they are.)
+    if (!audio->is_custom_mapping()) {
+        auto *channels = audio->mutable_audio_channels();
+        for (int at = channels->size() - 1; at >= 0; --at) {
+            if (touched.contains(int((*channels)[at].index())) && saysNothing((*channels)[at]))
+                channels->DeleteSubrange(at, 1);
+        }
+    }
+    return {};
 }
 
 QVariantMap describeVariable(const rv::data::Effect::EffectVariable &variable)
@@ -347,14 +509,124 @@ QVariantMap describe(const rv::data::Media &media)
         {"effects", effects},
         {"drawn", cropped || turned != 0 || drawing.flipped_horizontally() || drawing.flipped_vertically()
                       || drawing.is_blurred() || effectDrawn},
+        {"sound", sound(media)},
+    };
+}
+
+QVariantMap soundChange(const QVariantMap &opened, const QVariantMap &wanted)
+{
+    const bool custom = wanted.value("custom").toBool();
+    const bool openedCustom = opened.value("custom").toBool();
+    QHash<int, QVariantMap> had;
+    for (const QVariant &each : opened.value("channels").toList()) {
+        const QVariantMap channel = each.toMap();
+        had.insert(channel.value("index").toInt(), channel);
+    }
+    const auto outputsOf = [](const QVariantMap &channel) {
+        QList<int> outputs;
+        for (const QVariant &output : channel.value("outputs").toList()) {
+            if (!outputs.contains(output.toInt()))
+                outputs << output.toInt();
+        }
+        std::sort(outputs.begin(), outputs.end());
+        return outputs;
+    };
+    QVariantList channels;
+    const QVariantList want = wanted.value("channels").toList();
+    for (int index = 0; index < want.size(); ++index) {
+        const QVariantMap channel = want[index].toMap();
+        const QList<int> outputs = outputsOf(channel);
+        const double volume = channel.value("volume").toDouble();
+        const bool muted = channel.value("muted").toBool();
+        const QVariantMap before = had.value(index);
+        // As it was when it was opened: put back as it was, or taken out if it was not
+        // there (where it goes counts only where it is the media's own)
+        const bool same = custom == openedCustom && (!custom || outputs == outputsOf(before)) && std::abs(volume - before.value("volume").toDouble()) < 1e-9
+                          && muted == before.value("muted").toBool();
+        if (same) {
+            channels.append(had.contains(index) ? QVariantMap {{"index", index}, {"outputs", before.value("outputs")}, {"volume", before.value("volume")}, {"muted", before.value("muted")}}
+                                                : QVariantMap {{"index", index}, {"remove", true}});
+            continue;
+        }
+        QVariantMap entry {{"index", index}, {"volume", volume}, {"muted", muted}};
+        if (custom) {
+            QVariantList list;
+            for (const int output : outputs)
+                list << output;
+            entry.insert("outputs", list);
+        } else if (openedCustom) {
+            // Auto, over a mapping of its own: what said where it went is taken off
+            entry.insert("outputs", QVariantList());
+        }
+        channels.append(entry);
+    }
+    QVariantMap changes {{"audioCustom", custom}, {"audioChannels", channels}};
+    // Its ramps, where they are given: one as it was is put back as it was, its switch
+    // and its length both (the app's own new media have the switches off, ProPresenter's
+    // on), and any other is a length
+    for (const auto &[ramp, fade] : {std::pair {"rampIn", "fadeIn"}, std::pair {"rampOut", "fadeOut"}}) {
+        if (!wanted.contains(ramp))
+            continue;
+        const double seconds = wanted.value(ramp).toDouble();
+        if (opened.contains(fade) && std::abs(seconds - opened.value(ramp).toDouble()) < 1e-9)
+            changes.insert(fade, opened.value(fade));
+        else
+            changes.insert(ramp, seconds);
+    }
+    return changes;
+}
+
+QVariantMap sound(const rv::data::Media &media)
+{
+    const rv::data::Media::AudioProperties *audio = audioOf(media);
+    const Transport *transport = transportOf(media);
+    if (!audio || !transport)
+        return {};
+    QVariantList channels;
+    for (const auto &channel : audio->audio_channels()) {
+        QVariantList outputs;
+        for (const auto &output : channel.outputs())
+            outputs.append(output.channel_index());
+        channels.append(QVariantMap{{"index", int(channel.index())}, {"volume", channel.volume()}, {"muted", channel.muted()}, {"outputs", outputs}});
+    }
+    return {
+        {"custom", audio->is_custom_mapping()},
+        {"channels", channels},
+        {"rampIn", transport->should_fade_in() ? transport->fade_in_duration() : 0.0},
+        {"rampOut", transport->should_fade_out() ? transport->fade_out_duration() : 0.0},
+        {"fadeIn", QVariantMap {{"on", transport->should_fade_in()}, {"seconds", transport->fade_in_duration()}}},
+        {"fadeOut", QVariantMap {{"on", transport->should_fade_out()}, {"seconds", transport->fade_out_duration()}}},
     };
 }
 
 QString apply(rv::data::Media *media, const QVariantMap &changes)
 {
+    // The sound first, which a piece of audio has and nothing else of these
+    QVariantMap others = changes;
+    bool anySound = false;
+    for (auto it = others.begin(); it != others.end();) {
+        if (isSoundKey(it.key())) {
+            anySound = true;
+            it = others.erase(it);
+        } else {
+            ++it;
+        }
+    }
     Drawing *drawing = mutableDrawingOf(media);
-    if (!drawing)
+    if (!drawing && !others.isEmpty())
         return QStringLiteral("Only a picture or a video has these settings");
+    if (anySound) {
+        rv::data::Media tried = *media;
+        const QString error = applySound(&tried, changes);
+        if (!error.isEmpty())
+            return error;
+        if (others.isEmpty()) {
+            *media = std::move(tried);
+            return {};
+        }
+    }
+    if (!drawing)
+        return {};
     const bool video = media->has_video();
 
     // Everything is looked at before anything is changed.
@@ -426,6 +698,9 @@ QString apply(rv::data::Media *media, const QVariantMap &changes)
         for (rv::data::Effect &effect : effects)
             *drawing->add_effects() = std::move(effect);
     }
+    // (Checked above, on a copy, and so made here without fail)
+    if (anySound)
+        applySound(media, changes);
     return {};
 }
 

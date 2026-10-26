@@ -80,9 +80,12 @@ struct Behaviour
     // how many seconds (0 for one that goes round for good, and for any other)
     int loopCount = 0;
     double loopSeconds = 0;
+    // Where its sound goes and how, where that is anything but as it is
+    // (audiorouting::soundOf); empty for nearly every piece
+    QVariantMap sound;
 
     // Adds to a row of a list what the row shows and what plays it: playback, effect,
-    // volume, duration, loopCount, loopSeconds.
+    // volume, duration, loopCount, loopSeconds; and sound where it is not empty.
     void describe(QVariantMap *row) const;
 };
 

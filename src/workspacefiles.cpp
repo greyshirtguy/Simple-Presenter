@@ -1,5 +1,6 @@
 #include "workspacefiles.h"
 
+#include "audiorouting.h"
 #include "sessionlog.h"
 
 #include "action.pb.h"
@@ -258,6 +259,8 @@ void MediaBehaviour::describe(QVariantMap *media) const
     media->insert("playback", playback);
     media->insert("loopCount", loopCount);
     media->insert("loopSeconds", loopSeconds);
+    if (!sound.isEmpty())
+        media->insert("sound", sound);
 }
 
 MediaBehaviour mediaBehaviour(const rv::data::Action &action)
@@ -278,6 +281,7 @@ MediaBehaviour mediaBehaviour(const rv::data::Action &action)
         const rv::data::Media::VideoTypeProperties &video = action.media().element().video();
         const double stored = video.has_audio() ? video.audio().volume() : 1;
         behaviour.volume = behaviour.foreground ? qBound(0.0, stored, 1.0) : 0;
+        behaviour.sound = audiorouting::soundOf(action.media().element());
     }
     return behaviour;
 }

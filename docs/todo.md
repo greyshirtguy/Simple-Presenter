@@ -46,8 +46,7 @@ the top of the [README](../README.md).
       ProPresenter's effects. Still to come: how
       loud (for now a rule: a background video is silent, a foreground one has its
       sound), its alignment, delay and play rate, a transition of its own, effect
-      presets, the two effects drawn from what is behind, the audio tab and playback
-      markers; for the audio bin's music as well as for media; and the inspector for
+      presets, the two effects drawn from what is behind; and the inspector for
       several pieces of media at once.
 - [ ] **Show controls**: the timers, the props, the stage layouts and the macros are
       there, for as many stage screens as are wanted. Still to come: more of what a
@@ -116,10 +115,17 @@ the top of the [README](../README.md).
 - [ ] **Calendar**: it is there (see [Calendar](features/calendar.md)). Still to come:
       ProPresenter's Capture, and leaving out one time of a repeating event.
 - [ ] **The audio bin**: it is there (see [Audio](features/audio.md)). Still to come: shuffling a
-      playlist; a hot key for a piece; where a piece starts and stops, how loud it
-      is, and its own fades, which ProPresenter's inspector sets and which are kept
-      in the file and, but for how loud, not gone by; and going round a number of
-      times or for a length of time, which is played and cannot be set.
+      playlist; a hot key for a piece; where a piece starts and stops, and how loud it
+      is, which ProPresenter's inspector sets and which are kept in the file and, but
+      for how loud, not gone by; and going round a number of times or for a length of
+      time, which is played and cannot be set.
+- [ ] **The app's channels**: they are there, and where media's channels and theirs go
+      (see [The app's channels](features/audio.md#the-apps-channels)). Still to come: a video
+      input's sound through them, with ProPresenter's routing for an input; sound out
+      through a DeckLink card and over NDI, which ProPresenter routes separately; the
+      level, delay and tone of each of the device's channels, which ProPresenter's
+      matrix has; and making up for the delay the mixing adds, by holding the picture
+      back to meet it.
 
 ## To try, and see what happens
 

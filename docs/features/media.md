@@ -49,9 +49,10 @@ here too: see below.)
 In the files this is what ProPresenter keeps: the layer a media action is on, and how
 its video plays on. Media set up there behaves here as it was set there.
 
-**Sound.** A foreground video is played with its sound, through the system's audio
-output or the device chosen for sound in the settings (see [Audio](audio.md)), at the
-volume ProPresenter has for it (full, unless it was turned down there).
+**Sound.** A foreground video is played with its sound, through the app's channels and
+on to the device chosen for sound in the settings (see [Audio](audio.md)), each of its
+channels where its Audio tab says, at the volume ProPresenter has for it (full, unless
+it was turned down there).
 A background video is silent, whatever sound its file has: it is there to be looked at
 behind the words. The sound follows the picture through a transition, fading in or
 out with a dissolve and starting or stopping at once with a cut. There is nowhere yet
@@ -144,8 +145,9 @@ be shown, in the shape of the screen (or of the element), with every setting as 
 set, effects and all; for a video, under it, a player of its own, silent, with play and
 pause (and the space bar), a bar to move through the video on, the time gone and the
 time left, the part of it that plays marked in blue under the bar and the moment its
-picture is taken from as a white mark over it. On the right are three tabs, and a
-fourth for a video, **Playback Markers** (see [Playback markers](playback-markers.md)):
+picture is taken from as a white mark over it. On the right are three tabs, and for a
+video **Audio**, when its file has sound, and **Playback Markers** (see [Playback
+markers](playback-markers.md)):
 
 - **Information**: where the file is, with **Show in Folder** (which opens the folder in
   the desktop's file manager, the file picked out where the file manager can do that)
@@ -171,6 +173,9 @@ fourth for a video, **Playback Markers** (see [Playback markers](playback-marker
   thirty-eight of them. Each is a pass over the media's pixels as it is drawn, which
   costs only media that has one; those that move by themselves (ripples, stars, an old
   film's flicker) are drawn at every frame while they are shown.
+- **Audio**: its Ramp In and Ramp Out, where each of its channels goes among the app's
+  channels, and how loud each is (see [The app's channels](audio.md#the-apps-channels)).
+  A piece of the audio bin has this tab and Playback Markers, and no other.
 
 Every change is saved to the file as it is made, as the menus' changes are, and is in
 the fields ProPresenter keeps it in, so the media looks the same in ProPresenter (and
@@ -197,9 +202,8 @@ equivalents and not copies, and will not match ProPresenter's pixel for pixel.
   frame cannot be its picture. ProPresenter writes -1 for none, and Automatic does too.
 - Not there: how loud a piece of media is, its alignment, delay and play rate, its own
   transition, effect presets, Background Blur and Background Invert (known, so that a
-  file keeps them, but not drawn: they work on what is behind the media), the audio tab,
-  playback markers, the inspector for the audio bin, and several pieces of media at
-  once. The editor's own thumbnails show media cropped, turned and flipped, but without
+  file keeps them, but not drawn: they work on what is behind the media), and several
+  pieces of media at once. The editor's own thumbnails show media cropped, turned and flipped, but without
   its effects.
 - Another file in its place keeps how the media was fitted, turned and flipped, its
   effects and how a video plays on, but not its crop, its trim or its picture's moment,

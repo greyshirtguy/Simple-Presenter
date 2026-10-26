@@ -10,8 +10,7 @@
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
-class AudioTap;
-class QAudioOutput;
+class AudioFeed;
 class QMediaDevices;
 class QMediaPlayer;
 
@@ -47,12 +46,17 @@ class QMediaPlayer;
 // one the audio bin's slider sets, a second unless changed, and it is the length of
 // the crossfade too.
 //
-// The device the sound goes to is here as well, for everything the app plays: the
-// pieces played here, and through `outputDevice` a video's sound (MediaContent.qml).
-// With none chosen, sound goes wherever the system sends it, and follows the system
-// if that changes. The system's devices are not asked after until something needs to
-// know (a device has been chosen, or the settings list them): asking means talking to
-// the system's sound service, which nothing should wait for as the app starts.
+// The choice of the device sound goes to is here as well, for everything the app plays,
+// which all goes through the app's own mixer (audiomixer.h): this tells it which, and it
+// opens it. With none chosen, sound goes wherever the system sends it, and follows the
+// system if that changes. The system's devices are not asked after until something
+// needs to know (a device has been chosen, or the settings list them): asking means
+// talking to the system's sound service, which nothing should wait for as the app
+// starts.
+//
+// A piece is played by a player of the system's with no audio output of its own: its
+// sound is handed to the mixer (AudioFeed), as loud as its row says times the fade it is
+// at, and where its media says its channels go.
 //
 // There is one of these, which QML reaches by its name.
 class AudioLayer : public QObject
@@ -66,12 +70,10 @@ class AudioLayer : public QObject
     Q_PROPERTY(double fade READ fade WRITE setFade NOTIFY fadeChanged)
     Q_PROPERTY(bool crossfade READ crossfade WRITE setCrossfade NOTIFY crossfadeChanged)
     // The device sound is played through: its id as the system has it, "" for wherever
-    // the system sends sound; that device, for a player made in QML; whether a device
-    // that was chosen is one the system has now (it may be unplugged); and the devices
-    // there are, { id, name, usual } each, `usual` marking the one the system would use
-    // itself.
+    // the system sends sound; whether a device that was chosen is one the system has now
+    // (it may be unplugged); and the devices there are, { id, name, usual } each, `usual`
+    // marking the one the system would use itself.
     Q_PROPERTY(QString device READ device WRITE setDevice NOTIFY deviceChanged)
-    Q_PROPERTY(QAudioDevice outputDevice READ outputDevice NOTIFY deviceChanged)
     Q_PROPERTY(bool deviceFound READ deviceFound NOTIFY deviceChanged)
     Q_PROPERTY(QVariantList devices READ devices NOTIFY devicesChanged)
     // How far through the music that is playing is, and how long it is, in seconds
@@ -97,7 +99,6 @@ public:
     void setCrossfade(bool on);
     QString device() const { return m_device; }
     void setDevice(const QString &id);
-    QAudioDevice outputDevice();
     bool deviceFound();
     QVariantList devices();
     double musicPosition() const;
@@ -139,8 +140,8 @@ private:
         QString name;
         QString playback;
         QMediaPlayer *player = nullptr;
-        QAudioOutput *output = nullptr;
-        AudioTap *tap = nullptr;
+        // Its sound, to the app's mixer
+        AudioFeed *feed = nullptr;
         // How loud its row says it is, and the fade it is at: from `from` to `to`
         // over `fadeMs` from when `fading` was started
         double volume = 1;

@@ -1174,6 +1174,63 @@ def prepare_notes(workspace, test_dir):
         out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
 
 
+def after_routing(workspace, test_dir):
+    """What the routing test left: the workspace's channels in ProPresenter's file, and nothing else of it changed; where
+    they go on the device in the app's settings; and what was heard on which of the device's eight channels, from the
+    recording of it (see test(): `record`). The tone was on the app's first channel, which went to the device's fifth;
+    the piece was on the app's third and fourth, of which the third went to the device's eighth and the fourth was
+    muted. So sound on the fifth (a tone of 1 kHz) and the eighth (the piece's note, 440 Hz), and on no other."""
+    import array
+    import math
+
+    lines = []
+
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.ProPresenterWorkspace", "proworkspace.proto", source.read()).decode()
+
+    now = decoded(os.path.join(workspace, "Configuration", "Workspace"))
+    was = decoded(os.path.join(FIXTURES, "workspaces", "Act", "Configuration", "Workspace"))
+    bus = re.compile(r"^  buses \{\n.*?^  \}\n", re.S | re.M)
+    buses = bus.findall(now)
+    named = [re.search(r'name: "([^"]*)"', b).group(1) for b in buses]
+    lines.append(said(named == ["Pro Channel 1", "Band", "Pro Channel 3", "Pro Channel 4", "Channel 5", "Channel 6"],
+                      "in the workspace's file: six channels, the second renamed and two added with the app's names for them", " | ".join(named)))
+    muted = [i for i, b in enumerate(buses) if "muted: true" in b]
+    lines.append(said(muted == [3] and not any("solo: true" in b or "test_tone: true" in b for b in buses),
+                      "in the workspace's file: the fourth muted, none soloed, and no tone written", muted))
+    lines.append(said(bus.sub("", now) == bus.sub("", was), "in the workspace's file: everything else as ProPresenter wrote it, the device and its matrix among it"))
+    with open(os.path.join(test_dir, "config", "SimplePresenter", "SimplePresenter.conf")) as settings:
+        kept = settings.read()
+    # (As it was set, for the four there were then: the two added since go nowhere, which is what is not said)
+    lines.append(said(re.search(r'^routes\\[A-Za-z0-9_-]+="4;;7;"$', kept, re.M) is not None,
+                      "in the app's settings: where the channels go on that device, as this computer's", re.findall(r"^routes.*$", kept, re.M)))
+
+    path = os.path.join(test_dir, "recording.raw")
+    data = array.array("f")
+    with open(path, "rb") as source:
+        raw = source.read()
+    data.frombytes(raw[: len(raw) // 32 * 32])
+    frames = len(data) // 8
+    loud = []
+    pitch = {}
+    for channel in range(8):
+        samples = data[channel::8]
+        rms = math.sqrt(sum(s * s for s in samples) / max(1, frames))
+        if rms > 0.003:
+            loud.append(channel + 1)
+            # Its pitch, from how often it crosses nought where it is sounding
+            sounding = [s for s in samples if abs(s) > 0.0]
+            crossings = sum(1 for a, b in zip(sounding, sounding[1:]) if (a < 0) != (b < 0))
+            seconds = sum(1 for s in samples if abs(s) > 0.02) / 48000.0
+            pitch[channel + 1] = crossings / 2 / max(seconds, 0.001)
+    lines.append(said(frames > 48000 * 5, "the device was recorded all through", "%.1f s" % (frames / 48000.0)))
+    lines.append(said(loud == [5, 8], "heard on the device's fifth and eighth channels, and on no other", loud))
+    lines.append(said(5 in pitch and 8 in pitch and pitch[5] > pitch[8] * 1.5,
+                      "the tone on the fifth, the piece's lower note on the eighth", {c: round(p) for c, p in pitch.items()}))
+    return lines
+
+
 def after_notes(workspace, test_dir):
     """What the notes and the links left in the files, read with protoc and not by the app: the song as the test kept
     it at each step (song-before, song-bold and the song-link-… copies) and the stage layouts against the fixture's."""
@@ -2969,9 +3026,12 @@ def after_reflow(workspace, test_dir):
     ]
 
 
-def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1):
+def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1, record=None):
+    """`record`, for a test on the desktop: one of the private audio's sinks (tests/ui/audio), (its name, its channels,
+    their positions), whose sound is recorded all the while the app runs, into the test's folder as recording.raw
+    (32-bit floating point, 48 kHz, the sink's channels side by side), for `after` to say what was heard on which."""
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
-            "monitors": monitors}
+            "monitors": monitors, "record": record}
 
 
 # ---- Bible mode: a made-up Bible, and a stand-in for api.bible
@@ -3160,6 +3220,10 @@ TESTS = {
     "log": test("Demo"),
     "sound": test("Demo"),
     "audio": test("Act", timeout=300, prepare=prepare_audio, after=after_audio),
+    "mediaaudio": test("Act", timeout=240, prepare=prepare_audio),
+    # (Settings remembered, in the test's own folder of them: where the channels go on the device is kept there.)
+    "routing": test("Act", timeout=240, env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_audio, after=after_routing,
+                    record=("test-sink-8", 8, ",".join("AUX%d" % n for n in range(8)))),
     "notes": test("Act", timeout=300, prepare=prepare_notes, after=after_notes),
     "messages": test("Act", timeout=300, prepare=prepare_messages, after=after_messages),
     "screenpreview": test("Act", timeout=240, prepare=prepare_red_picture),
@@ -3390,6 +3454,16 @@ def run_on(name, binary, run_dir, desktop, cache):
     # (A value may name the test's own folder, as "<test>": a made-up system it is to be shown, say.)
     env.update({name: value.replace("<test>", test_dir) for name, value in recipe["env"].items()})
     command = [binary, "--workspace", workspace, "--script", script, "--frames", frames]
+    recording = None
+    if recipe["record"] and recipe["drawn"] == SHELL:
+        # By PipeWire's own recorder, from the sink itself, with its channels in its own order: told any other order
+        # (or recorded through PulseAudio's way to it, parec), it moves them about to suit itself, which is not what
+        # the app sent. (Found 2026-10-25, when every channel seemed to be wrong.)
+        sink, channels, positions = recipe["record"]
+        recording = subprocess.Popen(["pw-record", "--target", sink, "-P", "{ stream.capture.sink = true }", "--channels", str(channels),
+                                      "--channel-map", positions, "--format", "f32", "--rate", "48000", "--raw", os.path.join(test_dir, "recording.raw")],
+                                     env=dict(os.environ, **desktop.env()), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(0.5)
     try:
         done = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=recipe["timeout"])
         output = done.stdout.decode(errors="replace")
@@ -3397,6 +3471,10 @@ def run_on(name, binary, run_dir, desktop, cache):
         # (A failure, whether the script had ended or not: an app that does not quit when it is told to is one, as
         # the Calendar's window once kept it running with no windows)
         output = (late.stdout or b"").decode(errors="replace") + "\n  FAILED  TIMED OUT after %d seconds: the app had not quit\n" % recipe["timeout"]
+    finally:
+        if recording:
+            recording.terminate()
+            recording.wait()
     lines = [line for line in output.splitlines() if not NOISE.search(line)]
     if recipe["after"]:
         try:

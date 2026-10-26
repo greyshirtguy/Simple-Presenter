@@ -1030,8 +1030,84 @@ Rectangle {
                         color: "#9a9da3"
                         font.pixelSize: 13
                         text: "This is for everything the app plays: the music and the sound effects of the audio bin, and the sound "
-                            + "of a video. What is playing goes over to a newly chosen device at once, but for a video, which goes "
-                            + "over when it is next started. How loud each is on that device is the system's to set."
+                            + "of a video. What is playing goes over to a newly chosen device at once. How loud each is on that "
+                            + "device is the system's to set."
+                    }
+
+                    Text {
+                        topPadding: 14
+                        color: "#8d9097"
+                        font.pixelSize: 11
+                        font.bold: true
+                        text: "THE APP'S CHANNELS"
+                    }
+
+                    // How many channels the app has (ProPresenter's channel count, up to
+                    // sixteen), and the window that sends them to the device's
+                    Row {
+                        spacing: 10
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 110
+                            color: "#b0b3b8"
+                            font.pixelSize: 13
+                            text: "Channels"
+                        }
+
+                        NumberField {
+                            objectName: "audioChannelCount"
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 70
+                            from: 1
+                            to: AudioMixer.most
+                            value: AudioMixer.channels.length
+                            onEdited: (value) => channelProblem.text = AudioMixer.setChannelCount(Math.round(value))
+                        }
+
+                        AppButton {
+                            objectName: "channelRouting"
+                            anchors.verticalCenter: parent.verticalCenter
+                            height: 30
+                            font.pixelSize: 13
+                            text: "Channel Routing"
+                            onClicked: {
+                                routingWindow.active = true
+                                routingWindow.item.open()
+                            }
+                        }
+                    }
+
+                    Text {
+                        id: channelProblem
+
+                        objectName: "audioChannelProblem"
+                        width: parent.width
+                        visible: text !== ""
+                        wrapMode: Text.Wrap
+                        color: "#ff8a80"
+                        font.pixelSize: 13
+                    }
+
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        color: "#9a9da3"
+                        font.pixelSize: 13
+                        text: "Up to " + AudioMixer.most + ", as in ProPresenter. Everything the app plays is sent to these, each "
+                            + "piece as its media says (in its Media Inspector, under Audio), and they go on to the device's "
+                            + "own channels as Channel Routing sends them: by Auto, the first to the first and so on, as far "
+                            + "as the device has channels."
+                    }
+
+                    // (Made the first time it is opened)
+                    Loader {
+                        id: routingWindow
+
+                        active: false
+                        sourceComponent: AudioRouting {
+                            parent: Overlay.overlay
+                        }
                     }
                 }
             }

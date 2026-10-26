@@ -15,14 +15,14 @@ import SimplePresenterApp
 // (workspace::MediaBehaviour in src/workspacefiles.h, and src/mediasettings.h), and
 // what is here only does as it is told.
 //
-// A video's sound goes to the system's own audio output. It rises and falls with the
-// picture: the layer says how much of this instance is on show (`level`), which a
-// transition takes from nothing to all of it or back, and the sound is played that
-// much quieter. So a video dissolving in or out fades in or out to the ear as well,
-// and one that is cut to or from starts or stops at once. A video with no sound to
-// play is given no audio output at all, and costs nothing for it. Where a device has
-// been chosen for sound in the settings, it is played through that one (AudioLayer has
-// it); and what is played is handed to the meter in the preview as it goes (AudioTap).
+// A video's sound goes to the app's own mixer (AudioFeed: see src/audiomixer.h), which
+// sends it to the app's channels as its media says (or by ProPresenter's Auto), and
+// them to the device chosen in the settings; and comes in and goes out by its ramps. It
+// rises and falls with the picture: the layer says how much of this instance is on show
+// (`level`), which a transition takes from nothing to all of it or back, and the sound is
+// played that much quieter. So a video dissolving in or out fades in or out to the ear as
+// well, and one that is cut to or from starts or stops at once. A video with no sound to
+// play is given nothing to send it to, and its player does not decode its sound at all.
 //
 // The image or the video is made when there is content and unmade when there is none,
 // so that a layer with nothing on it holds no decoder and no picture. That is how a
@@ -77,6 +77,9 @@ Item {
     // The MediaPlayer playing the video while one is showing, else null: what a
     // transport control works
     readonly property var player: content !== null && content.video && loader.item ? loader.item.player : null
+    // What its sound is handed to the mixer through (an AudioFeed) while a video with
+    // sound to be heard is showing, else null: how loud it is played is that one's
+    readonly property var feed: content !== null && content.video && loader.item ? loader.item.feed : null
 
     Loader {
         id: loader
@@ -130,6 +133,7 @@ Item {
 
             readonly property var videoSink: output.videoSink
             readonly property var player: mediaPlayer
+            readonly property var feed: sound.item
             // Once the first frame is there to be seen, or the file has turned out not
             // to play
             readonly property bool ready: firstFrame.arrived || failed
@@ -188,8 +192,8 @@ Item {
 
                 source: root.content?.source ?? ""
                 videoOutput: output
-                audioOutput: sound.item ? sound.item.output : null
-                audioBufferOutput: sound.item ? sound.item.tap.output : null
+                // (No audio output: its sound, if it is to be heard, is handed to the
+                // mixer by `sound`, below, which gives the player what to send it to.)
                 loops: root.content?.loops === false || movie.trimmed ? 1
                      : root.content?.playback === 2 ? Math.max(1, root.content.loopCount) : MediaPlayer.Infinite
                 onErrorOccurred: (error, errorString) => {
@@ -288,25 +292,18 @@ Item {
 
                 active: movie.volume > 0
 
-                sourceComponent: QtObject {
-                    readonly property AudioOutput output: AudioOutput {
-                        objectName: "mediaSound"
-                        volume: movie.volume * root.level
-                    }
-                    // How loud it is, for the meter: as loud as it is played here,
-                    // while it is playing.
-                    readonly property AudioTap tap: AudioTap {
-                        gain: movie.volume * root.level
-                        playing: mediaPlayer.playbackState === MediaPlayer.PlayingState
-                    }
-                    // (Only where a device has been chosen: otherwise the output is
-                    // left to go where the system sends sound, and to follow it.)
-                    readonly property Binding chosen: Binding {
-                        target: output
-                        property: "device"
-                        value: AudioLayer.outputDevice
-                        when: AudioLayer.device !== ""
-                    }
+                sourceComponent: AudioFeed {
+                    objectName: "mediaSound"
+                    player: mediaPlayer
+                    name: movie.name
+                    gain: movie.volume * root.level
+                    playing: mediaPlayer.playbackState === MediaPlayer.PlayingState
+                    // Where its channels go, how loud each is, and its ramps
+                    // (audiorouting::soundOf); nothing for nearly every video
+                    sound: root.content?.sound ?? ({})
+                    // Where it stops, for a ramp out: its out point, or the end of its
+                    // file; nowhere for one that goes round
+                    endAt: root.content?.loops === true ? 0 : movie.outAt > 0 ? movie.outAt / 1000 : -1
                 }
             }
 
@@ -349,7 +346,7 @@ Item {
                     const heard = tracks === 0 ? "no sound in the file"
                                 : movie.volume <= 0 ? "its sound not played"
                                 : "its sound played" + (movie.volume < 1 ? " at " + Math.round(movie.volume * 100) + "%" : "")
-                                  + " through " + (sound.item.output.device.description || "no audio output")
+                                  + " through " + (AudioMixer.deviceName || "no sound device")
                     Log.note("media", "video \"" + movie.name + "\": first picture after " + Math.round(Date.now() - movie.askedAt) + " ms; "
                              + description + (codec ? "; " + codec : "") + (rate > 0 ? ", " + (+rate.toFixed(2)) + " frames a second" : "")
                              + (mediaPlayer.duration > 0 ? ", " + (mediaPlayer.duration / 1000).toFixed(1) + " s long" : "")
@@ -366,6 +363,7 @@ Item {
         Item {
             readonly property var videoSink: output.videoSink
             readonly property var player: null
+            readonly property var feed: null
             // Once a frame has been handed over; or, the scene that plays it having none
             // to hand over after a while (the file will not play), without one, so that
             // this screen is not left showing what was there before.

@@ -241,6 +241,10 @@ public:
     // sound effect and not music (see audiocue.h). They are the row's own.
     Q_INVOKABLE QString setAudioPlayback(const QString &item, const QString &playback);
     Q_INVOKABLE QString setAudioEffect(const QString &item, bool effect);
+    // What a row's Media Inspector sets of its sound, and all of its settings (of which
+    // only the sound means anything for a piece of audio: src/mediasettings.h)
+    Q_INVOKABLE QString setAudioItemSettings(const QString &item, const QVariantMap &changes);
+    Q_INVOKABLE QVariantMap audioItemSettings(const QString &item) const;
     // Selects the named arrangement in the presentation file, or none for "", and saves
     // the file. Returns an error message, empty on success.
     Q_INVOKABLE QString setArrangement(const QString &path, const QString &arrangement);

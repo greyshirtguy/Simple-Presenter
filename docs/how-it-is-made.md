@@ -202,6 +202,8 @@ the whole of it).
 **Unit tests** try the parts of the app that are plain rules, by themselves, with no
 window and no workspace: the rules of the show (`src/showstate.*`), chords, the screens,
 the looks and the masks in ProPresenter's file, how a piece of audio plays and how loud it is,
+where sound goes (the app's channels in ProPresenter's file, a media's, and the app's own
+mixer, a stretch at a time),
 search, how a date and a time are written, the matching of themes, and Bibles, from
 reading a passage as it is typed to sharing it out across slides. They are
 built with the app and take a few milliseconds:
@@ -211,7 +213,8 @@ ctest --test-dir build
 ```
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
-and look at what its windows then hold and show: seventy-one scripts and some three
+and look at what its windows then hold and show (and, for sound, what a sound device of
+eight channels was sent, recorded): seventy-three scripts and some three
 thousand checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -238,8 +241,13 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/presentationeditor.*` | A presentation, the props, the stage layouts or a theme open in the editor: its changes (a song's chords among them), undo, saving and backups |
 | `src/playlistfile.*` | Reads and writes the three playlists files: of presentations, of media, and of the audio bin |
 | `src/audiocue.*` | How a piece of audio plays, as ProPresenter's files say it: read from a row of the audio bin or an action, and changed there |
-| `src/audiolayer.*` | What plays the audio layer: the music and the sound effects, their fades and crossing, and the device sound goes to |
+| `src/audiolayer.*` | What plays the audio layer: the music and the sound effects, their fades and crossing, and the choice of the device sound goes to |
 | `src/audiometer.*`, `src/audiolevel.*` | The meter of what is being played, and the arithmetic of sound: how loud a stretch of it is, what a meter shows of that, how a fade goes |
+| `src/audiorouting.*` | Where sound goes, as plain rules: ProPresenter's Auto for media and for a device, matrices clicked, Mute and Solo, a channel's decibels, the ramps, and what a player is told of a media's sound |
+| `src/audiosetupfile.*` | The app's channels in ProPresenter's file of how the workspace is set up: how many, their names, Mute and Solo |
+| `src/audiomix.*` | The app's own mixer, with nothing of a device or a player in it: each player's sound brought to the device's rate and kept in step with it, mixed into the app's channels and on to the device's |
+| `src/audiomixer.*` | The mixer's device, on a thread of its own, the app's channels and where they go on this computer's devices; and a player's sound handed to it (AudioFeed) |
+| `src/mediachannels.*` | How many channels of sound a file has, and what they are, read off the operator window's thread, for the Media Inspector's Audio tab |
 | `src/audioprobe.*` | How long a sound file is, read from it as it is added to the audio bin |
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/clocks.*`, `src/clocktext.*` | The time of day and the time a video has left, for text boxes linked to them, kept going only while one is shown; and how a date and a time are written |
@@ -329,6 +337,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/TransitionLayer.qml`, `qml/MediaContent.qml` | One output layer with shader transitions, and what the media layer shows on it |
 | `qml/MediaLook.qml`, `qml/MediaEffects.qml` | A piece of media drawn as its Media Inspector sets it, and its effects |
 | `qml/MediaInspector.qml`, `qml/QuickEdit.qml` | The Media Inspector, and Quick Edit of a slide's words |
+| `qml/AudioRouting.qml`, `qml/RoutingMatrix.qml` | The Channel Routing window of the settings, and the matrix it and the Media Inspector's Audio tab draw |
 | `qml/PropsLayer.qml` | The props that are on, over the other layers; and, over those, the messages that are shown |
 | `qml/AnnouncementLayer.qml` | The announcements layer of a screen: a slide over media of its own |
 | `qml/GoToNextPanel.qml` | The panel the seconds of a Go To Next Timer, or of a Slide Show, are typed in |

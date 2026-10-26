@@ -3,8 +3,8 @@ import QtMultimedia
 import SimplePresenterApp
 import "lib.js" as Lib
 
-// A video's sound: a background is played silently and a foreground with its sound, which rises and falls with the
-// picture in a transition.
+// A video's sound: a background is played silently and a foreground with its sound, handed to the app's mixer and
+// heard, which rises and falls with the picture in a transition.
 QtObject {
     id: t
 
@@ -15,14 +15,24 @@ QtObject {
         interval: 100
         repeat: true
         onTriggered: {
-            // (The output goes with its player once the dissolve is done.)
-            if (t.kept.sound && t.kept.sound.volume !== undefined)
-                t.levels.push(+t.kept.sound.volume.toFixed(2))
+            // (The feed goes with its player once the dissolve is done.)
+            if (t.kept.sound && t.kept.sound.gain !== undefined)
+                t.levels.push(+t.kept.sound.gain.toFixed(2))
         }
     }
 
     function row() {
         return mediaFiles.find(m => m.name === "i-with-sound.mp4")
+    }
+
+    function logged(pattern) {
+        return testInput.readText(Log.path).split("\n").filter(line => pattern.test(line))
+    }
+
+    // What hands the sound of the video `p` plays to the mixer, if anything does
+    function feedOf(p) {
+        const shown = Lib.findAll(output.contentItem, item => item.feed !== undefined && item.player === p)
+        return shown.length > 0 ? shown[0].feed : null
     }
 
     function run() {
@@ -39,7 +49,8 @@ QtObject {
             },
             () => {
                 check("the background plays", player() !== null && player().playbackState === MediaPlayer.PlayingState && player().position > 300, player() ? player().position : "none")
-                check("with nothing to be heard through", player().audioOutput === null)
+                check("with nothing to be heard through: no sound output, and its sound not handed to the mixer", player().audioOutput === null && player().audioBufferOutput === null
+                      && feedOf(player()) === null)
                 check("though the file has sound in it", player().audioTracks.length === 1, player().audioTracks.length)
                 setMediaItemForeground(row().id, true)
                 check("made a foreground, it is to be played with its sound, at full", row().foreground === true && row().volume === 1 && row().loops === false, JSON.stringify([row().foreground, row().volume, row().loops]))
@@ -48,11 +59,17 @@ QtObject {
             },
             () => {
                 check("the foreground plays", player() !== null && player().playbackState === MediaPlayer.PlayingState && player().position > 300, player() ? player().position : "none")
-                check("through a sound output at full volume", player().audioOutput !== null && Math.abs(player().audioOutput.volume - 1) < 0.001, player().audioOutput ? player().audioOutput.volume : "none")
-                check("and the log says so", /i-with-sound\.mp4": first picture.*its sound played through/.test(testInput.readText(Log.path).split("\n").filter(l => l.includes("first picture")).pop()),
+                check("its sound handed to the mixer at full, and no sound output of its own", player().audioOutput === null && player().audioBufferOutput !== null
+                      && feedOf(player()) !== null && Math.abs(feedOf(player()).gain - 1) < 0.001, feedOf(player()) ? feedOf(player()).gain : "none")
+                // The file's sound is of one channel, at its loudest 13 dB down: heard on both sides alike.
+                check("and heard: the meter has it, both bars well up and level with each other", AudioMeter.sounding && AudioMeter.left > 0.5
+                      && Math.abs(AudioMeter.left - AudioMeter.right) < 0.02, AudioMeter.left + " and " + AudioMeter.right)
+                check("and the log says so", /i-with-sound\.mp4": first picture.*its sound played through Test sink/.test(testInput.readText(Log.path).split("\n").filter(l => l.includes("first picture")).pop()),
                       testInput.readText(Log.path).split("\n").filter(l => l.includes("first picture")).pop())
+                check("and how far behind its picture it is heard", logged(/The sound of "i-with-sound\.mp4" is heard about \d+ ms after it is played/).length === 1,
+                      logged(/is heard about/).join(" | "))
                 // A long dissolve to a silent background: the foreground's sound goes down with its picture.
-                kept.sound = player().audioOutput
+                kept.sound = feedOf(player())
                 kept.foregroundPlayer = player()
                 selectTransition("Dissolve")
                 transitionDuration = 2
@@ -64,7 +81,7 @@ QtObject {
                 return 1200
             },
             () => {
-                const now = kept.sound ? kept.sound.volume : -1
+                const now = kept.sound ? kept.sound.gain : -1
                 check("half way through the dissolve its sound is part of the way down", now > 0.05 && now < 0.95, now + " after " + JSON.stringify(levels))
                 return 1800
             },
@@ -72,7 +89,7 @@ QtObject {
                 sampler.stop()
                 const falling = levels.every((level, i) => i === 0 || level <= levels[i - 1] + 0.001)
                 check("having gone down all the way without going back up", falling && levels[0] > 0.9 && levels.some(level => level < 0.2), JSON.stringify(levels))
-                check("and the background that took its place is silent", player() !== null && player() !== kept.foregroundPlayer && player().audioOutput === null && liveMedia.name === kept.background)
+                check("and the background that took its place is silent", player() !== null && player() !== kept.foregroundPlayer && player().audioBufferOutput === null && liveMedia.name === kept.background)
                 // And back: the foreground's sound comes up with its picture.
                 kept.sound = null
                 levels = []
@@ -81,14 +98,14 @@ QtObject {
             },
             () => {
                 const incoming = Lib.findAll(output.contentItem, item => item.content !== undefined && item.content !== null && item.content.name === "i-with-sound.mp4")
-                check("the foreground is on its way in", incoming.length === 1 && incoming[0].player !== null && incoming[0].player.audioOutput !== null, incoming.length)
-                kept.sound = incoming[0].player.audioOutput
+                check("the foreground is on its way in", incoming.length === 1 && incoming[0].player !== null && incoming[0].feed !== null, incoming.length)
+                kept.sound = incoming[0].feed
                 kept.level = incoming[0].level
-                check("with its sound part of the way up, as its picture is", kept.sound.volume > 0.02 && kept.sound.volume < 0.9 && Math.abs(kept.sound.volume - kept.level) < 0.05, kept.sound.volume + " at level " + kept.level)
+                check("with its sound part of the way up, as its picture is", kept.sound.gain > 0.02 && kept.sound.gain < 0.9 && Math.abs(kept.sound.gain - kept.level) < 0.05, kept.sound.gain + " at level " + kept.level)
                 return 2200
             },
             () => {
-                check("and at full when the dissolve is done", Math.abs(kept.sound.volume - 1) < 0.001 && player() !== null && player().audioOutput === kept.sound, kept.sound.volume)
+                check("and at full when the dissolve is done", Math.abs(kept.sound.gain - 1) < 0.001 && player() !== null && feedOf(player()) === kept.sound, kept.sound.gain)
                 transitionDuration = 0
                 clearMedia()
                 return 600
@@ -110,7 +127,7 @@ QtObject {
                 return 1500
             },
             () => {
-                check("which the slide plays", player() !== null && player().audioOutput !== null && player().audioOutput.volume === 1 && player().position > 200, player() ? player().position : "none")
+                check("which the slide plays", player() !== null && feedOf(player()) !== null && feedOf(player()).gain === 1 && player().position > 200, player() ? player().position : "none")
                 clearAll()
                 return 400
             },

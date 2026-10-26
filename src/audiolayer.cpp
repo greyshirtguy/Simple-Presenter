@@ -1,10 +1,9 @@
 #include "audiolayer.h"
 
 #include "audiolevel.h"
-#include "audiometer.h"
+#include "audiomixer.h"
 #include "sessionlog.h"
 
-#include <QAudioOutput>
 #include <QMediaDevices>
 #include <QMediaPlayer>
 #include <QUrl>
@@ -35,9 +34,9 @@ AudioLayer::AudioLayer(QObject *parent)
 AudioLayer::~AudioLayer()
 {
     for (Voice *voice : std::as_const(m_voices)) {
+        // (The feed first, which lets the player go before it goes)
+        delete voice->feed;
         delete voice->player;
-        delete voice->output;
-        delete voice->tap;
         delete voice;
     }
 }
@@ -75,26 +74,10 @@ void AudioLayer::setDevice(const QString &id)
     if (id == m_device)
         return;
     m_device = id;
-    // (The system is not asked after its devices for this alone: only if something is
-    // playing that is to go over to the one chosen. Whatever is started next asks.)
-    for (Voice *voice : std::as_const(m_voices))
-        voice->output->setDevice(outputDevice());
+    // All the app's sound goes through its mixer, which opens the device (and does not
+    // ask the system after it for this alone, unless it has already)
+    AudioMixer::instance()->setChosen(id);
     emit deviceChanged();
-}
-
-QAudioDevice AudioLayer::outputDevice()
-{
-    if (m_device.isEmpty())
-        return QMediaDevices::defaultAudioOutput();
-    const QList<QAudioDevice> outputs = QMediaDevices::audioOutputs();
-    system();
-    for (const QAudioDevice &output : outputs) {
-        if (QString::fromLatin1(output.id().toBase64()) == m_device)
-            return output;
-    }
-    // (One that was chosen and has gone: until it comes back, where the system sends
-    // sound.)
-    return QMediaDevices::defaultAudioOutput();
 }
 
 bool AudioLayer::deviceFound()
@@ -130,13 +113,11 @@ QVariantList AudioLayer::devices()
 void AudioLayer::devicesMayHaveChanged()
 {
     emit devicesChanged();
-    // A chosen device that has come back is gone back to, and one that has gone is
-    // left for where the system sends sound.
-    if (!m_device.isEmpty()) {
-        for (Voice *voice : std::as_const(m_voices))
-            voice->output->setDevice(outputDevice());
+    // (A chosen device that has come back is gone back to, and one that has gone is
+    // left for where the system sends sound: the mixer sees to that, being told of the
+    // change as this is.)
+    if (!m_device.isEmpty())
         emit deviceChanged();
-    }
 }
 
 // ---- The pieces
@@ -180,9 +161,7 @@ double AudioLayer::musicDuration() const
 
 void AudioLayer::apply(Voice *voice)
 {
-    const double loud = qBound(0.0, voice->volume * voice->level, 1.0);
-    voice->output->setVolume(float(loud));
-    voice->tap->setGain(loud);
+    voice->feed->setGain(qBound(0.0, voice->volume * voice->level, 1.0));
 }
 
 void AudioLayer::fadeTo(Voice *voice, double level, qint64 ms)
@@ -241,12 +220,13 @@ void AudioLayer::drop(Voice *voice)
 {
     if (!m_voices.removeOne(voice))
         return;
-    voice->tap->setPlaying(false);
+    voice->feed->setPlaying(false);
+    // (Let go of by its feed now, which is then done with it; and neither deleted from
+    // inside one of the player's own signals.)
+    voice->feed->setPlayer(nullptr);
     voice->player->stop();
-    // (Not deleted from inside one of its own signals.)
+    voice->feed->deleteLater();
     voice->player->deleteLater();
-    voice->output->deleteLater();
-    voice->tap->deleteLater();
     if (voice->limit)
         voice->limit->deleteLater();
     delete voice;
@@ -281,13 +261,15 @@ void AudioLayer::start(const QVariantMap &audio)
         leave(before, crossing ? qint64(m_fade * 1000) : 0);
     }
 
-    voice->tap = new AudioTap(this);
-    voice->output = new QAudioOutput(this);
-    if (!m_device.isEmpty())
-        voice->output->setDevice(outputDevice());
+    // Its sound to the app's mixer, which is what is heard: where its channels go and how
+    // loud each is, and its ramps, as its media has them (the ramp out before the end of
+    // its file, unless it goes round)
+    voice->feed = new AudioFeed(this);
+    voice->feed->setProperty("name", voice->name);
+    voice->feed->setSound(audio.value("sound").toMap());
+    voice->feed->setEndAt(voice->playback == QLatin1String("loop") ? 0 : -1);
     voice->player = new QMediaPlayer(this);
-    voice->player->setAudioOutput(voice->output);
-    voice->player->setAudioBufferOutput(voice->tap->output());
+    voice->feed->setPlayer(voice->player);
     const int loopCount = audio.value("loopCount").toInt();
     const double loopSeconds = audio.value("loopSeconds").toDouble();
     if (voice->playback == QLatin1String("loop"))
@@ -325,11 +307,11 @@ void AudioLayer::start(const QVariantMap &audio)
         fadeTo(voice, 1, qint64(m_fade * 1000));
     voice->player->setSource(audio.value("source").toUrl().isValid() ? audio.value("source").toUrl()
                                                                      : QUrl::fromLocalFile(audio.value("path").toString()));
-    voice->tap->setPlaying(true);
+    voice->feed->setPlaying(true);
     voice->player->play();
     SessionLog::write("audio", QStringLiteral("%1 started%2%3").arg(quoted(voice->name), crossing && !voice->effect ? QStringLiteral(", crossing with what was playing") : QString(),
                                                                    m_device.isEmpty() ? QString()
-                                                                   : deviceFound() ? QStringLiteral(", through ") + quoted(voice->output->device().description())
+                                                                   : deviceFound() ? QStringLiteral(", through ") + quoted(AudioMixer::instance()->deviceName())
                                                                    : QStringLiteral(", wherever the system sends sound: the device chosen for it is not there now")));
     if (!voice->effect && !m_progress.isActive())
         m_progress.start();

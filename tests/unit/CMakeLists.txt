@@ -277,6 +277,10 @@ qt_add_executable(tst_audiocue
     tst_audiocue.cpp
     ${PROJECT_SOURCE_DIR}/src/audiocue.h
     ${PROJECT_SOURCE_DIR}/src/audiocue.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.h
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.h
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.cpp
 )
 target_include_directories(tst_audiocue PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_audiocue PRIVATE Qt6::Core Qt6::Test proproto)
@@ -333,6 +337,10 @@ qt_add_executable(tst_mediasettings
     ${PROJECT_SOURCE_DIR}/src/mediaeffects.cpp
     ${PROJECT_SOURCE_DIR}/src/mediasettings.h
     ${PROJECT_SOURCE_DIR}/src/mediasettings.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.h
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.h
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.cpp
 )
 target_include_directories(tst_mediasettings PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_mediasettings PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
@@ -411,3 +419,49 @@ qt_add_executable(tst_framepacing
 target_include_directories(tst_framepacing PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_framepacing PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME framepacing COMMAND tst_framepacing)
+
+qt_add_executable(tst_audiorouting
+    tst_audiorouting.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.h
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.h
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.cpp
+)
+target_include_directories(tst_audiorouting PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_audiorouting PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME audiorouting COMMAND tst_audiorouting)
+
+qt_add_executable(tst_audiosetupfile
+    tst_audiosetupfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.h
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.h
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiosetupfile.h
+    ${PROJECT_SOURCE_DIR}/src/audiosetupfile.cpp
+)
+target_include_directories(tst_audiosetupfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_audiosetupfile PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME audiosetupfile COMMAND tst_audiosetupfile)
+
+qt_add_executable(tst_audiomix
+    tst_audiomix.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.h
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.h
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiomix.h
+    ${PROJECT_SOURCE_DIR}/src/audiomix.cpp
+)
+target_include_directories(tst_audiomix PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_audiomix PRIVATE Qt6::Core Qt6::Test proproto PkgConfig::FFmpeg)
+add_test(NAME audiomix COMMAND tst_audiomix)
+
+qt_add_executable(tst_mediachannels
+    tst_mediachannels.cpp
+    ${PROJECT_SOURCE_DIR}/src/mediachannels.h
+    ${PROJECT_SOURCE_DIR}/src/mediachannels.cpp
+)
+target_include_directories(tst_mediachannels PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_mediachannels PRIVATE Qt6::Core Qt6::Qml Qt6::Test PkgConfig::FFmpeg)
+add_test(NAME mediachannels COMMAND tst_mediachannels)

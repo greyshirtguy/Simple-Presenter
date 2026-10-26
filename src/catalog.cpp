@@ -861,6 +861,16 @@ QString Catalog::setAudioPlayback(const QString &item, const QString &playback)
     return afterChange(PlaylistFile::setAudioPlayback(m_root, item, playback));
 }
 
+QString Catalog::setAudioItemSettings(const QString &item, const QVariantMap &changes)
+{
+    return afterChange(PlaylistFile::setMediaSettings(m_root, item, changes, PlaylistFile::Audio));
+}
+
+QVariantMap Catalog::audioItemSettings(const QString &item) const
+{
+    return PlaylistFile::mediaSettings(m_root, item, PlaylistFile::Audio);
+}
+
 QString Catalog::setAudioEffect(const QString &item, bool effect)
 {
     return afterChange(PlaylistFile::setAudioEffect(m_root, item, effect));

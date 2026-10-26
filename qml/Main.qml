@@ -2286,10 +2286,10 @@ Window {
         const node = catalog.audioPlaylists.find(p => p.path === playlist)
         const mediaOf = () => {
             const row = catalog.audioIn(playlist).find(r => r.id === id)
-            return row ? Object.assign({}, row, { audio: true, video: false, box: { width: 1920, height: 1080 } }) : null
+            return row ? Object.assign({}, row, { audio: true, video: false, box: { width: 1920, height: 1080 }, settings: catalog.audioItemSettings(id) }) : null
         }
         inspectMedia(mediaOf(), "The audio bin" + (node ? ": " + node.name : ""), {
-            save: () => "",
+            save: (changes) => catalog.setAudioItemSettings(id, changes),
             replace: () => "Only a piece's markers are set here",
             reread: mediaOf,
             place: { kind: "audioRow", item: id }
@@ -4022,12 +4022,13 @@ Window {
     // its stage layouts.
     function openShowControls(path) {
         Screens.remember = remember
+        AudioMixer.remember = remember
         Devices.remember = remember
         VideoInputs.remember = remember
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
                              Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path), ClearGroups.open(path),
-                             Messages.open(path), Masks.open(path)]) {
+                             Messages.open(path), Masks.open(path), AudioMixer.open(path)]) {
             if (error !== "")
                 report(error)
         }

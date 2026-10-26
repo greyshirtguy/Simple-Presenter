@@ -66,9 +66,38 @@ namespace mediasettings {
 //   drawn         whether any of it changes how the media is drawn: a crop, a turn, a
 //                 flip, a blur or an effect that is on and drawn here (fitting is
 //                 always done, and is not counted)
+//   sound         for media with sound (a video, a piece of audio): see sound(); empty
+//                 for a picture
 // A still has no transport and no thumbnail: its inPoint, outPoint and endPoint are 0,
 // its thumbnail -1 and its playback 0.
 QVariantMap describe(const rv::data::Media &media);
+
+// The sound of media that has it, as its Media Inspector's Audio tab shows it, from
+// ProPresenter's fields (Media.AudioProperties, and its transport's fades); empty for a
+// picture:
+//   custom    whether its mapping to the app's channels is its own (`is_custom_mapping`);
+//             if not, it goes by Auto (audiorouting::autoMedia)
+//   channels  its channels as the file has them: [{ index, volume (decibels), muted,
+//             outputs (the app's channels it goes to, from 0) }], in the file's order:
+//             ProPresenter has one for each of the media's channels, or for sixteen, or
+//             none at all
+//   rampIn, rampOut   seconds its sound comes in and goes out over; 0 for none
+//   fadeIn, fadeOut   the fields they are made of, as they are: { on (the switch),
+//                     seconds }, for a ramp to be put back exactly (soundChange)
+// A piece of audio has these and nothing else of describe()'s that means anything.
+QVariantMap sound(const rv::data::Media &media);
+
+// The changes for apply() that make a media's sound what `wanted` says, { custom,
+// channels: [{ outputs, volume, muted }] for each of its channels from the first }, given
+// `opened`, its sound (as sound() has it) when its inspector was opened. A channel wanted
+// as it was then has its entry put back exactly as it was, or taken out if it had none,
+// so that a change of mind leaves the file as it was, byte for byte, even where
+// ProPresenter wrote entries of its own; one wanted otherwise is given what it says (its
+// outputs only where its mapping is its own). Entries the file has beyond the media's
+// channels (ProPresenter writes sixteen for some) are left as they are. `wanted` may have
+// `rampIn` and `rampOut` too, each a number of seconds: one as it was then is put back as
+// its two fields were (`fadeIn`, `fadeOut`), and any other is set as a length.
+QVariantMap soundChange(const QVariantMap &opened, const QVariantMap &wanted);
 
 // Changes the fields of the media that `changes` names, by the keys describe() gives,
 // and nothing else of it. `effects` is the whole list, in the order it is to have: an
@@ -76,8 +105,18 @@ QVariantMap describe(const rv::data::Media &media);
 // is on and the values of its variables (matched by name), which are set from the map;
 // one with an id the media does not have is added, made from the catalogue by its
 // `renderId` (newEffect gives such a map), and one the list leaves out is taken off.
-// The trim and the thumbnail are only for a video. Returns an error message, empty on
-// success, in which case nothing has been changed.
+// The trim and the thumbnail are only for a video.
+//
+// The sound, for a video or a piece of audio (by the keys sound() gives): `audioCustom`;
+// `rampIn` and `rampOut` (a length, its switch put on; none clears the length and leaves
+// the switch, which ProPresenter has on for every media); `fadeIn` and `fadeOut`, as
+// sound() gives them, both fields set as they say;
+// `audioChannels`, [{ index, and any of volume, muted, outputs }], each setting what it
+// gives of the channel of that index and leaving the rest of it, and making an entry for
+// a channel the file has none for; or [{ index, remove: true }], taking its entry out. An entry the change leaves saying nothing at all,
+// where the media goes by Auto, is taken out again (only one the change touched), so that
+// a change undone leaves the file as it was. Returns an error message, empty on success,
+// in which case nothing has been changed.
 QString apply(rv::data::Media *media, const QVariantMap &changes);
 
 // Whether the media is set to anything at all: fitted otherwise than to fit (unless

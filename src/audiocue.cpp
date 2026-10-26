@@ -1,5 +1,7 @@
 #include "audiocue.h"
 
+#include "audiorouting.h"
+
 namespace audiocue {
 
 using Transport = rv::data::Media::TransportProperties;
@@ -36,6 +38,8 @@ void Behaviour::describe(QVariantMap *row) const
     row->insert("duration", duration);
     row->insert("loopCount", loopCount);
     row->insert("loopSeconds", loopSeconds);
+    if (!sound.isEmpty())
+        row->insert("sound", sound);
 }
 
 Behaviour read(const rv::data::Action &action, const rv::data::Cue *cue)
@@ -61,6 +65,7 @@ Behaviour read(const rv::data::Action &action, const rv::data::Cue *cue)
     behaviour.volume = audio.has_audio() ? qBound(0.0, audio.audio().volume(), 1.0) : 1.0;
     // How long: the action says, and failing that where the media is to stop.
     behaviour.duration = action.duration() > 0 ? action.duration() : qMax(0.0, transport.out_point() - transport.in_point());
+    behaviour.sound = audiorouting::soundOf(action.media().element());
     return behaviour;
 }
 

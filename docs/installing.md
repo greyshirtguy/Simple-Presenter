@@ -54,7 +54,8 @@ sudo apt install git cmake ninja-build g++ pkg-config \
     qml6-module-qtquick-controls qml6-module-qtquick-effects qml6-module-qtmultimedia \
     qml6-module-qtquick-dialogs qml6-module-qtquick-shapes qt6-image-formats-plugins \
     protobuf-compiler libprotobuf-dev libfontconfig-dev zlib1g-dev libxcb1-dev \
-    libavformat-dev libavcodec-dev libswscale-dev libavutil-dev libasound2-dev
+    libavformat-dev libavcodec-dev libswscale-dev libswresample-dev libavutil-dev \
+    libasound2-dev
 ```
 
 | These | are for |
@@ -66,7 +67,7 @@ sudo apt install git cmake ninja-build g++ pkg-config \
 | `protobuf-compiler`, `libprotobuf-dev` | ProPresenter's files are Protocol Buffers. The build turns the descriptions of the format into C++ that reads and writes it |
 | `libfontconfig-dev` | Finding fonts by the names ProPresenter knows them by |
 | `zlib1g-dev` | Unpacking exported playlists, which are zip archives |
-| `libav…-dev`, `libswscale-dev` | FFmpeg, for taking a frame from a video as its thumbnail |
+| `libav…-dev`, `libswscale-dev`, `libswresample-dev` | FFmpeg, for taking a frame from a video as its thumbnail, and for bringing each player's sound to the rate of the sound device |
 | `libxcb1-dev` | X11's own library, for keeping the output and stage windows out of Alt+Tab when the app is run through X11 |
 | `libasound2-dev` | ALSA, which a Linux desktop has MIDI through, for MIDI devices |
 

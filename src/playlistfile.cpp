@@ -539,9 +539,8 @@ QString PlaylistFile::setMediaNext(const QString &root, const QString &itemId, c
     return write(root, kind, document);
 }
 
-QString PlaylistFile::setMediaSettings(const QString &root, const QString &itemId, const QVariantMap &changes)
+QString PlaylistFile::setMediaSettings(const QString &root, const QString &itemId, const QVariantMap &changes, Kind kind)
 {
-    const Kind kind = Media;
     rv::data::PlaylistDocument document;
     QString error = readForChange(root, kind, &document);
     if (!error.isEmpty())
@@ -549,20 +548,20 @@ QString PlaylistFile::setMediaSettings(const QString &root, const QString &itemI
     rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
     if (!item || !item->has_cue())
         return QStringLiteral("The playlist no longer has that entry");
-    rv::data::Action *action = mediaActionOf(item);
+    rv::data::Action *action = kind == Media ? mediaActionOf(item) : audiocue::audioOf(item->mutable_cue());
     if (!action)
         return QStringLiteral("That entry has no media");
     error = mediasettings::apply(action->mutable_media()->mutable_element(), changes);
     return error.isEmpty() ? write(root, kind, document) : error;
 }
 
-QVariantMap PlaylistFile::mediaSettings(const QString &root, const QString &itemId)
+QVariantMap PlaylistFile::mediaSettings(const QString &root, const QString &itemId, Kind kind)
 {
     rv::data::PlaylistDocument document;
-    if (!readForChange(root, Media, &document).isEmpty())
+    if (!readForChange(root, kind, &document).isEmpty())
         return {};
     rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
-    rv::data::Action *action = item && item->has_cue() ? mediaActionOf(item) : nullptr;
+    rv::data::Action *action = !item || !item->has_cue() ? nullptr : kind == Media ? mediaActionOf(item) : audiocue::audioOf(item->mutable_cue());
     return action ? mediasettings::describe(action->media().element()) : QVariantMap();
 }
 

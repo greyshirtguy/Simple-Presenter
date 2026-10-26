@@ -347,6 +347,166 @@ private slots:
     }
 
     // Another file in its place keeps the settings that still make sense
+    // The Audio tab: ramps and channels in ProPresenter's fields, for a video and for a
+    // piece of audio, and every change undone leaves the media as it was, byte for byte
+    void sound()
+    {
+        rv::data::Media media = prosVideo();
+        const std::string before = bytesOf(media);
+        QVariantMap sound = mediasettings::describe(media).value("sound").toMap();
+        QCOMPARE(sound.value("custom").toBool(), false);
+        QCOMPARE(sound.value("rampIn").toDouble(), 0.0);
+        QVERIFY(sound.value("channels").toList().isEmpty());
+
+        // Ramps: their lengths, and their switches, which ProPresenter had on already
+        QCOMPARE(mediasettings::apply(&media, {{"rampIn", 2.5}, {"rampOut", 4}}), QString());
+        QCOMPARE(media.video().transport().fade_in_duration(), 2.5);
+        QCOMPARE(media.video().transport().fade_out_duration(), 4.0);
+        sound = mediasettings::describe(media).value("sound").toMap();
+        QCOMPARE(sound.value("rampIn").toDouble(), 2.5);
+        QCOMPARE(sound.value("rampOut").toDouble(), 4.0);
+        QCOMPARE(mediasettings::apply(&media, {{"rampIn", 0}, {"rampOut", 0}}), QString());
+        QCOMPARE(bytesOf(media), before);
+
+        // A channel's volume and mute, by Auto: an entry made, and taken out again
+        QCOMPARE(mediasettings::apply(&media, {{"audioChannels", QVariantList {QVariantMap {{"index", 1}, {"volume", -6.0}, {"muted", true}}}}}), QString());
+        QCOMPARE(media.video().audio().audio_channels_size(), 1);
+        QCOMPARE(media.video().audio().audio_channels(0).index(), 1u);
+        QCOMPARE(media.video().audio().audio_channels(0).volume(), -6.0);
+        QVERIFY(media.video().audio().audio_channels(0).muted());
+        QCOMPARE(mediasettings::apply(&media, {{"audioChannels", QVariantList {QVariantMap {{"index", 1}, {"volume", 0}, {"muted", false}}}}}), QString());
+        QCOMPARE(bytesOf(media), before);
+
+        // Its own mapping: the first channel to the app's third, the second to none
+        QCOMPARE(mediasettings::apply(&media, {{"audioCustom", true},
+                                               {"audioChannels", QVariantList {QVariantMap {{"index", 0}, {"outputs", QVariantList {2}}},
+                                                                               QVariantMap {{"index", 1}, {"outputs", QVariantList {}}}}}}),
+                 QString());
+        const rv::data::Media::AudioProperties &audio = media.video().audio();
+        QVERIFY(audio.is_custom_mapping());
+        QCOMPARE(audio.audio_channels_size(), 2);
+        QCOMPARE(audio.audio_channels(0).outputs_size(), 1);
+        QCOMPARE(audio.audio_channels(0).outputs(0).channel_index(), 2);
+        QCOMPARE(audio.audio_channels(1).outputs_size(), 0);
+        // Back to Auto, and the entries that then say nothing are taken out
+        QCOMPARE(mediasettings::apply(&media, {{"audioCustom", false},
+                                               {"audioChannels", QVariantList {QVariantMap {{"index", 0}, {"outputs", QVariantList {}}},
+                                                                               QVariantMap {{"index", 1}, {"outputs", QVariantList {}}}}}}),
+                 QString());
+        QCOMPARE(bytesOf(media), before);
+
+        // What cannot be changes nothing, not even the rest of the change
+        QVERIFY(!mediasettings::apply(&media, {{"flipH", true}, {"rampIn", -1}}).isEmpty());
+        QVERIFY(!mediasettings::apply(&media, {{"audioChannels", QVariantList {QVariantMap {{"index", 0}, {"outputs", QVariantList {16}}}}}}).isEmpty());
+        QVERIFY(!mediasettings::apply(&media, {{"audioChannels", QVariantList {QVariantMap {{"index", 0}, {"volume", 100}}}}}).isEmpty());
+        QCOMPARE(bytesOf(media), before);
+
+        // The entries ProPresenter writes of its own, saying nothing, are left as they are
+        rv::data::Media written = prosVideo();
+        written.mutable_video()->mutable_audio()->add_audio_channels()->add_outputs();
+        const std::string writtenBefore = bytesOf(written);
+        QCOMPARE(mediasettings::apply(&written, {{"audioChannels", QVariantList {QVariantMap {{"index", 1}, {"muted", true}}}}}), QString());
+        QCOMPARE(mediasettings::apply(&written, {{"audioChannels", QVariantList {QVariantMap {{"index", 1}, {"muted", false}}}}}), QString());
+        QCOMPARE(bytesOf(written), writtenBefore);
+
+        // A piece of audio has its sound and nothing else; a picture has no sound
+        rv::data::Media piece;
+        piece.mutable_audio()->mutable_transport()->set_should_fade_in(true);
+        QCOMPARE(mediasettings::apply(&piece, {{"rampIn", 1}}), QString());
+        QCOMPARE(mediasettings::describe(piece).value("sound").toMap().value("rampIn").toDouble(), 1.0);
+        QVERIFY(!mediasettings::apply(&piece, {{"rampIn", 2}, {"flipH", true}}).isEmpty());
+        QCOMPARE(piece.audio().transport().fade_in_duration(), 1.0);
+        rv::data::Media picture = appsPicture();
+        QVERIFY(!mediasettings::apply(&picture, {{"rampIn", 1}}).isEmpty());
+        QVERIFY(mediasettings::describe(picture).value("sound").toMap().isEmpty());
+        QCOMPARE(bytesOf(picture), bytesOf(appsPicture()));
+    }
+
+    // What the Audio tab asks for, as a whole, made into changes: a change of mind leaves
+    // the file as it was, byte for byte, whether the media said nothing of its sound, or
+    // ProPresenter had written a mapping of its own
+    void soundChanges()
+    {
+        const auto wanted = [](bool custom, const QList<QVariantList> &outputs, const QList<double> &volumes = {}, const QList<bool> &muted = {}) {
+            QVariantList channels;
+            for (qsizetype index = 0; index < outputs.size(); ++index)
+                channels << QVariantMap {{"outputs", outputs[index]}, {"volume", volumes.value(index)}, {"muted", muted.value(index)}};
+            return QVariantMap {{"custom", custom}, {"channels", channels}};
+        };
+
+        // Saying nothing: sent to the app's third and fourth, then back to Auto
+        rv::data::Media media = prosVideo();
+        const std::string before = bytesOf(media);
+        QVariantMap opened = mediasettings::sound(media);
+        QCOMPARE(mediasettings::apply(&media, mediasettings::soundChange(opened, wanted(true, {{2}, {3}}))), QString());
+        QVERIFY(media.video().audio().is_custom_mapping());
+        QCOMPARE(media.video().audio().audio_channels_size(), 2);
+        QCOMPARE(media.video().audio().audio_channels(1).outputs(0).channel_index(), 3);
+        QCOMPARE(mediasettings::apply(&media, mediasettings::soundChange(opened, wanted(false, {{0}, {1}}))), QString());
+        QCOMPARE(bytesOf(media), before);
+        // A channel turned down and muted, and then not
+        QCOMPARE(mediasettings::apply(&media, mediasettings::soundChange(opened, wanted(false, {{}, {}}, {-6, 0}, {false, true}))), QString());
+        QCOMPARE(media.video().audio().audio_channels_size(), 2);
+        QCOMPARE(media.video().audio().audio_channels(0).volume(), -6.0);
+        QVERIFY(!media.video().audio().is_custom_mapping());
+        QCOMPARE(mediasettings::apply(&media, mediasettings::soundChange(opened, wanted(false, {{}, {}}))), QString());
+        QCOMPARE(bytesOf(media), before);
+
+        // As ProPresenter writes some: a mapping of its own that is its 1 to 1, the first
+        // channel's output an empty message (channel 0)
+        rv::data::Media pros = prosVideo();
+        auto *audio = pros.mutable_video()->mutable_audio();
+        audio->set_is_custom_mapping(true);
+        audio->add_audio_channels()->add_outputs();
+        auto *second = audio->add_audio_channels();
+        second->set_index(1);
+        second->add_outputs()->set_channel_index(1);
+        const std::string prosBefore = bytesOf(pros);
+        opened = mediasettings::sound(pros);
+        // Its second muted and sent to the third as well, and then put back
+        QCOMPARE(mediasettings::apply(&pros, mediasettings::soundChange(opened, wanted(true, {{0}, {1, 2}}, {}, {false, true}))), QString());
+        QVERIFY(pros.video().audio().audio_channels(1).muted());
+        QCOMPARE(pros.video().audio().audio_channels(1).outputs_size(), 2);
+        QCOMPARE(mediasettings::apply(&pros, mediasettings::soundChange(opened, wanted(true, {{0}, {1}}))), QString());
+        QCOMPARE(bytesOf(pros), prosBefore);
+        // Auto, which takes its own mapping off; and back to it
+        QCOMPARE(mediasettings::apply(&pros, mediasettings::soundChange(opened, wanted(false, {{0}, {1}}))), QString());
+        QVERIFY(!pros.video().audio().is_custom_mapping());
+        QCOMPARE(pros.video().audio().audio_channels_size(), 0);
+        QCOMPARE(mediasettings::apply(&pros, mediasettings::soundChange(opened, wanted(true, {{0}, {1}}))), QString());
+        QCOMPARE(bytesOf(pros), prosBefore);
+
+        // A ramp given and taken back: both its fields as they were, its switch off as the
+        // app's new media have it, or on as ProPresenter's
+        for (const bool on : {false, true}) {
+            rv::data::Media ramped = prosVideo();
+            ramped.mutable_video()->mutable_transport()->set_should_fade_in(on);
+            const std::string rampedBefore = bytesOf(ramped);
+            opened = mediasettings::sound(ramped);
+            QVariantMap given = wanted(false, {{0}, {1}});
+            given.insert("rampIn", 2.5);
+            QCOMPARE(mediasettings::apply(&ramped, mediasettings::soundChange(opened, given)), QString());
+            QCOMPARE(mediasettings::sound(ramped).value("rampIn").toDouble(), 2.5);
+            given.insert("rampIn", 0);
+            QCOMPARE(mediasettings::apply(&ramped, mediasettings::soundChange(opened, given)), QString());
+            QCOMPARE(bytesOf(ramped), rampedBefore);
+        }
+
+        // Entries beyond the media's channels are left alone
+        rv::data::Media sixteen = prosVideo();
+        for (int index = 0; index < 16; ++index) {
+            auto *channel = sixteen.mutable_video()->mutable_audio()->add_audio_channels();
+            channel->set_index(uint32_t(index));
+            channel->add_outputs()->set_channel_index(index % 2);
+        }
+        sixteen.mutable_video()->mutable_audio()->set_is_custom_mapping(true);
+        opened = mediasettings::sound(sixteen);
+        QCOMPARE(mediasettings::apply(&sixteen, mediasettings::soundChange(opened, wanted(true, {{1}, {0}}))), QString());
+        QCOMPARE(sixteen.video().audio().audio_channels_size(), 16);
+        QCOMPARE(sixteen.video().audio().audio_channels(0).outputs(0).channel_index(), 1);
+        QCOMPARE(sixteen.video().audio().audio_channels(5).outputs(0).channel_index(), 1);
+    }
+
     void carriesOver()
     {
         rv::data::Media from = prosVideo();

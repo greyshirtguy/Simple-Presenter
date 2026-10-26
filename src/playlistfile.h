@@ -151,12 +151,13 @@ struct PlaylistFile
     // to. Anything to follow makes the row's video stop at its end.
     static QString setMediaNext(const QString &root, const QString &itemId, const QString &next, const QString &targetId = {});
     // What the Media Inspector sets of a row's media, as mediasettings::apply takes
-    // changes; and the row's media replaced by another file, keeping what
+    // changes (of the media bin's rows, or the audio bin's, whose sound alone it sets);
+    // and the row's media replaced by another file, keeping what
     // mediasettings::carryOver keeps (and the row's name, if it was given one).
-    static QString setMediaSettings(const QString &root, const QString &itemId, const QVariantMap &changes);
+    static QString setMediaSettings(const QString &root, const QString &itemId, const QVariantMap &changes, Kind kind = Media);
     // All of those settings, as mediasettings::describe gives them (empty if the row is
     // not there): what the row has only for media set to anything.
-    static QVariantMap mediaSettings(const QString &root, const QString &itemId);
+    static QVariantMap mediaSettings(const QString &root, const QString &itemId, Kind kind = Media);
     static QString replaceMediaFile(const QString &root, const QString &itemId, const QString &file);
     // Audio only:
 

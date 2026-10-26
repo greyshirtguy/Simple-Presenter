@@ -97,8 +97,13 @@ used and the one that is packaged do not have it; hence a build folder of its ow
   keyboard that behave as real ones do. They get a desktop of their own: a GNOME Shell
   with no screen, on a session bus of its own, started for the run and stopped after
   it. Nothing of it shows anywhere. (The few that can do without are drawn into memory.)
-- Sound goes into a private audio service with one sink that plays to nowhere
-  (`tests/ui/audio/`): the real one and the sound card are not touched.
+- Sound goes into a private audio service with sinks that play to nowhere
+  (`tests/ui/audio/`): one of two channels, which is the system's own choice there, and
+  one of six and one of eight, for where the app's channels go. The real service and
+  the sound card are not touched. A test can have one of them recorded all the while
+  it runs (`record=` in `run.py`), for its checks afterwards to say what was heard on
+  which channel: by PipeWire's own recorder, told the sink's own order of channels, as
+  anything else moves them about.
 
 It needs `gnome-shell`, `pipewire`, `wireplumber` and `protoc` (which the build needs
 anyway), all of which Ubuntu's desktop has.

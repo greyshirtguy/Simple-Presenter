@@ -16,9 +16,12 @@ find_package(Protobuf REQUIRED)
 find_package(Fontconfig REQUIRED)
 find_package(ZLIB REQUIRED)
 # FFmpeg's libraries, which Qt Multimedia plays video with anyway, are used directly for
-# one thing: taking a single frame from a video for its thumbnail (src/videoframe.cpp).
+# two things: taking a single frame from a video for its thumbnail (src/videoframe.cpp),
+# and bringing each player's sound to the rate of the device the app mixes for, kept in
+# step with it (libswresample, src/audiomixer.cpp: agreed with the maintainer on
+# 2026-10-25; Qt Multimedia uses it too, so every desktop that plays video has it).
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFmpeg REQUIRED IMPORTED_TARGET libavformat libavcodec libswscale libavutil)
+pkg_check_modules(FFmpeg REQUIRED IMPORTED_TARGET libavformat libavcodec libswscale libswresample libavutil)
 # X11's own library, for the one thing Qt has no setting for: keeping the output and stage
 # windows out of the desktop's lists of windows (src/windowlists.cpp).
 pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
@@ -63,6 +66,12 @@ qt_add_executable(SimplePresenter
     src/iconprovider.h
     src/audiocue.cpp
     src/audiocue.h
+    src/audiomix.cpp
+    src/audiomix.h
+    src/audiorouting.cpp
+    src/audiorouting.h
+    src/audiosetupfile.cpp
+    src/audiosetupfile.h
     src/mediacue.cpp
     src/mediacue.h
     src/playbackmarkers.cpp
@@ -149,6 +158,8 @@ qt_add_qml_module(SimplePresenter
         qml/ActionGlyph.qml
         qml/AudioGlyph.qml
         qml/AudioPanel.qml
+        qml/AudioRouting.qml
+        qml/RoutingMatrix.qml
         qml/ActionIcon.qml
         qml/AppSlider.qml
         qml/AppTextArea.qml
@@ -275,6 +286,10 @@ qt_add_qml_module(SimplePresenter
         src/audiolevel.cpp
         src/audiometer.h
         src/audiometer.cpp
+        src/audiomixer.h
+        src/audiomixer.cpp
+        src/mediachannels.h
+        src/mediachannels.cpp
         src/decodingchoice.h
         src/decodingchoice.cpp
         src/decodingguard.h
