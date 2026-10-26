@@ -124,6 +124,7 @@ public:
     // (`owner` outlives it: the mixer stops this one's thread before it goes)
     MixOutput(audiomix::Mixer *mixer, AudioMixer *owner)
         : m_source(new MixDevice(mixer, this))
+        , m_mixer(mixer)
         , m_owner(owner)
     {
     }
@@ -140,7 +141,12 @@ public:
         if (!device.isFormatSupported(format))
             format.setSampleFormat(QAudioFormat::Int16);
         m_source->setFormat(channels, format.sampleFormat() == QAudioFormat::Float);
-        m_source->open(QIODevice::ReadOnly);
+        // Unbuffered: so that Qt reads from the mixer only what its own buffer has room
+        // for, as the system takes from it, and not 16 KB at a time to keep in a buffer
+        // of the QIODevice's own besides (which was 43 ms of two channels' sound, read in
+        // one go every 43 ms: found 2026-10-26, from the user's sync tests)
+        m_source->open(QIODevice::ReadOnly | QIODevice::Unbuffered);
+        m_mixer->restart();
         m_sink = new QAudioSink(device, format, this);
         m_sink->setBufferSize(format.bytesForDuration(kDeviceMs * 1000));
         m_sink->start(m_source);
@@ -163,6 +169,7 @@ public:
 
 private:
     MixDevice *m_source;
+    audiomix::Mixer *m_mixer;
     AudioMixer *m_owner;
     QAudioSink *m_sink = nullptr;
 };
@@ -595,7 +602,7 @@ void AudioMixer::opened(const QString &format, int heldMs, const QString &error)
         routes << QStringLiteral("%1 to %2").arg(channel + 1).arg(each.isEmpty() ? QStringLiteral("none") : each.join(u'+'));
     }
     m_heldMs = heldMs;
-    SessionLog::write("audio", QStringLiteral("Sound to %1: %2, held %3 ms there; the app's channels %4 (%5)")
+    SessionLog::write("audio", QStringLiteral("Sound to %1: %2, Qt holding up to %3 ms of it (the system's sound service and the card hold more, which the app cannot see); the app's channels %4 (%5)")
                                    .arg(quoted(m_deviceName), format)
                                    .arg(heldMs)
                                    .arg(routes.join(QStringLiteral(", ")), m_routesOwn ? QStringLiteral("this computer's routing") : QStringLiteral("Auto")));
@@ -628,10 +635,11 @@ void AudioMixer::watch()
         // How far behind its player it is heard, once: what is not lip sync is here
         if (!it->told && feed->heldWhenHeard() > 0) {
             it->told = true;
-            SessionLog::write("audio", QStringLiteral("The sound of %1 is heard about %2 ms after it is played: %3 ms kept for it, and what the device holds")
+            SessionLog::write("audio", QStringLiteral("The sound of %1 is heard at least %2 ms after it is played: %3 ms kept for it by the mixer, up to %4 by Qt, and what the system's sound service and the card hold")
                                            .arg(quoted(name))
                                            .arg(feed->heldWhenHeard() * 1000 / qMax(1, m_rate) + m_heldMs)
-                                           .arg(feed->heldWhenHeard() * 1000 / qMax(1, m_rate)));
+                                           .arg(feed->heldWhenHeard() * 1000 / qMax(1, m_rate))
+                                           .arg(m_heldMs));
         }
         if (underruns > 0)
             SessionLog::write("audio", QStringLiteral("The sound of %1 broke off and came back %2 times: its player was late with it, or was sent elsewhere in its file")

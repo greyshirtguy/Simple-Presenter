@@ -166,10 +166,12 @@ busy moment in the operator window, a slide change that takes long to draw, does
 a gap in the sound. The device is opened when something is first to be heard, and let go
 of half a minute after the last sound. The cost is a little delay: sound is heard after
 its picture by as much as the mixer keeps in hand, which is as much as a player hands
-over at once and the device takes at once, and a little more. The log says how much it is
-for each piece of media, and on the tests' sound device it was about a tenth of a second
-for a video's sound (the device there takes sound 43 ms at a time). It is not made up
-for by holding the picture back.
+over at once and the device takes at once, and a little more, and then by what Qt, the
+system's sound service and the card hold. The log says how much the app's share is for
+each piece of media: on the tests' sound device it was 79 ms for a video's sound (49
+kept by the mixer and up to 30 by Qt; the device there takes sound 21 ms at a time), and
+what the sound service and the card hold is not told to the app. It is not made up for
+by holding the picture back.
 
 What is a guess, ProPresenter's own audio bin having been described and not looked at,
 and one file of its own having been read (version 21.4, six pieces):

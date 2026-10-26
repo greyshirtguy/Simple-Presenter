@@ -270,9 +270,17 @@ void Mixer::refresh()
     m_heard.assign(heard.begin(), heard.end());
 }
 
+void Mixer::restart()
+{
+    m_readsSinceStart.store(0, std::memory_order_relaxed);
+    m_largestRead.store(0, std::memory_order_relaxed);
+}
+
 void Mixer::mix(float *out, int frames)
 {
-    if (frames > m_largestRead.load(std::memory_order_relaxed))
+    // (Not the device's first: Qt fills its own buffer whole as the device starts, before
+    // any sound has come, and asks for no more than the system takes at a time after.)
+    if (m_readsSinceStart.fetch_add(1, std::memory_order_relaxed) > 0 && frames > m_largestRead.load(std::memory_order_relaxed))
         m_largestRead.store(frames, std::memory_order_relaxed);
     refresh();
     const int deviceChannels = m_active.deviceChannels;
@@ -356,9 +364,12 @@ void Mixer::mixPart(float *out, int frames)
         int fill = feed->m_ring.fill();
         if (!feed->m_heard) {
             if (fill >= target || (ended && fill > 0)) {
-                // More than it should hold (the device was opening, or was held up):
-                // what is too old is let go of, so that it is no later than it must be
-                if (fill > target + rate / 50) {
+                // Heard from exactly what it is to hold, the oldest of anything more let
+                // go of (the device was opening, or a stretch of its player's had just
+                // come), so that it is no later than it must be. (Exactly that is enough
+                // whenever it starts: the most the device can take before the player's
+                // next stretch comes is its stretch and one of the device's.)
+                if (fill > target) {
                     feed->m_ring.skip(fill - target);
                     fill = target;
                 }

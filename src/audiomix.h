@@ -259,6 +259,9 @@ public:
     // The device's rate, which every feed is brought to (set before the device is
     // opened, so that a feed's first sound is at the rate it will be heard at)
     void setRate(int rate);
+    // From the device's thread, as the device is started: what it takes at a time is to
+    // be found out again
+    void restart();
     int rate() const { return m_rate.load(std::memory_order_relaxed); }
     void setConfig(const Config &config);
     // A feed to be mixed until it has left and faded
@@ -287,8 +290,10 @@ private:
     std::vector<std::shared_ptr<Feed>> m_feeds;
     std::atomic<int> m_version {0};
     std::atomic<int> m_feedCount {0};
-    // The most frames the device has asked for at once
+    // The most frames the device has asked for at once, and how many times it has asked
+    // since it was started
     std::atomic<int> m_largestRead {0};
+    std::atomic<int> m_readsSinceStart {0};
 
     // The device's thread's own
     int m_seenVersion = -1;

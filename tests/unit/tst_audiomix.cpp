@@ -2,8 +2,9 @@
 // pushed into feeds as a player's thread would, and mixed a stretch at a time as a
 // device's thread would ask for it. What is heard where, by the routing, Mute, Solo and
 // the test tone; channels' gains; a file at another rate brought to the device's;
-// nothing heard until a feed has its fill, and a short sound heard all the same once it
-// has ended; a feed that leaves faded out and let go of; and a device whose clock runs
+// nothing heard until a feed has its fill (what a player hands over at once and the
+// device takes at once, the device's first read, which fills Qt's own buffer, not
+// counted), and a short sound heard all the same once it has ended; a feed that leaves faded out and let go of; and a device whose clock runs
 // fast kept up with, with no gap, for long enough to have run a ring dry without.
 
 #include "audiomix.h"
@@ -278,9 +279,32 @@ private slots:
         QVERIFY(heard);
         QCOMPARE(silent, 0);
         QCOMPARE(feed->takeUnderruns(), 0);
-        // (What it held then: a stretch of each, 4458 and 2048 frames, and a little more)
-        QVERIFY2(feed->heldWhenHeard() >= 4458 + 2048, qPrintable(QString::number(feed->heldWhenHeard())));
-        QVERIFY(feed->heldWhenHeard() < 4458 + 2048 + 1500);
+        // (What it held then: a stretch of each, about 4459 and 2048 frames, and a
+        // two-hundredth of a second, and no more)
+        QVERIFY2(qAbs(feed->heldWhenHeard() - (4459 + 2048 + 240)) <= 2, qPrintable(QString::number(feed->heldWhenHeard())));
+    }
+
+    void theDevicesFirstFillIsNotCounted()
+    {
+        // Qt fills its own buffer whole as the device starts (1440 frames), and then asks
+        // for what the system takes at a time (1024): a feed is kept for the second
+        Mixer mixer;
+        std::vector<float> out(1440 * 2);
+        mixer.restart();
+        mixer.mix(out.data(), 1440);
+        for (int read = 0; read < 3; ++read)
+            mixer.mix(out.data(), 1024);
+        auto feed = std::make_shared<Feed>();
+        feed->setGain(1);
+        mixer.add(feed);
+        const std::vector<float> samples = steady(1024, 2, 0.5f);
+        for (int stretch = 0; stretch < 6; ++stretch) {
+            feed->push(samples.data(), 1024, 2, 48000);
+            mixer.mix(out.data(), 1024);
+        }
+        // A stretch of the player's and of the device's, and a two-hundredth of a second
+        QCOMPARE(feed->heldWhenHeard(), 1024 + 1024 + 240);
+        QCOMPARE(feed->takeUnderruns(), 0);
     }
 
     void meterIsWhatTheDeviceIsSent()

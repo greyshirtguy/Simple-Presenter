@@ -66,8 +66,8 @@ QtObject {
                       && Math.abs(AudioMeter.left - AudioMeter.right) < 0.02, AudioMeter.left + " and " + AudioMeter.right)
                 check("and the log says so", /i-with-sound\.mp4": first picture.*its sound played through Test sink/.test(testInput.readText(Log.path).split("\n").filter(l => l.includes("first picture")).pop()),
                       testInput.readText(Log.path).split("\n").filter(l => l.includes("first picture")).pop())
-                check("and how far behind its picture it is heard", logged(/The sound of "i-with-sound\.mp4" is heard about \d+ ms after it is played/).length === 1,
-                      logged(/is heard about/).join(" | "))
+                check("and how far behind its picture it is heard", logged(/The sound of "i-with-sound\.mp4" is heard at least \d+ ms after it is played/).length === 1,
+                      logged(/is heard at least/).join(" | "))
                 // A long dissolve to a silent background: the foreground's sound goes down with its picture.
                 kept.sound = feedOf(player())
                 kept.foregroundPlayer = player()
