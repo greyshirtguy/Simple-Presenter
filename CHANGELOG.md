@@ -6,6 +6,25 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.114](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.114) · 2026-10-26
+
+- A [video delay](docs/features/screens.md#video-delay) for each audience screen, as
+  ProPresenter's for an output: Settings → Screens, from none to fifteen of the screen's
+  own frames, with what that comes to in milliseconds. In a window, on a display, over
+  NDI or out of a card. The operator's preview and Screen Previews show the screen as it
+  is now.
+- A [Clock Source](docs/features/decklink.md): the screens going out through a DeckLink
+  card can be drawn by one of its outputs' own frames, once in each, rather than by the
+  app's clock, which drifts against the card's. Automatic is as before. Tried against the
+  outputs the app pretends for its tests, not yet on a card.
+- [Show Performance Statistics On Screen](docs/features/screens.md#performance-statistics),
+  ProPresenter's setting: each audience screen shows how often it was drawn, what by,
+  its video delay and how late its sound is heard, as far as the app can see.
+- Sound is heard about 63 ms sooner: Qt read the app's sound 16 KB at a time and kept it
+  in a buffer of its own, and the mixer kept more in hand than it needed. On the tests'
+  sound device it is now heard at least 79 ms after it is played, of which the system's
+  sound service and the card's share is not known to the app.
+
 ## [0.113](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.113) · 2026-10-26
 
 - [The app's channels](docs/features/audio.md#the-apps-channels), as ProPresenter's: up to

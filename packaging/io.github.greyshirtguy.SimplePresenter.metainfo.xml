@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.114" date="2026-10-26">
+      <description>
+        <p>
+          A video delay for each audience screen, a DeckLink output's own frames as the clock
+          for the screens going out through a card, performance statistics on the screens,
+          and the app's sound heard sooner.
+        </p>
+      </description>
+    </release>
     <release version="0.113" date="2026-10-26">
       <description>
         <p>
