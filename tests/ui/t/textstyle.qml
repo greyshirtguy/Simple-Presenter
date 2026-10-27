@@ -3,13 +3,13 @@ import SimplePresenterApp
 import "lib.js" as Lib
 
 // Copy Text Style and Paste Text Style (Themes, themefile::dressText), on slides ProPresenter wrote: a slide's text made
-// red and moved, its style copied from the show's slide menu and pasted on a slide of another presentation, whose text
-// box keeps its words and its id and takes the red, the place and the name, with everything else in the file as it
-// was, and the red drawn on the output and in the operator's preview; in the editor's slide menu, pasted on a slide
-// with a chord, which stays, and undone, which leaves the file byte for byte as it was; a style copied in the editor
-// pasted in the show; a theme put on a slide with a chord, which stays. And pasting into a text box (Ctrl+V,
-// Ctrl+Shift+V, and into a box emptied first): only the words come in, in the box's own format and alignment, though
-// the clipboard has them green, bold and in Courier.
+// red and moved, its style copied from the show's slide menu and pasted on a live slide of another presentation, whose
+// text box keeps its words and its id and takes the red, the place and the name, with everything else in the file as
+// it was, and the red drawn at once on the output and in the operator's preview; in the editor's slide menu, pasted
+// on a slide with a chord, which stays, and undone, which leaves the file byte for byte as it was; a style copied in
+// the editor pasted in the show; a theme put on a slide with a chord, which stays. And pasting into a text box
+// (Ctrl+V, Ctrl+Shift+V, and into a box emptied first): only the words come in, in the box's own format and
+// alignment, though the clipboard has them green, bold and in Courier.
 QtObject {
     id: t
 
@@ -112,6 +112,15 @@ QtObject {
                 return 600
             },
             () => {
+                // The slide to paste on taken live first, so that what the screens show of a change to it can be seen.
+                // (Under a look that gives the output no theme: a theme's boxes are drawn in place of the slide's own.)
+                const plain = Looks.looks.find(look => Looks.of(look.id, Screens.audience[0].id).theme === "")
+                if (plain)
+                    Show.lookId = plain.id
+                goLive(kept.target.index)
+                return 1500
+            },
+            () => {
                 showSlideMenu(kept.target.index, slideCell(kept.target.index), 10, 10)
                 return 300
             },
@@ -137,12 +146,7 @@ QtObject {
                 check("nor does any other slide of the presentation", after.length === kept.before.length
                       && after.every((s, i) => i === kept.target.index || s.elements.map(restOf).join("|") === kept.before[i].elements.map(restOf).join("|")))
                 check("the operator is told, and that the file as it was is kept", notice.includes("copied text style") && notice.includes("backups") && !noticeIsError, notice)
-                // ---- What is drawn. (Under a look that gives the output no theme: a theme's boxes are drawn in place of
-                // the slide's own.)
-                const plain = Looks.looks.find(look => Looks.of(look.id, Screens.audience[0].id).theme === "")
-                if (plain)
-                    Show.lookId = plain.id
-                goLive(kept.target.index)
+                // ---- What is drawn: the slide is live, and is not shown again
                 return 1500
             },
             () => {
@@ -150,7 +154,7 @@ QtObject {
                 const preview = named("previewSlide")
                 const at = preview.mapToItem(null, 0, 0)
                 const seen = testInput.windowRed(at.x, at.y, preview.width, preview.height)
-                check("the slide's words are red on the output, where the copied box was, and in the operator's preview", red > 0.003 && seen > 0.002,
+                check("the live slide's words are red on the output at once, where the copied box was, and in the operator's preview", red > 0.003 && seen > 0.002,
                       red + " and " + seen)
                 testInput.grabOutput("1-pasted")
                 clearSlide()

@@ -232,6 +232,7 @@ Window {
         if (!report(Themes.apply(document.path, slideIds, place, themeSlideId)))
             return
         reloadDocument()
+        redrawLive(slideIds.length > 0 ? slideIds : document.slides.map(slide => slide.id))
         notice = (slideIds.length === 1 ? "The slide is" : slideIds.length > 1 ? slideIds.length + " slides are" : "Every slide of " + quoted(document.name) + " is")
                + " now in " + quoted(themed ? themed.name : "the theme") + " of the theme " + quoted(place.split("/").pop())
                + ". The file as it was is kept with the editor's backups."
@@ -2976,6 +2977,7 @@ Window {
         if (!report(Themes.pasteTextStyle(document.path, [document.slides[index].id])))
             return
         reloadDocument()
+        redrawLive([document.slides[index].id])
         notice = "Slide " + (index + 1) + " has the copied text style now. The file as it was is kept with the editor's backups."
         noticeIsError = false
     }
@@ -3503,6 +3505,19 @@ Window {
         if (own === undefined)
             return liveBuildTimes
         return [own].concat((liveBuildTimes ?? []).slice(1).map(time => Math.max(time, own)))
+    }
+
+    // The slide that is live drawn again on the screens, as its presentation now has it,
+    // if it is one of these slides (their ids): for a change made to the look of slides
+    // from the show, which reloadDocument() has given the operator's preview at once, and
+    // which the screens would otherwise not show until the next slide. In the transition
+    // in use, as a theme's change is (redress). (The editor's changes wait for the next
+    // slide, for the preview as well: see reloadEdited. A slide on the announcements'
+    // layer is not drawn again.)
+    function redrawLive(slideIds) {
+        if (!viewingLive || !liveSlide || !slideIds.includes(liveSlide.id))
+            return
+        eachAudienceScene((scene, id) => scene.showSlide(slideFor(id, liveSlide), null, buildTimesFor(id)))
     }
 
     // The slide that is live, shown again on a screen whose theme has changed. In a
