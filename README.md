@@ -106,6 +106,7 @@ ProPresenter had them. The list will grow.
 - **Playing a slide's media by itself.** The Media caption in a slide's menu plays the slide's media and leaves the slide layer as it is.
 - **Dragging the clear buttons.** A clear button dropped on a slide or a macro gives it the action that clears that layer, or that [clear group](docs/features/clear-groups.md).
 - **How solid the icons on the slides are** is a setting, from nearly gone to solid.
+- **Apply This Text Style to All.** In a slide's menu, under Copy Text Style: the slide's text style put on every other slide of its presentation, at once. See [Text](docs/features/text-format.md#apply-this-text-style-to-all).
 - <a id="disable-dates"></a>**A slide disabled at a date.** Disable On… in a slide's menu sets a day and a time for the slide to be disabled by itself, a notice that is over once its event has been, say; the slide is marked with the day until then. See [Disabled slides](docs/features/disabled-slides.md#at-a-date).
 
 | [Simple View](docs/features/simple-view.md) | [The chord editor](docs/features/chords.md#the-chord-editor) |

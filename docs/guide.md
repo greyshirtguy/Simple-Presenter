@@ -45,6 +45,8 @@ These are not ProPresenter's.
   nearly gone to solid.
 - **A slide disabled at a date.** Disable On… in a slide's menu sets a day and a time for
   the slide to be disabled by itself. Until then it is marked with the day.
+- **Apply This Text Style to All.** In a slide's menu, under Copy Text Style: the slide's
+  text style put on every other slide of its presentation.
 
 ## What it does not do
 

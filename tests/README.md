@@ -353,7 +353,9 @@ colour, the alignments, the outline, the shadow, the capitals, the style and the
 go to theirs alone, each looked at in the file, with all else in it as it was. The red
 is drawn on the output, in the operator's preview and in the thumbnail, and not in
 another's. An empty box left with nothing typed changes nothing, and Up in it steps each
-run's own size. Revert puts the file back byte for byte.
+run's own size. Revert puts the file back byte for byte. Apply This Text Style to All is
+tried from the show's slide menu and from the editor's, where undoing it leaves the file
+byte for byte as it was.
 
 **What a run leaves.** A line for each test, and its failures:
 

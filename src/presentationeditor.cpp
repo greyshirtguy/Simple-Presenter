@@ -1113,6 +1113,29 @@ QString PresentationEditor::pasteTextStyle(int row, const QByteArray &style)
     });
 }
 
+QString PresentationEditor::applyTextStyleToAll(int row)
+{
+    if (m_kind != Kind::Presentation)
+        return gone;
+    const rv::data::Slide *source = slideIn(row);
+    const google::protobuf::Message *sourceCue = unitAt(row);
+    if (!source || !sourceCue)
+        return gone;
+    const rv::data::Slide style = *source;
+    int count = 0;
+    return restructure([&](rv::data::Presentation *presentation) {
+        for (rv::data::Cue &cue : *presentation->mutable_cues()) {
+            if (&cue == sourceCue)
+                continue;
+            for (rv::data::Action &action : *cue.mutable_actions()) {
+                if (action.has_slide() && action.slide().has_presentation())
+                    count += themefile::dressText(action.mutable_slide()->mutable_presentation()->mutable_base_slide(), style);
+            }
+        }
+        return count > 0 ? QString() : QStringLiteral("No other slide has words for the text style to go on.");
+    });
+}
+
 QString PresentationEditor::reflowType(int row, const QString &words)
 {
     const QString box = reflowBox(row);

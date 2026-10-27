@@ -202,7 +202,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a slide's menu offers to delete it", menu.opened && /\[Slide\], Copy, Paste(\(off\))?, Copy Text Style(\(off\))?, Paste Text Style(\(off\))?, Disable Slide, Disable On…, Delete Slide…$/.test(labels()), labels())
+                check("a slide's menu offers to delete it", menu.opened && /\[Slide\], Copy, Paste(\(off\))?, Copy Text Style(\(off\))?, Apply This Text Style to All(\(off\))?, Paste Text Style(\(off\))?, Disable Slide, Disable On…, Delete Slide…$/.test(labels()), labels())
                 click(menuRow("Delete Slide…"))
                 return 300
             },

@@ -232,6 +232,34 @@ QString Themes::pasteTextStyle(const QString &presentation, const QStringList &s
     return error;
 }
 
+QString Themes::applyTextStyleToAll(const QString &presentation, const QString &slideId, const QStringList &slideIds)
+{
+    QString error;
+    const QByteArray bytes = ProDocument::slideOfCue(presentation, slideId, &error);
+    if (!error.isEmpty())
+        return error;
+    rv::data::Slide style;
+    if (!style.ParseFromArray(bytes.constData(), int(bytes.size())))
+        return QStringLiteral("That slide could not be read");
+    QStringList others = slideIds;
+    others.removeAll(slideId);
+    if (others.isEmpty())
+        return QStringLiteral("The presentation has no other slide for the text style to go on");
+    // (Asked first, so that nothing is kept or written for nothing, and in its own words:
+    // dressCuesText's are Paste Text Style's)
+    if (ProDocument::textFormatOfCues(presentation, others, &error).value(QStringLiteral("boxes")).toInt() == 0)
+        return error.isEmpty() ? QStringLiteral("No other slide has words for the text style to go on") : error;
+    keepCopy(presentation, m_workspace, QStringLiteral("text style to all"));
+    int count = 0;
+    error = ProDocument::dressCuesText(presentation, others, style, &count);
+    if (error.isEmpty())
+        SessionLog::write("themes", QStringLiteral("the text style of a slide of \"%1\" put on all its others (%2)")
+                                        .arg(QFileInfo(presentation).completeBaseName(),
+                                             count == 1 ? QStringLiteral("one text box") : QStringLiteral("%1 text boxes").arg(count)));
+    m_dressed.clear();
+    return error;
+}
+
 QStringList Themes::textStyles() const
 {
     return textformat::styles();

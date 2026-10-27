@@ -71,6 +71,11 @@ public:
     // or nothing.
     Q_INVOKABLE QString copyTextStyle(const QString &presentation, const QString &slideId);
     Q_INVOKABLE QString pasteTextStyle(const QString &presentation, const QStringList &slideIds);
+    // This app's own Apply This Text Style to All: the look of one slide's text boxes put
+    // on every other slide of its presentation (`slideIds`, the presentation's slides), as
+    // Paste Text Style puts a copied one, the copied one left as it is.
+    Q_INVOKABLE QString applyTextStyleToAll(const QString &presentation, const QString &slideId, const QStringList &slideIds);
+
     // The Text button's popover (TextFormatPanel; textformat.h has what a format is): what
     // the text of these slides has in common, for it to show, with `error` if the file
     // cannot be read; and a format put on their text, for good. The first change a

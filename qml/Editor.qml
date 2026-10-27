@@ -399,6 +399,12 @@ Rectangle {
                     finish()
                     report(Themes.copyTextStyle(editor.path, slide.id))
                 } },
+                // This app's own: this slide's text style put on all the others, as one step
+                // that can be undone (see PresentationEditor's applyTextStyleToAll)
+                { label: "Apply This Text Style to All", disabled: slide.plainText.trim() === "" || editor.count < 2, run: () => {
+                    finish()
+                    report(editor.applyTextStyleToAll(editor.rowOf(slide.id)))
+                } },
                 { label: "Paste Text Style", disabled: !Themes.hasCopiedTextStyle, run: () => {
                     finish()
                     report(editor.pasteTextStyle(editor.rowOf(slide.id), Themes.copiedTextStyle))

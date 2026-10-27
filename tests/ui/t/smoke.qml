@@ -130,7 +130,7 @@ Item {
                 click(centre(cell("slideGrid", 2)), Qt.RightButton)
             },
             () => {
-                smokeCheck("a slide's menu", menu.opened && /^Edit, Quick Edit, Add Action, Remove Action(\(off\))?, Go To Next Timer…, Theme(\(off\))?, Label, Group(\(off\))?, \[Media\], Background, Foreground, Remove Media, Inspector, \[Slide\], Copy, Paste(\(off\))?, Copy Text Style(\(off\))?, Paste Text Style(\(off\))?, Disable Slide, Disable On…, Delete Slide…$/.test(labels()), labels())
+                smokeCheck("a slide's menu", menu.opened && /^Edit, Quick Edit, Add Action, Remove Action(\(off\))?, Go To Next Timer…, Theme(\(off\))?, Label, Group(\(off\))?, \[Media\], Background, Foreground, Remove Media, Inspector, \[Slide\], Copy, Paste(\(off\))?, Copy Text Style(\(off\))?, Apply This Text Style to All(\(off\))?, Paste Text Style(\(off\))?, Disable Slide, Disable On…, Delete Slide…$/.test(labels()), labels())
                 testInput.key(Qt.Key_Escape)
                 click(centre(row("playlistList", p => p.name === "Sunday Morning")), Qt.RightButton)
             },

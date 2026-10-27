@@ -10,8 +10,9 @@ import "lib.js" as Lib
 // outline, the shadow, the capitals, the style and the family go to theirs alone, with everything else in the file
 // as it was; the red is drawn on the output, in the operator's preview and in the selected slide's thumbnail, and not
 // in another's; the size box shows what all have, and is empty where they differ; Revert puts the file back byte for
-// byte. And the Text button, drawn as Aa between Search and Themes, lit while its popover is open, doing nothing while
-// editing.
+// byte. Apply This Text Style to All, in the show's slide menu and in the editor's, where it is a step that can be
+// undone. And the Text button, drawn as Aa between Search and Themes, lit while its popover is open, doing nothing
+// while editing.
 QtObject {
     id: t
 
@@ -518,7 +519,28 @@ QtObject {
                 return 600
             },
             () => {
-                // ---- In the editor (the popover open, which going into it puts away)
+                // ---- Apply This Text Style to All, in the show: slide 4 is red
+                kept.before = slidesOf(kept.entry)
+                kept.otherRed = redIn(2)
+                showSlideMenu(3, slideCell(3), 10, 10)
+                return 300
+            },
+            () => {
+                check("a slide's menu has Apply This Text Style to All, after Copy Text Style", labels().includes("Copy Text Style, Apply This Text Style to All, Paste Text Style"),
+                      labels())
+                click(menuRow("Apply This Text Style to All"))
+                return 1200
+            },
+            () => {
+                const after = slidesOf(kept.entry)
+                check("every other slide's words take its look, and keep their words",
+                      after.every((s, i) => i === 3 || (runsOn(s, r => String(r.color)).every(c => c === "#ff0000")
+                                                       && JSON.stringify(worded(s).map(e => testInput.plain(e.text))) === JSON.stringify(worded(kept.before[i]).map(e => testInput.plain(e.text))))),
+                      JSON.stringify(after.map(s => runsOn(s, r => String(r.color)).slice(0, 2))))
+                check("and the slide itself is as it was", whole(after[3]) === whole(kept.before[3]))
+                check("the operator is told, and that the file as it was is kept", notice.includes("text style of slide 4") && notice.includes("backups") && !noticeIsError, notice)
+                check("another slide's thumbnail is red now", redIn(2) > kept.otherRed, kept.otherRed + " to " + redIn(2))
+                // ---- In the editor (the popover open, which going into it puts away): the third slide's words green first
                 named("textButton").clicked()
                 check("(the popover open)", textFormatOpen)
                 startEditing(kept.entry, document.slides[2].id)
@@ -527,10 +549,35 @@ QtObject {
             () => {
                 check("going into the editor puts the popover away", editing && !textFormatOpen && named("textFormat").item === null)
                 named("textButton").clicked()
+                const editor = editScreen.editor
+                kept.row = editor.rowOf(document.slides[2].id)
+                const box = worded(editor.slideAt(kept.row))[0]
+                check("(the third slide's words made green)", editor.formatText(kept.row, box.id, 0, testInput.plain(box.text).length, { color: "#00ff00" }) === "")
                 return 300
             },
             () => {
                 check("the Text button does nothing while editing", !textFormatOpen)
+                kept.hash = testInput.fileHash(kept.entry.file)
+                editScreen.showRowMenu(editScreen.editor.slideAt(kept.row), 30, 30)
+                return 300
+            },
+            () => {
+                check("in the editor a slide's menu has it too", labels().includes("Copy Text Style, Apply This Text Style to All, Paste Text Style"), labels())
+                click(menuRow("Apply This Text Style to All"))
+                return 800
+            },
+            () => {
+                const editor = editScreen.editor
+                const greens = []
+                for (let row = 0; row < editor.count; ++row)
+                    greens.push(runsOn(editor.slideAt(row), r => String(r.color)).every(c => c === "#00ff00"))
+                check("every slide's words are green", greens.every(g => g), JSON.stringify(greens))
+                check("it is a step that can be undone", editor.canUndo)
+                editor.undo()
+                return 800
+            },
+            () => {
+                check("undone, the file is byte for byte as it was", testInput.fileHash(kept.entry.file) === kept.hash)
                 stopEditing()
                 return 800
             },

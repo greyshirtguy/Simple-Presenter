@@ -100,7 +100,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a slide's menu has Copy Text Style, and Paste Text Style waiting for one", labels().includes("Copy Text Style, Paste Text Style(off)"), labels())
+                check("a slide's menu has Copy Text Style, and Paste Text Style waiting for one", /Copy Text Style, Apply This Text Style to All(\(off\))?, Paste Text Style\(off\)/.test(labels()), labels())
                 click(menuRow("Copy Text Style"))
                 return 300
             },
@@ -125,7 +125,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("on another presentation's slide, Paste Text Style can be chosen", labels().includes("Copy Text Style, Paste Text Style,"), labels())
+                check("on another presentation's slide, Paste Text Style can be chosen", labels().includes("Copy Text Style, Apply This Text Style to All, Paste Text Style,"), labels())
                 click(menuRow("Paste Text Style"))
                 return 800
             },
@@ -171,7 +171,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("in the editor a slide's menu has them too", /, Copy, Paste(\(off\))?, Copy Text Style, Paste Text Style, Delete Slide…$/.test(labels()), labels())
+                check("in the editor a slide's menu has them too", /, Copy, Paste(\(off\))?, Copy Text Style, Apply This Text Style to All, Paste Text Style, Delete Slide…$/.test(labels()), labels())
                 click(menuRow("Paste Text Style"))
                 return 600
             },

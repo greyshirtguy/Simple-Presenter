@@ -2840,6 +2840,10 @@ Window {
             // The look of its text, kept to be put on another slide's, here or in the
             // editor (see Themes.copyTextStyle)
             { label: "Copy Text Style", disabled: slide.plainText.trim() === "", run: () => copyTextStyle(index) },
+            // This app's own: the look of this slide's text put on all the others of the
+            // presentation (see applyTextStyleToAll)
+            { label: "Apply This Text Style to All", disabled: slide.plainText.trim() === "" || document.slides.length < 2,
+              run: () => applyTextStyleToAll(index) },
             { label: "Paste Text Style", disabled: !Themes.hasCopiedTextStyle, run: () => pasteTextStyle(index) },
             // ProPresenter's Enable/Disable: a disabled slide is passed over by Next and
             // Previous and what goes on by itself, and shown when clicked (see setSlideEnabled)
@@ -3086,6 +3090,19 @@ Window {
         reloadDocument()
         redrawLive([document.slides[index].id])
         notice = "Slide " + (index + 1) + " has the copied text style now. The file as it was is kept with the editor's backups."
+        noticeIsError = false
+    }
+
+    // This app's own: a slide taken as a theme for every other slide of its presentation,
+    // for good, the file as it was being kept first (see Themes.applyTextStyleToAll)
+    function applyTextStyleToAll(index) {
+        const ids = [...new Set(document.slides.map(slide => slide.id))]
+        const source = document.slides[index].id
+        if (!report(Themes.applyTextStyleToAll(document.path, source, ids)))
+            return
+        reloadDocument()
+        redrawLive(ids.filter(id => id !== source))
+        notice = "Every slide has the text style of slide " + (index + 1) + " now. The file as it was is kept with the editor's backups."
         noticeIsError = false
     }
 

@@ -161,6 +161,10 @@ public:
     // Style; see themefile::dressText): `style` is the slide, as Themes keeps a copied
     // text style. One step, undone as any other.
     Q_INVOKABLE QString pasteTextStyle(int row, const QByteArray &style);
+    // This app's own Apply This Text Style to All: the look of the text boxes of the
+    // slide in a row put on every other slide of the presentation, as one step undone
+    // together (a presentation's alone)
+    Q_INVOKABLE QString applyTextStyleToAll(int row);
     Q_INVOKABLE QVariantMap addMedia(int row, const QUrl &file);
     // Adds a copy of an element, a little down and right of it. Returns { id, error }.
     Q_INVOKABLE QVariantMap duplicate(int row, const QString &element);

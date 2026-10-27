@@ -52,3 +52,11 @@ is put away) and another presentation shown let them go.
 
 Only the Text button goes by the slides selected, so far. (The blue of the ring is a
 guess at ProPresenter's.)
+
+## Apply This Text Style to All
+
+This app's own. A slide's menu, in the show and in the editor, has **Apply This Text
+Style to All** under Copy Text Style: the slide taken as a [theme](themes.md) for every
+other slide of its presentation, as [Paste Text Style](editing.md) takes a copied one,
+its text boxes alone. In the editor it is one step that can be undone; while showing it
+is for good, and the file as it was is kept with the editor's backups first.

@@ -105,7 +105,9 @@ choose between three ways of working. **Slides** is everything described here.
   its background. In the editor it is a step that can be undone; while showing it is
   for good, and the file as it was is kept with the editor's backups first, as for a
   theme. (What "text style" covers is a choice of this app's, from taking the copied
-  slide as a theme: ProPresenter's own has not been looked at.)
+  slide as a theme: ProPresenter's own has not been looked at.) **Apply This Text Style
+  to All**, under Copy Text Style, puts the slide's on every other slide of its
+  presentation at once (this app's own: see [Text](text-format.md#apply-this-text-style-to-all)).
 - **Visibility.** An element can be set to show only when other elements of the slide
   have text, or have none: all, any or none of a list of conditions.
 - **Linked text.** A text box can show something other than text of its own, in its
