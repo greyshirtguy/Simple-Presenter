@@ -6,6 +6,18 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.116](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.116) · 2026-10-28
+
+- Fonts are drawn as their files name them: a family's Light, Thin, Medium, Black,
+  Condensed or other face as itself, where it had been drawn as its Regular or Bold. See
+  [Editing](docs/features/editing.md).
+- A family installed from two makers, which Qt lists as `CMG Sans [ULA]` and `CMG Sans
+  [PYRS]`, is called by its own name: the editor's font box no longer calls it missing,
+  lists it once, and writes it into the file by its own name with its face's real
+  PostScript name, where it had written Qt's form, which ProPresenter would not find.
+- Where the face a file names is not installed, the family's face of the same style is
+  used (a guess at ProPresenter's way).
+
 ## [0.115](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.115) · 2026-10-27
 
 - ProPresenter's [Text](docs/features/text-format.md) button, after Search in the toolbar:
