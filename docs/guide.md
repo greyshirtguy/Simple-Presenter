@@ -69,6 +69,8 @@ is longer, and not even it is the whole of it.
 | Ctrl+E / Ctrl+S | The editor / back to the show |
 | Ctrl+R | The reflow editor |
 | Ctrl+F | Search |
+| Ctrl+click / Shift+click on a slide | Select it, or let it go / select every slide from the last one selected, for the Text button |
+| Esc | Put the Text button's popover away; then let go of the slides selected |
 | Ctrl+Alt+B | Bible mode on or off |
 | Ctrl+Alt+C | The Calendar |
 | Ctrl+V | Show or hide the media bin |

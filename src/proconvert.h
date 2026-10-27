@@ -205,6 +205,9 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 // real thing ("1:23 PM" for the clock), which would pass for it if it were shown; the
 // editor, where a sample is what is wanted, draws it from `text` (EditorCanvas.qml).
 QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
+// One element of a slide as toSlideMap gives it among the slide's: for what is to be
+// known of one box alone (the Text button's formats, textformat.h)
+QVariantMap elementMap(const rv::data::Slide::Element &element);
 
 // Changes an element of a slide. `changes` holds new values under the element map's
 // keys; these can be changed:
@@ -220,7 +223,8 @@ QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label);
 //   roundness, featherOn, featherRadius
 //   strokeOn, strokeColor, strokeWidth
 //   shadowEnabled, shadowColor, shadowAngle, shadowOffset, shadowRadius, and the same
-//     for textShadow...
+//     for textShadow...; and shadowSolidColor (the colour alone, its opacity as it was)
+//     and shadowOpacity (0 to 1), and the same for textShadow...
 //   verticalAlignment, textScale, marginLeft, marginTop, marginRight, marginBottom
 //   chordsOn, chordNotation, chordColor
 //   linkKind ("none", "element", "timer", "slideText", "clock", "videoCountdown" or

@@ -223,6 +223,113 @@ Window {
         takeFocus()
     }
 
+    // The Text button's popover (TextFormatPanel): ProPresenter's formats for the text of
+    // the slides being shown, put on the selected ones or, with none selected, on all of
+    // them. While showing a presentation; it closes at a click outside it, and with Esc.
+    property bool textFormatOpen: false
+    property Item textFormatButton: null
+    // The presentation it was opened for
+    property string textFormatFor: ""
+
+    function openTextFormat(button) {
+        if (editing || settingsOpen || bibleMode || !document)
+            return
+        textFormatButton = button
+        textFormatFor = document.path
+        textFormatOpen = true
+    }
+
+    function closeTextFormat() {
+        if (!textFormatOpen)
+            return
+        putTextFormatAway()
+        takeFocus()
+    }
+
+    function putTextFormatAway() {
+        textFormatOpen = false
+        // (What it could take back is let go of: the file as it was is in the backups)
+        Themes.endTextFormat()
+    }
+
+    // It goes when what it is for does, by itself and leaving the keyboard where it is
+    // going: the editor (which keeps the presentation it has open, and writes it), the
+    // settings or Bible mode taking the window, or another presentation shown, whose
+    // slides it would otherwise go on to with Revert still for the first one's.
+    onEditingChanged: {
+        if (editing && textFormatOpen)
+            putTextFormatAway()
+    }
+    onSettingsOpenChanged: {
+        if (settingsOpen && textFormatOpen)
+            putTextFormatAway()
+    }
+    onBibleModeChanged: {
+        if (bibleMode && textFormatOpen)
+            putTextFormatAway()
+    }
+
+    // ---- The slides selected (SlideSelection, src/slideselection.h, which says how): of
+    // the presentation being shown (`selectedIn`), by their ids, and the place of the last
+    // one a click selected. Only the Text button's formats go by them, for now.
+    property var selectedSlideIds: []
+    property string selectedIn: ""
+    property int lastSelected: -1
+    // The slide of the presentation being shown that is live, on the screens or on the
+    // announcements, which counts as selected: its place, or -1
+    readonly property int activeSlideIndex: viewingLive && cueLive ? liveIndex
+                                          : viewingAnnouncements && Show.announcementLive ? Show.announcementIndex : -1
+
+    // The places of the selected slides in the presentation being shown (a slide shown
+    // twice, in an arrangement, is selected in both places)
+    function selectedPlaces() {
+        if (!document || selectedIn !== document.path || selectedSlideIds.length === 0)
+            return []
+        const places = []
+        document.slides.forEach((slide, place) => {
+            if (selectedSlideIds.includes(slide.id))
+                places.push(place)
+        })
+        return places
+    }
+
+    // A slide clicked with Ctrl held (toggled) or with Shift (extended)
+    function selectSlide(index, withShift) {
+        if (!document || index < 0 || index >= document.slides.length)
+            return
+        const now = withShift ? SlideSelection.extended(selectedPlaces(), lastSelected, activeSlideIndex, index)
+                              : SlideSelection.toggled(selectedPlaces(), activeSlideIndex, index)
+        selectedSlideIds = now.map(place => document.slides[place].id)
+        selectedIn = document.path
+        lastSelected = now.includes(index) ? index : -1
+    }
+
+    function clearSlideSelection() {
+        if (selectedSlideIds.length === 0 && selectedIn === "")
+            return
+        selectedSlideIds = []
+        selectedIn = ""
+        lastSelected = -1
+    }
+
+    // The slides a format goes to: the selected ones, or with none every slide; each
+    // once, by its id
+    function textFormatTargets() {
+        if (!document)
+            return []
+        const places = SlideSelection.targets(selectedPlaces(), document.slides.length)
+        return [...new Set(places.map(place => document.slides[place].id))]
+    }
+
+    // (Another presentation shown: nothing of it is selected. The same one read again,
+    // after a change, keeps what was.)
+    onDocumentChanged: {
+        if (selectedIn !== "" && (!document || document.path !== selectedIn))
+            clearSlideSelection()
+        if (textFormatOpen && (!document || document.path !== textFormatFor))
+            putTextFormatAway()
+    }
+
     // Dresses slides of the presentation being viewed in a theme slide, for good: the
     // slides with these ids, or with none named all of them (see Themes).
     function applyTheme(slideIds, place, themeSlideId) {
@@ -3831,6 +3938,8 @@ Window {
     // A click on a slide of the presentation being viewed: it goes live, unless it is
     // the slide on show and has an On Click build still to run, which is run instead.
     function clickSlide(index, withoutMedia) {
+        // (A click alone leaves nothing else selected: the slide it takes live is)
+        clearSlideSelection()
         if (!viewedGoesToAnnouncements && Show.stepBuild(documentKey, viewedPlaylistId, index))
             return
         goLive(index, withoutMedia)
@@ -5362,6 +5471,16 @@ Window {
                 event.accepted = true
                 return
             }
+            // Esc puts the Text button's popover away, and then lets go of the slides
+            // selected (a number being typed takes it first, below)
+            if (event.key === Qt.Key_Escape && win.typedNumber === "" && (win.textFormatOpen || win.selectedSlideIds.length > 0)) {
+                if (win.textFormatOpen)
+                    win.closeTextFormat()
+                else
+                    win.clearSlideSelection()
+                event.accepted = true
+                return
+            }
             // A slide's number being typed (see src/slidenumber.h): the keys that finish
             // it, give it up and mend it.
             if (win.typedNumber !== "") {
@@ -6115,6 +6234,31 @@ Window {
         anchors.topMargin: toolbar.height
         visible: win.themesOpen
         onClicked: win.closeThemes()
+    }
+
+    // The Text button's popover, made only while it is open, under its button; a click
+    // anywhere else puts it away
+    MouseArea {
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        visible: win.textFormatOpen
+        onClicked: win.closeTextFormat()
+    }
+
+    Loader {
+        id: textFormatLoader
+
+        // (The operator window, for the panel: asked for out here, where `win` is still
+        // the window's name. In the panel it is the panel's own property.)
+        readonly property var operatorWindow: win
+
+        objectName: "textFormat"
+        active: win.textFormatOpen
+        x: win.textFormatButton ? Math.max(8, Math.min(win.width - width - 8, win.textFormatButton.mapToItem(null, 0, 0).x - 12)) : 8
+        y: toolbar.height + 4
+        sourceComponent: TextFormatPanel {
+            win: textFormatLoader.operatorWindow
+        }
     }
 
     ThemesPanel {

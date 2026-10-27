@@ -795,6 +795,15 @@ void applyShadow(rv::data::Graphics::Shadow *shadow, const QString &prefix, cons
         setColor(shadow->mutable_color(), solid);
         shadow->set_opacity(drawn.alphaF());
     }
+    // Its colour alone, its opacity as it is; and its opacity alone (the Text button's
+    // popover has the two apart, as ProPresenter's does)
+    if (changes.contains(prefix + "SolidColor")) {
+        QColor solid = changes.value(prefix + "SolidColor").value<QColor>();
+        solid.setAlphaF(1);
+        setColor(shadow->mutable_color(), solid);
+    }
+    if (changes.contains(prefix + "Opacity"))
+        shadow->set_opacity(qBound(0.0, changes.value(prefix + "Opacity").toDouble(), 1.0));
     if (changes.contains(prefix + "Angle"))
         shadow->set_angle(changes.value(prefix + "Angle").toDouble());
     if (changes.contains(prefix + "Offset"))
@@ -1116,6 +1125,11 @@ void writeText(Text *text, const RichText &rich)
     for (const auto &custom : std::as_const(kept))
         *attributes->add_custom_attributes() = custom;
     addChordRanges(attributes, after, chordList);
+}
+
+QVariantMap elementMap(const rv::data::Slide::Element &element)
+{
+    return toElementMap(element);
 }
 
 QVariantMap toSlideMap(const rv::data::Slide &slide, const QString &label)

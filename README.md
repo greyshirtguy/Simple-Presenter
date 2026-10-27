@@ -76,6 +76,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="bibles"></a><a id="how-the-words-are-flowed"></a>**[Bibles](docs/features/bibles.md)**: a passage typed and made into slides in a theme, with ProPresenter's options. It can come from the three public-domain Bibles that come with the app, from one imported from an XML file, or from api.bible.
 - <a id="chords"></a><a id="the-chord-editor"></a>**[Chords](docs/features/chords.md)**: a song's chords over its words on the stage, in any key, as ProPresenter shows them.
 - <a id="search"></a>**[Search](docs/features/search.md)**: Ctrl+F finds a presentation by its name or by its words, as it is typed.
+- <a id="text"></a>**[Text](docs/features/text-format.md)**: ProPresenter's Text button, for the font, size, colour, capitals, alignment, outline and shadow of the words of every slide at once, or of the slides selected with Ctrl and Shift. Its arrows step each one's own size, so that large words and small keep apart.
 
 | [The editor](docs/features/editing.md) | [Chords on the stage](docs/features/chords.md) |
 |:---:|:---:|

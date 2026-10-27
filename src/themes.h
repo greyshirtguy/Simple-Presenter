@@ -71,6 +71,19 @@ public:
     // or nothing.
     Q_INVOKABLE QString copyTextStyle(const QString &presentation, const QString &slideId);
     Q_INVOKABLE QString pasteTextStyle(const QString &presentation, const QStringList &slideIds);
+    // The Text button's popover (TextFormatPanel; textformat.h has what a format is): what
+    // the text of these slides has in common, for it to show, with `error` if the file
+    // cannot be read; and a format put on their text, for good. The first change a
+    // session of the popover makes to a presentation keeps a copy of the file with the
+    // editor's backups, and keeps the file as it was, which revertTextFormat() writes back
+    // exactly as it was, until endTextFormat() ends the session (the popover closing).
+    Q_INVOKABLE QVariantMap textFormatOf(const QString &presentation, const QStringList &slideIds);
+    // The faces its style menu offers (textformat::styles)
+    Q_INVOKABLE QStringList textStyles() const;
+    // (`boxes` of what formatText() gives is how many text boxes it changed, with `error`)
+    Q_INVOKABLE QVariantMap formatText(const QString &presentation, const QStringList &slideIds, const QVariantMap &format);
+    Q_INVOKABLE QString revertTextFormat(const QString &presentation);
+    Q_INVOKABLE void endTextFormat();
 
     // Making and changing themes, each written at once. add() makes a theme of that name
     // with one slide to start from, and answers { place, slideId, error }.
@@ -93,4 +106,6 @@ private:
     QSet<QString> m_elementIds;
     QHash<QString, QVariantMap> m_dressed;
     QByteArray m_copiedTextStyle;
+    // Each presentation the popover's session has changed, as its file was before
+    QHash<QString, QByteArray> m_beforeFormat;
 };

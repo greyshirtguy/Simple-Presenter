@@ -15,6 +15,11 @@ import SimplePresenterApp
 // output, not a picture of it, so what is here is always what would be shown. Its frame
 // is the colour of the slide's group, with the group's name on the first slide of each
 // run; the slide that is live has an orange ring.
+//
+// A click with Ctrl held selects a slide, or lets it go again, and one with Shift held
+// selects every slide from the last one selected, and neither takes anything live, as
+// the maintainer asked (Main's selectSlide, SlideSelection): a selected slide has a blue
+// ring. What is selected is what the Text button's formats go to.
 Item {
     id: slides
 
@@ -34,6 +39,21 @@ Item {
 
     function positionViewAtIndex(index, mode) {
         grid.positionViewAtIndex(index, mode)
+    }
+
+    // A selected slide's ring, where the live slide's is (made only for a selected slide
+    // that is not live). The blue is a GUESS at ProPresenter's, which marks its selected
+    // slides with the system's colour for a selection.
+    Component {
+        id: selectedRing
+
+        Rectangle {
+            objectName: "selectedRing"
+            color: "transparent"
+            radius: 8
+            border.width: 3
+            border.color: "#3d8bff"
+        }
     }
 
     // A thin header over the slides. In its middle is the name of the presentation
@@ -370,6 +390,11 @@ Item {
             // announcements, the slide the announcements are at
             readonly property bool live: (slides.win.viewingLive && slides.win.cueLive && slides.win.liveIndex === index)
                                          || (slides.win.viewingAnnouncements && Show.announcementLive && Show.announcementIndex === index)
+            // Selected, by a click with Ctrl or Shift held (see SlideSelection), for the Text
+            // button's formats to go to
+            readonly property bool selected: slides.win.selectedSlideIds.length > 0 && slides.win.document !== null
+                                             && slides.win.selectedIn === slides.win.document.path
+                                             && slides.win.selectedSlideIds.includes(modelData.id)
             // The frame is the slide's group colour, and the label is drawn on it.
             readonly property color frame: slides.win.groupColor(modelData)
             readonly property bool lightFrame: 0.299 * frame.r + 0.587 * frame.g + 0.114 * frame.b > 0.6
@@ -396,13 +421,24 @@ Item {
             //
             // (The user's choice of colour, asked for 2026-10-16. Whether ProPresenter marks
             // the two apart, and how, has not been looked at.)
+            //
+            // A selected slide that is not live has a blue ring in the same place, made by
+            // the same Loader, and only for it (selectedRing, below the grid). Live, it keeps
+            // its own ring, being selected all the same.
             Loader {
                 anchors.fill: frameRect
                 anchors.margins: -5
-                active: cell.live
-                sourceComponent: LiveRing {
-                    objectName: "liveRing"
-                    color: slides.win.viewingLive && slides.win.cueLive && slides.win.liveIndex === cell.index ? "#ff8a1f" : "#3ddc68"
+                active: cell.live || cell.selected
+                // (Each by its own case: see the trap of one Loader for two kinds)
+                sourceComponent: cell.live ? liveRing : cell.selected ? selectedRing : null
+
+                Component {
+                    id: liveRing
+
+                    LiveRing {
+                        objectName: "liveRing"
+                        color: slides.win.viewingLive && slides.win.cueLive && slides.win.liveIndex === cell.index ? "#ff8a1f" : "#3ddc68"
+                    }
                 }
             }
 
@@ -776,8 +812,14 @@ Item {
                         // The keyboard comes back to the show, from whatever box of the
                         // window was being typed in.
                         slides.win.takeFocus()
+                        // With Ctrl held the slide is selected, or let go of; with Shift,
+                        // every slide from the last one selected; neither takes it live
+                        // (see SlideSelection)
+                        if (mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))
+                            slides.win.selectSlide(cell.index, (mouse.modifiers & Qt.ShiftModifier) !== 0)
                         // With Alt held, the slide without the media it brings
-                        slides.win.clickSlide(cell.index, (mouse.modifiers & Qt.AltModifier) !== 0)
+                        else
+                            slides.win.clickSlide(cell.index, (mouse.modifiers & Qt.AltModifier) !== 0)
                     } else {
                         // A right click on one of the icons in the corner is for that
                         // icon, which has a menu of its own; anywhere else it is for

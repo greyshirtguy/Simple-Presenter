@@ -91,8 +91,10 @@ Rectangle {
 
             AppComboBox {
                 anchors.verticalCenter: parent.verticalCenter
-                // Narrower in a narrow window, which leaves the title some room
-                width: toolbar.width < 1100 ? 124 : 180
+                // Narrower in a narrow window, which leaves the title some room. (A button
+                // narrower than it was, since the Text button came beside Search, so that
+                // what comes after them is where it was.)
+                width: toolbar.width < 1100 ? 78 : 134
                 height: 28
                 font.pixelSize: 13
                 // Not while a presentation of this one is being edited
@@ -108,7 +110,8 @@ Rectangle {
     // Show mode and edit mode, side by side, the one the window is in lit. Show comes
     // out of whichever editor is up; Edit goes into the editor for the presentation
     // being viewed (and, clicked again, comes back out).
-    // Search, and the themes: finding a presentation, and giving slides a look
+    // Search, the text, and the themes: finding a presentation, changing the look of its
+    // words, and giving slides a look
     ToolbarIcon {
         id: searchButton
 
@@ -122,11 +125,26 @@ Rectangle {
         onClicked: toolbar.win.openSearch()
     }
 
+    // ProPresenter's Text button, after Search as in its toolbar: a popover of formats
+    // for the text of the slides being shown (TextFormatPanel). While showing.
+    ToolbarIcon {
+        id: textButton
+
+        objectName: "textButton"
+        anchors.left: searchButton.right
+        anchors.leftMargin: 2
+        anchors.verticalCenter: parent.verticalCenter
+        kind: "text"
+        label: "Text"
+        on: toolbar.win.textFormatOpen
+        onClicked: toolbar.win.textFormatOpen ? toolbar.win.closeTextFormat() : toolbar.win.openTextFormat(textButton)
+    }
+
     ToolbarIcon {
         id: themesButton
 
         objectName: "themesButton"
-        anchors.left: searchButton.right
+        anchors.left: textButton.right
         anchors.leftMargin: 2
         anchors.verticalCenter: parent.verticalCenter
         kind: "themes"

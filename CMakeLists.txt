@@ -255,6 +255,7 @@ qt_add_qml_module(SimplePresenter
         qml/StagePanel.qml
         qml/StageView.qml
         qml/ThemesPanel.qml
+        qml/TextFormatPanel.qml
         qml/TimeField.qml
         qml/TimersPanel.qml
         qml/Toolbar.qml
@@ -384,6 +385,12 @@ qt_add_qml_module(SimplePresenter
         src/chords.cpp
         src/chordsbridge.h
         src/chordsbridge.cpp
+        src/slideselection.h
+        src/slideselection.cpp
+        src/slideselectionbridge.h
+        src/slideselectionbridge.cpp
+        src/textformat.h
+        src/textformat.cpp
         src/sheethints.h
         src/sheethints.cpp
         src/bible.h

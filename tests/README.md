@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are forty-eight:
+So far there are fifty:
 
 | Test | What it tries |
 | --- | --- |
@@ -66,6 +66,8 @@ So far there are forty-eight:
 | `tst_mediachannels` | How many channels of sound a file has (`src/mediachannels.h`), read from files made for the purpose: WAV files of two and of six channels (the second with its layout said, as a surround file says it), a file that is not media, and one that is not there |
 | `tst_framepacing` | When a screen playing a video draws what else moves on it (`src/framepacing.h`): how long a frame of the video lasts, from when they came, one late frame not counting; the moments after a frame for videos of the usual rates on a 60 Hz screen and on a 50 Hz one; and when a video counts as stopped |
 | `tst_delayline` | The rules of a screen's video delay (`src/delayline.h`): which picture held is shown when, on a screen of sixty frames a second, with a picture drawn at each frame or now and then, a little before or after its moment; when the next is due; how many to hold |
+| `tst_slideselection` | The slides selected (`src/slideselection.h`): a click with Ctrl adding a slide or letting it go, the live slide counted in; one with Shift adding every slide from the last one selected, or from the live one, or from the first; and what a change goes to, the slides selected or, with none, every slide |
+| `tst_textformat` | The Text button's formats (`src/textformat.h`): what a run and a box are given, and only what differs from what they have; the size's arrows stepping each run's own size, never below a point, and the other numbers' each one's own, the opacity kept from 0 to 1 and the angle turned round; a face by its style's name; an outline turned on at three hundredths of a run's size, and by its colour alone; a shadow's colour turning it on; what many runs and boxes have in common, a key dropped for good at the first that differs |
 
 **Adding one.** A part can be unit tested if it compiles without the windows: it takes
 what it needs as values and says what is to happen as values, where the code round it
@@ -342,6 +344,16 @@ what it is drawn by; then Automatic again.
 `statistics` ticks Show Performance Statistics On Screen: the audience screen shows its
 lines, lit at its top left, and the operator's preview does not; given a video delay
 they say so, shown at once over the delayed picture; unticked, they are gone.
+
+`textformat` works the Text button, on a song of the Act workspace that ProPresenter
+wrote. Slides are selected with Ctrl and with Shift, with a blue ring drawn round each
+and nothing taken live, and let go of with Esc, a click alone and another presentation.
+A size typed with none selected goes to every slide. With two selected, the arrows, a
+colour, the alignments, the outline, the shadow, the capitals, the style and the family
+go to theirs alone, each looked at in the file, with all else in it as it was. The red
+is drawn on the output, in the operator's preview and in the thumbnail, and not in
+another's. An empty box left with nothing typed changes nothing, and Up in it steps each
+run's own size. Revert puts the file back byte for byte.
 
 **What a run leaves.** A line for each test, and its failures:
 

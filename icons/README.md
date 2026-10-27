@@ -11,7 +11,7 @@ a macro is pictured. Someone who knows ProPresenter knows them at a glance, whic
 is the whole reason for using them instead of drawings of this app's own.
 
 Simple Presenter is not ProPresenter and has nothing to do with Renewed Vision. Where
-ProPresenter's pack has no picture for a thing (Search, Themes, Show, Edit, Bible,
+ProPresenter's pack has no picture for a thing (Search, Text, Themes, Show, Edit, Bible,
 Simple View, Media and Settings in the toolbar, and all but two of the pictures a clear group can
 have on its button, among others), the app draws its own.
 

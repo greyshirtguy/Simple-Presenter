@@ -17,10 +17,11 @@
 | Ctrl+Alt+C | The [Calendar](calendar.md) |
 | Ctrl+S | Show mode: out of the editor, whichever one is up |
 | Ctrl+F | [Search](search.md) |
+| Ctrl+click / Shift+click on a slide | [Select](text-format.md#selecting-slides) it, or let it go / select every slide from the last one selected |
 | Ctrl+V | Show or hide the media bin |
 | Ctrl+1 / Ctrl+2 | Switch the audience screens / the stage screens on or off |
 | Ctrl+, | The settings, from the editor as well |
-| Esc | Close a menu |
+| Esc | Close a menu, or the [Text](text-format.md) popover; then let go of the slides selected |
 
 A group's hotkey is set on the settings screen, under Groups, where each group has its
 colour: click the box after the group's name and press the letter or digit. Pressed

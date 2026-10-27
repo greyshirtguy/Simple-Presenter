@@ -135,7 +135,6 @@ experiment.
 
 - [ ] **Clear to logo**
 - [ ] **Timer markers** (an idea of my own)
-- [ ] **Text formatter**
 - [ ] **More to import**: PowerPoint, to begin with
 - [ ] **Easy View**
 - [ ] **Table View**

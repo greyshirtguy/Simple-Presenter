@@ -14,12 +14,19 @@ AppTextField {
     property real step: 1
     // Shown after the number, such as "%"
     property string suffix
+    // Shown empty, whatever `value` is: for a number that is not the same in all the things
+    // the box is for (the Text button's popover, as ProPresenter's leaves its box empty).
+    // A number typed into it is offered as ever; left with nothing typed, nothing is. Up,
+    // Down and the wheel, with no number to step, ask for a step with stepped(), for
+    // whoever owns the box to step each thing's own.
+    property bool blank: false
 
     signal edited(real value)
     signal finished
+    signal stepped(real by)
 
     function show() {
-        text = Number(value.toFixed(decimals)).toString() + suffix
+        text = blank ? "" : Number(value.toFixed(decimals)).toString() + suffix
     }
 
     function offer(number) {
@@ -34,6 +41,17 @@ AppTextField {
         return isFinite(number) ? number : value
     }
 
+    function hasNumber() {
+        return isFinite(parseFloat(text.replace(",", ".")))
+    }
+
+    function stepBy(by) {
+        if (blank && !hasNumber())
+            stepped(by)
+        else
+            offer(typed() + by)
+    }
+
     width: 62
     height: 26
     leftPadding: 6
@@ -42,9 +60,11 @@ AppTextField {
     horizontalAlignment: TextInput.AlignRight
     onValueChanged: show()
     onSuffixChanged: show()
+    onBlankChanged: show()
     Component.onCompleted: show()
     onEditingFinished: {
-        offer(typed())
+        if (!blank || hasNumber())
+            offer(typed())
         show()
     }
     onAccepted: finished()
@@ -52,12 +72,12 @@ AppTextField {
         show()
         finished()
     }
-    Keys.onUpPressed: offer(typed() + step)
-    Keys.onDownPressed: offer(typed() - step)
+    Keys.onUpPressed: stepBy(step)
+    Keys.onDownPressed: stepBy(-step)
 
     WheelHandler {
         // Only while the box is being typed in, so scrolling the panel past it does nothing.
         enabled: field.activeFocus
-        onWheel: (event) => field.offer(field.typed() + (event.angleDelta.y > 0 ? field.step : -field.step))
+        onWheel: (event) => field.stepBy(event.angleDelta.y > 0 ? field.step : -field.step)
     }
 }

@@ -3232,6 +3232,7 @@ TESTS = {
     # (With the pretend device the app has for tests: there is no camera here, or none that may be looked at.)
     "videoinputs": test("Act", timeout=240, env={"SP_TEST_VIDEOINPUT": "1"}, prepare=prepare_videoinputs, after=after_videoinputs),
     "textstyle": test("Act", timeout=240),
+    "textformat": test("Act", timeout=300),
     # (With the two Blackmagic outputs the app pretends for tests: there is no card here.)
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),

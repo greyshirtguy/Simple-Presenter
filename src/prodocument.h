@@ -264,6 +264,14 @@ struct ProDocument
     // themefile::dressText) and writes the file back, where any text box took it.
     // `restyled` is given how many text boxes did.
     static QString dressCuesText(const QString &path, const QStringList &cueIds, const rv::data::Slide &style, int *restyled);
+    // What the text boxes with words of these cues' slides have in common, for the Text
+    // button's popover to show (textformat::Common::values: a key they differ in is left
+    // out); with *error set if the file cannot be read
+    static QVariantMap textFormatOfCues(const QString &path, const QStringList &cueIds, QString *error);
+    // Puts a format (see textformat.h) on every text box with words of these cues'
+    // slides and writes the file back, if anything changed (and leaves it as it was
+    // otherwise). `formatted` is given how many boxes changed.
+    static QString formatCuesText(const QString &path, const QStringList &cueIds, const QVariantMap &format, int *formatted);
 
 private:
     // Reads the file, hands the cue with this id to `change`, and writes the file back

@@ -9,6 +9,7 @@
 #include "mediasettings.h"
 #include "playbackmarkers.h"
 
+#include "textformat.h"
 #include "themefile.h"
 
 #include "actions.h"
@@ -884,6 +885,106 @@ QString ProDocument::dressCuesText(const QString &path, const QStringList &cueId
         return cueIds.size() == 1 ? QStringLiteral("That slide has no words for the copied text style to go on")
                                   : QStringLiteral("None of those slides has words for the copied text style to go on");
     return writePresentation(path, presentation);
+}
+
+namespace {
+
+// The slides of these cues that a format goes on, each once (a cue shown twice in an
+// arrangement is one slide)
+QList<rv::data::Slide *> slidesOfCues(rv::data::Presentation *presentation, const QStringList &cueIds)
+{
+    QList<rv::data::Slide *> slides;
+    for (rv::data::Cue &cue : *presentation->mutable_cues()) {
+        if (!cueIds.contains(QString::fromStdString(cue.uuid().string())))
+            continue;
+        for (rv::data::Action &action : *cue.mutable_actions()) {
+            if (action.has_slide() && action.slide().has_presentation())
+                slides << action.mutable_slide()->mutable_presentation()->mutable_base_slide();
+        }
+    }
+    return slides;
+}
+
+bool boxHasWords(const rv::data::Slide::Element &element)
+{
+    return element.element().has_text() && !proconvert::readText(element.element().text()).plainText().trimmed().isEmpty();
+}
+
+}
+
+QVariantMap ProDocument::textFormatOfCues(const QString &path, const QStringList &cueIds, QString *error)
+{
+    rv::data::Presentation presentation;
+    if (!readPresentation(path, &presentation, error))
+        return {};
+    textformat::Common common;
+    for (rv::data::Slide *slide : slidesOfCues(&presentation, cueIds)) {
+        for (const rv::data::Slide::Element &element : slide->elements()) {
+            if (!boxHasWords(element))
+                continue;
+            common.addBox(proconvert::elementMap(element));
+            const RichText text = proconvert::readText(element.element().text());
+            for (const TextParagraph &paragraph : text.paragraphs) {
+                for (const TextRun &run : paragraph.runs) {
+                    // (A run with no words, which an empty line keeps for its height, has
+                    // no say in what the words look like)
+                    if (run.text.trimmed().isEmpty() && paragraph.runs.size() > 1)
+                        continue;
+                    QVariantMap format = run.format();
+                    format.insert(QStringLiteral("alignment"), int(paragraph.alignment));
+                    common.addRun(format);
+                }
+            }
+        }
+    }
+    return common.values();
+}
+
+QString ProDocument::formatCuesText(const QString &path, const QStringList &cueIds, const QVariantMap &format, int *formatted)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
+        return error;
+    const QList<rv::data::Slide *> slides = slidesOfCues(&presentation, cueIds);
+    if (slides.isEmpty())
+        return QStringLiteral("%1 has no such slides any more").arg(QFileInfo(path).fileName());
+    const int alignment = textformat::alignmentOf(format);
+    int count = 0;
+    for (rv::data::Slide *slide : slides) {
+        for (rv::data::Slide::Element &element : *slide->mutable_elements()) {
+            if (!boxHasWords(element))
+                continue;
+            bool changed = false;
+            rv::data::Graphics::Text *text = element.mutable_element()->mutable_text();
+            const RichText was = proconvert::readText(*text);
+            RichText now = was;
+            for (TextParagraph &paragraph : now.paragraphs) {
+                if (alignment >= 0)
+                    paragraph.alignment = Qt::Alignment((int(paragraph.alignment) & ~int(Qt::AlignHorizontal_Mask)) | alignment);
+                for (TextRun &run : paragraph.runs) {
+                    const QVariantMap change = textformat::forRun(format, run.format());
+                    if (!change.isEmpty())
+                        run.applyFormat(change);
+                }
+            }
+            // (Written only where something changed: a box left as it was is left as it
+            // was, byte for byte)
+            if (!(now == was)) {
+                proconvert::writeText(text, now);
+                changed = true;
+            }
+            const QVariantMap box = textformat::forBox(format, proconvert::elementMap(element));
+            if (!box.isEmpty()) {
+                proconvert::applyChanges(slide, QString::fromStdString(element.element().uuid().string()), box);
+                changed = true;
+            }
+            count += changed ? 1 : 0;
+        }
+    }
+    if (formatted)
+        *formatted = count;
+    return count == 0 ? QString() : writePresentation(path, presentation);
 }
 
 QString ProDocument::setCueLabel(const QString &path, const QString &cueId, const QString &text, const QString &color)

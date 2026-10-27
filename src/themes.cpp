@@ -4,6 +4,7 @@
 #include "prodocument.h"
 #include "richtext.h"
 #include "sessionlog.h"
+#include "textformat.h"
 #include "themefile.h"
 #include "workspacefiles.h"
 
@@ -13,6 +14,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QStandardPaths>
 
 namespace {
@@ -228,6 +230,62 @@ QString Themes::pasteTextStyle(const QString &presentation, const QStringList &s
                                              count == 1 ? QStringLiteral("one text box") : QStringLiteral("%1 text boxes").arg(count)));
     m_dressed.clear();
     return error;
+}
+
+QStringList Themes::textStyles() const
+{
+    return textformat::styles();
+}
+
+QVariantMap Themes::textFormatOf(const QString &presentation, const QStringList &slideIds)
+{
+    QString error;
+    QVariantMap values = ProDocument::textFormatOfCues(presentation, slideIds, &error);
+    if (!error.isEmpty())
+        values.insert(QStringLiteral("error"), error);
+    return values;
+}
+
+QVariantMap Themes::formatText(const QString &presentation, const QStringList &slideIds, const QVariantMap &format)
+{
+    if (!m_beforeFormat.contains(presentation)) {
+        QFile file(presentation);
+        if (!file.open(QIODevice::ReadOnly))
+            return {{"error", QStringLiteral("%1 could not be read").arg(QFileInfo(presentation).fileName())}, {"boxes", 0}};
+        m_beforeFormat.insert(presentation, file.readAll());
+        keepCopy(presentation, m_workspace, QStringLiteral("text format"));
+    }
+    int count = 0;
+    const QString error = ProDocument::formatCuesText(presentation, slideIds, format, &count);
+    // (What was changed, by name, and how many: never the words)
+    if (error.isEmpty() && count > 0)
+        SessionLog::write("themes", QStringLiteral("the Text button's %1 put on %2 of \"%3\" (%4)")
+                                        .arg(format.keys().join(QStringLiteral(", ")),
+                                             slideIds.size() == 1 ? QStringLiteral("a slide") : QStringLiteral("%1 slides").arg(slideIds.size()),
+                                             QFileInfo(presentation).completeBaseName(),
+                                             count == 1 ? QStringLiteral("one text box") : QStringLiteral("%1 text boxes").arg(count)));
+    m_dressed.clear();
+    return {{"error", error}, {"boxes", error.isEmpty() ? count : 0}};
+}
+
+QString Themes::revertTextFormat(const QString &presentation)
+{
+    if (!m_beforeFormat.contains(presentation))
+        return QStringLiteral("There is nothing of the Text button's to take back here");
+    QSaveFile file(presentation);
+    const QByteArray before = m_beforeFormat.value(presentation);
+    if (!file.open(QIODevice::WriteOnly) || file.write(before) != before.size() || !file.commit())
+        return QStringLiteral("Cannot write %1: %2").arg(QFileInfo(presentation).fileName(), file.errorString());
+    SessionLog::write("saved", presentation);
+    m_beforeFormat.remove(presentation);
+    SessionLog::write("themes", QStringLiteral("\"%1\" put back as it was before the Text button's changes").arg(QFileInfo(presentation).completeBaseName()));
+    m_dressed.clear();
+    return {};
+}
+
+void Themes::endTextFormat()
+{
+    m_beforeFormat.clear();
 }
 
 QVariantMap Themes::add(const QString &name)

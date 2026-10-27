@@ -44,9 +44,9 @@ QtObject {
                 const switches = Lib.findAll(toolbar, item => item.label !== undefined && item.kind !== undefined).map(item => item.label)
                 const leftOf = (label) => { const item = Lib.find(toolbar, i => i.label === label && i.kind !== undefined); return item.mapToItem(null, 0, 0).x }
                 const picker0 = Lib.find(toolbar, item => item.currentIndex !== undefined && item.popup !== undefined)
-                check("with the workspace picker and the thirteen switches, the Looks one saying only what it is where no look is live", switches.slice().sort().join("|") === "Bible|Calendar|Edit|Looks|Media|Output|Reflow|Search|Settings|Show|Simple View|Stage|Themes" && !texts(toolbar).includes("Workspace") && named("workspaceIcon") !== null, switches.join("|"))
-                check("Search, Themes, Show, Edit, Reflow, Bible and Calendar at the left, straight after the workspace picker, and the rest at the right in their order",
-                      leftOf("Search") > picker0.mapToItem(null, picker0.width, 0).x && leftOf("Search") < leftOf("Themes") && leftOf("Themes") < leftOf("Show")
+                check("with the workspace picker and the fourteen switches, the Looks one saying only what it is where no look is live", switches.slice().sort().join("|") === "Bible|Calendar|Edit|Looks|Media|Output|Reflow|Search|Settings|Show|Simple View|Stage|Text|Themes" && !texts(toolbar).includes("Workspace") && named("workspaceIcon") !== null, switches.join("|"))
+                check("Search, Text, Themes, Show, Edit, Reflow, Bible and Calendar at the left, straight after the workspace picker, and the rest at the right in their order",
+                      leftOf("Search") > picker0.mapToItem(null, picker0.width, 0).x && leftOf("Search") < leftOf("Text") && leftOf("Text") < leftOf("Themes") && leftOf("Themes") < leftOf("Show")
                       && leftOf("Show") < leftOf("Edit") && leftOf("Edit") < leftOf("Reflow") && leftOf("Reflow") < leftOf("Bible") && leftOf("Bible") < leftOf("Calendar")
                       && leftOf("Calendar") < 580 && title.mapToItem(null, 0, 0).x > leftOf("Calendar") + 44
                       && leftOf("Simple View") > win.width / 2 && leftOf("Simple View") < leftOf("Media") && leftOf("Media") < leftOf("Looks") && leftOf("Looks") < leftOf("Output") && leftOf("Output") < leftOf("Stage")

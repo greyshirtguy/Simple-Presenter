@@ -474,3 +474,21 @@ qt_add_executable(tst_delayline
 target_include_directories(tst_delayline PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_delayline PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME delayline COMMAND tst_delayline)
+
+qt_add_executable(tst_slideselection
+    tst_slideselection.cpp
+    ${PROJECT_SOURCE_DIR}/src/slideselection.h
+    ${PROJECT_SOURCE_DIR}/src/slideselection.cpp
+)
+target_include_directories(tst_slideselection PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_slideselection PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME slideselection COMMAND tst_slideselection)
+
+qt_add_executable(tst_textformat
+    tst_textformat.cpp
+    ${PROJECT_SOURCE_DIR}/src/textformat.h
+    ${PROJECT_SOURCE_DIR}/src/textformat.cpp
+)
+target_include_directories(tst_textformat PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_textformat PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
+add_test(NAME textformat COMMAND tst_textformat)

@@ -13,7 +13,9 @@ import QtQuick.Shapes
 // window with its bottom pane filled when `on`; "settings" is a set of sliders; "edit"
 // is a pencil, orange when `on`; "reflow" is a letter T over a wave of two peaks (words,
 // and their flowing from slide to slide), orange when `on`; "show" is the triangle
-// that means play, orange when `on`; "search" is a magnifying glass; "themes" is one slide behind another; "expand"
+// that means play, orange when `on`; "search" is a magnifying glass; "text" is the
+// letters Aa, as on ProPresenter's Text button (its pack has no picture of it), orange
+// while `on`, its popover being open; "themes" is one slide behind another; "expand"
 // is four corners turned outwards, the sign for filling the screen, orange when `on`; "bible" is an open book, orange
 // when `on` (ProPresenter's toolbar has a Bibles button, and its pack no picture of one); "calendar" is a calendar's
 // page (CalendarGlyph), orange when `on`, the Calendar window being open.
@@ -229,6 +231,17 @@ Item {
                     y: 13.5
                 }
             }
+        }
+
+        // The letters Aa, in the font the toolbar is in (one already in use, so nothing new
+        // is loaded for it; and no text at all for any other kind of button)
+        Text {
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: -0.5
+            visible: button.kind === "text"
+            text: visible ? "Aa" : ""
+            color: button.on ? "#ff8a1f" : button.ink
+            font.pixelSize: 15
         }
 
         // A slide with lines of text on it, behind another: the looks slides can be given
