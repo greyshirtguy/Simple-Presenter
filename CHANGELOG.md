@@ -6,6 +6,25 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.115](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.115) · 2026-10-27
+
+- ProPresenter's [Text](docs/features/text-format.md) button, after Search in the toolbar:
+  a popover of the font, its style and colour, capitals, size, the alignment in the line
+  and in the box, the outline and the shadow, for the words of every slide of the
+  presentation at once, or of the slides selected. Each control shows what the words have
+  in common, and is empty where they differ. The arrows beside its numbers step what each
+  has: the size's make every size of the words a point larger or smaller, so that large
+  words and small keep apart. Revert puts the file back as it was while it is open.
+- [Slides selected](docs/features/text-format.md#selecting-slides) with Ctrl and a click,
+  one at a time, and with Shift and a click, every slide from the last one selected,
+  each with a blue ring. Only the Text button goes by them so far.
+- [Apply This Text Style to All](docs/features/text-format.md#apply-this-text-style-to-all),
+  this app's own, under Copy Text Style in a slide's menu: the slide taken as a theme for
+  every other slide of its presentation, its text boxes alone.
+- A theme or a text style put on the live slide while showing is drawn on the screens at
+  once. Before, the operator's preview showed it and the screens did not until the next
+  slide.
+
 ## [0.114](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.114) · 2026-10-26
 
 - A [video delay](docs/features/screens.md#video-delay) for each audience screen, as

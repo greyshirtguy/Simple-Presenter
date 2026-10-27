@@ -39,6 +39,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.115" date="2026-10-27">
+      <description>
+        <p>
+          ProPresenter's Text button, for the look of the words of every slide at once or of
+          the slides selected with Ctrl and Shift; Apply This Text Style to All in a slide's
+          menu; and the live slide drawn again on the screens when a theme or a text style is
+          put on it.
+        </p>
+      </description>
+    </release>
     <release version="0.114" date="2026-10-26">
       <description>
         <p>

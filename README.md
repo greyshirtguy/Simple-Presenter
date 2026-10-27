@@ -126,20 +126,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.115: ProPresenter's Text button, and slides selected.** The font, size, colour, capitals, alignment, outline and shadow of the words of every slide at once, or of the slides selected with Ctrl and Shift, the size's arrows stepping each one's own size so that large words and small keep apart ([Text](docs/features/text-format.md)); Apply This Text Style to All in a slide's menu; and the live slide drawn again on the screens when a theme or a text style is put on it.
 - **0.114: A video delay for each screen, a card's clock, and sound heard sooner.** An audience screen can be shown so many of its frames late, to be level with its sound ([Video delay](docs/features/screens.md#video-delay)); the screens going out through a DeckLink card can be drawn by one of its outputs' own frames ([Clock Source](docs/features/decklink.md)); each audience screen can show its [performance statistics](docs/features/screens.md#performance-statistics); and the app's sound is heard about 63 ms sooner than before, two frames at thirty a second.
 - **0.113: Sound on many channels, routed as in ProPresenter.** Up to sixteen channels of the app's own, sent to a sound device's channels by a Channel Routing matrix with Mute, Solo and a test tone for each; and each piece of media's channels sent to them by an Audio tab in the Media Inspector, with its ramps in and out and a volume for each channel. See [The app's channels](docs/features/audio.md#the-apps-channels).
 - **0.112: Smoother video under slide changes, as measured.** A cut is drawn once, and transitions, scrolling text and builds move by each screen's own refreshes, in step with a video playing under them, where Qt's own animations ran on a timer of their own; scrolling words go evenly. The stutter was slight and is rarer, not gone. See [How it is made](docs/how-it-is-made.md#built-for-modest-hardware).
 - **0.111: Screen Previews that move, and a guide.** A Screen Preview on a stage layout now changes by the screen's transitions, with its scrolling text and video inputs going, and so does the operator window's preview, each with a switch in Settings → Windows; and a ? at the right of the toolbar puts up the app in short: its own features, what it does not do, and its keys. See [Stage layouts](docs/features/stage-layouts.md#screen-preview) and [In short](docs/guide.md).
-- **0.110: Quicker drags in the editor, and slides disabled at a date.** A slider or a handle dragged in the editor takes half the work it did, every step in its frame on an old laptop; and Disable On… in a slide's menu has the slide disabled by itself at a day and a time. See [Editing](docs/features/editing.md) and [Disabled slides](docs/features/disabled-slides.md#at-a-date).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.114_amd64.deb` from the
+`simplepresenter_0.115_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.114_amd64.deb
+sudo apt install ./simplepresenter_0.115_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

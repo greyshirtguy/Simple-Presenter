@@ -6,7 +6,7 @@
 #                    beside the one executable
 #   the package      a .deb, made by `cpack` (see the end of this file)
 cmake_minimum_required(VERSION 3.21)
-project(SimplePresenter VERSION 0.114 LANGUAGES CXX)
+project(SimplePresenter VERSION 0.115 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
