@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are fifty:
+So far there are fifty-one:
 
 | Test | What it tries |
 | --- | --- |
@@ -68,6 +68,7 @@ So far there are fifty:
 | `tst_delayline` | The rules of a screen's video delay (`src/delayline.h`): which picture held is shown when, on a screen of sixty frames a second, with a picture drawn at each frame or now and then, a little before or after its moment; when the next is due; how many to hold |
 | `tst_slideselection` | The slides selected (`src/slideselection.h`): a click with Ctrl adding a slide or letting it go, the live slide counted in; one with Shift adding every slide from the last one selected, or from the live one, or from the first; and what a change goes to, the slides selected or, with none, every slide |
 | `tst_textformat` | The Text button's formats (`src/textformat.h`): what a run and a box are given, and only what differs from what they have; the size's arrows stepping each run's own size, never below a point, and the other numbers' each one's own, the opacity kept from 0 to 1 and the angle turned round; a face by its style's name; an outline turned on at three hundredths of a run's size, and by its colour alone; a shadow's colour turning it on; what many runs and boxes have in common, a key dropped for good at the first that differs |
+| `tst_fontnames` | Font names (`src/fontnames.h`), as the maintainer's CMG Sans has them: Qt's name for a family it has from two foundries (`CMG Sans [ULA ]`) made the family's own again, and a menu's list with each family once; what to ask Qt for to have a face of one of the foundries; style names compared whatever their spacing and case; the style part of a PostScript name |
 
 **Adding one.** A part can be unit tested if it compiles without the windows: it takes
 what it needs as values and says what is to happen as values, where the code round it
@@ -344,6 +345,16 @@ what it is drawn by; then Automatic again.
 `statistics` ticks Show Performance Statistics On Screen: the audience screen shows its
 lines, lit at its top left, and the operator's preview does not; given a video delay
 they say so, shown at once over the delayed picture; unticked, they are gone.
+
+`fonts` makes up a family for itself, from two of the system's Lato files copied into
+its own fonts folder and renamed there by a fontconfig file of its own as they are read:
+"Test Sans", its Regular from one foundry and its Light from another, as the
+maintainer's CMG Sans is. A box's words named Light by its PostScript name are drawn
+lighter than Regular in the editor, on the output and in the operator's preview; the
+editor's font box calls the family by its own name, not missing, and lists it once;
+picking it, or a family in Qt's form with its foundry, writes the family's own name and
+the face's real PostScript name; and a face named by another maker's name is drawn in
+the family's face of its style.
 
 `textformat` works the Text button, on a song of the Act workspace that ProPresenter
 wrote. Slides are selected with Ctrl and with Shift, with a blue ring drawn round each

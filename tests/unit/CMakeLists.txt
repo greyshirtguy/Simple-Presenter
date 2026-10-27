@@ -492,3 +492,12 @@ qt_add_executable(tst_textformat
 target_include_directories(tst_textformat PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_textformat PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
 add_test(NAME textformat COMMAND tst_textformat)
+
+qt_add_executable(tst_fontnames
+    tst_fontnames.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontnames.h
+    ${PROJECT_SOURCE_DIR}/src/fontnames.cpp
+)
+target_include_directories(tst_fontnames PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_fontnames PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME fontnames COMMAND tst_fontnames)

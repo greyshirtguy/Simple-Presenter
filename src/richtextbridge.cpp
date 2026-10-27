@@ -1,5 +1,6 @@
 #include "richtextbridge.h"
 
+#include "fontnames.h"
 #include "richtext.h"
 #include "textlayout.h"
 
@@ -74,5 +75,7 @@ bool RichTextBridge::isEmpty(const QVariant &richText) const
 
 QStringList RichTextBridge::fontFamilies() const
 {
-    return QFontDatabase::families();
+    // (Each by its own name and once: Qt lists a family it has from two foundries once for
+    // each, as "CMG Sans [ULA ]", and never as "CMG Sans"; see fontnames.h)
+    return fontnames::plainFamilies(QFontDatabase::families());
 }

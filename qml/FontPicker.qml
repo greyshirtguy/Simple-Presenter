@@ -4,14 +4,18 @@ import QtQuick.Controls.Basic
 // Names a font family and, when clicked, offers the installed ones to pick from, each
 // shown in itself, with a box to narrow the list by typing. A family the presentation
 // names that is not installed here is shown as it is named, marked missing; it stays
-// the presentation's font until another is picked.
+// the presentation's font until another is picked. Families go by their own names (the
+// bridge's list has them so): one Qt has from two foundries, which it lists as "CMG
+// Sans [ULA ]", is "CMG Sans", and one a file was once given in Qt's form is taken by its
+// own name too (see src/fontnames.h).
 Rectangle {
     id: picker
 
     // The family in use, and all the installed ones
     property string family
     property var families: []
-    readonly property bool installed: families.some(name => name.toLowerCase() === family.toLowerCase())
+    readonly property string named: family.replace(/ \[[^\[\]]*\]$/, "")
+    readonly property bool installed: families.some(name => name.toLowerCase() === named.toLowerCase())
 
     signal picked(string family)
     signal closed
@@ -28,7 +32,7 @@ Rectangle {
         elide: Text.ElideRight
         color: picker.installed || picker.family === "" ? "#e6e6e6" : "#ffb300"
         font.pixelSize: 13
-        text: picker.family === "" ? "—" : picker.installed ? picker.family : picker.family + "  (missing)"
+        text: picker.family === "" ? "—" : picker.installed ? picker.named : picker.named + "  (missing)"
     }
 
     Text {
@@ -68,7 +72,7 @@ Rectangle {
         focus: true
         onAboutToShow: {
             filter.text = ""
-            const current = picker.families.findIndex(name => name.toLowerCase() === picker.family.toLowerCase())
+            const current = picker.families.findIndex(name => name.toLowerCase() === picker.named.toLowerCase())
             list.currentIndex = Math.max(0, current)
             list.positionViewAtIndex(list.currentIndex, ListView.Center)
         }
@@ -133,7 +137,7 @@ Rectangle {
                         anchors.rightMargin: 8
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
-                        color: option.modelData.toLowerCase() === picker.family.toLowerCase() ? "#ff8a1f" : "#e6e6e6"
+                        color: option.modelData.toLowerCase() === picker.named.toLowerCase() ? "#ff8a1f" : "#e6e6e6"
                         font.pixelSize: 15
                         font.family: option.modelData
                         text: option.modelData

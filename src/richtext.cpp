@@ -1,5 +1,6 @@
 #include "richtext.h"
 
+#include "fontnames.h"
 #include "fontresolver.h"
 
 #include <QStringList>
@@ -83,7 +84,9 @@ void TextRun::applyFormat(const QVariantMap &format)
 {
     bool restyle = false;
     if (format.contains("family")) {
-        family = format.value("family").toString();
+        // (By its own name: Qt lists a family it has from two foundries as "CMG Sans
+        // [ULA ]", which no ProPresenter would find; see fontnames.h)
+        family = fontnames::plain(format.value("family").toString());
         // A different family has faces of its own; nothing of the old name carries over.
         fontName.clear();
         restyle = true;
@@ -98,6 +101,15 @@ void TextRun::applyFormat(const QVariantMap &format)
     }
     if (restyle)
         fontName = restyledPostScriptName(fontName, family, bold, italic);
+    // A face by its PostScript name, as ProPresenter names one: it says the family, bold
+    // and italic as well, as the face here has them
+    if (format.contains("fontName")) {
+        fontName = format.value("fontName").toString();
+        const ResolvedFont face = resolvePostScriptName(fontName, family);
+        family = face.family;
+        bold = face.bold;
+        italic = face.italic;
+    }
     if (format.contains("size"))
         size = qMax(1.0, format.value("size").toDouble());
     if (format.contains("underline"))

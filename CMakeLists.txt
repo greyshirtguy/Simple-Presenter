@@ -60,6 +60,8 @@ target_link_libraries(proproto PUBLIC protobuf::libprotobuf)
 # The plain C++: files, text and thumbnails. None of this is seen from QML directly.
 qt_add_executable(SimplePresenter
     src/main.cpp
+    src/fontnames.cpp
+    src/fontnames.h
     src/fontresolver.cpp
     src/fontresolver.h
     src/iconprovider.cpp

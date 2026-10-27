@@ -1047,6 +1047,7 @@ Rectangle {
                 caption: "Font"
 
                 FontPicker {
+                    objectName: "fontPicker"
                     width: textTab.width - 78
                     family: inspector.format ? inspector.format.family : ""
                     families: inspector.families

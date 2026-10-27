@@ -1024,12 +1024,15 @@ void writeText(Text *text, const RichText &rich)
     const QString fontName = first.fontName.isEmpty() ? postScriptNameFor(first.family, first.bold, first.italic)
                                                       : first.fontName;
     rv::data::Font *font = attributes->mutable_font();
+    // The face's style name ProPresenter may keep is kept while the face is the same, and
+    // goes with it when it is another (the files looked at leave it empty)
+    if (font->name() != fontName.toStdString())
+        font->clear_face();
     font->set_name(fontName.toStdString());
     font->set_family(first.family.toStdString());
     font->set_size(first.size);
     font->set_bold(first.bold);
     font->set_italic(first.italic);
-    font->clear_face();
 
     attributes->set_capitalization(Attributes::Capitalization(first.capitalization));
     // A gradient or media fill for the text is not something the text itself can say;

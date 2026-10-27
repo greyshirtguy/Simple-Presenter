@@ -2788,6 +2788,40 @@ def prepare_red_picture(workspace, test_dir):
         out.write(tiny_png((255, 0, 0), 320, 180))
 
 
+# ---- Fonts: a family from two foundries
+#
+# Made up for the test from two of Lato's files (the system's, which the Ubuntu desktop
+# has), copied into the test's own fonts folder, where fontconfig looks for the test as it
+# looks in ~/.local/share/fonts, and renamed there by a fontconfig file of the test's own,
+# when the fonts are read: "Test Sans", Regular from one foundry (TSTA) and Light from
+# another (TSTB), with PostScript names of their own and Light's second family name, as
+# the maintainer's CMG Sans has, whose two foundries Qt lists as "CMG Sans [ULA ]" and
+# "CMG Sans [PYRS]" (see src/fontnames.h). Nothing is changed outside the test's folder.
+
+TEST_FONTS = {"Lato-Regular.ttf": ("TSTA", "TestSans-Regular", ["Test Sans"]),
+              "Lato-Light.ttf": ("TSTB", "TestSans-Light", ["Test Sans", "Test Sans Light"])}
+
+
+def prepare_test_fonts(workspace, test_dir):
+    folder = os.path.join(test_dir, "data", "fonts", "test-sans")
+    os.makedirs(folder)
+    matches = []
+    for name, (foundry, postscript, families) in TEST_FONTS.items():
+        path = os.path.join(folder, name)
+        if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("a test's font was about to be written outside the test's folder: %s" % os.path.realpath(path))
+        shutil.copyfile(os.path.join("/usr/share/fonts/truetype/lato", name), path)
+        matches.append('  <match target="scan">\n    <test name="file"><string>%s</string></test>\n'
+                       '    <edit name="family" mode="assign_replace">%s</edit>\n'
+                       '    <edit name="foundry" mode="assign_replace"><string>%s</string></edit>\n'
+                       '    <edit name="postscriptname" mode="assign_replace"><string>%s</string></edit>\n  </match>\n'
+                       % (path, "".join("<string>%s</string>" % f for f in families), foundry, postscript))
+    os.makedirs(os.path.join(test_dir, "config", "fontconfig"))
+    with open(os.path.join(test_dir, "config", "fontconfig", "fonts.conf"), "w") as conf:
+        conf.write('<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">\n<fontconfig>\n%s</fontconfig>\n'
+                   % "".join(matches))
+
+
 def quarters_png(width, height, colours):
     """A picture of four colours, one in each quarter (top left, top right, bottom left, bottom right), as the bytes of
     a PNG file."""
@@ -3233,6 +3267,7 @@ TESTS = {
     "videoinputs": test("Act", timeout=240, env={"SP_TEST_VIDEOINPUT": "1"}, prepare=prepare_videoinputs, after=after_videoinputs),
     "textstyle": test("Act", timeout=240),
     "textformat": test("Act", timeout=300),
+    "fonts": test("Demo", prepare=prepare_test_fonts),
     # (With the two Blackmagic outputs the app pretends for tests: there is no card here.)
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),

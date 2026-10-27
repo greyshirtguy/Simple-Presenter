@@ -187,9 +187,16 @@ change made to a presentation in an editing session is preceded by a copy of the
 as it was, in `~/.local/share/SimplePresenter/SimplePresenter/Edit Backups`, where the
 twenty most recent for each presentation are kept.
 
-Fonts are recorded by name, so text set in a font that is not installed here keeps its
-font unless another is chosen for it; the editor marks such a font as missing, and a
-substitute is used to draw it.
+Fonts are recorded by name, as ProPresenter records them: each face by its PostScript
+name (`CMGSans-Light`), with the family (`CMG Sans`) beside it. Text is drawn in the very
+face named, so a family's Light, Medium, Black or Condensed is drawn as itself, not as
+its Regular or Bold. A family that is installed from two makers (fonts name theirs, a
+foundry, which Qt then shows after the family, as `CMG Sans [ULA]`) is called by its own
+name, listed once, and written by its own name. Where the face named is not installed
+here, the family's face of the same style is used if there is one (`Light` of
+`CMGSans-Light`: a GUESS at what ProPresenter does, which keeps both names); text set
+in a font that is not installed at all keeps its font unless another is chosen for it,
+the editor marks the font as missing, and a substitute is used to draw it.
 
 ## Quick Edit
 

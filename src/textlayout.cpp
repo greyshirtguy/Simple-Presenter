@@ -1,5 +1,8 @@
 #include "textlayout.h"
 
+#include "fontnames.h"
+#include "fontresolver.h"
+
 #include <QCache>
 #include <QDataStream>
 #include <QFontMetricsF>
@@ -125,7 +128,8 @@ QByteArray layoutKey(const RichText &text, qreal width)
         stream << int(paragraph.alignment) << paragraph.lineHeight << paragraph.lineHeightIsMultiple
                << qint32(paragraph.runs.size());
         for (const TextRun &run : paragraph.runs) {
-            stream << run.text << run.family << run.size << run.bold << run.italic << run.underline << run.strikethrough
+            // (The font name too: it names the face drawn, Light or Regular of one family; see fontFor)
+            stream << run.text << run.fontName << run.family << run.size << run.bold << run.italic << run.underline << run.strikethrough
                    << run.kerning << run.superscript << run.capitalization << quint64(run.fill.rgba64()) << run.fillVisible
                    << quint64(run.stroke.rgba64()) << run.strokeWidth;
         }
@@ -187,7 +191,7 @@ TextRun runOf(const QTextCharFormat &format)
     if (kept.canConvert<TextRun>())
         return kept.value<TextRun>();
     TextRun run;
-    run.family = format.fontFamilies().toStringList().value(0);
+    run.family = fontnames::plain(format.fontFamilies().toStringList().value(0));
     run.size = format.hasProperty(QTextFormat::FontPixelSize) ? format.intProperty(QTextFormat::FontPixelSize) : 60;
     run.bold = format.fontWeight() >= QFont::DemiBold;
     run.italic = format.fontItalic();
@@ -201,10 +205,24 @@ TextRun runOf(const QTextCharFormat &format)
 
 QFont fontFor(const TextRun &run)
 {
-    QFont font(run.family);
+    // The very face the run names by its PostScript name, where it is installed and is as
+    // bold and as italic as the run: a family's faces are more than bold and italic
+    // (CMG Sans Light is not CMG Sans), and one of two foundries is found only under its
+    // name (see fontresolver.h). Such a face is asked for by its style's name, and the
+    // family's Regular, Bold and Italic by bold and italic, as before, under its
+    // foundry's name: asked for by style name, the benchmark's Ubuntu Sans Regular (a face
+    // of a variable font) had the editor close 38 ms later, in three rounds of three.
+    // (The lookup is kept, once for each name.)
+    const ResolvedFont face = run.fontName.isEmpty() ? ResolvedFont() : resolvePostScriptName(run.fontName, run.family);
+    const bool asNamed = face.installed && face.bold == run.bold && face.italic == run.italic;
+    QFont font(asNamed ? face.qtFamily : fontnames::plain(run.family));
     font.setPixelSize(qMax(1, qRound(run.size)));
-    font.setBold(run.bold);
-    font.setItalic(run.italic);
+    if (asNamed && !fontnames::saidByBoldAndItalic(face.style)) {
+        font.setStyleName(face.style);
+    } else {
+        font.setBold(run.bold);
+        font.setItalic(run.italic);
+    }
     // Hinting snaps outlines to the pixel grid, which distorts them once scaled.
     font.setHintingPreference(QFont::PreferNoHinting);
     if (run.kerning != 0)

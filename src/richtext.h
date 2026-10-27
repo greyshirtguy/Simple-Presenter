@@ -49,7 +49,8 @@ struct TextRun
     // strikethrough, kerning, capitalization, color, strokeColor, strokeWidth.
     QVariantMap format() const;
     // Changes whichever of those the map has. The stroke is off at width 0. Changing the
-    // family, or bold or italic, picks a matching font name.
+    // family, or bold or italic, picks a matching font name; a font name given names the
+    // face itself, and its family, bold and italic come with it.
     void applyFormat(const QVariantMap &format);
 };
 

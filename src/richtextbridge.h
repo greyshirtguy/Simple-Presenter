@@ -37,6 +37,6 @@ public:
     Q_INVOKABLE QVariantMap formatAt(const QVariant &richText, int start, int end) const;
     Q_INVOKABLE bool isEmpty(const QVariant &richText) const;
 
-    // The font families installed here, for a font menu.
+    // The font families installed here, for a font menu, by their own names.
     Q_INVOKABLE QStringList fontFamilies() const;
 };
