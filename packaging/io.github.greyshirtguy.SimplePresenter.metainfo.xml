@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.117" date="2026-10-28">
+      <description>
+        <p>
+          Combined screens: an audience screen of two outputs side by side drawn as one
+          picture, as ProPresenter's Combined arrangement is, each output going wherever a
+          screen can, and two outputs of a card drawn and handed over together.
+        </p>
+      </description>
+    </release>
     <release version="0.116" date="2026-10-28">
       <description>
         <p>

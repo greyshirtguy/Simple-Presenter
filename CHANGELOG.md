@@ -6,6 +6,19 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.117](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.117) · 2026-10-28
+
+- Combined screens: an audience screen can be two outputs side by side drawn as one
+  picture, as ProPresenter's Combined arrangement is (two 1920x1080 outputs as one
+  3840x1080 screen). Under Settings → Screens its Arrangement is Single or Combined, and
+  its second output goes wherever a screen can, with its own settings. Two outputs of a
+  card are drawn in the same pass and handed to it together. The arrangement is written
+  into ProPresenter's file as ProPresenter 7 writes it, and one ProPresenter made of more
+  rows and columns is drawn as it is. See
+  [Screens](docs/features/screens.md#combined-screens).
+- The operator's preview and Screen Previews draw every layer inside the screen's own
+  shape.
+
 ## [0.116](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.116) · 2026-10-28
 
 - Fonts are drawn as their files name them: a family's Light, Thin, Medium, Black,
