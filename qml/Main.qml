@@ -3261,7 +3261,7 @@ Window {
         if (kind === "theme") {
             // A screen dressed in the theme by the look that is live shows it as it now is.
             Themes.reload()
-            eachAudienceScene((scene, id) => redress(id))
+            eachAudienceScene((scene, id, key) => redress(key))
             return
         }
         const entry = currentEntry()
@@ -3478,7 +3478,7 @@ Window {
     // preview always was.
     property string pickedPreviewScreen: ""
     readonly property string previewScreenId: Screens.screens.some(screen => screen.id === pickedPreviewScreen) ? pickedPreviewScreen
-                                            : audienceIds[0] ?? (Screens.audience.length > 0 ? Screens.audience[0].id : "")
+                                            : audienceIds.length > 0 ? screenOfKey(audienceIds[0]) : (Screens.audience.length > 0 ? Screens.audience[0].id : "")
 
     function pickPreviewScreen(id) {
         const screen = Screens.screens.find(candidate => candidate.id === id)
@@ -3492,9 +3492,9 @@ Window {
     // screen. (Until it went by this, a layer switched off in a look was gone from
     // the screen and still in the preview, which read as the look not having worked.)
     // With no audience screen drawn, it shows everything as it is.
-    readonly property var previewLook: audienceIds.length > 0 && Looks.live !== undefined ? Looks.liveOf(audienceIds[0])
+    readonly property var previewLook: audienceIds.length > 0 && Looks.live !== undefined ? Looks.liveOf(screenOfKey(audienceIds[0]))
                                                                                           : ({ slide: true, media: true, props: true, theme: "" })
-    readonly property var previewSlide: previewLook.theme === "" || audienceIds.length === 0 ? liveSlide : slideFor(audienceIds[0], liveSlide)
+    readonly property var previewSlide: previewLook.theme === "" || audienceIds.length === 0 ? liveSlide : slideFor(screenOfKey(audienceIds[0]), liveSlide)
     // The mask the live look gives that screen, as its slide; null for none
     readonly property var previewMask: maskSlide(previewLook.mask)
 
@@ -3527,8 +3527,26 @@ Window {
         senders = all
     }
 
+    // A part of an audience screen of several outputs is drawn as a screen is, and known
+    // by its key (see Screens' `parts`): the screen's id for its first part, which is the
+    // screen's own, the id and "/part" and its place for the others. These give the
+    // screen's id and the place back.
+    function screenOfKey(key) {
+        const at = key.indexOf("/part")
+        return at < 0 ? key : key.substring(0, at)
+    }
+
+    function partOfKey(key) {
+        const at = key.indexOf("/part")
+        return at < 0 ? 0 : parseInt(key.substring(at + 5))
+    }
+
     function followScreens() {
-        const drawn = kind => Screens.screens.filter(screen => screen.kind === kind && screen.output !== "none").map(screen => screen.id)
+        // (Of an audience screen, each part that is sent out through something; a stage
+        // screen is of one output)
+        const drawn = kind => Screens.screens.filter(screen => screen.kind === kind).reduce((keys, screen) => keys.concat(
+            kind === "audience" ? screen.parts.filter(part => part.output !== "none").map(part => part.key)
+                                : screen.output !== "none" ? [screen.id] : []), [])
         // Brings a model into line with a list of ids: what is gone taken out, what is
         // new put in at its place.
         const follow = (model, ids) => {
@@ -3562,10 +3580,12 @@ Window {
         }
     }
 
+    // Each audience scene, with the id of the screen it draws (or draws a part of) and
+    // its own key
     function eachAudienceScene(act) {
-        for (const id of audienceIds) {
-            if (scenes[id])
-                act(scenes[id], id)
+        for (const key of audienceIds) {
+            if (scenes[key])
+                act(scenes[key], screenOfKey(key), key)
         }
     }
 
@@ -3651,9 +3671,11 @@ Window {
     // what the maintainer's use of such a theme wants.) Otherwise its builds go on where
     // they are, with the other screens': their times are the screens' clock, not the
     // change's.
-    function redress(screenId) {
-        if (!liveSlide || !scenes[screenId])
+    function redress(key) {
+        if (!liveSlide || !scenes[key])
             return
+        // (Of a screen, or a part of one: the screen's look and theme)
+        const screenId = screenOfKey(key)
         const dressed = slideFor(screenId, liveSlide)
         const starts = Object.assign({}, buildStarts)
         if (Looks.liveOf(screenId).theme !== "" && dressed.builds !== undefined)
@@ -3661,7 +3683,7 @@ Window {
         else
             delete starts[screenId]
         buildStarts = starts
-        scenes[screenId].showSlide(dressed, null, buildTimesFor(screenId))
+        scenes[key].showSlide(dressed, null, buildTimesFor(screenId))
     }
 
     // The transition a slide of the presentation on show is brought in with, where it
@@ -3695,7 +3717,7 @@ Window {
     }
 
     // A scene has been made: it is told what is live, which the others were told as it
-    // happened.
+    // happened. (`id` is its key: a part of a screen goes by its screen's look.)
     function sceneMade(id, scene) {
         const all = Object.assign({}, scenes)
         all[id] = scene
@@ -3703,7 +3725,7 @@ Window {
         if (lastPlayed !== null)
             scene.showMedia(lastPlayed)
         if (liveSlide)
-            scene.showSlide(slideFor(id, liveSlide), null, buildTimesFor(id))
+            scene.showSlide(slideFor(screenOfKey(id), liveSlide), null, buildTimesFor(screenOfKey(id)))
         if (announcementSlide || lastAnnouncementPlayed !== null)
             scene.showAnnouncement(announcementSlide, Show.WithMedia, lastAnnouncementPlayed)
     }
@@ -4747,13 +4769,22 @@ Window {
 
             required property string screenId
             required property int index
+            // (Its key: a screen's id, or a part of a screen of several outputs: see
+            // screenOfKey)
             readonly property string modelData: screenId
-            readonly property var screen: Screens.screens.find(candidate => candidate.id === audienceHost.modelData) ?? ({ output: "none", name: "" })
+            readonly property string wholeId: win.screenOfKey(screenId)
+            readonly property int part: win.partOfKey(screenId)
+            // The screen, with what this part of it is sent out through in place of the
+            // screen's own (the same, for a screen of one output)
+            readonly property var whole: Screens.screens.find(candidate => candidate.id === audienceHost.wholeId) ?? null
+            readonly property var screen: whole ? Object.assign({}, whole, whole.parts[part] ?? { output: "none" }) : ({ output: "none", name: "", columns: 1, rows: 1 })
+            // How it is named on the windows and statistics: a part by its place
+            readonly property string title: part > 0 || (screen.columns * screen.rows) > 1 ? screen.name + " " + (part + 1) : screen.name
             // The first plays the media, for all of them (see MediaContent).
             readonly property bool leads: index === 0
             // What the look that is live gives this screen: which layers, and in what theme
             // (Reading `live` is what has this follow the live look as it changes.)
-            readonly property var look: Looks.live !== undefined ? Looks.liveOf(audienceHost.modelData) : null
+            readonly property var look: Looks.live !== undefined ? Looks.liveOf(audienceHost.wholeId) : null
             readonly property string themeKey: look.theme === "" ? "" : look.theme + "\n" + look.themeSlide
             // The look has given this screen another theme, or none: the slide that is
             // live is shown again as it now looks here.
@@ -4765,7 +4796,7 @@ Window {
                 model: audienceHost.overNdi || audienceHost.overDeckLink ? 0 : 1
                 delegate: Output {
                     objectName: audienceHost.leads ? "output" : "output-" + audienceHost.modelData
-                    title: audienceHost.leads ? "Output" : "Output: " + audienceHost.screen.name
+                    title: audienceHost.leads ? "Output" : "Output: " + audienceHost.title
                     owner: win
                     remember: win.remember
                     shown: win.outputEnabled
@@ -4795,8 +4826,12 @@ Window {
                     mask: win.maskSlide(audienceHost.look.mask)
                     pictures: win
                     videoDelay: audienceHost.screen.videoDelay ?? 0
+                    columns: audienceHost.screen.columns
+                    rows: audienceHost.screen.rows
+                    column: audienceHost.part % audienceHost.screen.columns
+                    row: Math.floor(audienceHost.part / audienceHost.screen.columns)
                     showStatistics: Screens.showStatistics
-                    statisticsTitle: audienceHost.screen.name
+                    statisticsTitle: audienceHost.title
                     keyTarget: keys
                     Component.onCompleted: win.sceneMade(audienceHost.modelData, this, true)
                     Component.onDestruction: win.sceneGone(audienceHost.modelData, this)
@@ -4843,9 +4878,13 @@ Window {
                         mask: win.maskSlide(audienceHost.look.mask)
                         pictures: win
                         videoDelay: audienceHost.screen.videoDelay ?? 0
+                        columns: audienceHost.screen.columns
+                        rows: audienceHost.screen.rows
+                        column: audienceHost.part % audienceHost.screen.columns
+                        row: Math.floor(audienceHost.part / audienceHost.screen.columns)
                         frameInterval: 1000 * Screens.rateOf(audienceHost.screen.ndiRate).denominator / Screens.rateOf(audienceHost.screen.ndiRate).numerator
                         showStatistics: Screens.showStatistics
-                        statisticsTitle: audienceHost.screen.name + " · NDI"
+                        statisticsTitle: audienceHost.title + " · NDI"
                         drawnBy: "the app's clock, at the rate set for it"
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, ndiScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, ndiScene)
@@ -4898,9 +4937,13 @@ Window {
                         mask: win.maskSlide(audienceHost.look.mask)
                         pictures: win
                         videoDelay: audienceHost.screen.videoDelay ?? 0
+                        columns: audienceHost.screen.columns
+                        rows: audienceHost.screen.rows
+                        column: audienceHost.part % audienceHost.screen.columns
+                        row: Math.floor(audienceHost.part / audienceHost.screen.columns)
                         frameInterval: cardSender.frameInterval
                         showStatistics: Screens.showStatistics
-                        statisticsTitle: audienceHost.screen.name + " · " + audienceHost.screen.decklinkName + " · " + audienceHost.screen.decklinkFormat
+                        statisticsTitle: audienceHost.title + " · " + audienceHost.screen.decklinkName + " · " + audienceHost.screen.decklinkFormat
                         drawnBy: cardSender.clock !== "" ? "the frames of " + cardSender.clock + ", the Clock Source" : "the app's clock, at the format's rate"
                         Component.onCompleted: win.sceneMade(audienceHost.modelData, cardScene, true)
                         Component.onDestruction: win.sceneGone(audienceHost.modelData, cardScene)

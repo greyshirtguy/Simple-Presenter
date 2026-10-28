@@ -175,27 +175,27 @@ Item {
     }
     Component.onDestruction: win.pictureGone(picture)
 
-    // The screen. Each layer fills the picture and fits itself in it, as it does on the
-    // screen; only the black of the screen, and a stage screen's plain view, are cut to
-    // the screen's own proportions, here.
+    // The screen, as large as it fits, in its own proportions. Each layer fills it and fits
+    // itself in it, as it does on the screen: a screen of another shape than the picture
+    // (two outputs side by side, say, or a stage screen stood on end) has its slide, media
+    // and the rest where the screen has them, and the black of the screen round them.
     Item {
         id: area
 
         // Whether the media layer has a still picture on it that this shows
         readonly property bool still: !picture.stage && picture.look.media && picture.win.liveMedia !== null && !picture.win.liveMedia.video
+        readonly property real aspect: picture.screen !== null && picture.screen.width > 0 && picture.screen.height > 0
+                                       ? picture.screen.width / picture.screen.height : 16 / 9
 
-        anchors.fill: parent
+        anchors.centerIn: parent
+        width: Math.min(picture.width, picture.height * aspect)
+        height: Math.min(picture.height, picture.width / aspect)
         visible: picture.screen !== null
 
-        // The screen, as large as it fits, in its own proportions
         Rectangle {
             id: frame
 
-            readonly property real aspect: picture.screen !== null && picture.screen.width > 0 && picture.screen.height > 0
-                                           ? picture.screen.width / picture.screen.height : 16 / 9
-            anchors.centerIn: parent
-            width: Math.min(picture.width, picture.height * aspect)
-            height: Math.min(picture.height, picture.width / aspect)
+            anchors.fill: parent
             color: "black"
         }
 

@@ -21,6 +21,17 @@
 // change is made by reading the whole file, altering what the change is about and
 // writing the whole back, so the rest goes back as it came.
 //
+// A screen can be several outputs side by side, or in a grid, drawn as one (ProPresenter's
+// combined arrangement: two 1920x1080 outputs as one 3840x1080 screen, say). The file
+// keeps how many rows and columns of outputs, and an output's record for each, by rows
+// from the top left, whose `bounds` are its size and its place in the whole in pixels (the
+// second of two 1920x1080 outputs at x 1920), its `subscreen_unit_rect` the whole of it
+// (0, 0, 1 by 1) as for a single output. So a file ProPresenter 7 wrote has them, of two
+// outputs side by side with nothing connected; and an output added here is written as it
+// wrote its second (see arrange()). That is the workspace's, as the screen is; what each
+// output is sent out through is this computer's, as for any screen (see screens.h). (Its
+// edge-blended arrangement, and a mirrored one, are not drawn as such: the first output's.)
+//
 // These are plain functions on a workspace folder, with nothing of the app's windows
 // about them, so that they can be tested by themselves (tests/unit/tst_screenfile.cpp).
 namespace screenfile {
@@ -33,9 +44,12 @@ struct Screen
     QString id;
     QString name;
     bool stage = false;
-    // The size ProPresenter draws it at
+    // The size ProPresenter draws it at, all of its outputs together
     int width = 1920;
     int height = 1080;
+    // Its outputs, as columns and rows of equal ones: one by one for a screen of one
+    int columns = 1;
+    int rows = 1;
 
     bool operator==(const Screen &other) const = default;
 };
@@ -68,5 +82,12 @@ QString add(const QString &workspace, bool stage, const QString &name, QString *
 // (The last audience screen cannot be removed: there would be nothing to show on.)
 QString remove(const QString &workspace, const QString &id);
 QString rename(const QString &workspace, const QString &id, const QString &name);
+// The screen made of so many columns and rows of outputs, each of the size its first one
+// has (one by one being a screen of one output again): its outputs' records kept in
+// order, as many as are wanted, and a new one, connected to nothing, for each more.
+// Nothing is written if it is so already.
+QString arrange(const QString &workspace, const QString &id, int columns, int rows);
+// The most columns and rows of outputs a screen is made of here
+constexpr int mostParts = 4;
 
 }

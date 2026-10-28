@@ -35,6 +35,13 @@
 // What ProPresenter says a screen is connected to (a display, a video card) is left in
 // its file as it was found, and is not gone by here.
 //
+// A screen can be several outputs drawn as one (ProPresenter's combined arrangement: two
+// 1920x1080 outputs side by side as one 3840x1080 screen, see screenfile.h): then each of
+// its parts is sent out through something of its own, any of the kinds above, and has
+// its own settings, the first's being the screen's own, as for a screen of one output.
+// Each part is drawn by itself, its part of the whole (see OutputScene); parts sent out
+// through a card are drawn and handed to the card together, as every card's screens are.
+//
 // That an output is one of a few kinds, each with its own settings, is meant to be
 // added to: a screen's colour corrected, or its corners pinned, would be more of the
 // same, as the card's outputs and the video delay are. So is what a screen shows being
@@ -51,7 +58,7 @@ class Screens : public QObject
     //   { id, name, kind ("audience" or "stage"), first (of its kind), width, height,
     //     output, display, displayThere, ndiName, ndiWidth, ndiHeight, ndiRate,
     //     decklinkOutput, decklinkName, decklinkFormat, decklinkAlpha, decklinkKey,
-    //     decklinkBlend, videoDelay }
+    //     decklinkBlend, videoDelay, columns, rows, parts }
     // `display` is the name of the display a "display" output fills and `displayThere`
     // whether one of that name is plugged in. The ndi ones are an "ndi" output's name
     // on the network, its size, and its frames a second as text ("30", "59.94"). The
@@ -59,6 +66,10 @@ class Screens : public QObject
     // it had), its format ("1080p29.97"), and its keying: alpha "none", "premultiplied"
     // or "straight", key "internal" or "external", and the blend, 0 to 100. `videoDelay` is
     // how many of its frames late it is shown (see OutputScene), 0 to delayline::kMostFrames.
+    // `columns` and `rows` are how many outputs it is made of, one and one for most, and
+    // `parts` what each is sent out through, the first being the screen's own keys again,
+    // each with `part`, its place, and `key`, how the operator window knows it: the
+    // screen's id for the first, the id and "/part" and its place for the others.
     Q_PROPERTY(QVariantList screens READ screens NOTIFY changed)
     // Those of each kind
     Q_PROPERTY(QVariantList audience READ audience NOTIFY changed)
@@ -111,6 +122,11 @@ public:
     // What a screen is sent out through on this computer: any of output, display,
     // ndiName, ndiWidth, ndiHeight and ndiRate, and the decklink ones, as in `screens`.
     Q_INVOKABLE void setOutput(const QString &id, const QVariantMap &changes);
+    // The same for one of the parts of a screen of several outputs (0 being the screen's)
+    Q_INVOKABLE void setPartOutput(const QString &id, int part, const QVariantMap &changes);
+    // A screen made of so many columns and rows of outputs, written to the workspace's
+    // file (see screenfile::arrange); what was set here for parts it no longer has goes.
+    Q_INVOKABLE QString setArrangement(const QString &id, int columns, int rows);
 
     // A frame rate as two whole numbers, as video counts it: "59.94" is 60000 over 1001.
     Q_INVOKABLE QVariantMap rateOf(const QString &rate) const;
@@ -132,14 +148,15 @@ private:
     QVariantList ofKind(bool stage) const;
     void readDisplays();
     void rebuild();
-    QVariantMap outputOf(const screenfile::Screen &screen, bool first) const;
+    QVariantMap outputOf(const screenfile::Screen &screen, bool first, int part = 0) const;
 
     QString m_workspace;
     QList<screenfile::Screen> m_list;
     QVariantList m_screens;
     QVariantMap m_layouts;
     QVariantList m_displays;
-    // What has been set here for each screen's output, by the screen's id
+    // What has been set here for each screen's output, by the screen's id (and for the
+    // other parts of a screen of several outputs, by partKey)
     QMap<QString, QVariantMap> m_outputs;
     bool m_remember = true;
     bool m_showStatistics = false;

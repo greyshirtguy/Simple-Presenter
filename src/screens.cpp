@@ -24,6 +24,13 @@ QString settingsKey(const QString &id, const QString &key)
     return QStringLiteral("screens/%1/%2").arg(id, key);
 }
 
+// How a part of a screen of several outputs is known, here and in the operator window:
+// the screen's id for its first, which is the screen's own
+QString partKey(const QString &id, int part)
+{
+    return part == 0 ? id : QStringLiteral("%1/part%2").arg(id).arg(part);
+}
+
 }
 
 Screens::Screens(QObject *parent)
@@ -144,31 +151,42 @@ QString Screens::open(const QString &workspace)
             emit showStatisticsChanged();
         }
         for (const screenfile::Screen &screen : std::as_const(m_list)) {
-            QVariantMap kept;
-            for (const QString &key : outputKeys) {
-                const QVariant value = settings.value(settingsKey(screen.id, key));
-                if (value.isValid())
-                    kept.insert(key, value);
+            for (int part = 0; part < screen.columns * screen.rows; ++part) {
+                QVariantMap kept;
+                for (const QString &key : outputKeys) {
+                    const QVariant value = settings.value(settingsKey(partKey(screen.id, part), key));
+                    if (value.isValid())
+                        kept.insert(key, value);
+                }
+                if (!kept.isEmpty())
+                    m_outputs.insert(partKey(screen.id, part), kept);
             }
-            if (!kept.isEmpty())
-                m_outputs.insert(screen.id, kept);
         }
     }
     rebuild();
     QStringList said;
     for (const QVariant &entry : std::as_const(m_screens)) {
-        const QVariantMap screen = entry.toMap();
-        const QString output = screen.value("output").toString();
-        said << QStringLiteral("\"%1\" (%2) to %3").arg(screen.value("name").toString(), screen.value("kind").toString(),
-                    output == QLatin1String("display") ? QStringLiteral("the display %1%2").arg(screen.value("display").toString(),
-                                                             screen.value("displayThere").toBool() ? QString() : QStringLiteral(", which is not plugged in"))
-                  : output == QLatin1String("ndi") ? QStringLiteral("NDI as \"%1\"").arg(screen.value("ndiName").toString())
-                  : output == QLatin1String("decklink") ? QStringLiteral("the Blackmagic output \"%1\" as %2%3").arg(screen.value("decklinkName").toString(),
-                                                              screen.value("decklinkFormat").toString(),
-                                                              screen.value("decklinkAlpha").toString() == QLatin1String("none") ? QString()
-                                                              : QStringLiteral(", keyed %1ly, %2").arg(screen.value("decklinkKey").toString(),
-                                                                                                       screen.value("decklinkAlpha").toString()))
-                  : output == QLatin1String("none") ? QStringLiteral("nothing") : QStringLiteral("a window"));
+        for (const QVariant &partEntry : entry.toMap().value("parts").toList()) {
+            // (A screen of several outputs is said a part at a time)
+            QVariantMap screen = partEntry.toMap();
+            const QVariantMap whole = entry.toMap();
+            screen.insert("name", whole.value("parts").toList().size() > 1
+                                      ? QStringLiteral("%1, part %2 of %3").arg(whole.value("name").toString()).arg(screen.value("part").toInt() + 1)
+                                            .arg(whole.value("parts").toList().size())
+                                      : whole.value("name").toString());
+            screen.insert("kind", whole.value("kind"));
+            const QString output = screen.value("output").toString();
+            said << QStringLiteral("\"%1\" (%2) to %3").arg(screen.value("name").toString(), screen.value("kind").toString(),
+                        output == QLatin1String("display") ? QStringLiteral("the display %1%2").arg(screen.value("display").toString(),
+                                                                 screen.value("displayThere").toBool() ? QString() : QStringLiteral(", which is not plugged in"))
+                      : output == QLatin1String("ndi") ? QStringLiteral("NDI as \"%1\"").arg(screen.value("ndiName").toString())
+                      : output == QLatin1String("decklink") ? QStringLiteral("the Blackmagic output \"%1\" as %2%3").arg(screen.value("decklinkName").toString(),
+                                                                  screen.value("decklinkFormat").toString(),
+                                                                  screen.value("decklinkAlpha").toString() == QLatin1String("none") ? QString()
+                                                                  : QStringLiteral(", keyed %1ly, %2").arg(screen.value("decklinkKey").toString(),
+                                                                                                           screen.value("decklinkAlpha").toString()))
+                      : output == QLatin1String("none") ? QStringLiteral("nothing") : QStringLiteral("a window"));
+        }
     }
     SessionLog::write("screens", QStringLiteral("%1 %2: %3").arg(m_screens.size()).arg(found.fromFile ? QStringLiteral("in the workspace's set-up file")
                                                                                                         : QStringLiteral("(the workspace's file lists none, so the two every workspace has)"),
@@ -176,12 +194,16 @@ QString Screens::open(const QString &workspace)
     return found.error;
 }
 
-QVariantMap Screens::outputOf(const screenfile::Screen &screen, bool first) const
+QVariantMap Screens::outputOf(const screenfile::Screen &screen, bool first, int part) const
 {
-    const QVariantMap kept = m_outputs.value(screen.id);
+    const QVariantMap kept = m_outputs.value(partKey(screen.id, part));
     QString output = kept.value("output").toString();
     if (!outputKinds.contains(output))
-        output = first ? QStringLiteral("window") : QStringLiteral("none");
+        output = first && part == 0 ? QStringLiteral("window") : QStringLiteral("none");
+    // (A part is its share of the screen: an NDI one is that size, and named for its place)
+    const int partWidth = screen.width / qMax(1, screen.columns);
+    const int partHeight = screen.height / qMax(1, screen.rows);
+    const QString partName = part == 0 ? screen.name : QStringLiteral("%1 %2").arg(screen.name).arg(part + 1);
     const QString display = kept.value("display").toString();
     bool there = false;
     for (const QVariant &entry : m_displays)
@@ -194,9 +216,9 @@ QVariantMap Screens::outputOf(const screenfile::Screen &screen, bool first) cons
         {"output", output},
         {"display", display},
         {"displayThere", there},
-        {"ndiName", kept.value("ndiName", screen.name).toString()},
-        {"ndiWidth", qBound(16, kept.value("ndiWidth", screen.width).toInt(), 7680)},
-        {"ndiHeight", qBound(16, kept.value("ndiHeight", screen.height).toInt(), 4320)},
+        {"ndiName", kept.value("ndiName", partName).toString()},
+        {"ndiWidth", qBound(16, kept.value("ndiWidth", partWidth).toInt(), 7680)},
+        {"ndiHeight", qBound(16, kept.value("ndiHeight", partHeight).toInt(), 4320)},
         {"ndiRate", rates().contains(rate) ? rate : QStringLiteral("30")},
         {"decklinkOutput", kept.value("decklinkOutput").toString()},
         {"decklinkName", kept.value("decklinkName").toString()},
@@ -205,6 +227,8 @@ QVariantMap Screens::outputOf(const screenfile::Screen &screen, bool first) cons
         {"decklinkKey", kept.value("decklinkKey").toString() == QLatin1String("internal") ? QStringLiteral("internal") : QStringLiteral("external")},
         {"decklinkBlend", qBound(0, kept.value("decklinkBlend", 100).toInt(), 100)},
         {"videoDelay", qBound(0, kept.value("videoDelay", 0).toInt(), delayline::kMostFrames)},
+        {"part", part},
+        {"key", partKey(screen.id, part)},
     };
 }
 
@@ -222,6 +246,12 @@ void Screens::rebuild()
         map.insert("first", !seen);
         map.insert("width", screen.width);
         map.insert("height", screen.height);
+        map.insert("columns", screen.columns);
+        map.insert("rows", screen.rows);
+        QVariantList parts {outputOf(screen, !seen, 0)};
+        for (int part = 1; part < screen.columns * screen.rows; ++part)
+            parts << outputOf(screen, !seen, part);
+        map.insert("parts", parts);
         seen = true;
         m_screens << map;
     }
@@ -265,7 +295,8 @@ QString Screens::remove(const QString &id)
     if (!error.isEmpty())
         return error;
     SessionLog::write("screens", QStringLiteral("removed a screen"));
-    m_outputs.remove(id);
+    for (int part = 0; part < screenfile::mostParts * screenfile::mostParts; ++part)
+        m_outputs.remove(partKey(id, part));
     if (m_remember)
         QSettings().remove(QStringLiteral("screens/%1").arg(id));
     const screenfile::Screens found = screenfile::read(m_workspace);
@@ -289,15 +320,49 @@ QString Screens::rename(const QString &id, const QString &name)
 
 void Screens::setOutput(const QString &id, const QVariantMap &changes)
 {
-    QVariantMap kept = m_outputs.value(id);
+    setPartOutput(id, 0, changes);
+}
+
+void Screens::setPartOutput(const QString &id, int part, const QVariantMap &changes)
+{
+    const QString key = partKey(id, qMax(0, part));
+    QVariantMap kept = m_outputs.value(key);
     QSettings settings;
     for (auto change = changes.constBegin(); change != changes.constEnd(); ++change) {
         if (!outputKeys.contains(change.key()))
             continue;
         kept.insert(change.key(), change.value());
         if (m_remember)
-            settings.setValue(settingsKey(id, change.key()), change.value());
+            settings.setValue(settingsKey(key, change.key()), change.value());
     }
-    m_outputs.insert(id, kept);
+    m_outputs.insert(key, kept);
     rebuild();
+}
+
+QString Screens::setArrangement(const QString &id, int columns, int rows)
+{
+    const QString error = screenfile::arrange(m_workspace, id, columns, rows);
+    if (!error.isEmpty())
+        return error;
+    m_list = screenfile::read(m_workspace).screens;
+    // What was set here for parts the screen no longer has
+    int count = 1;
+    QString name;
+    for (const screenfile::Screen &screen : std::as_const(m_list)) {
+        if (screen.id == id) {
+            count = screen.columns * screen.rows;
+            name = screen.name;
+        }
+    }
+    QSettings settings;
+    for (int part = count; part < screenfile::mostParts * screenfile::mostParts; ++part) {
+        m_outputs.remove(partKey(id, part));
+        if (m_remember)
+            settings.remove(QStringLiteral("screens/%1").arg(partKey(id, part)));
+    }
+    SessionLog::write("screens", count == 1 ? QStringLiteral("\"%1\" made a screen of one output").arg(name)
+                                            : QStringLiteral("\"%1\" made a screen of %2 outputs, %3 across and %4 down")
+                                                  .arg(name).arg(count).arg(qMax(1, columns)).arg(qMax(1, rows)));
+    rebuild();
+    return {};
 }

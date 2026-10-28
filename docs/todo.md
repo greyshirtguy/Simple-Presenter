@@ -8,6 +8,11 @@ the top of the [README](../README.md).
 
 ## Partly there
 
+- [ ] **Screens of several outputs**: an audience screen of outputs combined into one
+      picture, as ProPresenter's Combined arrangement is, is drawn: two side by side are
+      offered (see [Screens](features/screens.md#combined-screens)), and more, from a file
+      ProPresenter wrote, are drawn as they are. Still to do: edge blending, and a stage
+      screen of several outputs.
 - [ ] **File compatibility**: draw more of what a `.pro` file can hold, such as a video
       as an element's fill, gradients of more than two colours or that run in a
       circle, and feathered edges on shapes other than the three plain ones. Drawn so

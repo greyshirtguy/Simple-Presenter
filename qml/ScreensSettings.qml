@@ -18,6 +18,12 @@ import SimplePresenterApp
 // ProPresenter's alpha settings under it: the alpha type (none, premultiplied or
 // straight), internal or external keying, and the blend.
 //
+// An audience screen can be several outputs drawn as one, as ProPresenter's combined
+// arrangement is (see Screens): its Arrangement, Single or Combined (two outputs side by
+// side; one ProPresenter made of more is shown as it is), and under the screen's line a
+// line for each other output, where it goes, as for a screen. (Those names are GUESSES at
+// ProPresenter's.)
+//
 // Under the screens, once a card's outputs have been found, its Clock Source: Automatic,
 // or one of the outputs, whose own frames the screens going out through a card are then
 // drawn by (see decklinkformats.h). ProPresenter has one, kept with its preferences;
@@ -70,9 +76,13 @@ Flickable {
     component ScreenRow: Rectangle {
         id: row
 
-        required property var modelData
-        readonly property var screen: modelData
-        readonly property var sender: section.senders[screen.id] ?? null
+        // The screen, and which of its outputs this line is for: 0 for the screen's own, the
+        // others' for a screen of several (see Screens' `parts`). (Set by the list, and not
+        // required: the list of a screen's lines counts its parts.)
+        property var modelData: ({})
+        property int part: 0
+        readonly property var screen: part === 0 ? modelData : Object.assign({}, modelData, (modelData.parts ?? [])[part] ?? {})
+        readonly property var sender: section.senders[screen.key ?? screen.id] ?? null
         // The card output it goes to, as found now, or null
         readonly property var card: screen.output === "decklink" ? DeckLink.outputs.find(output => output.id === screen.decklinkOutput) ?? null : null
         readonly property bool keys: card !== null && (card.internal || card.external)
@@ -95,15 +105,31 @@ Flickable {
             }
         }
 
+        // ProPresenter's arrangements of a screen's outputs, as far as they are drawn here: one,
+        // or two side by side combined into one screen (one ProPresenter made of more is
+        // shown as it is, and drawn so)
+        function arrangementRows() {
+            const id = screen.id
+            const now = screen
+            const settings = section
+            const arrange = (columns, rows) => settings.say(Screens.setArrangement(id, columns, rows))
+            const rows = [{ label: "Single", current: now.columns * now.rows === 1, run: () => arrange(1, 1) },
+                          { label: "Combined: two outputs side by side", current: now.columns === 2 && now.rows === 1, run: () => arrange(2, 1) }]
+            if (now.columns * now.rows > 1 && !(now.columns === 2 && now.rows === 1))
+                rows.push({ label: "Combined: " + now.columns + " across, " + now.rows + " down", current: true, run: () => {} })
+            return rows
+        }
+
         // The menu of where it can go: a window, each display, NDI, each card output with
         // its formats, nothing. (What each does is worked out from values of its own:
         // changing a screen makes the list anew, and this line of it with it.)
         function outputRows() {
             const id = screen.id
+            const part = row.part
             const now = screen
             const settings = section
             const choose = (changes, ask) => {
-                Screens.setOutput(id, changes)
+                Screens.setPartOutput(id, part, changes)
                 if (ask)
                     settings.ndiWanted()
             }
@@ -150,8 +176,21 @@ Flickable {
             Row {
                 spacing: 8
 
+                // (A part of a screen of several outputs is named by its place; the screen's
+                // name is on its first line)
+                Text {
+                    visible: row.part > 0
+                    width: 200
+                    height: 28
+                    verticalAlignment: Text.AlignVCenter
+                    color: "#c9cbd0"
+                    font.pixelSize: 13
+                    text: "Output " + (row.part + 1)
+                }
+
                 AppTextField {
                     objectName: "screenName"
+                    visible: row.part === 0
                     width: 200
                     height: 28
                     font.pixelSize: 13
@@ -188,12 +227,48 @@ Flickable {
                     id: remove
 
                     objectName: "screenRemove"
+                    visible: row.part === 0
                     height: 28
                     leftPadding: 10
                     rightPadding: 10
                     font.pixelSize: 12
                     text: "Remove"
                     onClicked: section.say(Screens.remove(row.screen.id))
+                }
+            }
+
+            // An audience screen's arrangement: its outputs, one or combined (on its first line)
+            Row {
+                spacing: 8
+                visible: row.part === 0 && row.screen.kind === "audience"
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#9a9da3"
+                    font.pixelSize: 12
+                    text: "Arrangement"
+                }
+
+                AppButton {
+                    id: arrangementButton
+
+                    objectName: "screenArrangement"
+                    height: 26
+                    leftPadding: 10
+                    rightPadding: 10
+                    font.pixelSize: 12
+                    text: (row.screen.columns * row.screen.rows === 1 ? "Single"
+                           : row.screen.columns === 2 && row.screen.rows === 1 ? "Combined: two outputs side by side"
+                           : "Combined: " + row.screen.columns + " across, " + row.screen.rows + " down") + "  ▾"
+                    onClicked: section.menuWanted(row.arrangementRows(), arrangementButton, 0, arrangementButton.height)
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: row.screen.columns * row.screen.rows > 1
+                    color: "#9a9da3"
+                    font.pixelSize: 12
+                    text: "One picture of " + row.screen.width + " × " + row.screen.height + ", each output a part of it."
                 }
             }
 
@@ -218,10 +293,11 @@ Flickable {
                     onEditingFinished: {
                         const typed = text.trim()
                         const id = row.screen.id
+                        const part = row.part
                         const changed = typed !== "" && typed !== row.screen.ndiName
                         text = Qt.binding(() => row.screen.ndiName)
                         if (changed)
-                            Screens.setOutput(id, { ndiName: typed })
+                            Screens.setPartOutput(id, part, { ndiName: typed })
                     }
                 }
 
@@ -244,7 +320,7 @@ Flickable {
                     font.pixelSize: 12
                     model: choices.map(size => size[0] + " × " + size[1])
                     currentIndex: Math.max(0, choices.findIndex(size => size[0] === row.screen.ndiWidth && size[1] === row.screen.ndiHeight))
-                    onActivated: (index) => Screens.setOutput(row.screen.id, { ndiWidth: choices[index][0], ndiHeight: choices[index][1] })
+                    onActivated: (index) => Screens.setPartOutput(row.screen.id, row.part, { ndiWidth: choices[index][0], ndiHeight: choices[index][1] })
                 }
 
                 AppComboBox {
@@ -254,7 +330,7 @@ Flickable {
                     font.pixelSize: 12
                     model: Screens.rates.map(rate => rate + " fps")
                     currentIndex: Math.max(0, Screens.rates.indexOf(row.screen.ndiRate))
-                    onActivated: (index) => Screens.setOutput(row.screen.id, { ndiRate: Screens.rates[index] })
+                    onActivated: (index) => Screens.setPartOutput(row.screen.id, row.part, { ndiRate: Screens.rates[index] })
                 }
             }
 
@@ -286,7 +362,7 @@ Flickable {
                         font.pixelSize: 12
                         model: ["None", "Premultiplied", "Straight"]
                         currentIndex: Math.max(0, values.indexOf(row.screen.decklinkAlpha))
-                        onActivated: (index) => Screens.setOutput(row.screen.id, { decklinkAlpha: values[index] })
+                        onActivated: (index) => Screens.setPartOutput(row.screen.id, row.part, { decklinkAlpha: values[index] })
                     }
 
                     Text {
@@ -306,7 +382,7 @@ Flickable {
                         enabled: row.keyed
                         model: ["Internal", "External"]
                         currentIndex: Math.max(0, values.indexOf(row.screen.decklinkKey))
-                        onActivated: (index) => Screens.setOutput(row.screen.id, { decklinkKey: values[index] })
+                        onActivated: (index) => Screens.setPartOutput(row.screen.id, row.part, { decklinkKey: values[index] })
                     }
 
                     Text {
@@ -325,7 +401,7 @@ Flickable {
                         suffix: "%"
                         enabled: row.keyed
                         value: row.screen.decklinkBlend
-                        onEdited: (value) => Screens.setOutput(row.screen.id, { decklinkBlend: Math.round(value) })
+                        onEdited: (value) => Screens.setPartOutput(row.screen.id, row.part, { decklinkBlend: Math.round(value) })
                     }
                 }
             }
@@ -356,7 +432,8 @@ Flickable {
                     // screens again, and this row with it)
                     onEdited: (value) => {
                         const id = row.screen.id
-                        Qt.callLater(() => Screens.setOutput(id, { videoDelay: Math.round(value) }))
+                        const part = row.part
+                        Qt.callLater(() => Screens.setPartOutput(id, part, { videoDelay: Math.round(value) }))
                     }
                 }
 
@@ -367,7 +444,7 @@ Flickable {
                     font.pixelSize: 12
                     // (By the frames the screen is drawn at, as its scene has them: a window's
                     // are those of the display it is on, which only the window knows)
-                    readonly property var scene: section.scenes[row.screen.id] ?? null
+                    readonly property var scene: section.scenes[row.screen.key ?? row.screen.id] ?? null
                     readonly property real frame: scene !== null && scene.frameInterval > 0 ? scene.frameInterval : Screens.frameIntervalOf(row.screen)
                     text: !Screens.videoDelayPossible ? "The app is not drawing with OpenGL here, which a delay needs."
                         : (row.screen.videoDelay === 1 ? "frame" : "frames")
@@ -476,7 +553,29 @@ Flickable {
                 Repeater {
                     model: group.modelData.list
 
-                    ScreenRow {}
+                    // A screen's line, and a line for each of its other outputs, for a
+                    // screen of several (see Screens' `parts`)
+                    Column {
+                        id: screenLines
+
+                        required property var modelData
+
+                        width: column.width
+                        spacing: 4
+
+                        Repeater {
+                            model: screenLines.modelData.parts ? screenLines.modelData.parts.length : 1
+
+                            ScreenRow {
+                                required property int index
+
+                                modelData: screenLines.modelData
+                                part: index
+                                x: index > 0 ? 24 : 0
+                                width: screenLines.width - x
+                            }
+                        }
+                    }
                 }
 
                 Text {

@@ -36,7 +36,8 @@ Screen described(const rv::data::ProPresenterScreen &screen)
     made.name = QString::fromStdString(screen.name());
     made.stage = screen.screen_type() == rv::data::ProPresenterScreen::SCREEN_TYPE_STAGE;
     // Its size is that of the first of its parts, which is the whole of it unless
-    // several outputs are combined.
+    // several outputs are combined: then so many columns and rows of it. (Columns and rows
+    // the file does not say are the outputs side by side.)
     const rv::data::Screen *part = screen.has_arrangement_single() && screen.arrangement_single().screens_size() > 0
                                        ? &screen.arrangement_single().screens(0)
                                  : screen.has_arrangement_combined() && screen.arrangement_combined().screens_size() > 0
@@ -44,12 +45,19 @@ Screen described(const rv::data::ProPresenterScreen &screen)
                                  : screen.has_arrangement_edge_blend() && screen.arrangement_edge_blend().screens_size() > 0
                                        ? &screen.arrangement_edge_blend().screens(0)
                                        : nullptr;
+    if (screen.has_arrangement_combined() && screen.arrangement_combined().screens_size() > 1) {
+        const auto &combined = screen.arrangement_combined();
+        made.columns = qBound(1, int(combined.columns() > 0 ? combined.columns() : uint32_t(combined.screens_size())), mostParts);
+        made.rows = qBound(1, int(combined.rows() > 0 ? combined.rows() : 1u), mostParts);
+    }
     if (part && part->bounds().size().width() >= 1 && part->bounds().size().height() >= 1) {
-        made.width = int(part->bounds().size().width());
-        made.height = int(part->bounds().size().height());
+        made.width = int(part->bounds().size().width()) * made.columns;
+        made.height = int(part->bounds().size().height()) * made.rows;
     }
     return made;
 }
+
+void fillPart(rv::data::Screen *part, const std::string &name, int width, int height, bool added);
 
 // A screen as ProPresenter writes one that it has connected to nothing (which it calls
 // a placeholder): what it is connected to on this computer is not this file's business.
@@ -61,7 +69,28 @@ void fill(rv::data::ProPresenterScreen *screen, const Screen &wanted)
     screen->mutable_uuid()->set_string(wanted.id.toStdString());
     screen->mutable_background_color()->set_alpha(1);
     screen->set_rendering_enabled(true);
-    rv::data::Screen *part = screen->mutable_arrangement_single()->add_screens();
+    fillPart(screen->mutable_arrangement_single()->add_screens(), name, wanted.width, wanted.height, false);
+}
+
+// The name ProPresenter gives an output's mode: by its height for a size of 16:9
+// (`1080p60`), as a card's formats are named, and by both for any other (`960x1740p0`),
+// the rate after (both seen in its files; a 16:9 size other than 1920x1080 named so is a
+// GUESS)
+std::string modeName(int width, int height, int rate)
+{
+    if (width * 9 == height * 16)
+        return QStringLiteral("%1p%2").arg(height).arg(rate).toStdString();
+    return QStringLiteral("%1x%2p%3").arg(width).arg(height).arg(rate).toStdString();
+}
+
+// An output's record as ProPresenter writes one connected to nothing (a placeholder), of
+// a size, its place in its screen the top left. As a file ProPresenter 7 wrote has them
+// (a screen made Combined, two outputs side by side, with nothing connected): the output
+// a screen is made with names a device and has no rate (`1080p0`); one `added` to make a
+// screen of several outputs names no device and has the rate ProPresenter offers first
+// (`1080p60`).
+void fillPart(rv::data::Screen *part, const std::string &name, int width, int height, bool added)
+{
     part->mutable_uuid()->set_string(newUuid());
     part->set_name(name);
     part->mutable_color()->set_red(0.6667f);
@@ -69,8 +98,8 @@ void fill(rv::data::ProPresenterScreen *screen, const Screen &wanted)
     part->mutable_color()->set_blue(0.6667f);
     part->mutable_color()->set_alpha(1);
     part->mutable_bounds()->mutable_origin();
-    part->mutable_bounds()->mutable_size()->set_width(wanted.width);
-    part->mutable_bounds()->mutable_size()->set_height(wanted.height);
+    part->mutable_bounds()->mutable_size()->set_width(width);
+    part->mutable_bounds()->mutable_size()->set_height(height);
     part->mutable_subscreen_unit_rect()->mutable_origin();
     part->mutable_subscreen_unit_rect()->mutable_size()->set_width(1);
     part->mutable_subscreen_unit_rect()->mutable_size()->set_height(1);
@@ -80,11 +109,15 @@ void fill(rv::data::ProPresenterScreen *screen, const Screen &wanted)
     part->mutable_corner_values()->mutable_bottom_right();
     rv::data::OutputDisplay *display = part->mutable_output_display();
     display->set_name(name);
-    display->set_devicename(name);
+    if (!added)
+        display->set_devicename(name);
     display->set_type(rv::data::OutputDisplay::TYPE_CUSTOM);
-    display->mutable_mode()->set_name(QStringLiteral("%1x%2p0").arg(wanted.width).arg(wanted.height).toStdString());
-    display->mutable_mode()->set_width(uint32_t(wanted.width));
-    display->mutable_mode()->set_height(uint32_t(wanted.height));
+    const int rate = added ? 60 : 0;
+    display->mutable_mode()->set_name(modeName(width, height, rate));
+    display->mutable_mode()->set_width(uint32_t(width));
+    display->mutable_mode()->set_height(uint32_t(height));
+    if (rate > 0)
+        display->mutable_mode()->set_refresh_rate(rate);
     display->set_render_id("placeholder:" + newUuid());
     display->set_hdr_max_nits_offset(1000);
     part->set_color_enabled(true);
@@ -238,6 +271,82 @@ QString remove(const QString &workspace, const QString &id)
         forget(&look, gone);
     if (document.has_live_audience_look())
         forget(document.mutable_live_audience_look(), gone);
+    return save(workspace, document);
+}
+
+QString arrange(const QString &workspace, const QString &id, int columns, int rows)
+{
+    columns = qBound(1, columns, mostParts);
+    rows = qBound(1, rows, mostParts);
+    rv::data::ProPresenterWorkspace document;
+    const QString error = loadForChange(workspace, &document);
+    if (!error.isEmpty())
+        return error;
+    const int at = indexOf(document, id);
+    if (at < 0)
+        return QStringLiteral("That screen is not in the workspace any more");
+    rv::data::ProPresenterScreen *screen = document.mutable_pro_screens(at);
+    // (A screen of one output asked to be one is left as it is, whatever its record says)
+    if (columns * rows == 1 && screen->has_arrangement_single() && screen->arrangement_single().screens_size() == 1)
+        return {};
+    const std::string before = screen->SerializeAsString();
+    // Its outputs as they are, whatever its arrangement
+    QList<rv::data::Screen> parts;
+    const auto take = [&](const google::protobuf::RepeatedPtrField<rv::data::Screen> &from) {
+        for (const rv::data::Screen &part : from)
+            parts << part;
+    };
+    if (screen->has_arrangement_single())
+        take(screen->arrangement_single().screens());
+    else if (screen->has_arrangement_combined())
+        take(screen->arrangement_combined().screens());
+    else if (screen->has_arrangement_edge_blend())
+        take(screen->arrangement_edge_blend().screens());
+    // Each output's size, the first's
+    int width = 1920;
+    int height = 1080;
+    if (!parts.isEmpty() && parts.first().bounds().size().width() >= 1 && parts.first().bounds().size().height() >= 1) {
+        width = int(parts.first().bounds().size().width());
+        height = int(parts.first().bounds().size().height());
+    }
+    const int count = columns * rows;
+    while (parts.size() > count)
+        parts.removeLast();
+    // (An output added is named as ProPresenter named the second of two it had added,
+    // `Placeholder - 2`: that the number is its place in the screen is a GUESS)
+    while (parts.size() < count) {
+        rv::data::Screen part;
+        fillPart(&part, QStringLiteral("Placeholder - %1").arg(parts.size() + 1).toStdString(), width, height, true);
+        parts << part;
+    }
+    // Each output's place in the whole, in pixels, by rows from the top left, in the
+    // origin of its bounds, as ProPresenter writes it: the second of two side by side at
+    // x 1920 (seen), one in a second row at y 1080 (a GUESS). Its `subscreen_unit_rect`
+    // stays the whole of it, as ProPresenter leaves it. (A record with no origin, at the
+    // top left, is not given one.)
+    for (int i = 0; i < count; ++i) {
+        const double x = (i % columns) * width;
+        const double y = (i / columns) * height;
+        if (x == 0 && y == 0 && !parts[i].bounds().has_origin())
+            continue;
+        rv::data::Graphics::Point *origin = parts[i].mutable_bounds()->mutable_origin();
+        origin->set_x(x);
+        origin->set_y(y);
+    }
+    if (count == 1) {
+        auto *single = screen->mutable_arrangement_single();
+        single->clear_screens();
+        *single->add_screens() = parts.first();
+    } else {
+        auto *combined = screen->mutable_arrangement_combined();
+        combined->clear_screens();
+        for (const rv::data::Screen &part : std::as_const(parts))
+            *combined->add_screens() = part;
+        combined->set_columns(uint32_t(columns));
+        combined->set_rows(uint32_t(rows));
+    }
+    if (screen->SerializeAsString() == before)
+        return {};
     return save(workspace, document);
 }
 

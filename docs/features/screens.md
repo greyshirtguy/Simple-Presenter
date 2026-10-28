@@ -58,6 +58,44 @@ fitted in it; the clears stretch to its height, and it stops where the show cont
 still have room for two timers. A double click on the line gives the preview back its
 16:9. How tall it was left is kept with the app's settings.
 
+## Combined screens
+
+An audience screen can be two outputs side by side drawn as one picture, as
+ProPresenter's **Combined** arrangement is: two 1920x1080 outputs make one screen of
+3840x1080, the left half going out through one and the right half through the other.
+Under **Settings → Screens**, a screen's **Arrangement** is **Single** or **Combined:
+two outputs side by side**, and a combined screen has a line under its own for its
+second output. Each output goes wherever a screen can go, and each has its own settings
+there (a card output and its format, NDI's name and size, a video delay); the second
+goes nowhere until it is given somewhere. Back to Single, the screen is its first output
+again and the second's settings go.
+
+- **Out of a card.** Every screen going out through a card is drawn in the same passes,
+  on one clock, and the card is handed them together (see
+  [Blackmagic DeckLink](decklink.md)): so are the two halves of a combined screen sent to
+  two outputs of a card, such as a DeckLink Duo 2's. Whether the card then sends them
+  out on the same frame is the card's to say: the app hands them over together.
+- **On displays, in windows, over NDI.** Each output is drawn by itself, as two screens
+  are, from the same things: two displays refresh each in its own time, so while
+  something moves across the middle the halves can be a frame apart.
+- What is drawn is one picture of the whole: the media is fitted to the whole screen, a
+  slide is drawn as on any screen of another shape than its own (a 1920x1080 slide
+  takes the left half of a 3840x1080 screen; a presentation made at 3840x1080 fills it),
+  and the operator's preview and Screen Previews show the whole screen in its own
+  proportions. A video is played once, as for any screens, and each output is handed
+  its frames.
+- The arrangement is the workspace's, and is in ProPresenter's file, as the screen is:
+  so many columns and rows of outputs, and a record of each, its size and its place in
+  the whole. An output added is written as ProPresenter 7 wrote the second of two it had
+  added side by side (`Placeholder - 2`, connected to nothing), compared with a file it
+  wrote. A combined screen ProPresenter made, of more than two outputs, is drawn as it
+  is, each output its share. What each output is sent out through is this computer's.
+
+What is a GUESS: the names of the choices in the settings; how ProPresenter writes
+outputs in a second row (only one row has been seen); and where it puts a slide of
+another shape than the screen, as here at the top left. Edge-blended screens, and a
+stage screen of several outputs, are not drawn as such: as their first output.
+
 ## Video delay
 
 **Video Delay**, under each audience screen in Settings → Screens, shows all of that

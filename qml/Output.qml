@@ -42,6 +42,11 @@ AuxWindow {
     // Its statistics (see OutputScene)
     property alias showStatistics: scene.showStatistics
     property alias statisticsTitle: scene.statisticsTitle
+    // The part of a screen of several outputs this window draws (see OutputScene)
+    property alias columns: scene.columns
+    property alias rows: scene.rows
+    property alias column: scene.column
+    property alias row: scene.row
     readonly property var liveVideoSink: scene.liveVideoSink
     readonly property var livePlayer: scene.livePlayer
     readonly property var liveAnnouncementPlayer: scene.liveAnnouncementPlayer

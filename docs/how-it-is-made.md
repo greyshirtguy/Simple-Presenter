@@ -214,7 +214,7 @@ ctest --test-dir build
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
 and look at what its windows then hold and show (and, for sound, what a sound device of
-eight channels was sent, recorded): seventy-eight scripts and some three
+eight channels was sent, recorded): seventy-nine scripts and some three
 thousand checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -270,7 +270,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/showstate.*` | What is live and the rules by which it changes, with nothing of the windows in it: what a slide going live, media, a piece of audio, a clear, a prop or a macro does; the announcements, which are at a slide of their own; and a slide going on to the next by itself |
 | `src/show.*` | The one keeper of what is live: the above as QML talks to it, with signals for what the output is to be handed; and the words of the live slide and the next, for the text boxes that show them |
 | `src/awake.*` | Asks the desktop to keep the screens awake while the output or the stage is showing |
-| `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it |
+| `src/screenfile.*` | The list of a workspace's screens in ProPresenter's set-up file: reading it, and adding to, renaming in and removing from it, and a screen's outputs, one or combined |
 | `src/lookfile.*`, `src/looks.*` | The workspace's looks, in ProPresenter's set-up file: the saved ones and the live look, which layers each audience screen gets, in what theme, and under which mask |
 | `src/maskfile.*`, `src/masks.*` | The workspace's masks, in the same file: each a slide and a name, read, made, renamed and removed |
 | `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
@@ -284,7 +284,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/apibible.*` | api.bible: what is asked of it and how its answers are read |
 | `src/bibles.*`, `qml/BiblePanel.qml` | Bible mode: the Bibles imported and api.bible's, a passage looked up, and slides made of it in a theme; and the bar over the slides |
 | `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |
-| `src/screens.*` | The workspace's screens and what each is sent out through on this computer: a window, a display, NDI or nothing |
+| `src/screens.*` | The workspace's screens and what each is sent out through on this computer (each output of a combined screen by itself): a window, a display, NDI, a card's output or nothing |
 | `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
 | `src/ndisetup.*`, `qml/NdiSetup.qml` | Getting NDI's library: reading NDI's installer for its licence and its archive, and the panel that offers to fetch it or says how to by hand |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |
