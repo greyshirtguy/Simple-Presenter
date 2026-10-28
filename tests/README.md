@@ -348,8 +348,10 @@ for its second output in the settings. Each output given a card output, a pictur
 four colours on the media layer is split between them, red over blue at the right edge
 of the left one and green over white at the left of the right one, drawn in the same
 pass and handed over together; the operator's preview is of the whole screen, twice as
-wide as high; the second output in a window shows the right half; and Single again
-takes the second output's settings away.
+wide as high; a slide of 1920x1080 is centred on it, as ProPresenter has it (a block at
+a slide's left edge in the left output's right half, one at its right edge in the right
+output's left half, and both in the preview); the second output in a window shows the
+right half; and Single again takes the second output's settings away.
 
 `statistics` ticks Show Performance Statistics On Screen: the audience screen shows its
 lines, lit at its top left, and the operator's preview does not; given a video delay

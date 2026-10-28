@@ -78,10 +78,11 @@ again and the second's settings go.
 - **On displays, in windows, over NDI.** Each output is drawn by itself, as two screens
   are, from the same things: two displays refresh each in its own time, so while
   something moves across the middle the halves can be a frame apart.
-- What is drawn is one picture of the whole: the media is fitted to the whole screen, a
-  slide is drawn as on any screen of another shape than its own (a 1920x1080 slide
-  takes the left half of a 3840x1080 screen; a presentation made at 3840x1080 fills it),
-  and the operator's preview and Screen Previews show the whole screen in its own
+- What is drawn is one picture of the whole: the media is fitted to the whole screen, and
+  a slide of another shape than the screen is fitted to its height and centred on it, as
+  ProPresenter centres it (a 1920x1080 slide takes the middle of a 3840x1080 screen, a
+  half of it going out through each output; a presentation made at 3840x1080 fills it).
+  The operator's preview and Screen Previews show the whole screen in its own
   proportions. A video is played once, as for any screens, and each output is handed
   its frames.
 - The arrangement is the workspace's, and is in ProPresenter's file, as the screen is:
@@ -91,10 +92,9 @@ again and the second's settings go.
   wrote. A combined screen ProPresenter made, of more than two outputs, is drawn as it
   is, each output its share. What each output is sent out through is this computer's.
 
-What is a GUESS: the names of the choices in the settings; how ProPresenter writes
-outputs in a second row (only one row has been seen); and where it puts a slide of
-another shape than the screen, as here at the top left. Edge-blended screens, and a
-stage screen of several outputs, are not drawn as such: as their first output.
+What is a GUESS: the names of the choices in the settings, and how ProPresenter writes
+outputs in a second row (only one row has been seen). Edge-blended screens, and a stage
+screen of several outputs, are not drawn as such: as their first output.
 
 ## Video delay
 

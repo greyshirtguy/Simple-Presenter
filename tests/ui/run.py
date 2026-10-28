@@ -2850,6 +2850,23 @@ def prepare_quarters_picture(workspace, test_dir):
         out.write(quarters_png(320, 180, [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255)]))
 
 
+def prepare_combined(workspace, test_dir):
+    """The four-colour picture of prepare_quarters_picture, and two presentations of the test's own in the copy's
+    library, each a slide of 1920 by 1080 with a block of colour 660 by 340 halfway down an edge: "Left Edge" (magenta,
+    at its left) and "Right Edge" (cyan, at its right), to tell where a slide is drawn on a screen twice as wide. Nothing
+    is written outside the test's folder, and nothing under the copy's Media."""
+    prepare_quarters_picture(workspace, test_dir)
+    library = os.path.join(workspace, "Libraries", "Demo")
+    made = {"Left Edge.pro": blocks_presentation("Left Edge", [(1, 0, 1)], 0, 370),
+            "Right Edge.pro": blocks_presentation("Right Edge", [(0, 1, 1)], 1260, 370)}
+    for name, text in made.items():
+        target = os.path.join(library, name)
+        if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("the combined screens test would write outside its own folder: " + os.path.realpath(target))
+        with open(target, "wb") as out:
+            out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+
+
 def prepare_messages(workspace, test_dir):
     """The workspace is given a file of messages as ProPresenter might have left one (MESSAGES_FILE). Nothing is
     written but that one file, in the copy's Configuration."""
@@ -3270,7 +3287,7 @@ TESTS = {
     "fonts": test("Demo", prepare=prepare_test_fonts),
     # (With the two Blackmagic outputs the app pretends for tests: there is no card here.)
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
-    "combined": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_quarters_picture),
+    "combined": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_combined),
     "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
     "quickedit": test("Act"),

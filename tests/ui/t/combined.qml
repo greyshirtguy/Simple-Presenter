@@ -9,7 +9,9 @@ import "lib.js" as Lib
 // across the top, blue and white across the bottom) is split between them, the left output showing red over blue at
 // its right edge and the right output green over white at its left, each the size of its format; and a change goes
 // to both in the same pass of drawing, handed to the card together. The operator's preview of the screen is of the
-// whole of it, twice as wide as high again. The second output given a window instead: its window shows the right half.
+// whole of it, twice as wide as high again. A slide of 1920 by 1080 is fitted to its height and centred on it, as
+// ProPresenter has it (two presentations of the test's own with a block at a slide's left and right edge), on the card
+// outputs and in the preview. The second output given a window instead: its window shows the right half.
 // Single again: one line, the file's screen of one output, the second output's settings gone.
 QtObject {
     id: t
@@ -40,6 +42,14 @@ QtObject {
         const c = String(testInput.deckLinkPixel(sender(index), x, y))
         const channel = i => parseInt(c.substring(3 + 2 * i, 5 + 2 * i), 16)
         return { r: channel(0), g: channel(1), b: channel(2), text: c }
+    }
+
+    // A pixel of the operator's preview of the screen, at a share of its width and height
+    function previewPixel(x, y) {
+        const preview = named("previewSlide")
+        const at = preview.mapToItem(null, preview.width * x, preview.height * y)
+        const c = String(testInput.windowPixel(at.x, at.y))
+        return { r: parseInt(c.substring(1, 3), 16), g: parseInt(c.substring(3, 5), 16), b: parseInt(c.substring(5, 7), 16), text: c }
     }
 
     function near(pixel, r, g, b) {
@@ -136,6 +146,42 @@ QtObject {
                 const preview = named("previewSlide")
                 check("the operator's preview of it is of the whole screen, twice as wide as high again", preview !== null && preview.height > 0
                       && Math.abs(preview.width / preview.height - 32 / 9) < 0.1, preview ? preview.width + " x " + preview.height : "none")
+                clearMedia()
+                openEntry(entry("Left Edge"))
+                return 800
+            },
+            () => {
+                goLive(0)
+                return 1200
+            },
+            () => {
+                // A slide of 1920 by 1080 is fitted to the screen's height and centred, as
+                // ProPresenter has it: on the whole of 3840 by 1080 it is from 960 to 2880, so a
+                // block at its left edge (to 660) is in the left output's right half
+                const block = cardPixel(0, 0.67, 0.5)
+                const outside = cardPixel(0, 0.25, 0.5)
+                const other = cardPixel(1, 0.25, 0.5)
+                check("a slide of another shape is centred on the whole screen: a block at its left edge is in the left output's right half",
+                      near(block, 255, 0, 255) && near(outside, 0, 0, 0) && near(other, 0, 0, 0), [block.text, outside.text, other.text].join(" "))
+                check("and so in the operator's preview", near(previewPixel(0.33, 0.5), 255, 0, 255) && near(previewPixel(0.1, 0.5), 0, 0, 0),
+                      previewPixel(0.33, 0.5).text + " " + previewPixel(0.1, 0.5).text)
+                openEntry(entry("Right Edge"))
+                return 800
+            },
+            () => {
+                goLive(0)
+                return 1200
+            },
+            () => {
+                const block = cardPixel(1, 0.33, 0.5)
+                const outside = cardPixel(1, 0.75, 0.5)
+                const other = cardPixel(0, 0.67, 0.5)
+                check("and a block at its right edge (from 1260) is in the right output's left half",
+                      near(block, 0, 255, 255) && near(outside, 0, 0, 0) && near(other, 0, 0, 0), [block.text, outside.text, other.text].join(" "))
+                check("and so in the operator's preview", near(previewPixel(0.67, 0.5), 0, 255, 255) && near(previewPixel(0.9, 0.5), 0, 0, 0),
+                      previewPixel(0.67, 0.5).text + " " + previewPixel(0.9, 0.5).text)
+                clearSlide()
+                quarters()
                 settingsOpen = true
                 return 600
             },
