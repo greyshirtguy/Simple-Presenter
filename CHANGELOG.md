@@ -6,6 +6,19 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.118](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.118) · 2026-10-29
+
+- Export to PowerPoint: a right click on a presentation, in a library or a playlist,
+  writes it as a PowerPoint file, slide for slide as it is shown, with its words as text
+  boxes that can be edited, its media behind them (kept on the slides after, as
+  ProPresenter keeps it up), its notes as speaker notes and its groups as sections, with
+  ProToPPTX's options and a report of what could not be carried over. It is the
+  maintainer's ProToPPTX for the Mac, ported. See
+  [Export to PowerPoint](docs/features/export-powerpoint.md).
+- Words ProPresenter fills with a blur, an invert or a cut-out of what is behind them,
+  which PowerPoint has no fill for, go over filled with a picture of what is behind, the
+  blur's size measured against ProPresenter's own pictures; a media fill with its picture.
+
 ## [0.117](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.117) · 2026-10-28
 
 - Combined screens: an audience screen can be two outputs side by side drawn as one

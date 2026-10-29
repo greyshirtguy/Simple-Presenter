@@ -39,6 +39,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.118" date="2026-10-29">
+      <description>
+        <p>
+          Export to PowerPoint: a presentation written as a PowerPoint file, slide for slide
+          as it is shown, its words as text that can be edited, its media, notes and
+          sections; words filled with a blur, an invert or a cut-out of what is behind them
+          filled with a picture of it.
+        </p>
+      </description>
+    </release>
     <release version="0.117" date="2026-10-28">
       <description>
         <p>
