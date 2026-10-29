@@ -8,6 +8,15 @@ the top of the [README](../README.md).
 
 ## Partly there
 
+- [ ] **Text fills**: ProPresenter can fill a text's letters with a gradient, a picture
+      (media fill), a blur or an invert of what is behind them, or cut them out of their
+      box's fill. The slides here draw letters in one colour. [Export to
+      PowerPoint](features/export-powerpoint.md#words-filled-with-what-is-behind-them)
+      carries all of them over, and a presentation made for the purpose, with
+      ProPresenter's pictures of it, says how each looks.
+- [ ] **Export to PowerPoint**: slide transitions and builds as PowerPoint's, sound, and
+      a media cue's Media Inspector settings, are not carried over yet (see [Export to
+      PowerPoint](features/export-powerpoint.md#what-does-not-go-over)).
 - [ ] **Screens of several outputs**: an audience screen of outputs combined into one
       picture, as ProPresenter's Combined arrangement is, is drawn: two side by side are
       offered (see [Screens](features/screens.md#combined-screens)), and more, from a file

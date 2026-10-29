@@ -214,7 +214,7 @@ ctest --test-dir build
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
 and look at what its windows then hold and show (and, for sound, what a sound device of
-eight channels was sent, recorded): seventy-nine scripts and some three
+eight channels was sent, recorded): eighty scripts and some three
 thousand checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -298,6 +298,11 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/framerelay.*` | Feeds the preview from the output's video frames |
 | `src/firstframe.*` | Says when a video has its first picture, so that it is not put on the output before |
 | `src/fontresolver.*` | Finds fonts by PostScript name through fontconfig |
+| `src/pptxexport.*` | Export to PowerPoint, for the windows: an export run on a thread of its own, its options and its report |
+| `src/pptxdeck.*` | What goes on the slides of a PowerPoint file made from a presentation, between the reading and the writing: a port of the maintainer's ProToPPTX begins here |
+| `src/pptximport.*`, `src/pptxrtf.*` | A presentation read slide for slide as ProPresenter shows it (its play order, the media left up from slide to slide, its elements), and its RTF read more fully than the slides are drawn from; a picture of what is behind words ProPresenter fills with a blur, an invert or a cut-out |
+| `src/pptxtext.*`, `src/pptxfonts.*` | A text box measured as it is laid out here, for PowerPoint's lines to fall where ProPresenter's do; a font's names as Office goes by them, from its file's name table |
+| `src/pptxwriter.*`, `src/pptxzip.*` | The PowerPoint file written: its slides' XML, the parts every such file has, its media, and the zip it is |
 | `src/selftest.*` | The self-test |
 | `src/benchmark.*`, `qml/Benchmark.qml`, `benchmark/` | The benchmark: what it works on and measures with, its run, and the script that repeats it and compares it with the baseline |
 | `src/sessionlog.*` | The log of a run: what the app is running on, what it did, a crash's last lines, and the watch for the app not answering |
@@ -325,6 +330,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/EditorModes.qml` | The switch between the editor's three ways of working, in the middle of its toolbar |
 | `qml/ReflowEditor.qml` | The reflow editor, a fourth way: the slides' words as a table that is typed in, split and joined, with the slides beside it |
 | `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |
+| `qml/ExportPowerPoint.qml` | The panel a presentation is exported to PowerPoint from: its options, how far it has got, and its report |
 | `qml/ImportSong.qml` | The panel a ChordPro file is imported from |
 | `qml/NewPresentation.qml` | The panel a new presentation is named in |
 | `qml/SlideLabel.qml` | The panel a label is made in: its words and its colour |

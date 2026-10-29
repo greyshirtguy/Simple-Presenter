@@ -501,3 +501,38 @@ qt_add_executable(tst_fontnames
 target_include_directories(tst_fontnames PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_fontnames PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME fontnames COMMAND tst_fontnames)
+
+qt_add_executable(tst_pptx
+    tst_pptx.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptxdeck.h
+    ${PROJECT_SOURCE_DIR}/src/pptxdeck.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptxzip.h
+    ${PROJECT_SOURCE_DIR}/src/pptxzip.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptxrtf.h
+    ${PROJECT_SOURCE_DIR}/src/pptxrtf.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptxfonts.h
+    ${PROJECT_SOURCE_DIR}/src/pptxfonts.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptxtext.h
+    ${PROJECT_SOURCE_DIR}/src/pptxtext.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptxwriter.h
+    ${PROJECT_SOURCE_DIR}/src/pptxwriter.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptximport.h
+    ${PROJECT_SOURCE_DIR}/src/pptximport.cpp
+    ${PROJECT_SOURCE_DIR}/src/zipreader.h
+    ${PROJECT_SOURCE_DIR}/src/zipreader.cpp
+    ${PROJECT_SOURCE_DIR}/src/textlayout.h
+    ${PROJECT_SOURCE_DIR}/src/textlayout.cpp
+    ${PROJECT_SOURCE_DIR}/src/richtext.h
+    ${PROJECT_SOURCE_DIR}/src/richtext.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontnames.h
+    ${PROJECT_SOURCE_DIR}/src/fontnames.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontresolver.h
+    ${PROJECT_SOURCE_DIR}/src/fontresolver.cpp
+    sessionlogstub.cpp
+    pptxfixtures.h
+    pptxfixtures.cpp
+)
+target_include_directories(tst_pptx PRIVATE ${PROJECT_SOURCE_DIR}/src)
+# (Qt Quick for sessionlog.h, which the log's stand-in for the font lookup includes)
+target_link_libraries(tst_pptx PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test proproto Fontconfig::Fontconfig ZLIB::ZLIB)
+add_test(NAME pptx COMMAND tst_pptx)

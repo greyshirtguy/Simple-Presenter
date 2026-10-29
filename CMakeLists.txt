@@ -208,6 +208,7 @@ qt_add_qml_module(SimplePresenter
         qml/BiblePanel.qml
         qml/BuildRun.qml
         qml/EditorBuilds.qml
+        qml/ExportPowerPoint.qml
         qml/ImportSong.qml
         qml/LooksPanel.qml
         qml/MacroGlyph.qml
@@ -365,6 +366,22 @@ qt_add_qml_module(SimplePresenter
         src/disabledates.h
         src/guide.cpp
         src/guide.h
+        src/pptxdeck.h
+        src/pptxdeck.cpp
+        src/pptxzip.h
+        src/pptxzip.cpp
+        src/pptxrtf.h
+        src/pptxrtf.cpp
+        src/pptxfonts.h
+        src/pptxfonts.cpp
+        src/pptxtext.h
+        src/pptxtext.cpp
+        src/pptxwriter.h
+        src/pptxwriter.cpp
+        src/pptximport.h
+        src/pptximport.cpp
+        src/pptxexport.h
+        src/pptxexport.cpp
         src/labelfile.h
         src/labelfile.cpp
         src/labels.h

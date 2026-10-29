@@ -2867,6 +2867,92 @@ def prepare_combined(workspace, test_dir):
             out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
 
 
+# A slide's cue of words (a text box over the whole slide, in Helvetica at 72, white), with
+# a media action before its slide if `media` names a file (a picture put behind the
+# slides), and notes if `notes` has any: for the Export to PowerPoint test.
+WORDS_CUE = r"""cues {
+  uuid { string: "%(cue)s" }
+  isEnabled: true
+  %(media)s
+  actions {
+    isEnabled: true
+    type: ACTION_TYPE_PRESENTATION_SLIDE
+    slide {
+      presentation {
+        base_slide {
+          size { width: 1920 height: 1080 }
+          elements {
+            element {
+              uuid { string: "%(element)s" }
+              name: "Words"
+              bounds { origin { x: 160 y: 340 } size { width: 1600 height: 400 } }
+              opacity: 1
+              text {
+                rtf_data: "{\\rtf1\\ansi\\ansicpg1252{\\fonttbl\\f0\\fswiss Helvetica;}{\\colortbl;\\red255\\green255\\blue255;}\\pard\\qc\\f0\\fs144 \\cf1 %(words)s}"
+                vertical_alignment: VERTICAL_ALIGNMENT_MIDDLE
+              }
+            }
+          }
+        }
+        notes { rtf_data: "%(notes)s" }
+      }
+    }
+  }
+}
+"""
+
+MEDIA_ACTION = r"""actions {
+    isEnabled: true
+    type: ACTION_TYPE_MEDIA
+    media {
+      element { url { absolute_string: "%(url)s" } image { drawing { natural_size { width: 320 height: 180 } } } }
+      layer_type: LAYER_TYPE_BACKGROUND
+    }
+  }"""
+
+
+def words_presentation(name, background_url):
+    """The text of a presentation called `name` for the Export to PowerPoint test: Verse, two
+    slides of made-up words (the first with notes, and a picture behind it from
+    `background_url`), and Chorus, one slide, which puts up a picture that is not there;
+    and an arrangement, Chorus First."""
+    def new():
+        return str(uuid.uuid4()).upper()
+
+    ids = [new(), new(), new()]
+    cues = [
+        WORDS_CUE % {"cue": ids[0], "element": new(), "words": "Made up words one",
+                     "media": MEDIA_ACTION % {"url": background_url}, "notes": r"{\\rtf1\\ansi A note of the first}"},
+        WORDS_CUE % {"cue": ids[1], "element": new(), "words": "Made up words two", "media": "", "notes": ""},
+        WORDS_CUE % {"cue": ids[2], "element": new(), "words": "The chorus words",
+                     "media": MEDIA_ACTION % {"url": "file:///nowhere/at/all/Not%20There.png"}, "notes": ""},
+    ]
+    verse, chorus = new(), new()
+    groups = ('cue_groups { group { uuid { string: "%s" } name: "Verse" } cue_identifiers { string: "%s" } cue_identifiers { string: "%s" } }\n'
+              'cue_groups { group { uuid { string: "%s" } name: "Chorus" } cue_identifiers { string: "%s" } }\n'
+              'arrangements { uuid { string: "%s" } name: "Chorus First" group_identifiers { string: "%s" } group_identifiers { string: "%s" } }\n'
+              % (verse, ids[0], ids[1], chorus, ids[2], new(), chorus, verse))
+    return ('application_info {\n  platform: PLATFORM_MACOS\n  application: APPLICATION_PROPRESENTER\n}\n'
+            'uuid {\n  string: "%s"\n}\nname: "%s"\n' % (new(), name) + "".join(cues) + groups)
+
+
+def prepare_pptx(workspace, test_dir):
+    """A presentation of the test's own in the copy's Demo library, "Export Test"
+    (words_presentation), and the picture behind its first slide, of four colours, in the
+    test's own folder. Nothing is written outside the test's folder, and nothing under the
+    copy's Media."""
+    picture = os.path.join(test_dir, "Export Background.png")
+    target = os.path.join(workspace, "Libraries", "Demo", "Export Test.pro")
+    for path in (picture, target):
+        if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("the export test would write outside its own folder: " + os.path.realpath(path))
+    with open(picture, "wb") as out:
+        out.write(quarters_png(320, 180, [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255)]))
+    text = words_presentation("Export Test", "file://" + picture.replace(" ", "%20"))
+    with open(target, "wb") as out:
+        out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+
+
 def prepare_messages(workspace, test_dir):
     """The workspace is given a file of messages as ProPresenter might have left one (MESSAGES_FILE). Nothing is
     written but that one file, in the copy's Configuration."""
@@ -3288,6 +3374,7 @@ TESTS = {
     # (With the two Blackmagic outputs the app pretends for tests: there is no card here.)
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "combined": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_combined),
+    "pptx": test("Demo", prepare=prepare_pptx),
     "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
     "quickedit": test("Act"),

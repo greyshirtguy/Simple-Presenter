@@ -108,6 +108,7 @@ ProPresenter had them. The list will grow.
 - **How solid the icons on the slides are** is a setting, from nearly gone to solid.
 - **Apply This Text Style to All.** In a slide's menu, under Copy Text Style: the slide's text style put on every other slide of its presentation, at once. See [Text](docs/features/text-format.md#apply-this-text-style-to-all).
 - <a id="disable-dates"></a>**A slide disabled at a date.** Disable On… in a slide's menu sets a day and a time for the slide to be disabled by itself, a notice that is over once its event has been, say; the slide is marked with the day until then. See [Disabled slides](docs/features/disabled-slides.md#at-a-date).
+- <a id="export-powerpoint"></a>**[Export to PowerPoint](docs/features/export-powerpoint.md).** A right click on a presentation writes it as a PowerPoint file, slide for slide as it is shown, with its words as text that can be edited, its media behind them, notes as speaker notes and groups as sections: the maintainer's Mac app ProToPPTX, brought in. Words ProPresenter fills with a blur, an invert or a cut-out of what is behind them are filled with a picture of it, which PowerPoint can show.
 
 | [Simple View](docs/features/simple-view.md) | [The chord editor](docs/features/chords.md#the-chord-editor) |
 |:---:|:---:|

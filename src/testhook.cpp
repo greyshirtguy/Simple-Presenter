@@ -5,6 +5,7 @@
 #include "ndi.h"
 #include "richtext.h"
 #include "textlayout.h"
+#include "zipreader.h"
 
 #include <QClipboard>
 #include <QCommandLineParser>
@@ -264,6 +265,32 @@ public:
     {
         QFile file(path);
         return file.open(QIODevice::ReadOnly) ? QString::fromUtf8(file.readAll()) : QString();
+    }
+    // The entries of a zip archive (a PowerPoint file Export to PowerPoint wrote), and one
+    // of them as text: empty where the archive or the entry cannot be read
+    Q_INVOKABLE QStringList zipEntries(const QString &path)
+    {
+        ZipReader reader;
+        QString error;
+        QStringList names;
+        if (reader.open(path, &error)) {
+            for (const ZipReader::Entry &entry : reader.entries())
+                names << entry.name;
+        }
+        return names;
+    }
+    Q_INVOKABLE QString zipText(const QString &path, const QString &name)
+    {
+        ZipReader reader;
+        QString error;
+        if (!reader.open(path, &error))
+            return {};
+        for (const ZipReader::Entry &entry : reader.entries()) {
+            QByteArray bytes;
+            if (entry.name == name && reader.read(entry, &bytes, &error))
+                return QString::fromUtf8(bytes);
+        }
+        return {};
     }
     Q_INVOKABLE void say(const QString &line) { QTextStream(stdout) << line << "\n"; }
     Q_INVOKABLE qint64 now() { return QDateTime::currentMSecsSinceEpoch(); }

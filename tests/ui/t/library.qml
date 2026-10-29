@@ -161,7 +161,7 @@ QtObject {
                 return 400
             },
             () => {
-                check("a presentation's menu, in a library, has Rename and Delete", labels().includes("Edit, Rename, Rebuild Thumbnails, Delete…"), labels())
+                check("a presentation's menu, in a library, has Rename and Delete", labels().includes("Edit, Rename, Rebuild Thumbnails, Export to PowerPoint…, Delete…"), labels())
                 click(menuRow("Rename"))
                 return 400
             },

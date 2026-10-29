@@ -41,6 +41,9 @@
 // the keyframe before it, within the same two and a half seconds. 0 or less is no
 // moment chosen. `upright`, if given, is set to the size the video is shown at, turned
 // upright, before it was scaled down: what a crop in its pixels is measured against.
+// `length`, if given, is set to the video's length in seconds, as its file says (0 where
+// it does not): what Export to PowerPoint needs to start a video by itself, found here
+// on the way to the picture rather than by opening the file a second time.
 //
 // Safe to call from any thread, and from several at once.
-QImage grabVideoFrame(const QString &path, int width, double at = -1, QSize *upright = nullptr);
+QImage grabVideoFrame(const QString &path, int width, double at = -1, QSize *upright = nullptr, double *length = nullptr);

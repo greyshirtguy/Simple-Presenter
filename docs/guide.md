@@ -47,6 +47,9 @@ These are not ProPresenter's.
   the slide to be disabled by itself. Until then it is marked with the day.
 - **Apply This Text Style to All.** In a slide's menu, under Copy Text Style: the slide's
   text style put on every other slide of its presentation.
+- **Export to PowerPoint.** A right click on a presentation: a PowerPoint file of it,
+  slide for slide as it is shown, its words as text that can be edited, its media behind
+  them, its notes as speaker notes. What could not be carried over is listed at the end.
 
 ## What it does not do
 

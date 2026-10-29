@@ -270,10 +270,12 @@ int rotationOf(const AVStream *stream)
 
 } // namespace
 
-QImage grabVideoFrame(const QString &path, int width, double at, QSize *upright)
+QImage grabVideoFrame(const QString &path, int width, double at, QSize *upright, double *length)
 {
     QElapsedTimer started;
     started.start();
+    if (length)
+        *length = 0;
 
     Video video;
     video.format = avformat_alloc_context();
@@ -317,6 +319,8 @@ QImage grabVideoFrame(const QString &path, int width, double at, QSize *upright)
     int64_t duration = video.format->duration;
     if (duration <= 0 && stream->duration > 0)
         duration = av_rescale_q(stream->duration, stream->time_base, AV_TIME_BASE_Q);
+    if (length && duration > 0)
+        *length = duration / double(AV_TIME_BASE);
     int64_t start = video.format->start_time;
     if (start == AV_NOPTS_VALUE)
         start = stream->start_time != AV_NOPTS_VALUE ? av_rescale_q(stream->start_time, stream->time_base, AV_TIME_BASE_Q) : 0;

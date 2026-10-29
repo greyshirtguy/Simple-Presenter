@@ -32,6 +32,7 @@ So far there are fifty-one:
 | `tst_mediasettings` | What a piece of media's Media Inspector sets (`src/mediasettings.h`, `src/mediaeffects.h`), on media laid out as ProPresenter writes it with fields the app does not know: read as the inspector shows it; a change that changes the fields it names and nothing else, byte for byte; a value that cannot be changing nothing at all; trimming, and an out point at the end being none; effects kept by their ids, added from the catalogue and taken off, and added and taken off again leaving the media as it was; what a new effect is and what its shader is given; ProPresenter's forty, each once; another file keeping what still makes sense |
 | `tst_httpapijson` | What the HTTP API's answers are made of (`src/httpapijson.h`): ids and colours; the slides now and next; where the show is, and nowhere; times as ProPresenter writes them; how a timer stands, and timers of each kind; a look for each audience screen; props and messages with their tokens; clear groups and macros in ProPresenter's words; libraries' UUIDs made from their names; playlist trees, and the media and audio ones |
 | `tst_screenfile` | The list of a workspace's screens in ProPresenter's set-up file (`src/screenfile.h`): what a workspace with no file has, what adding, renaming and removing a screen write, a screen of two outputs side by side made and undone (its second output written as ProPresenter 7 wrote one, from a file it wrote), and that the rest of a file ProPresenter wrote goes back as it came |
+| `tst_pptx` | Export to PowerPoint (`src/pptx*.h`), on files and text made for the purpose: the zip written and read back; ProPresenter's RTF read as ProToPPTX reads it; a font's names as Office goes by them; a deck written as a PowerPoint file, every part good XML and every value within the standard's ranges; a made-up presentation read slide for slide (its order with an arrangement and without, a background carried on, a slide turned off, notes, sections, a cut-out filled with what is behind it, title case, a face that is not installed named as Office knows it); a blur and an invert; a stopped export leaving nothing behind. And, only when given one (`PPTX_PRESENTATION`), a presentation of someone's own exported, printing numbers and the report's notes, never words |
 | `tst_groupedit` | Putting slides into another group as ProPresenter does (`src/groupedit.h`): the whole group from its first slide, a split from a later one, what becomes of the arrangements, and that nothing else of the presentation is touched |
 | `tst_arrangementedit` | A presentation's arrangements (`src/arrangementedit.h`), on a presentation built as ProPresenter writes one: a new one of every group once in Master's order, a copy straight after what it is a copy of, a name made free with a number, renaming and the names that are refused, removing the one selected and another, a group put in at each kind of gap, every move of every place against the list worked the long way, one coming up of a group taken out; and after each, the groups, the slides and the other arrangements as they were to the byte |
 | `tst_labelfile` | Slide labels (`src/labelfile.h`): a label put on a slide's cue and taken off again, and the workspace's list of labels kept ready read, added to, changed and shortened with the rest of the file kept |
@@ -341,6 +342,17 @@ the app's clock, through a dissolve of three seconds, the frames handed to the c
 at every point of its frames, and now and then two in one; with an output chosen from
 the Clock Source's menu, one in each of them, never two, and the screen's settings saying
 what it is drawn by; then Automatic again.
+
+`pptx` exports a presentation of the test's own (run.py's `prepare_pptx`: two groups, an
+arrangement, a picture behind the first slide, a picture that is not there, notes) by a
+right click on its row: the panel drawn over the window with ProToPPTX's options, an
+option changed being kept; exported into the test's own folder (the file dialog passed
+over), it says how many slides went where and lists the missing picture; the file is read
+back through the test door (`zipEntries`, `zipText`): its slides' words in Master's order,
+the picture as the first slide's background and kept on the next, the notes, the groups
+as sections; the log says so; exported again in its arrangement's order, the chorus
+first. And a Demo presentation with a video: the video goes into the file with a still,
+and starts by itself.
 
 `combined` makes a second audience screen Combined, two outputs side by side, with the
 two card outputs the app pretends for its tests: one screen twice as wide, with a line

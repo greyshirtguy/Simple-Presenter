@@ -2682,6 +2682,13 @@ Window {
             menu.show(destinationItems(entry), item)
     }
 
+    // Export to PowerPoint: its panel, made the first time it is wanted (see
+    // ExportPowerPoint.qml), for the presentation of this row, in its arrangement
+    function exportPowerPoint(entry) {
+        exportPowerPointPanel.active = true
+        exportPowerPointPanel.item.show(entry)
+    }
+
     // Opens the menu for a row of the presentations list.
     function showPresentationMenu(entry, item) {
         let items = []
@@ -2711,6 +2718,8 @@ Window {
             // In place, in the list, as a library and a playlist are renamed
             items.push({ label: "Rename", run: () => sidebar.renamePresentation(entry.path) })
             items.push({ label: "Rebuild Thumbnails", run: () => catalog.rebuildThumbnails(mediaOf(entry.file)) })
+            // This app's own, not ProPresenter's (see ExportPowerPoint.qml)
+            items.push({ label: "Export to PowerPoint…", run: () => exportPowerPoint(entry) })
             // Only where a library is being browsed. In a playlist "Remove" is the word,
             // and only the row goes: a presentation is not to be lost from there.
             // Asked twice, though the file goes no further than the Trash.
@@ -6161,6 +6170,25 @@ Window {
                 if (!win.settingsOpen)
                     win.takeFocus()
             }
+        }
+    }
+
+    // Export to PowerPoint, made the first time it is asked for: a panel seldom used, which
+    // would cost every start its making
+    Loader {
+        id: exportPowerPointPanel
+
+        // (The window by another name: inside the component, `win` is its own property)
+        readonly property var operatorWindow: win
+
+        objectName: "exportPowerPointLoader"
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 20
+        active: false
+        sourceComponent: ExportPowerPoint {
+            win: exportPowerPointPanel.operatorWindow
+            onClosed: exportPowerPointPanel.operatorWindow.takeFocus()
         }
     }
 
