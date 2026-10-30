@@ -6,6 +6,19 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.119](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.119) · 2026-10-30
+
+- Text fills: letters ProPresenter fills with a gradient, a picture, a blur or an invert
+  of what is behind them, or cuts out of their box's colour, and boxes filled with a blur
+  or an invert of what is behind them, drawn as ProPresenter draws them, on the screens,
+  in the operator's preview, in the thumbnails and in the editor; the blur measured
+  against ProPresenter's own pictures. See [Text fills](docs/features/text-fills.md).
+- The editor's Text tab has ProPresenter's Fill menu (Text Color, Text Gradient, Text Cut
+  Out, Media Fill, Background Invert, Background Blur), each with ProPresenter's controls
+  under it; a blur's amount is shared by every object on its slide, as ProPresenter
+  shares it. Fills go with the words when they are edited, and into the file as
+  ProPresenter writes them, everything it wrote of them kept.
+
 ## [0.118](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.118) · 2026-10-29
 
 - Export to PowerPoint: a right click on a presentation, in a library or a playlist,

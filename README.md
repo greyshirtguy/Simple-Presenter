@@ -128,20 +128,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.119: Text fills.** Letters ProPresenter fills with a gradient, a picture, a blur or an invert of what is behind them, or cuts out of their box, and boxes filled with a blur or an invert, drawn as ProPresenter draws them, on the screens, the previews and in the editor, and set in the editor's Text tab with ProPresenter's own controls. See [Text fills](docs/features/text-fills.md).
 - **0.118: Export to PowerPoint.** A right click on a presentation writes it as a PowerPoint file, slide for slide as it is shown, with its words as text that can be edited, its media behind them, notes and sections: the maintainer's ProToPPTX for the Mac, brought in, with words ProPresenter fills with a blur, an invert or a cut-out filled with a picture of what is behind them. See [Export to PowerPoint](docs/features/export-powerpoint.md).
 - **0.117: Two outputs as one wide screen.** An audience screen can be two outputs side by side drawn as one picture, as ProPresenter's Combined arrangement is: two 1920x1080 outputs as one 3840x1080 screen, each going wherever a screen can, and two outputs of a card drawn and handed over together. See [Screens](docs/features/screens.md#combined-screens).
 - **0.116: Fonts drawn as their files name them.** A family's Light, Medium, Black or Condensed face is drawn as itself, not as its Regular or Bold, and a family installed from two makers, which Qt shows as `CMG Sans [ULA]`, is called by its own name, no longer marked missing, and written into the file as ProPresenter names it. See [Editing](docs/features/editing.md).
 - **0.115: ProPresenter's Text button, and slides selected.** The font, size, colour, capitals, alignment, outline and shadow of the words of every slide at once, or of the slides selected with Ctrl and Shift, the size's arrows stepping each one's own size so that large words and small keep apart ([Text](docs/features/text-format.md)); Apply This Text Style to All in a slide's menu; and the live slide drawn again on the screens when a theme or a text style is put on it.
-- **0.114: A video delay for each screen, a card's clock, and sound heard sooner.** An audience screen can be shown so many of its frames late, to be level with its sound ([Video delay](docs/features/screens.md#video-delay)); the screens going out through a DeckLink card can be drawn by one of its outputs' own frames ([Clock Source](docs/features/decklink.md)); each audience screen can show its [performance statistics](docs/features/screens.md#performance-statistics); and the app's sound is heard about 63 ms sooner than before, two frames at thirty a second.
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.118_amd64.deb` from the
+`simplepresenter_0.119_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.118_amd64.deb
+sudo apt install ./simplepresenter_0.119_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

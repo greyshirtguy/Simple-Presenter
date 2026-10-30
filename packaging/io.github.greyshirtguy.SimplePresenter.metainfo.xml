@@ -39,6 +39,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.119" date="2026-10-30">
+      <description>
+        <p>
+          Text fills: letters filled with a gradient, a picture, a blur or an invert of what
+          is behind them, or cut out of their box, and boxes filled with a blur or an invert,
+          drawn as ProPresenter draws them and set in the editor's Text tab with
+          ProPresenter's own controls.
+        </p>
+      </description>
+    </release>
     <release version="0.118" date="2026-10-29">
       <description>
         <p>
