@@ -201,124 +201,144 @@ Item {
 
         // ---- An audience screen: its layers, in the order the screen has them
 
-        // The video input layer, under the media: the input on it, while the look gives
-        // the screen the layer, `videoInterval` apart as a video is, and without its
-        // sound, which is the screen's own to play (see OutputScene). Made only while
-        // there is one, so a picture of a screen with none costs nothing for it.
-        Loader {
-            objectName: picture.name("VideoInput")
-            anchors.fill: frame
-            active: !picture.stage && picture.look.videoInput !== false && Show.liveVideoInput >= 0
-
-            sourceComponent: VideoInputView {
-                index: Show.liveVideoInput
-                interval: picture.videoInterval
-            }
-        }
-
-        // A still picture: its thumbnail, or its file at this size where the thumbnail
-        // is too small for it (the thumbnails are a few hundred pixels across). Each is
-        // drawn as the media layer draws it, as its Media Inspector sets it (MediaPicture,
-        // MediaLook): the thumbnail is made cropped, turned and flipped already.
-        MediaPicture {
-            anchors.fill: parent
-            visible: area.still && frame.width <= 400
-            source: visible ? picture.win.thumbnailUrl(picture.win.liveMedia.path, picture.win.liveMedia.settings) : ""
-            settings: visible ? picture.win.liveMedia.settings ?? null : null
-            shaped: true
-        }
-
-        MediaPicture {
-            anchors.fill: parent
-            visible: area.still && frame.width > 400
-            source: visible ? picture.win.liveMedia.source : ""
-            settings: visible ? picture.win.liveMedia.settings ?? null : null
-            readSize: Qt.size(Math.max(1, Math.ceil(frame.width * Screen.devicePixelRatio)),
-                              Math.max(1, Math.ceil(frame.height * Screen.devicePixelRatio)))
-        }
-
-        MediaLook {
-            id: videoLook
+        // What is under the layers over the slide, for their fills that are a blur or an
+        // invert of what is behind them: the slide and what is under it, as on a screen (see
+        // OutputScene)
+        Item {
+            id: underLayers
 
             anchors.fill: parent
-            visible: !picture.stage && picture.look.media && picture.win.liveMedia !== null && picture.win.liveMedia.video
-            settings: visible ? picture.win.liveMedia.settings ?? null : null
-            sourceWidth: video.sourceRect.width
-            sourceHeight: video.sourceRect.height
 
-            VideoOutput {
-                id: video
+            // What is under the slide: the video input, the media and a video's frames, as one,
+            // which the slide's fills that are a blur or an invert of what is behind them take
+            // (Slide's `backdrop`, TextFills)
+            Item {
+                id: underSlide
 
-                objectName: picture.name("Video")
                 anchors.fill: parent
-                fillMode: videoLook.videoFill
+
+                // The video input layer, under the media: the input on it, while the look gives
+                // the screen the layer, `videoInterval` apart as a video is, and without its
+                // sound, which is the screen's own to play (see OutputScene). Made only while
+                // there is one, so a picture of a screen with none costs nothing for it.
+                Loader {
+                    objectName: picture.name("VideoInput")
+                    anchors.fill: parent
+                    active: !picture.stage && picture.look.videoInput !== false && Show.liveVideoInput >= 0
+
+                    sourceComponent: VideoInputView {
+                        index: Show.liveVideoInput
+                        interval: picture.videoInterval
+                    }
+                }
+
+                // A still picture: its thumbnail, or its file at this size where the thumbnail
+                // is too small for it (the thumbnails are a few hundred pixels across). Each is
+                // drawn as the media layer draws it, as its Media Inspector sets it (MediaPicture,
+                // MediaLook): the thumbnail is made cropped, turned and flipped already.
+                MediaPicture {
+                    anchors.fill: parent
+                    visible: area.still && frame.width <= 400
+                    source: visible ? picture.win.thumbnailUrl(picture.win.liveMedia.path, picture.win.liveMedia.settings) : ""
+                    settings: visible ? picture.win.liveMedia.settings ?? null : null
+                    shaped: true
+                }
+
+                MediaPicture {
+                    anchors.fill: parent
+                    visible: area.still && frame.width > 400
+                    source: visible ? picture.win.liveMedia.source : ""
+                    settings: visible ? picture.win.liveMedia.settings ?? null : null
+                    readSize: Qt.size(Math.max(1, Math.ceil(frame.width * Screen.devicePixelRatio)),
+                                      Math.max(1, Math.ceil(frame.height * Screen.devicePixelRatio)))
+                }
+
+                MediaLook {
+                    id: videoLook
+
+                    anchors.fill: parent
+                    visible: !picture.stage && picture.look.media && picture.win.liveMedia !== null && picture.win.liveMedia.video
+                    settings: visible ? picture.win.liveMedia.settings ?? null : null
+                    sourceWidth: video.sourceRect.width
+                    sourceHeight: video.sourceRect.height
+
+                    VideoOutput {
+                        id: video
+
+                        objectName: picture.name("Video")
+                        anchors.fill: parent
+                        fillMode: videoLook.videoFill
+                    }
+                }
+
+                // (No frames are borrowed for a video the look keeps from the screen, nor for a
+                // stage screen.)
+                FrameRelay {
+                    id: frames
+
+                    source: videoLook.visible && picture.win.output ? picture.win.output.liveVideoSink : null
+                    target: video.videoSink
+                    interval: picture.videoInterval
+                }
             }
-        }
 
-        // (No frames are borrowed for a video the look keeps from the screen, nor for a
-        // stage screen.)
-        FrameRelay {
-            id: frames
+            // The slide that is live, as it is in the theme the look gives the screen. In the
+            // operator window: drawn as it is, each change a cut. (Asked of the operator window
+            // here, and not kept in a property of the picture's for this to read: passed on that
+            // way, a slide cost the benchmark's slides of shapes two milliseconds more a click,
+            // in the operator's preview alone. Handed the look, which follows the live look:
+            // asked for inside slideFor, it is no part of the binding, and a look giving the
+            // screen another theme while a slide is on show went unseen here until the next
+            // slide.)
+            Loader {
+                anchors.fill: parent
+                active: !picture.moving
+                visible: active && !picture.stage && picture.look.slide
 
-            source: videoLook.visible && picture.win.output ? picture.win.output.liveVideoSink : null
-            target: video.videoSink
-            interval: picture.videoInterval
-        }
-
-        // The slide that is live, as it is in the theme the look gives the screen. In the
-        // operator window: drawn as it is, each change a cut. (Asked of the operator window
-        // here, and not kept in a property of the picture's for this to read: passed on that
-        // way, a slide cost the benchmark's slides of shapes two milliseconds more a click,
-        // in the operator's preview alone. Handed the look, which follows the live look:
-        // asked for inside slideFor, it is no part of the binding, and a look giving the
-        // screen another theme while a slide is on show went unseen here until the next
-        // slide.)
-        Loader {
-            anchors.fill: parent
-            active: !picture.moving
-            visible: active && !picture.stage && picture.look.slide
-
-            sourceComponent: Slide {
-                objectName: picture.name("Slide")
-                slide: picture.screen === null || picture.stage ? null : picture.win.slideFor(picture.screen.id, picture.win.liveSlide, picture.look)
-                // Its builds run as the screen's do, from the same times
-                buildTimes: picture.screen !== null ? picture.win.buildTimesFor(picture.screen.id) : null
-                effects: picture.effects
-                pictures: picture.pictures
-            }
-        }
-
-        // On a screen: changed as the screen changes it, through the same transition, drawn
-        // at this size (shownSlide, present()). While one runs, the two slides are drawn into
-        // textures and mixed by its shader, and the screen this is on is drawn at every frame
-        // of it, as the screen it is of is; between them the slide is drawn as it is.
-        Loader {
-            id: movingSlide
-
-            anchors.fill: parent
-            active: picture.moving
-            visible: active && !picture.stage && picture.look.slide
-            onLoaded: {
-                picture.changesSeen = picture.win.slideChange.serial
-                picture.present()
-            }
-
-            sourceComponent: TransitionLayer {
-                // (The slide on show, as the plain Slide above has it, for the tests)
-                readonly property var slide: currentItem ? currentItem.slide : null
-
-                objectName: picture.name("Slide")
-                name: "screen preview"
-                shaderName: picture.win.transition.name
-                shader: picture.win.transitionShader
-                options: picture.win.transitionUniforms.options
-                tint: picture.win.transitionUniforms.tint
-                direction: picture.win.transitionUniforms.direction
-                duration: Math.round(picture.win.transitionDuration * 1000)
-                delegate: Slide {
+                sourceComponent: Slide {
+                    objectName: picture.name("Slide")
+                    slide: picture.screen === null || picture.stage ? null : picture.win.slideFor(picture.screen.id, picture.win.liveSlide, picture.look)
+                    // Its builds run as the screen's do, from the same times
+                    buildTimes: picture.screen !== null ? picture.win.buildTimesFor(picture.screen.id) : null
                     effects: picture.effects
                     pictures: picture.pictures
-                    logName: "screen preview"
+                    backdrop: underSlide
+                }
+            }
+
+            // On a screen: changed as the screen changes it, through the same transition, drawn
+            // at this size (shownSlide, present()). While one runs, the two slides are drawn into
+            // textures and mixed by its shader, and the screen this is on is drawn at every frame
+            // of it, as the screen it is of is; between them the slide is drawn as it is.
+            Loader {
+                id: movingSlide
+
+                anchors.fill: parent
+                active: picture.moving
+                visible: active && !picture.stage && picture.look.slide
+                onLoaded: {
+                    picture.changesSeen = picture.win.slideChange.serial
+                    picture.present()
+                }
+
+                sourceComponent: TransitionLayer {
+                    // (The slide on show, as the plain Slide above has it, for the tests)
+                    readonly property var slide: currentItem ? currentItem.slide : null
+
+                    objectName: picture.name("Slide")
+                    name: "screen preview"
+                    shaderName: picture.win.transition.name
+                    shader: picture.win.transitionShader
+                    options: picture.win.transitionUniforms.options
+                    tint: picture.win.transitionUniforms.tint
+                    direction: picture.win.transitionUniforms.direction
+                    duration: Math.round(picture.win.transitionDuration * 1000)
+                    delegate: Slide {
+                        effects: picture.effects
+                        pictures: picture.pictures
+                        logName: "screen preview"
+                        backdrop: underSlide
+                    }
                 }
             }
         }
@@ -343,6 +363,7 @@ Item {
                 slide: CopyrightDisplay.templateSlide
                 effects: picture.effects
                 pictures: picture.pictures
+                backdrop: underLayers
             }
         }
 
@@ -360,6 +381,7 @@ Item {
             sourceComponent: AnnouncementLayer {
                 leads: false
                 pictures: picture.pictures
+                backdrop: underLayers
             }
         }
 
@@ -371,6 +393,7 @@ Item {
             duration: Math.round(Props.transitionDuration * 1000)
             effects: picture.effects
             pictures: picture.pictures
+            backdrop: underLayers
         }
 
         // The messages, over the props: made when the first is shown, and kept
@@ -397,6 +420,7 @@ Item {
                 duration: Math.round(Props.transitionDuration * 1000)
                 effects: picture.effects
                 pictures: picture.pictures
+                backdrop: underLayers
             }
         }
 
@@ -410,6 +434,7 @@ Item {
                 slide: picture.mask
                 effects: picture.effects
                 pictures: picture.pictures
+                backdrop: underLayers
             }
         }
 

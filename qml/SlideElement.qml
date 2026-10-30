@@ -186,6 +186,7 @@ Item {
     readonly property bool boxFilled: source.fillShown && !source.fillLinesOnly && (standIns || !source.linkPicture)
     // Whether the shape is more than a rectangle with a plain fill, or none
     readonly property bool plain: source.shape === "rectangle" && (!boxFilled || source.fillKind === "color") && !feathered
+                                  && source.boxFill === undefined
     readonly property bool feathered: effects && source.featherOn && boxFilled && source.shape !== "arrow" && source.shape !== "other"
     // The shape's outline as an SVG path, in pixels of this item
     readonly property string outline: plain ? "" : outlinePath(width, height)
@@ -272,6 +273,7 @@ Item {
             // (A Screen Preview that is not drawn here is drawn as its stand-in, the
             // fill the file has for it, where stand-ins are, and not at all elsewhere.)
             readonly property string kind: !element.boxFilled ? "none"
+                                         : element.source.boxFill !== undefined ? "behind"
                                          : element.source.fillKind === "input" ? "input"
                                          : element.source.fillKind !== "screen" ? element.source.fillKind
                                          : element.pictures !== null && element.pictures.inPicture !== true ? "screen"
@@ -281,9 +283,11 @@ Item {
             readonly property real along: element.source.fillGradientAngle * Math.PI / 180
             readonly property real reach: Math.abs(width / 2 * Math.cos(along)) + Math.abs(height / 2 * Math.sin(along))
             // The picture of a Screen Preview, while the fill is one: see placeScreen(); and
-            // the live picture of a video input, while it is one: see placeInput()
+            // the live picture of a video input, while it is one: see placeInput(); and a
+            // fill made from what is behind the box, while it is one: see placeBehind()
             property var screenPicture: null
             property var inputPicture: null
+            property var behindFill: null
 
             // A Screen Preview: what one of the screens is showing, fitted in, and cut to
             // the shape by the same mask as a picture is.
@@ -364,13 +368,31 @@ Item {
                 inputPicture = made
             }
 
+            // A fill of the box made from what is behind it: a cut-out, the box's colour with
+            // letters as holes in it, or a blur or an invert of what is behind (`boxFill`:
+            // see TextFills). Made as a Screen Preview is, here only while the fill is one,
+            // in the fill, so feathered as the fill is, and under the outline and the words.
+            function placeBehind() {
+                const wanted = kind === "behind"
+                if (wanted === (behindFill !== null))
+                    return
+                if (!wanted) {
+                    behindFill.destroy()
+                    behindFill = null
+                    return
+                }
+                behindFill = Qt.createComponent(Qt.resolvedUrl("TextFills.qml")).createObject(fill, { owner: element, part: "box" })
+            }
+
             onKindChanged: {
                 placeScreen()
                 placeInput()
+                placeBehind()
             }
             Component.onCompleted: {
                 placeScreen()
                 placeInput()
+                placeBehind()
             }
 
             // The fill, which is the part whose edges fade if they do
@@ -533,14 +555,29 @@ Item {
     // A box's words drawn otherwise than by the StrokedText above: with their chords over
     // them (ChordedText), or going across or up or down the box (Scrolling Text: see
     // ScrollingText), which it does on a screen or in the operator's preview of one and
-    // nowhere else. (One Loader for the two, made for every element, and nothing made in
-    // it for one that is neither: an element costs every slide it is on, everywhere.)
+    // nowhere else; or drawn over it, a fill of the letters that is a picture, a blur or an
+    // invert (TextFills: a box's fill made from what is behind it is the shape's). (One
+    // Loader for them, made for every element, and nothing made in it for one that is none
+    // of them: an element costs every slide it is on, everywhere. Words with chords, or
+    // scrolling, and filled so, are drawn with chords, or scrolling, and those letters in
+    // their own colour.)
     Loader {
         anchors.fill: parent
         active: element.chorded || (element.source.scroll !== undefined && element.pictures !== null
                                     && (element.source.hasText || element.textOverride !== undefined))
+                || element.source.fills !== undefined
         // (Each only for its own: the two are not both told at once that a box has changed)
-        sourceComponent: element.chorded ? chordedWords : element.source.scroll !== undefined ? scrollingWords : null
+        sourceComponent: element.chorded ? chordedWords
+                       : element.source.scroll !== undefined && element.pictures !== null ? scrollingWords
+                       : element.source.fills !== undefined ? textFills : null
+    }
+
+    Component {
+        id: textFills
+
+        TextFills {
+            owner: element
+        }
     }
 
     Component {

@@ -50,8 +50,10 @@ choose between three ways of working. **Slides** is everything described here.
   same without dragging. (How it looks while a row is held is this app's own, after its
   other lists.)
 - **Text.** Double-click an element to edit its text where it stands, drawn as it will
-  be shown. Font, size, colour, bold, italic, underline, capitals, spacing and outline
-  apply to the text that is selected, or to all of the text when none is. A paste is a
+  be shown. Font, size, colour, bold, italic, underline, capitals, spacing, outline and
+  fill (a colour, a gradient, a picture, a cut-out, a blur or an invert: see [Text
+  fills](text-fills.md#setting-them)) apply to the text that is selected, or to all of the
+  text when none is. A paste is a
   paste and match style, whether by Ctrl+V or Ctrl+Shift+V: only the words of what was
   copied come in, in the format of the text where they go, each new line a paragraph
   like the one the caret was in. (There is no paste that keeps the copied text's own

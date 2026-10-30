@@ -2,6 +2,7 @@
 
 #include "richtext.h"
 
+#include <QHash>
 #include <QPainter>
 #include <QPen>
 #include <QtMath>
@@ -15,8 +16,35 @@ namespace {
 bool drawnByGlyph(const TextLayoutResult::Outline &outline)
 {
     const TextRun &format = outline.format;
+    // (Nor letters with a fill of their own: a gradient goes across all of them)
     return !outline.pieces.isEmpty() && (!format.fillVisible || format.fill.alpha() == 255)
-        && (format.strokeWidth <= 0 || format.stroke.alpha() == 255);
+        && (format.strokeWidth <= 0 || format.stroke.alpha() == 255) && format.fillEffect < 0;
+}
+
+// The brush of a gradient fill (textfills.h) across `box`, the letters it fills, as a
+// shape's gradient is laid across its box (SlideElement): its angle anticlockwise from
+// pointing right, its first stop at the tail.
+QBrush gradientBrush(const QVariantMap &fill, const QRectF &box)
+{
+    QGradientStops stops;
+    for (const QVariant &stop : fill.value("stops").toList()) {
+        const QVariantMap s = stop.toMap();
+        stops.append({std::clamp(s.value("position").toDouble(), 0.0, 1.0), s.value("color").value<QColor>()});
+    }
+    if (stops.isEmpty())
+        return QBrush(Qt::white);
+    if (fill.value("radial").toBool()) {
+        QRadialGradient radial(box.center(), std::max(box.width(), box.height()) / 2);
+        radial.setStops(stops);
+        return QBrush(radial);
+    }
+    const qreal along = qDegreesToRadians(fill.value("angle").toDouble());
+    const qreal reach = qAbs(box.width() / 2 * qCos(along)) + qAbs(box.height() / 2 * qSin(along));
+    const QPointF c = box.center();
+    QLinearGradient linear(QPointF(c.x() - qCos(along) * reach, c.y() + qSin(along) * reach),
+                           QPointF(c.x() + qCos(along) * reach, c.y() - qSin(along) * reach));
+    linear.setStops(stops);
+    return QBrush(linear);
 }
 
 } // namespace
@@ -40,6 +68,7 @@ StrokedText::StrokedText(QQuickItem *parent)
     connect(this, &StrokedText::insetsChanged, this, repaint);
     connect(this, &StrokedText::lineFillChanged, this, repaint);
     connect(this, &StrokedText::replacementColorChanged, this, repaint);
+    connect(this, &StrokedText::maskOfChanged, this, repaint);
     connect(this, &StrokedText::replacementChanged, this, &StrokedText::replace);
 }
 
@@ -64,8 +93,11 @@ RichText StrokedText::shown() const
     TextRun format = content.firstRun();
     if (const QColor color = m_replacementColor.value<QColor>(); m_replacementColor.isValid() && color.isValid())
         format.fill = color;
-    return RichText::plain(m_replacement.toString(), format,
-                           content.paragraphs.isEmpty() ? Qt::AlignHCenter : content.paragraphs.first().alignment);
+    RichText words = RichText::plain(m_replacement.toString(), format,
+                                     content.paragraphs.isEmpty() ? Qt::AlignHCenter : content.paragraphs.first().alignment);
+    // (The fill the first run has, by its number, is the content's)
+    words.fillEffects = content.fillEffects;
+    return words;
 }
 
 // What there is to draw at the size it is drawn at: as it is, or made smaller or larger
@@ -188,6 +220,37 @@ void StrokedText::paint(QPainter *painter)
     painter->scale(m_unit, m_unit);
     painter->translate(origin(layout));
 
+    // Only the letters of one fill, in white, as a mask for the graphics chip
+    // (TextFills.qml): no bars, no outlines.
+    if (m_maskOf >= 0) {
+        for (const TextLayoutResult::Outline &outline : layout.outlines) {
+            if (outline.format.fillEffect == m_maskOf && outline.format.fillVisible)
+                painter->fillPath(outline.path, Qt::white);
+        }
+        return;
+    }
+
+    // The text's fills other than a colour: a gradient's brush across the letters it
+    // fills, or the text's whole box where it is stretched over it (textfills.h); none for
+    // the fills the graphics chip draws, whose letters are left empty.
+    // (Looked into only for text that has such letters: the text is not copied again for
+    // any other)
+    QHash<int, QBrush> brushes;
+    QHash<int, QRectF> boxes;
+    for (const TextLayoutResult::Outline &outline : layout.outlines) {
+        if (outline.format.fillEffect >= 0)
+            boxes[outline.format.fillEffect] |= outline.path.boundingRect();
+    }
+    if (!boxes.isEmpty()) {
+        const RichText text = shown();
+        for (auto box = boxes.cbegin(); box != boxes.cend(); ++box) {
+            const QVariantMap fill = text.fillEffects.value(box.key()).toMap();
+            const QRectF whole(QPointF(m_bleed + m_insetLeft, m_bleed + m_insetTop) - origin(layout), room);
+            if (fill.value("kind") == QLatin1String("gradient"))
+                brushes.insert(box.key(), gradientBrush(fill, fill.value("stretch").toBool() ? whole : box.value()));
+        }
+    }
+
     // The bars behind the lines go down first.
     if (m_lineFill.alpha() > 0) {
         qreal widest = 0;
@@ -234,6 +297,13 @@ void StrokedText::paint(QPainter *painter)
     for (const TextLayoutResult::Outline &outline : layout.outlines) {
         if (!outline.format.fillVisible)
             continue;
+        if (outline.format.fillEffect >= 0) {
+            if (brushes.contains(outline.format.fillEffect))
+                painter->fillPath(outline.path, brushes.value(outline.format.fillEffect));
+            else if (!m_layeredFills)
+                painter->fillPath(outline.path, outline.format.fill);
+            continue;
+        }
         if (!drawnByGlyph(outline)) {
             painter->fillPath(outline.path, outline.format.fill);
             continue;

@@ -536,3 +536,28 @@ target_include_directories(tst_pptx PRIVATE ${PROJECT_SOURCE_DIR}/src)
 # (Qt Quick for sessionlog.h, which the log's stand-in for the font lookup includes)
 target_link_libraries(tst_pptx PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test proproto Fontconfig::Fontconfig ZLIB::ZLIB)
 add_test(NAME pptx COMMAND tst_pptx)
+
+qt_add_executable(tst_textfills
+    tst_textfills.cpp
+    ${PROJECT_SOURCE_DIR}/src/textfills.h
+    ${PROJECT_SOURCE_DIR}/src/textfills.cpp
+    ${PROJECT_SOURCE_DIR}/src/richtext.h
+    ${PROJECT_SOURCE_DIR}/src/richtext.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontnames.h
+    ${PROJECT_SOURCE_DIR}/src/fontnames.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontresolver.h
+    ${PROJECT_SOURCE_DIR}/src/fontresolver.cpp
+    ${PROJECT_SOURCE_DIR}/src/mediaeffects.h
+    ${PROJECT_SOURCE_DIR}/src/mediaeffects.cpp
+    ${PROJECT_SOURCE_DIR}/src/mediasettings.h
+    ${PROJECT_SOURCE_DIR}/src/mediasettings.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.h
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.h
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.cpp
+    sessionlogstub.cpp
+)
+target_include_directories(tst_textfills PRIVATE ${PROJECT_SOURCE_DIR}/src)
+# (Qt Quick for sessionlog.h, which the log's stand-in for the font lookup includes)
+target_link_libraries(tst_textfills PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test proproto Fontconfig::Fontconfig)
+add_test(NAME textfills COMMAND tst_textfills)

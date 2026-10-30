@@ -2953,6 +2953,175 @@ def prepare_pptx(workspace, test_dir):
         out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
 
 
+# A slide's cue of one element 1600 by 500 in the middle of a slide of 1920 by 1080, over the
+# quarter lines of the picture behind it (if `media` names one: MEDIA_ACTION): its own fill,
+# if `fill` has one, and words if `text` has its attributes ("MMMMMMM" in Helvetica Bold at
+# 200, black, in one line), for the text fills test.
+FILL_CUE = r"""cues {
+  uuid { string: "%(cue)s" }
+  isEnabled: true
+  %(media)s
+  actions {
+    isEnabled: true
+    type: ACTION_TYPE_PRESENTATION_SLIDE
+    slide {
+      presentation {
+        base_slide {
+          size { width: 1920 height: 1080 }
+          elements {
+            element {
+              uuid { string: "%(element)s" }
+              name: "%(name)s"
+              bounds { origin { x: 160 y: 290 } size { width: 1600 height: 500 } }
+              opacity: 1
+              %(shape)s
+              %(fill)s
+              %(text)s
+            }
+          }
+          %(extra)s
+        }
+      }
+    }
+  }
+}
+"""
+
+FILL_WORDS = r"""text {
+                attributes { %s }
+                rtf_data: "{\\rtf1\\ansi\\ansicpg1252{\\fonttbl\\f0\\fswiss Helvetica-Bold;}{\\colortbl;\\red0\\green0\\blue0;}\\pard\\qc\\f0\\b\\fs400 \\cf1 MMMMMMM}"
+                vertical_alignment: VERTICAL_ALIGNMENT_MIDDLE
+              }"""
+
+
+def fills_presentation(name, slides, background_url):
+    """The text of a presentation called `name`, a slide (FILL_CUE) for each of `slides`: (element name, the text's
+    attributes or None for no words, the element's own fill, its path or "", whether the picture at `background_url`
+    goes up with it, and, if given, more elements of the slide, as text), in one group."""
+    def new():
+        return str(uuid.uuid4()).upper()
+
+    cues, ids = [], []
+    for element, attributes, fill, shape, behind, *extra in slides:
+        ids.append(new())
+        cues.append(FILL_CUE % {"cue": ids[-1], "element": new(), "name": element, "shape": shape, "fill": fill,
+                                "text": FILL_WORDS % attributes if attributes is not None else "",
+                                "media": MEDIA_ACTION % {"url": background_url} if behind else "",
+                                "extra": extra[0] if extra else ""})
+    group = ('cue_groups { group { uuid { string: "%s" } name: "Fills" } ' % new()
+             + "".join('cue_identifiers { string: "%s" } ' % i for i in ids) + "}\n")
+    return ('application_info {\n  platform: PLATFORM_MACOS\n  application: APPLICATION_PROPRESENTER\n}\n'
+            'uuid {\n  string: "%s"\n}\nname: "%s"\n' % (new(), name) + "".join(cues) + group)
+
+
+def prepare_textfills(workspace, test_dir):
+    """Three presentations of the test's own in the copy's Demo library, made of ProPresenter's text fills as it writes
+    them (src/textfills.h): "Text Fills", seven slides over a picture of four colours (red, green, blue and white from
+    the top left, its quarter lines at the middle of the slide); "Fills Unseen", a slide of letters filled with a
+    blur and no picture behind them; and "Fills Shared", a slide of letters filled with a blur of 0.3, as ProPresenter
+    writes a fill of a whole text (the text's own and a range one past its end), and a box under them filled with a
+    blur of 0.3 too. And the picture the media fill is of, four other colours (yellow, magenta, cyan, orange). Nothing
+    is written outside the test's folder, and nothing under the copy's Media.
+
+      1. Invert: letters filled with an invert of what is behind them, the whole text's fill.
+      2. Blur: letters filled with a blur of what is behind them (an amount of 1).
+      3. Cut Out: letters cut out of their box's own fill, navy.
+      4. Media: letters filled with the picture, Scale to Fill.
+      5. Gradient Words: a gradient, yellow to magenta from the left, over the first three letters only (a range),
+         the rest of them their own black.
+      6. Blur Box: a box, no words, whose fill is a blur of what is behind it (0.5).
+      7. Invert Oval: an ellipse, no words, whose fill is an invert of what is behind it."""
+    background = os.path.join(test_dir, "Fills Background.png")
+    picture = os.path.join(test_dir, "Fills Picture.png")
+    library = os.path.join(workspace, "Libraries", "Demo")
+    targets = [os.path.join(library, "Text Fills.pro"), os.path.join(library, "Fills Unseen.pro"),
+               os.path.join(library, "Fills Shared.pro")]
+    for path in [background, picture] + targets:
+        if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("the text fills test would write outside its own folder: " + os.path.realpath(path))
+    with open(background, "wb") as out:
+        out.write(quarters_png(320, 180, [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255)]))
+    with open(picture, "wb") as out:
+        out.write(quarters_png(320, 180, [(255, 255, 0), (255, 0, 255), (0, 255, 255), (255, 128, 0)]))
+    picture_url = "file://" + picture.replace(" ", "%20")
+    blur = "background_effect { backgroundBlur { blur_amount: 0.5 } }"
+    gradient = ('text_gradient_fill { gradient { angle: 0 stops { color { red: 1 green: 1 alpha: 1 } position: 0 } '
+                'stops { color { red: 1 blue: 1 alpha: 1 } position: 1 } } }')
+    # (An ellipse's outline as the app writes one, and ProPresenter: four points, each with the points that bend the
+    # outline on its way in and out, in the element's unit square. Without points a shape is a rectangle.)
+    ellipse = ("path { closed: true "
+               "points { point { x: 0.5 } q0 { x: 0.2239 } q1 { x: 0.7761 } curved: true } "
+               "points { point { x: 1 y: 0.5 } q0 { x: 1 y: 0.2239 } q1 { x: 1 y: 0.7761 } curved: true } "
+               "points { point { x: 0.5 y: 1 } q0 { x: 0.7761 y: 1 } q1 { x: 0.2239 y: 1 } curved: true } "
+               "points { point { y: 0.5 } q0 { y: 0.7761 } q1 { y: 0.2239 } curved: true } "
+               "shape { type: TYPE_ELLIPSE } }")
+    slides = [
+        ("Invert", "background_effect { backgroundInvert { } }", "", "", True),
+        ("Blur", "background_effect { backgroundBlur { blur_amount: 1 } }", "", "", True),
+        ("Cut Out", "cut_out_fill { }", "fill { enable: true color { blue: 0.5 alpha: 1 } }", "", True),
+        ("Media", 'media_fill { media { url { absolute_string: "%s" } image { drawing { natural_size { width: 320 '
+                  'height: 180 } scale_behavior: SCALE_BEHAVIOR_FILL } } } }' % picture_url, "", "", True),
+        ("Gradient Words", "custom_attributes { range { start: 0 end: 3 } %s }" % gradient, "", "", True),
+        ("Blur Box", None, "fill { enable: true backgroundEffect { backgroundBlur { blur_amount: 0.5 } } }", "", True),
+        ("Invert Oval", None, "fill { enable: true backgroundEffect { backgroundInvert { } } }", ellipse, True),
+    ]
+    shared = ("background_effect { backgroundBlur { blur_amount: 0.3 } } "
+              "custom_attributes { range { end: 8 } background_effect { backgroundBlur { blur_amount: 0.3 } } }")
+    box = ('elements { element { uuid { string: "%s" } name: "Blurred Box" '
+           'bounds { origin { x: 100 y: 100 } size { width: 400 height: 300 } } opacity: 1 '
+           'fill { enable: true backgroundEffect { backgroundBlur { blur_amount: 0.3 } } } } }' % str(uuid.uuid4()).upper())
+    background_url = "file://" + background.replace(" ", "%20")
+    made = {targets[0]: fills_presentation("Text Fills", slides, background_url),
+            targets[1]: fills_presentation("Fills Unseen", [("Blur", blur, "", "", False)], ""),
+            targets[2]: fills_presentation("Fills Shared", [("Shared", shared, "", "", True, box)], background_url)}
+    for target, text in made.items():
+        with open(target, "wb") as out:
+            out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+
+
+def after_textfills(workspace, test_dir):
+    """What the test's edits left in the files, read with protoc and not by the app: in "Text Fills", two letters typed
+    before the three of the fifth slide's gradient, so its range, which the letters typed there take, runs over five,
+    with the gradient as it was; the first slide's words, given one fill after another and Text Color last, with no
+    fill left, and their colour the text's own fill; and in "Fills Shared", the blur of the words set to 0.8, and so
+    the box's too, as ProPresenter shares it."""
+    with open(os.path.join(workspace, "Libraries", "Demo", "Text Fills.pro"), "rb") as source:
+        text = protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+    with open(os.path.join(workspace, "Libraries", "Demo", "Fills Shared.pro"), "rb") as source:
+        shared = protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+    # The first slide's text: the first rtf_data's attributes come before it in the element (attributes, then rtf)
+    first_cue = text[:text.index("cues {", text.index("cues {") + 1)]
+    def block(at):
+        """The block that opens at `at` (its "{"), to its closing brace."""
+        depth = 0
+        for k in range(at, len(text)):
+            depth += {"{": 1, "}": -1}.get(text[k], 0)
+            if depth == 0:
+                return text[at:k + 1]
+        return text[at:]
+
+    found = []
+    for opening in re.finditer(r"custom_attributes \{", text):
+        custom = block(opening.end() - 1)
+        if "text_gradient_fill" in custom:
+            span = re.search(r"range \{\s*(?:start: (\d+)\s*)?(?:end: (\d+)\s*)?\}", custom)
+            found.append((span.group(1) or "0", span.group(2) or "0", custom) if span else ("?", "?", custom))
+    start, end, fill = found[0] if len(found) == 1 else ("", "0", "")
+    return [
+        said("XYMMMMMMM" in text, "in the file: the words typed before the gradient's letters"),
+        said(len(found) == 1 and int(start or 0) == 0 and int(end) == 5,
+             "in the file: the gradient's one range runs over the letters typed into it, 0 to 5", repr(found)[:200]),
+        said(fill.count("stops {") == 2,
+             "in the file: the gradient is as it was, its two stops and all", fill[:200]),
+        said(not re.search(r"background_effect|text_gradient_fill|media_fill|cut_out_fill", first_cue) and "text_solid_fill" in first_cue,
+             "in the file: the first slide's words, Text Color last, have no fill left, and their colour is the text's own fill",
+             ", ".join(re.findall(r"background_effect|text_gradient_fill|media_fill|cut_out_fill|text_solid_fill", first_cue))),
+        said(re.findall(r"blur_amount: ([0-9.]+)", shared) == ["0.8", "0.8", "0.8"],
+             "in the file: the words' blur set to 0.8, as their own fill and their range, and the box's blur with it",
+             ", ".join(re.findall(r"blur_amount: ([0-9.]+)", shared))),
+    ]
+
+
 def prepare_messages(workspace, test_dir):
     """The workspace is given a file of messages as ProPresenter might have left one (MESSAGES_FILE). Nothing is
     written but that one file, in the copy's Configuration."""
@@ -3375,6 +3544,7 @@ TESTS = {
     "decklink": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "combined": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_combined),
     "pptx": test("Demo", prepare=prepare_pptx),
+    "textfills": test("Demo", prepare=prepare_textfills, after=after_textfills),
     "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
     "quickedit": test("Act"),

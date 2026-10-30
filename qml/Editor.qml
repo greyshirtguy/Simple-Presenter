@@ -232,10 +232,57 @@ Rectangle {
         }, () => screen.takeFocus())
     }
 
-    // Asks for a media file: to "add" as an element of its own, or to "fill" the picked
-    // element with.
+    // The Media Inspector on the media of the fill of the picked element's words that the
+    // caret, or the selection, is in (TextFills, textfills.h): its changes made to that
+    // fill wherever the words have it (RichText's `refill`), and kept and undone as the
+    // editor's other changes are.
+    function inspectTextFill() {
+        const element = canvas.selected
+        const now = () => canvas.format && canvas.format.fill && canvas.format.fill.kind === "media" ? canvas.format.fill : null
+        if (!element || now() === null)
+            return
+        const row = canvas.row
+        const id = element.id
+        const mediaOf = () => {
+            const fill = now()
+            if (fill === null)
+                return null
+            const path = fill.source ? decodeURIComponent(String(fill.source).replace(/^file:\/\//, "")) : ""
+            const e = row < editor.count ? editor.slideAt(row).elements.find(candidate => candidate.id === id) : undefined
+            return { name: path.split("/").pop(), path: path, source: fill.source ?? "", video: false, missing: path === "",
+                     settings: editor.textFillMediaSettings(row, id, fill), box: { width: e ? e.width : 0, height: e ? e.height : 0 } }
+        }
+        const refill = (change) => {
+            const was = now()
+            if (was === null)
+                return ""
+            const error = editor.formatText(row, id, 0, 0, { refill: { was: was, now: Object.assign({}, was, change) } })
+            canvas.reload()
+            return error
+        }
+        inspectMedia(mediaOf(), "The fill of the words of " + (element.name !== "" ? "“" + element.name + "”" : "an element") + ", slide " + (row + 1), {
+            save: (changes) => refill({ mediaSettings: changes }),
+            replace: (file) => refill({ file: file }),
+            reread: mediaOf
+        }, () => screen.takeFocus())
+    }
+
+    // The picked element's words (the selection being edited, or all of them) filled with
+    // a media file: their media fill given the file, or a media fill made of it, Scale to
+    // Fill (as ProPresenter's Text tab showed a media fill: A GUESS that that is how one
+    // starts)
+    function fillWordsWith(path) {
+        const was = canvas.format && canvas.format.fill ? canvas.format.fill : null
+        canvas.setFormat({ fill: was !== null && was.kind === "media" ? Object.assign({}, was, { file: path })
+                                                                       : { kind: "media", file: path, scale: 1 } }, false)
+    }
+
+    // Asks for a media file: to "add" as an element of its own, to "fill" the picked
+    // element with, or to fill its words with ("textFill": the selection being edited, if
+    // any, kept, the fill being for it).
     function chooseMedia(purpose) {
-        finish()
+        if (purpose !== "textFill")
+            finish()
         mediaDialog.purpose = purpose
         mediaDialog.open()
     }
@@ -810,6 +857,8 @@ Rectangle {
                         color: canvas.pageColor
 
                         Image {
+                            id: listBackdrop
+
                             anchors.fill: parent
                             source: screen.backdropFor(cell.slide.id)
                             visible: source != ""
@@ -817,11 +866,14 @@ Rectangle {
                             asynchronous: true
                         }
 
-                        // As it will be shown, its visibility rules applied
+                        // As it will be shown, its visibility rules applied (and its fills
+                        // that are a blur or an invert of what is behind them taking the
+                        // picture under it: TextFills)
                         Slide {
                             anchors.fill: parent
                             slide: cell.slide
                             effects: false
+                            backdrop: listBackdrop
                         }
                     }
 
@@ -1248,10 +1300,14 @@ Rectangle {
         currentFolder: screen.mediaFolder !== "" ? "file://" + screen.mediaFolder : ""
         nameFilters: [screen.mediaFilter, "All files (*)"]
         onAccepted: {
-            if (purpose === "add")
+            const path = decodeURIComponent(String(selectedFile).replace(/^file:\/\//, ""))
+            if (purpose === "add") {
                 canvas.addMedia(selectedFile)
-            else
-                canvas.setProperties({ fillMediaPath: decodeURIComponent(String(selectedFile).replace(/^file:\/\//, "")), fillOn: true }, false)
+            } else if (purpose === "textFill") {
+                screen.fillWordsWith(path)
+            } else {
+                canvas.setProperties({ fillMediaPath: path, fillOn: true }, false)
+            }
             screen.takeFocus()
         }
         onRejected: screen.takeFocus()
@@ -1275,6 +1331,8 @@ Rectangle {
         showMenu: (items, item, x, y) => screen.showMenu(items, item, x, y)
         chooseMedia: () => screen.chooseMedia("fill")
         inspectMedia: () => screen.inspectFill()
+        chooseTextMedia: () => screen.chooseMedia("textFill")
+        inspectTextMedia: () => screen.inspectTextFill()
         setFormat: (format, interim) => canvas.setFormat(format, interim)
         settle: () => canvas.settle()
         colorTriggerDefault: screen.colorTriggerDefault

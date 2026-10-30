@@ -11,7 +11,7 @@ bool TextRun::sameFormat(const TextRun &other) const
         && italic == other.italic && underline == other.underline && strikethrough == other.strikethrough
         && kerning == other.kerning && superscript == other.superscript && capitalization == other.capitalization
         && fill == other.fill && fillVisible == other.fillVisible && stroke == other.stroke
-        && strokeWidth == other.strokeWidth;
+        && strokeWidth == other.strokeWidth && fillEffect == other.fillEffect;
 }
 
 bool RichText::isEmpty() const
@@ -64,7 +64,7 @@ QString RichText::plainText() const
 
 bool RichText::operator==(const RichText &other) const
 {
-    if (paragraphs.size() != other.paragraphs.size())
+    if (paragraphs.size() != other.paragraphs.size() || fillEffects != other.fillEffects)
         return false;
     for (qsizetype i = 0; i < paragraphs.size(); ++i) {
         const TextParagraph &a = paragraphs.at(i);
@@ -167,6 +167,34 @@ void appendMerged(QList<TextRun> *runs, const TextRun &run)
 RichText RichText::formatted(int start, int end, const QVariantMap &format) const
 {
     RichText result = *this;
+    // One of the text's fills made another wherever the runs have it, whatever the range
+    // (the Media Inspector's changes to a media fill's media)
+    if (format.contains("refill")) {
+        const QVariantMap change = format.value("refill").toMap();
+        const qsizetype at = result.fillEffects.indexOf(change.value("was"));
+        if (at >= 0)
+            result.fillEffects[at] = change.value("now");
+    }
+    // A fill (textfills.h) for the runs: its number among the text's fills, the same one
+    // where the text has that fill already, or -1 for a colour; -2 for none given
+    int fillNumber = -2;
+    if (format.contains("fill")) {
+        const QVariantMap fill = format.value("fill").toMap();
+        if (fill.value("kind").toString() == QLatin1String("color")) {
+            fillNumber = -1;
+        } else {
+            fillNumber = int(result.fillEffects.indexOf(QVariant(fill)));
+            if (fillNumber < 0) {
+                fillNumber = int(result.fillEffects.size());
+                result.fillEffects.append(fill);
+            }
+        }
+    }
+    const auto applied = [&format, fillNumber](TextRun *run) {
+        run->applyFormat(format);
+        if (fillNumber != -2)
+            run->fillEffect = fillNumber;
+    };
     int offset = 0;
     for (TextParagraph &paragraph : result.paragraphs) {
         int length = 0;
@@ -186,7 +214,7 @@ RichText RichText::formatted(int start, int end, const QVariantMap &format) cons
             if (run.text.isEmpty()) {
                 TextRun empty = run;
                 if (runStart >= start && runStart <= end)
-                    empty.applyFormat(format);
+                    applied(&empty);
                 appendMerged(&runs, empty);
                 continue;
             }
@@ -201,7 +229,7 @@ RichText RichText::formatted(int start, int end, const QVariantMap &format) cons
                 appendMerged(&runs, piece(runStart, from));
             if (to > from) {
                 TextRun changed = piece(from, to);
-                changed.applyFormat(format);
+                applied(&changed);
                 appendMerged(&runs, changed);
             }
             if (to < runEnd)
@@ -233,6 +261,7 @@ QVariantMap RichText::formatAt(int start, int end) const
             if (hit) {
                 QVariantMap format = run.format();
                 format.insert("alignment", int(paragraph.alignment));
+                format.insert("fill", fillOf(run));
                 return format;
             }
             offset = runEnd;
@@ -243,5 +272,13 @@ QVariantMap RichText::formatAt(int start, int end) const
         return {};
     QVariantMap format = lastRun->format();
     format.insert("alignment", int(lastParagraph->alignment));
+    format.insert("fill", fillOf(*lastRun));
     return format;
+}
+
+QVariantMap RichText::fillOf(const TextRun &run) const
+{
+    if (run.fillEffect >= 0 && run.fillEffect < fillEffects.size())
+        return fillEffects.at(run.fillEffect).toMap();
+    return {{"kind", QStringLiteral("color")}};
 }

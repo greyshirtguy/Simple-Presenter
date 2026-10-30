@@ -6,6 +6,7 @@
 #include "reflow.h"
 
 #include <QTest>
+#include <QUrl>
 
 using namespace reflow;
 
@@ -189,6 +190,32 @@ private slots:
         QCOMPARE(shape(joined(first, none)), shape(first));
         // Two with none: still one line, set as the first.
         QCOMPARE(shape(joined(none, cut(text(), 20, 20))), "Big90:");
+    }
+
+    // A text's fills (textfills.h) go with its runs: a part cut keeps the text's list of
+    // them, and two texts joined have the second's fills numbered as the first has them,
+    // the same fill being one, and another's being written afresh, by its file
+    void fillsGoWithTheRuns()
+    {
+        RichText first = text();
+        first.fillEffects = {QVariantMap {{"kind", "invert"}, {"from", 0}}};
+        first.paragraphs[0].runs[0].fillEffect = 0;
+        RichText second = text();
+        second.fillEffects = {QVariantMap {{"kind", "media"}, {"from", 0}, {"source", QUrl::fromLocalFile("/pictures/Gold.png")}},
+                              QVariantMap {{"kind", "invert"}, {"from", 0}}};
+        second.paragraphs[0].runs[0].fillEffect = 1;
+        second.paragraphs[1].runs[0].fillEffect = 0;
+        QCOMPARE(cut(first, 0, 6).fillEffects, first.fillEffects);
+        QCOMPARE(cut(first, 0, 6).paragraphs[0].runs[0].fillEffect, 0);
+        const RichText both = joined(first, second);
+        QCOMPARE(both.fillEffects.size(), 2);
+        const QVariantMap adopted = both.fillEffects[1].toMap();
+        QCOMPARE(adopted.value("kind").toString(), QStringLiteral("media"));
+        QVERIFY(!adopted.contains("from"));
+        QCOMPARE(adopted.value("file").toString(), QStringLiteral("/pictures/Gold.png"));
+        const int paragraphs = int(first.paragraphs.size());
+        QCOMPARE(both.paragraphs[paragraphs].runs[0].fillEffect, 0);
+        QCOMPARE(both.paragraphs[paragraphs + 1].runs[0].fillEffect, 1);
     }
 
     void wordsTypedTakeTheLookOfWhatIsBeforeThem()

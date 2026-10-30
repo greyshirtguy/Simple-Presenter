@@ -215,89 +215,114 @@ Item {
             layer.enabled: frameDelay.active
             transform: Translate { x: frameDelay.active ? -4 * (view.width + 100) : 0 }
 
-            // The video input layer, at the bottom: made only while an input is on it, which
-            // is what has the input captured (see VideoInputView). Its sound plays while the
-            // look gives this screen the layer, and not while it does not: an input's sound is
-            // played while it is on an audience screen (see VideoInputs). An input that takes
-            // the place of another is a cut. (A GUESS: ProPresenter has a transition of its own
-            // for video inputs, which is not done here yet.)
-            Loader {
-                id: videoInputLayer
-
-                objectName: "videoInputLayer"
-                anchors.fill: parent
-                active: scene.videoInput >= 0
-                opacity: scene.videoInputOn ? 1 : 0
-                visible: opacity > 0
-
-                Behavior on opacity {
-                    NumberAnimation { duration: scene.lookFade }
-                }
-
-                sourceComponent: VideoInputView {
-                    index: scene.videoInput
-                    sound: scene.videoInputOn
-                    shown: videoInputLayer.visible
-                }
-            }
-
-            TransitionLayer {
-                id: mediaLayer
+            // What is under the layers over the slides, for their fills that are a blur or an
+            // invert of what is behind them (Slide's `backdrop`, TextFills): the slides and
+            // what is under them. (A GUESS for the copyright line, announcements, props,
+            // messages and masks alike: each takes what is under the slides and the slides,
+            // and not the layers between it and them.) Nothing is drawn for it but what is
+            // in it, as before; it is taken only by an element that has such a fill.
+            Item {
+                id: underLayers
 
                 anchors.fill: parent
-                opacity: scene.mediaOn ? 1 : 0
-                visible: opacity > 0
 
-                Behavior on opacity {
-                    NumberAnimation { duration: scene.lookFade }
+                // What is under the slides: the video input and the media, which the slides'
+                // fills take. (Shown by its layers' opacities, not their `visible`, which is
+                // false while this is hidden, so that it would never be shown again.)
+                Item {
+                    id: underSlide
+
+                    anchors.fill: parent
+                    visible: videoInputLayer.opacity > 0 || mediaLayer.opacity > 0
+
+                    // The video input layer, at the bottom: made only while an input is on it, which
+                    // is what has the input captured (see VideoInputView). Its sound plays while the
+                    // look gives this screen the layer, and not while it does not: an input's sound is
+                    // played while it is on an audience screen (see VideoInputs). An input that takes
+                    // the place of another is a cut. (A GUESS: ProPresenter has a transition of its own
+                    // for video inputs, which is not done here yet.)
+                    Loader {
+                        id: videoInputLayer
+
+                        objectName: "videoInputLayer"
+                        anchors.fill: parent
+                        active: scene.videoInput >= 0
+                        opacity: scene.videoInputOn ? 1 : 0
+                        visible: opacity > 0
+
+                        Behavior on opacity {
+                            NumberAnimation { duration: scene.lookFade }
+                        }
+
+                        sourceComponent: VideoInputView {
+                            index: scene.videoInput
+                            sound: scene.videoInputOn
+                            shown: videoInputLayer.visible
+                        }
+                    }
+
+                    TransitionLayer {
+                        id: mediaLayer
+
+                        anchors.fill: parent
+                        opacity: scene.mediaOn ? 1 : 0
+                        visible: opacity > 0
+
+                        Behavior on opacity {
+                            NumberAnimation { duration: scene.lookFade }
+                        }
+                        name: "media layer"
+                        shaderName: scene.transitionName
+                        shader: scene.shader
+                        options: scene.options
+                        tint: scene.tint
+                        direction: scene.direction
+                        duration: scene.duration
+                        delegate: MediaContent {
+                            leads: scene.leads
+                            onEnded: (playId) => scene.mediaEnded(playId)
+                            onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "media")
+                            markersOf: scene.markersOf
+                        }
+                        // The media layer has stopped waiting, to make its change or because it was
+                        // given something else to show: either way a slide held for it goes now.
+                        onWaitingChanged: {
+                            if (!waiting && scene.heldSlide !== undefined)
+                                scene.showSlide(scene.heldSlide, scene.heldHow.transition, scene.heldHow.times)
+                        }
+                    }
+
+                    // The video on the media layer, while one plays, is what the screen's frames keep to
+                    // (see src/frameclock.h)
+                    FramePace {
+                        video: scene.liveVideoSink
+                    }
                 }
-                name: "media layer"
-                shaderName: scene.transitionName
-                shader: scene.shader
-                options: scene.options
-                tint: scene.tint
-                direction: scene.direction
-                duration: scene.duration
-                delegate: MediaContent {
-                    leads: scene.leads
-                    onEnded: (playId) => scene.mediaEnded(playId)
-                    onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "media")
-                    markersOf: scene.markersOf
-                }
-                // The media layer has stopped waiting, to make its change or because it was
-                // given something else to show: either way a slide held for it goes now.
-                onWaitingChanged: {
-                    if (!waiting && scene.heldSlide !== undefined)
-                        scene.showSlide(scene.heldSlide, scene.heldHow.transition, scene.heldHow.times)
-                }
-            }
 
-            // The video on the media layer, while one plays, is what the screen's frames keep to
-            // (see src/frameclock.h)
-            FramePace {
-                video: scene.liveVideoSink
-            }
+                TransitionLayer {
+                    id: slideLayer
 
-            TransitionLayer {
-                id: slideLayer
+                    anchors.fill: parent
+                    opacity: scene.slideOn ? 1 : 0
+                    visible: opacity > 0
 
-                anchors.fill: parent
-                opacity: scene.slideOn ? 1 : 0
-                visible: opacity > 0
-
-                Behavior on opacity {
-                    NumberAnimation { duration: scene.lookFade }
-                }
-                name: "slide layer"
-                shaderName: scene.transitionName
-                shader: scene.shader
-                options: scene.options
-                tint: scene.tint
-                direction: scene.direction
-                duration: scene.duration
-                delegate: Slide {
-                    pictures: scene.pictures
-                    logName: "slide layer"
+                    Behavior on opacity {
+                        NumberAnimation { duration: scene.lookFade }
+                    }
+                    name: "slide layer"
+                    shaderName: scene.transitionName
+                    shader: scene.shader
+                    options: scene.options
+                    tint: scene.tint
+                    direction: scene.direction
+                    duration: scene.duration
+                    delegate: Slide {
+                        pictures: scene.pictures
+                        logName: "slide layer"
+                        // What a fill of the slide's that is a blur or an invert of what is behind
+                        // it takes (TextFills): the layers under it
+                        backdrop: underSlide
+                    }
                 }
             }
 
@@ -319,6 +344,7 @@ Item {
                     slide: CopyrightDisplay.templateSlide
                     pictures: scene.pictures
                     logName: "copyright"
+                    backdrop: underLayers
                 }
             }
 
@@ -343,6 +369,7 @@ Item {
                     onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "announcements")
                     markersOf: scene.markersOf
                     pictures: scene.pictures
+                    backdrop: underLayers
                     transitionName: scene.transitionName
                     shader: scene.shader
                     options: scene.options
@@ -357,6 +384,7 @@ Item {
 
                 anchors.fill: parent
                 pictures: scene.pictures
+                backdrop: underLayers
                 opacity: scene.propsOn ? 1 : 0
                 visible: opacity > 0
 
@@ -387,6 +415,7 @@ Item {
                     props: scene.messages
                     duration: propsLayer.duration
                     pictures: scene.pictures
+                    backdrop: underLayers
                 }
             }
 
@@ -403,6 +432,7 @@ Item {
                 sourceComponent: Slide {
                     slide: scene.mask
                     pictures: scene.pictures
+                    backdrop: underLayers
                 }
             }
         }

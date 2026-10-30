@@ -85,6 +85,10 @@ Item {
         insetTop: scroller.source.marginTop
         insetRight: scroller.source.marginRight
         insetBottom: scroller.source.marginBottom
+        // Letters filled with a picture, a cut-out, a blur or an invert, drawn in their own
+        // colour: those fills are not drawn on scrolling words (TextFills is not made for
+        // them), and the words, as a texture, could not take them as they moved
+        layeredFills: false
 
         // Its shadow, as SlideElement gives a box's words theirs
         layer.enabled: scroller.effects && scroller.source.textShadowEnabled

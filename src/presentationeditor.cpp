@@ -13,6 +13,7 @@
 #include "richtext.h"
 #include "rtfstandins.h"
 #include "sessionlog.h"
+#include "textfills.h"
 #include "themefile.h"
 #include "workspacefiles.h"
 
@@ -394,6 +395,21 @@ void PresentationEditor::close()
 QVariantMap PresentationEditor::slideAt(int row) const
 {
     return row >= 0 && row < m_slides.size() ? m_slides.at(row).toMap() : QVariantMap();
+}
+
+QVariantMap PresentationEditor::textFillMediaSettings(int row, const QString &element, const QVariantMap &fill) const
+{
+    const rv::data::Slide *slide = const_cast<PresentationEditor *>(this)->slideIn(row);
+    const int at = slide ? indexOfElement(*slide, element) : -1;
+    if (at < 0)
+        return {};
+    const rv::data::Graphics::Text::Attributes &attributes = slide->elements(at).element().text().attributes();
+    const int from = fill.value("from", -1).toInt();
+    if (from >= 0 && from < attributes.custom_attributes_size() && attributes.custom_attributes(from).has_media_fill())
+        return mediasettings::describe(attributes.custom_attributes(from).media_fill().media());
+    if (fill.value("whole").toBool() && attributes.has_media_fill())
+        return mediasettings::describe(attributes.media_fill().media());
+    return {};
 }
 
 QVariantMap PresentationEditor::fillMediaSettings(int row, const QString &element) const
@@ -794,14 +810,28 @@ QString PresentationEditor::setText(int row, const QString &element, const QVari
     });
 }
 
+namespace {
+
+// A text formatted, and where it is given a blur of what is behind it, every blur on its
+// slide given the same amount, as ProPresenter shares it (textfills::shareBlur)
+void formatOn(rv::data::Slide *slide, rv::data::Slide::Element *target, int start, int end, const QVariantMap &format)
+{
+    rv::data::Graphics::Text *text = target->mutable_element()->mutable_text();
+    proconvert::writeText(text, proconvert::readText(*text).formatted(start, end, format));
+    const QVariantMap fill = format.value("fill").toMap();
+    if (fill.value("kind").toString() == QLatin1String("blur"))
+        textfills::shareBlur(slide, fill.value("amount").toDouble());
+}
+
+}
+
 QString PresentationEditor::formatText(int row, const QString &element, int start, int end, const QVariantMap &format)
 {
     return change(row, [&](rv::data::Slide *slide) {
         rv::data::Slide::Element *target = findElement(slide, element);
         if (!target)
             return elementGone;
-        rv::data::Graphics::Text *text = target->mutable_element()->mutable_text();
-        proconvert::writeText(text, proconvert::readText(*text).formatted(start, end, format));
+        formatOn(slide, target, start, end, format);
         return QString();
     });
 }
@@ -809,10 +839,8 @@ QString PresentationEditor::formatText(int row, const QString &element, int star
 void PresentationEditor::previewFormat(int row, const QString &element, int start, int end, const QVariantMap &format)
 {
     preview(row, element, [&](rv::data::Slide *slide) {
-        if (rv::data::Slide::Element *target = findElement(slide, element)) {
-            rv::data::Graphics::Text *text = target->mutable_element()->mutable_text();
-            proconvert::writeText(text, proconvert::readText(*text).formatted(start, end, format));
-        }
+        if (rv::data::Slide::Element *target = findElement(slide, element))
+            formatOn(slide, target, start, end, format);
     });
 }
 

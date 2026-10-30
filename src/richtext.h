@@ -41,6 +41,11 @@ struct TextRun
     bool fillVisible = true;
     QColor stroke = Qt::black;
     qreal strokeWidth = 0;
+    // Which of the text's fills (RichText::fillEffects) fills its letters in place of
+    // `fill`, or -1 for none: a gradient, a picture, a cut-out of the box, or a blur or an
+    // invert of what is behind (textfills.h). Read from the file beside the RTF, not
+    // written into it.
+    int fillEffect = -1;
 
     // Whether two runs differ only in their text.
     bool sameFormat(const TextRun &other) const;
@@ -70,6 +75,8 @@ struct TextParagraph
 struct RichText
 {
     QList<TextParagraph> paragraphs;
+    // The fills runs' `fillEffect` say, by its number: each a map as textfills.h says
+    QVariantList fillEffects;
 
     // Paragraphs joined by "\n"; a line break within a paragraph also becomes "\n".
     QString plainText() const;
@@ -87,11 +94,15 @@ struct RichText
 
     // The text with a format applied from `start` up to `end`. `format` is a map as
     // TextRun::applyFormat takes, plus `alignment`, which applies to every paragraph
-    // the range touches.
+    // the range touches, and `fill`, a fill for the runs (see fillOf); and `refill`,
+    // { was, now }, one of the text's fills made another wherever it is, the range aside.
     RichText formatted(int start, int end, const QVariantMap &format) const;
     // The format at a selection, or at a caret if `start` and `end` are the same: a map
-    // as TextRun::format gives, plus `alignment`.
+    // as TextRun::format gives, plus `alignment`, and `fill`, as fillOf() says.
     QVariantMap formatAt(int start, int end) const;
+    // What fills a run's letters: a map of fillEffects (textfills.h), or { kind: "color" }
+    // for its colour. (`formatted` takes one as `fill`, and gives the runs it.)
+    QVariantMap fillOf(const TextRun &run) const;
 };
 
 Q_DECLARE_METATYPE(RichText)

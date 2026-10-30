@@ -212,6 +212,42 @@ public:
         const qreal ratio = image.width() / qreal(window->width());
         return redShare(image, QRect(int(x * ratio), int(y * ratio), int(width * ratio), int(height * ratio)));
     }
+    // How much of a part of a picture is within `tolerance` of a colour ("#rrggbb") in each of red, green and blue,
+    // from 0 to 1 (see windowShare)
+    static double colourShare(const QImage &image, const QRect &asked, const QString &colour, int tolerance)
+    {
+        const QRect part = asked.intersected(image.rect());
+        const QColor wanted(colour);
+        qint64 near = 0;
+        for (int row = part.top(); row <= part.bottom(); ++row) {
+            const QRgb *line = reinterpret_cast<const QRgb *>(image.constScanLine(row));
+            for (int column = part.left(); column <= part.right(); ++column) {
+                const QRgb at = line[column];
+                near += qAbs(qRed(at) - wanted.red()) <= tolerance && qAbs(qGreen(at) - wanted.green()) <= tolerance
+                        && qAbs(qBlue(at) - wanted.blue()) <= tolerance ? 1 : 0;
+            }
+        }
+        return part.isEmpty() ? 0 : double(near) / (double(part.width()) * part.height());
+    }
+    // How much of a part of the operator window is near a colour, from 0 to 1: for letters filled with something,
+    // which are too fine, and their shapes too much the font's, to find a point at a time. The part is in the
+    // window's own points.
+    Q_INVOKABLE double windowShare(qreal x, qreal y, qreal width, qreal height, const QString &colour, int tolerance)
+    {
+        const QImage image = window->grabWindow().convertToFormat(QImage::Format_RGB32);
+        const qreal ratio = image.width() / qreal(window->width());
+        return colourShare(image, QRect(int(x * ratio), int(y * ratio), int(width * ratio), int(height * ratio)), colour, tolerance);
+    }
+    // The same of a part of the output window, the part given as shares of the window
+    Q_INVOKABLE double outputShare(qreal x, qreal y, qreal width, qreal height, const QString &colour, int tolerance)
+    {
+        QQuickWindow *output = named("output");
+        if (!output)
+            return -1;
+        const QImage image = output->grabWindow().convertToFormat(QImage::Format_RGB32);
+        return colourShare(image, QRect(int(x * image.width()), int(y * image.height()), int(width * image.width()),
+                                        int(height * image.height())), colour, tolerance);
+    }
     // The same of a part of the output or the stage window, the part given as shares of the window
     Q_INVOKABLE double red(bool ofStage, qreal x, qreal y, qreal width, qreal height)
     {

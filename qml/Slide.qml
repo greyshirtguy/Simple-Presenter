@@ -23,6 +23,10 @@ Item {
     // screens show; null for a slide that is only being looked at (a thumbnail, the
     // editor), which draws none (see SlideElement and ScreenPicture)
     property var pictures: null
+    // What the slide is drawn over here, for its elements' fills that are a blur or an
+    // invert of what is behind them (TextFills): the screen's media layer, the picture of
+    // a thumbnail's media, and so on; null where it is drawn over nothing
+    property Item backdrop: null
     // When the slide's builds are run (see BuildRun): the moment each of its steps
     // began, as Date.now() has it, which the screens and the operator's preview are
     // handed. Null to draw every element as it is, which is what a slide is everywhere

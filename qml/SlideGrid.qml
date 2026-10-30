@@ -464,31 +464,41 @@ Item {
                     height: width * 9 / 16
                     color: "black"
 
-                    // The media the cue triggers alongside the slide
-                    // (Not while Alt is held, when a click would show the slide
-                    // without it.)
-                    Image {
-                        anchors.fill: parent
-                        visible: cell.modelData.media !== undefined && !Cursors.altHeld && !lookedMedia.active
-                        source: visible ? slides.win.thumbnailUrl(cell.modelData.media.path) : ""
-                        fillMode: Image.PreserveAspectFit
-                        asynchronous: true
-                    }
-
-                    // Media set to anything in its Media Inspector, drawn as it is set:
-                    // cropped, turned and flipped in its thumbnail, and fitted, blurred and
-                    // given its effects over it. Made only for such media.
-                    Loader {
-                        id: lookedMedia
+                    // The media the cue triggers alongside the slide: what the slide is drawn
+                    // over, which its fills that are a blur or an invert of what is behind
+                    // them take (Slide's `backdrop`, TextFills). (Each part shown by its own
+                    // rule, and the two together by none, which would be a binding more for
+                    // every thumbnail, for nothing.)
+                    Item {
+                        id: cellMedia
 
                         anchors.fill: parent
-                        active: cell.modelData.media !== undefined && cell.modelData.media.settings !== undefined && !Cursors.altHeld
 
-                        sourceComponent: MediaPicture {
-                            source: slides.win.thumbnailUrl(cell.modelData.media.path, cell.modelData.media.settings)
-                            settings: cell.modelData.media.settings
-                            shaped: true
-                            animated: false
+                        // (Not while Alt is held, when a click would show the slide
+                        // without it.)
+                        Image {
+                            anchors.fill: parent
+                            visible: cell.modelData.media !== undefined && !Cursors.altHeld && !lookedMedia.active
+                            source: visible ? slides.win.thumbnailUrl(cell.modelData.media.path) : ""
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                        }
+
+                        // Media set to anything in its Media Inspector, drawn as it is set:
+                        // cropped, turned and flipped in its thumbnail, and fitted, blurred and
+                        // given its effects over it. Made only for such media.
+                        Loader {
+                            id: lookedMedia
+
+                            anchors.fill: parent
+                            active: cell.modelData.media !== undefined && cell.modelData.media.settings !== undefined && !Cursors.altHeld
+
+                            sourceComponent: MediaPicture {
+                                source: slides.win.thumbnailUrl(cell.modelData.media.path, cell.modelData.media.settings)
+                                settings: cell.modelData.media.settings
+                                shaped: true
+                                animated: false
+                            }
                         }
                     }
 
@@ -496,6 +506,7 @@ Item {
                         anchors.fill: parent
                         slide: cell.modelData
                         effects: false
+                        backdrop: cellMedia
                     }
 
                     // Marks a slide that triggers media, and says whether as a background

@@ -128,6 +128,9 @@ public:
     // mediasettings::describe gives it (empty for an element with none): the element's
     // map has it only for media set to anything.
     Q_INVOKABLE QVariantMap fillMediaSettings(int row, const QString &element) const;
+    // The same of the media of a fill of an element's text (textfills.h), the fill as the
+    // format of the text says it (RichText::fillOf): the one it was read from
+    Q_INVOKABLE QVariantMap textFillMediaSettings(int row, const QString &element, const QVariantMap &fill) const;
     // The row of the slide with this id, or -1.
     Q_INVOKABLE int rowOf(const QString &slideId) const;
 
@@ -138,7 +141,9 @@ public:
     // Replaces an element's text with a RichText value.
     Q_INVOKABLE QString setText(int row, const QString &element, const QVariant &richText);
     // Applies a format to part of an element's text: see RichText::formatted. To format
-    // all of it, give a range that covers it, such as 0 to a very large number.
+    // all of it, give a range that covers it, such as 0 to a very large number. A fill
+    // that is a blur of what is behind gives every blur of its slide its amount
+    // (textfills::shareBlur).
     Q_INVOKABLE QString formatText(int row, const QString &element, int start, int end, const QVariantMap &format);
     // A slide's notes (see proconvert::readNotes), as a RichText value: its own, or
     // for a slide with none, no words in the format notes are typed in. Only a

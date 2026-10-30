@@ -10,6 +10,7 @@
 #include "rtf.h"
 #include "rtfwriter.h"
 #include "sessionlog.h"
+#include "textfills.h"
 #include "timers.h"
 #include "videoinputfile.h"
 #include "workspacefiles.h"
@@ -544,6 +545,47 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
     const Text &text = element.text();
     const RichText words = readText(text);
     map.insert("text", QVariant::fromValue(words));
+    // What the graphics chip draws for an element that has it (TextFills.qml), said only of
+    // such an element, the maps being every element's:
+    //
+    //   - `fills`, over its words: its text's fills that are a picture, a blur or an invert
+    //     (textfills.h), as { text: [fill, each with its `index`] };
+    //   - `boxFill`, as its box's fill, in the shape, under its words and outline: a
+    //     cut-out, the box's own colour with the letters of that fill as holes in it
+    //     ({ kind: "cutOut", color, index }), or a blur or an invert of what is behind the
+    //     box ({ kind: "blur", amount, sigma, saturation } or { kind: "invert" }).
+    //
+    // (A cut-out in a box filled with a gradient or a picture, which ProPresenter can have
+    // too, is not drawn as one: its letters are left unfilled, and show the box's fill.)
+    {
+        QVariantList over;
+        QVariantMap box;
+        for (const QVariant &layered : textfills::layered(words)) {
+            const QVariantMap one = layered.toMap();
+            if (one.value("kind") != QLatin1String("cutOut"))
+                over << one;
+            else if (fill.enable() && fill.has_color())
+                box = {{"kind", QStringLiteral("cutOut")}, {"color", toColor(fill.color())}, {"index", one.value("index")}};
+        }
+        if (fill.enable() && fill.has_backgroundeffect()) {
+            const auto &effect = fill.backgroundeffect();
+            if (effect.has_backgroundblur()) {
+                const double saturation = effect.backgroundblur().saturation();
+                box = {{"kind", QStringLiteral("blur")}, {"amount", effect.backgroundblur().blur_amount()},
+                       {"sigma", textfills::blurSigma(effect.backgroundblur().blur_amount())},
+                       {"saturation", saturation > 0 ? saturation : 1.0}};
+            } else if (effect.has_backgroundinvert()) {
+                box = {{"kind", QStringLiteral("invert")}};
+            }
+            // (Drawn, as the shape's fill)
+            if (!box.isEmpty())
+                map.insert("fillShown", true);
+        }
+        if (!over.isEmpty())
+            map.insert("fills", QVariantMap {{"text", over}});
+        if (!box.isEmpty())
+            map.insert("boxFill", box);
+    }
     // Whether the file gives the element a text at all, with words in it or none. (The
     // map has "text" either way: an element with none gets an empty one, as if it had.)
     map.insert("textBox", element.has_text());
@@ -907,6 +949,13 @@ RichText readText(const Text &text)
         ranges.append({0, INT_MAX, int(attributes.capitalization())});
     if (!ranges.isEmpty())
         applyCapitalization(&rich, ranges);
+    // A fill of the letters other than their colour (a gradient, a picture, a cut-out, a
+    // blur or an invert of what is behind them: textfills.h), a media fill's picture found
+    // as a shape's is
+    textfills::apply(&rich, attributes, [](const rv::data::Media &media) {
+        const QString found = workspace::findMediaFile(media.url());
+        return found.isEmpty() && media.has_image() ? workspace::findMediaFile(media.image().file().local_url()) : found;
+    });
     return rich;
 }
 
@@ -992,13 +1041,20 @@ void writeChords(Text *text, const QList<chords::Chord> &chordList)
 
 void writeText(Text *text, const RichText &rich)
 {
-    // Ranges are tied to character positions. The ones this app does not understand
-    // (a gradient over part of the text, say) can stay only while the characters do:
-    // when the text is being given a new format but is otherwise the same. Chords it
-    // does understand, and they go over to the new words (see chords::carried).
+    // Ranges are tied to character positions. The ones this app does not understand can
+    // stay only while the characters do: when the text is being given a new format but is
+    // otherwise the same. Chords it does understand, and they go over to the new words (see
+    // chords::carried); so do fills, which the runs carry, typed letters taking the fill
+    // of where they are typed, and which are written from the runs (textfills::write).
+    // That is for a text that carries its fills (`fillEffects`), as one read from the file
+    // and changed does; one made afresh (a theme's words poured, a Bible passage) carries
+    // none, and the file's fills are left to it as they were before there was writing of
+    // them: the text's own fill kept, its ranges while the words are the same.
     const QString before = readText(*text).plainText();
     const QString after = rich.plainText();
     const QList<chords::Chord> chordList = chords::carried(before, after, readChords(*text));
+    const bool fillsCarried = !rich.fillEffects.isEmpty();
+    const Attributes was = text->attributes();
     QList<Attributes::CustomAttribute> kept;
     if (before == after) {
         for (const auto &custom : text->attributes().custom_attributes()) {
@@ -1009,6 +1065,14 @@ void writeText(Text *text, const RichText &rich)
             case Attributes::CustomAttribute::kOriginalFontSize:
             case Attributes::CustomAttribute::kFontScaleFactor:
             case Attributes::CustomAttribute::kChord:
+                break;
+            // (Fills, from the runs, where they carry them)
+            case Attributes::CustomAttribute::kTextGradientFill:
+            case Attributes::CustomAttribute::kCutOutFill:
+            case Attributes::CustomAttribute::kMediaFill:
+            case Attributes::CustomAttribute::kBackgroundEffect:
+                if (!fillsCarried)
+                    kept.append(custom);
                 break;
             default:
                 kept.append(custom);
@@ -1035,9 +1099,11 @@ void writeText(Text *text, const RichText &rich)
     font->set_italic(first.italic);
 
     attributes->set_capitalization(Attributes::Capitalization(first.capitalization));
-    // A gradient or media fill for the text is not something the text itself can say;
-    // it stays as it is, and only a plain colour is kept in step with the text.
-    if (attributes->fill_case() == Attributes::kTextSolidFill || attributes->fill_case() == Attributes::FILL_NOT_SET)
+    // The text's own fill: for a text that does not carry its fills, a gradient, a picture
+    // or an effect stays as it is, and only a plain colour is kept in step with the text;
+    // for one that does, it is written with them (textfills::write, below).
+    if (!fillsCarried
+        && (attributes->fill_case() == Attributes::kTextSolidFill || attributes->fill_case() == Attributes::FILL_NOT_SET))
         setColor(attributes->mutable_text_solid_fill(), first.fill);
     attributes->mutable_underline_style()->set_style(first.underline ? Attributes::Underline::STYLE_SINGLE
                                                                     : Attributes::Underline::STYLE_NONE);
@@ -1127,6 +1193,10 @@ void writeText(Text *text, const RichText &rich)
     }
     for (const auto &custom : std::as_const(kept))
         *attributes->add_custom_attributes() = custom;
+    if (fillsCarried)
+        textfills::write(was, attributes, rich, [](const QString &path) {
+            return workspace::mediaElement(path, workspace::openWorkspace());
+        });
     addChordRanges(attributes, after, chordList);
 }
 

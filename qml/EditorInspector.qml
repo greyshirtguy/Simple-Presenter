@@ -31,6 +31,10 @@ Rectangle {
     property var chooseMedia: () => {}
     // Brings up the Media Inspector on the picked element's media
     property var inspectMedia: () => {}
+    // The same for a media fill of its words: a file to fill them with, and the Media
+    // Inspector on the one they have
+    property var chooseTextMedia: () => {}
+    property var inspectTextMedia: () => {}
     property var setFormat: (format, interim) => {}
     property var settle: () => {}
     // The Color Triggers kept as the default ([{ time, color }]), in the app's own
@@ -1081,13 +1085,6 @@ Rectangle {
                     text: "+"
                     onClicked: inspector.setFormat({ size: Math.round(sizeField.value) + 2 }, false)
                 }
-
-                ColorButton {
-                    value: inspector.format ? inspector.format.color : "white"
-                    onChanging: (value) => inspector.setFormat({ color: value }, true)
-                    onPicked: (value) => inspector.setFormat({ color: value }, false)
-                    onClosed: inspector.finished()
-                }
             }
 
             Line {
@@ -1170,6 +1167,269 @@ Rectangle {
                     model: ["As typed", "ALL CAPITALS", "Small capitals", "Title Case", "Start case"]
                     choice: inspector.format ? inspector.format.capitalization : 0
                     onChosen: (index) => inspector.setFormat({ capitalization: index }, false)
+                }
+            }
+
+            // What fills the letters, as ProPresenter's Text tab has it (KNOWN, from its
+            // pictures, the maintainer's of 2026-10-30): a menu of Text Color, Text Gradient,
+            // Text Cut Out, Media Fill, Background Invert and Background Blur, where its
+            // colour was, each with its own controls: Text Color its colour; Text Gradient
+            // its two colours, a button between them that swaps them, its angle, and "Use
+            // object bounds for gradient" (the file's stretch_to_document_bounds); Media Fill
+            // its file, the Media Inspector and how it is scaled; Background Blur its
+            // saturation and its blur, with ProPresenter's own note under them. (The order of
+            // the menu is A GUESS, the order the pictures were taken in. ProPresenter's angle
+            // has a dial too, and its media fill a gear and a magnifier, not seen at work,
+            // which are not here.) Each sets the fill of the selected words, or of all of
+            // them (RichText's `fill`, textfills.h); a blur's amount is set for every blur on
+            // the slide, as ProPresenter's note says.
+            Line {
+                id: textFill
+
+                readonly property var fill: inspector.format && inspector.format.fill ? inspector.format.fill : ({ kind: "color" })
+                readonly property string kind: fill.kind ?? "color"
+                readonly property var kinds: ["color", "gradient", "cutOut", "media", "invert", "blur"]
+                readonly property var stops: kind === "gradient" ? (fill.stops ?? []) : []
+
+                // The fill, with these changed
+                function changed(changes) {
+                    return Object.assign({}, fill, changes)
+                }
+
+                // The amount of a blur already on the slide, which a new one shares, or 0.5 (A
+                // GUESS at where ProPresenter's starts, from its picture, its slider halfway)
+                function slideBlur() {
+                    for (const element of inspector.elements) {
+                        const ones = (element.fills?.text ?? []).concat(element.boxFill ? [element.boxFill] : [])
+                        const blur = ones.find(one => one.kind === "blur")
+                        if (blur)
+                            return blur.amount
+                    }
+                    return 0.5
+                }
+
+                // A fill of a kind, as it starts: a gradient from the words' colour to that
+                // colour darker, upwards, as a shape's gradient starts (A GUESS); a picture,
+                // by its file, asked for
+                function choose(kind) {
+                    if (kind === textFill.kind)
+                        return
+                    const color = inspector.format ? inspector.format.color : Qt.color("white")
+                    if (kind === "media")
+                        inspector.chooseTextMedia()
+                    else if (kind === "gradient")
+                        inspector.setFormat({ fill: { kind: "gradient", angle: 270, radial: false, stretch: false,
+                                                      stops: [{ color: color, position: 0 }, { color: Qt.darker(color, 3), position: 1 }] } }, false)
+                    else if (kind === "blur")
+                        inspector.setFormat({ fill: { kind: "blur", amount: slideBlur(), saturation: 1 } }, false)
+                    else
+                        inspector.setFormat({ fill: { kind: kind } }, false)
+                }
+
+                caption: "Fill"
+
+                Choice {
+                    objectName: "textFillKind"
+                    width: textTab.width - 78 - (textFill.kind === "color" ? 34 : 0)
+                    model: ["Text Color", "Text Gradient", "Text Cut Out", "Media Fill", "Background Invert", "Background Blur"]
+                    choice: Math.max(0, textFill.kinds.indexOf(textFill.kind))
+                    onChosen: (index) => textFill.choose(textFill.kinds[index])
+                }
+
+                ColorButton {
+                    objectName: "textColor"
+                    visible: textFill.kind === "color"
+                    value: inspector.format ? inspector.format.color : "white"
+                    onChanging: (value) => inspector.setFormat({ color: value }, true)
+                    onPicked: (value) => inspector.setFormat({ color: value }, false)
+                    onClosed: inspector.finished()
+                }
+            }
+
+            // The controls of a fill other than a colour, made only while the words have one
+            // that has some: made always, two more colour pickers, two sliders and the rest
+            // cost every start of the app over 3 MB (the benchmark, 2026-10-30), for what most
+            // never open
+            Loader {
+                width: parent.width
+                active: textFill.kind === "gradient" || textFill.kind === "media" || textFill.kind === "blur"
+
+                sourceComponent: Column {
+                    // A gradient's colours, the first and the last, and the swap between them
+                    Line {
+                        visible: textFill.kind === "gradient" && textFill.stops.length >= 2
+
+                        ColorButton {
+                            objectName: "textGradientFrom"
+                            value: textFill.stops.length >= 2 ? textFill.stops[0].color : "white"
+                            onChanging: (value) => inspector.setFormat({ fill: textFill.changed({ stops: textGradient.recoloured(0, value) }) }, true)
+                            onPicked: (value) => inspector.setFormat({ fill: textFill.changed({ stops: textGradient.recoloured(0, value) }) }, false)
+                            onClosed: inspector.finished()
+                        }
+
+                        IconButton {
+                            id: textGradient
+
+                            // The stops with one's colour changed
+                            function recoloured(at, color) {
+                                return textFill.stops.map((stop, index) => index === at ? Object.assign({}, stop, { color: color }) : stop)
+                            }
+
+                            objectName: "textGradientSwap"
+                            width: 30
+                            text: "⇄"
+                            onClicked: {
+                                const stops = textFill.stops
+                                const last = stops.length - 1
+                                inspector.setFormat({ fill: textFill.changed({ stops: stops.map((stop, index) =>
+                                    Object.assign({}, stop, { color: stops[index === 0 ? last : index === last ? 0 : index].color })) }) }, false)
+                            }
+                        }
+
+                        ColorButton {
+                            objectName: "textGradientTo"
+                            value: textFill.stops.length >= 2 ? textFill.stops[textFill.stops.length - 1].color : "black"
+                            onChanging: (value) => inspector.setFormat({ fill: textFill.changed({ stops: textGradient.recoloured(textFill.stops.length - 1, value) }) }, true)
+                            onPicked: (value) => inspector.setFormat({ fill: textFill.changed({ stops: textGradient.recoloured(textFill.stops.length - 1, value) }) }, false)
+                            onClosed: inspector.finished()
+                        }
+                    }
+
+                    Line {
+                        caption: "Angle"
+                        visible: textFill.kind === "gradient"
+
+                        NumberField {
+                            objectName: "textGradientAngle"
+                            width: 52
+                            from: 0
+                            to: 359
+                            step: 15
+                            suffix: "°"
+                            value: textFill.kind === "gradient" ? Math.round(textFill.fill.angle) : 0
+                            onEdited: (value) => inspector.setFormat({ fill: textFill.changed({ angle: ((value % 360) + 360) % 360 }) }, false)
+                            onFinished: inspector.finished()
+                        }
+                    }
+
+                    // (ProPresenter's words, too long for a CheckLine's tick box)
+                    Item {
+                        width: parent.width
+                        height: 30
+                        visible: textFill.kind === "gradient"
+
+                        AppCheck {
+                            objectName: "textGradientBounds"
+                            width: parent.width
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Use object bounds for gradient"
+                            checked: textFill.kind === "gradient" && textFill.fill.stretch === true
+                            onToggled: (checked) => inspector.setFormat({ fill: textFill.changed({ stretch: checked }) }, false)
+                        }
+                    }
+
+                    // A media fill's file, the Media Inspector on it, and how it is scaled
+                    Line {
+                        caption: "File"
+                        visible: textFill.kind === "media"
+
+                        Text {
+                            readonly property string path: textFill.kind === "media" && textFill.fill.source
+                                                           ? decodeURIComponent(String(textFill.fill.source).replace(/^file:\/\//, "")) : ""
+
+                            width: textTab.width - 78 - 90
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideMiddle
+                            color: path === "" ? "#d07070" : "#e6e6e6"
+                            font.pixelSize: 12
+                            text: path === "" ? "Not found" : path.split("/").pop()
+                        }
+
+                        AppButton {
+                            width: 84
+                            height: 26
+                            font.pixelSize: 12
+                            text: "Choose…"
+                            onClicked: inspector.chooseTextMedia()
+                        }
+                    }
+
+                    Line {
+                        caption: "Media"
+                        visible: textFill.kind === "media"
+
+                        AppButton {
+                            objectName: "textFillInspector"
+                            height: 26
+                            font.pixelSize: 12
+                            text: "Inspector…"
+                            enabled: textFill.kind === "media" && !!textFill.fill.source
+                            opacity: enabled ? 1 : 0.45
+                            onClicked: inspector.inspectTextMedia()
+                        }
+                    }
+
+                    // (On a line of its own, as the shape's media fill has it here: ProPresenter has
+                    // it beside the Inspector, in a wider panel)
+                    Line {
+                        caption: "Scale"
+                        visible: textFill.kind === "media"
+
+                        Choice {
+                            objectName: "textFillScale"
+                            width: textTab.width - 78
+                            model: ["Scale to Fit", "Scale to Fill", "Stretch to Fill"]
+                            choice: textFill.kind === "media" ? (textFill.fill.scale ?? 0) : 0
+                            onChosen: (index) => inspector.setFormat({ fill: textFill.changed({ scale: index }) }, false)
+                        }
+                    }
+
+                    // A blur of what is behind: its saturation (0 grey, 1 the colours as they are, 2
+                    // twice as strong: A GUESS at the range of ProPresenter's slider, whose middle
+                    // its picture showed for a blur with none set) and its blur, ProPresenter's
+                    // amount, 0 to 1
+                    Line {
+                        caption: "Saturation"
+                        visible: textFill.kind === "blur"
+
+                        AppSlider {
+                            objectName: "textBlurSaturation"
+                            width: textTab.width - 78
+                            anchors.verticalCenter: parent.verticalCenter
+                            from: 0
+                            to: 2
+                            value: textFill.kind === "blur" ? textFill.fill.saturation : 1
+                            onMoved: inspector.setFormat({ fill: textFill.changed({ saturation: Math.round(value * 100) / 100 }) }, true)
+                            onPressedChanged: {
+                                if (!pressed)
+                                    inspector.settle()
+                            }
+                        }
+                    }
+
+                    Line {
+                        caption: "Blur"
+                        visible: textFill.kind === "blur"
+
+                        AppSlider {
+                            objectName: "textBlurAmount"
+                            width: textTab.width - 78
+                            anchors.verticalCenter: parent.verticalCenter
+                            from: 0
+                            to: 1
+                            value: textFill.kind === "blur" ? textFill.fill.amount : 0.5
+                            onMoved: inspector.setFormat({ fill: textFill.changed({ amount: Math.round(value * 1000) / 1000 }) }, true)
+                            onPressedChanged: {
+                                if (!pressed)
+                                    inspector.settle()
+                            }
+                        }
+                    }
+
+                    Note {
+                        visible: textFill.kind === "blur"
+                        text: "Blur percentage is shared among all objects on a slide."
+                    }
                 }
             }
 

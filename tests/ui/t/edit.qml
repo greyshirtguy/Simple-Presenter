@@ -41,6 +41,20 @@ Item {
         let originalText = ""
         let firstCount = 0
         let lyricsId = ""
+        // The middle of the text's colour, in window coordinates, and an item of the
+        // inspector by its name
+        let swatch = null
+        const inInspector = (name) => {
+            const queue = [editScreen.inspector]
+            while (queue.length > 0) {
+                const item = queue.shift()
+                if (item.objectName === name)
+                    return item
+                for (const child of item.children)
+                    queue.push(child)
+            }
+            return null
+        }
 
         editTestSteps = [
             () => {
@@ -170,20 +184,24 @@ Item {
             () => {
                 check("a font picked from the list is applied", testInput.runsOf(canvas.selected.text).every(r => r.family.startsWith("DejaVu")),
                       testInput.runsOf(canvas.selected.text)[0].family + " / " + testInput.runsOf(canvas.selected.text)[0].fontName)
-                testInput.mouse(0, 1126, 162)
-                testInput.mouse(2, 1126, 162)
+                // The text's colour, on the Fill line where ProPresenter has it, and its picker,
+                // which opens under it: the points below are from the colour's middle
+                const well = inInspector("textColor")
+                swatch = well.mapToItem(null, well.width / 2, well.height / 2)
+                testInput.mouse(0, swatch.x, swatch.y)
+                testInput.mouse(2, swatch.x, swatch.y)
             },
             () => {
                 testInput.grab("e09d-colours")
-                testInput.mouse(0, 1000, 220)
+                testInput.mouse(0, swatch.x - 126, swatch.y + 58)
                 for (let i = 1; i <= 6; ++i)
-                    testInput.mouse(1, 1000 + i * 12, 220 + i * 6)
+                    testInput.mouse(1, swatch.x - 126 + i * 12, swatch.y + 58 + i * 6)
             },
             () => {
                 testInput.grab("e09e-colour-dragging")
                 check("nothing is saved while a colour is dragged", !editor.canRedo && testInput.runsOf(catalog.open(editor.path).slides[1].elements[0].text)[0].color === "#ffffff",
                       testInput.runsOf(catalog.open(editor.path).slides[1].elements[0].text)[0].color)
-                testInput.mouse(2, 1072, 256)
+                testInput.mouse(2, swatch.x - 54, swatch.y + 94)
                 testInput.key(Qt.Key_Escape)
             },
             () => {

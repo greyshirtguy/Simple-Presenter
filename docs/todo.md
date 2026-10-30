@@ -8,12 +8,13 @@ the top of the [README](../README.md).
 
 ## Partly there
 
-- [ ] **Text fills**: ProPresenter can fill a text's letters with a gradient, a picture
-      (media fill), a blur or an invert of what is behind them, or cut them out of their
-      box's fill. The slides here draw letters in one colour. [Export to
-      PowerPoint](features/export-powerpoint.md#words-filled-with-what-is-behind-them)
-      carries all of them over, and a presentation made for the purpose, with
-      ProPresenter's pictures of it, says how each looks.
+- [ ] **Text fills**: letters filled with a gradient, a picture, a blur or an invert of
+      what is behind them, or cut out of their box, and boxes filled with a blur or an
+      invert, are drawn and kept, and the letters' set in the Text tab as ProPresenter's
+      are (see [Text fills](features/text-fills.md)). Still to do: a box's blur or invert
+      in the Shape tab's Fill menu (how ProPresenter offers it not seen yet); a cut-out of
+      a box filled with a gradient or a picture; such letters with chords over them, or
+      scrolling; and the shadow under them.
 - [ ] **Export to PowerPoint**: slide transitions and builds as PowerPoint's, sound, and
       a media cue's Media Inspector settings, are not carried over yet (see [Export to
       PowerPoint](features/export-powerpoint.md#what-does-not-go-over)).
@@ -29,7 +30,9 @@ the top of the [README](../README.md).
       spacing, made smaller or larger to suit its box where it is set to be; shapes,
       from their outlines, whatever they are; fills that are a colour (including one
       that is only behind the lines of the text), a gradient from one colour to
-      another, a picture, or a Screen Preview of a screen; strokes, shadows and
+      another, a picture, a Screen Preview of a screen, or a blur or an invert of what is
+      behind; letters filled with more than a colour ([Text fills](features/text-fills.md));
+      strokes, shadows and
       feathered edges; elements that show
       only when another has text, or while a timer runs; and text linked from another
       element, from a timer, or from the slide that is live.

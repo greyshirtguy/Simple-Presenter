@@ -258,6 +258,7 @@ qt_add_qml_module(SimplePresenter
         qml/StagePanel.qml
         qml/StageView.qml
         qml/ThemesPanel.qml
+        qml/TextFills.qml
         qml/TextFormatPanel.qml
         qml/TimeField.qml
         qml/TimersPanel.qml
@@ -382,6 +383,8 @@ qt_add_qml_module(SimplePresenter
         src/pptximport.cpp
         src/pptxexport.h
         src/pptxexport.cpp
+        src/textfills.h
+        src/textfills.cpp
         src/labelfile.h
         src/labelfile.cpp
         src/labels.h
@@ -504,6 +507,7 @@ qt_add_shaders(SimplePresenter "shaders"
     PREFIX "/"
     FILES
         shaders/amoeba.frag
+        shaders/behindfill.frag
         shaders/colorBurn.frag
         shaders/colorPush.frag
         shaders/cube.frag

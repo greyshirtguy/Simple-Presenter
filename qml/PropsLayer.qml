@@ -18,6 +18,9 @@ Item {
     // the operator window, for Screen Previews
     property bool effects: true
     property var pictures: null
+    // What is under them, for their fills that are a blur or an invert of what is behind
+    // them (see Slide)
+    property Item backdrop: null
 
     // Takes away the ones that are off and have faded from sight. (All of them at one
     // go: several asking for this at once, as when the props are cleared, are answered
@@ -73,6 +76,7 @@ Item {
             readonly property var now: stack.props.find(candidate => candidate.id === propId)
 
             anchors.fill: parent
+            backdrop: stack.backdrop
             z: place
             slide: kept
             effects: stack.effects

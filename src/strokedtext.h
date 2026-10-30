@@ -31,6 +31,15 @@
 // way; a slide's own text can be too. The size that suits is found by laying the text
 // out at one size after another, which is done once for each text the box is given.
 //
+// Letters filled with something other than a colour (textfills.h). A gradient is drawn
+// here, with the letters, across the box of the letters it fills. A picture, a cut-out of
+// the box, and a blur or an invert of what is behind, are the graphics chip's to draw:
+// their letters are left unfilled here (their outlines are drawn), and the same text drawn
+// again with `maskOf` set to the fill's number is only those letters, in white, for the
+// chip to draw the fill through (TextFills.qml). Where nothing is drawn over the text
+// (`layeredFills` false: Scrolling Text, whose words are a texture moved by a shader),
+// such letters are filled with their own colour, as the RTF has it.
+//
 // The one text that is not drawn once and left. A timer that shows its hundredths
 // changes thirty times a second, and drawing all of it again that often, large, on a
 // full-screen output, took over a quarter of a processor core. Such text arrives as a
@@ -81,6 +90,13 @@ class StrokedText : public QQuickPaintedItem
     Q_PROPERTY(qreal lineFillHeightOffset MEMBER m_lineFillHeightOffset NOTIFY lineFillChanged)
     Q_PROPERTY(qreal lineFillHorizontalOffset MEMBER m_lineFillHorizontalOffset NOTIFY lineFillChanged)
     Q_PROPERTY(qreal lineFillVerticalOffset MEMBER m_lineFillVerticalOffset NOTIFY lineFillChanged)
+    // The number of one of the text's fills (RichText::fillEffects), to draw only the
+    // letters it fills, in white, and nothing else; -1, as it begins, for the text
+    Q_PROPERTY(int maskOf MEMBER m_maskOf NOTIFY maskOfChanged)
+    // Whether letters filled with a picture, a cut-out, a blur or an invert are left
+    // unfilled, for TextFills to draw over them (true, as it begins), or filled with
+    // their own colour (false: see above)
+    Q_PROPERTY(bool layeredFills MEMBER m_layeredFills NOTIFY maskOfChanged)
 
 public:
     explicit StrokedText(QQuickItem *parent = nullptr);
@@ -97,6 +113,7 @@ signals:
     void fitChanged();
     void insetsChanged();
     void lineFillChanged();
+    void maskOfChanged();
 
 protected:
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
@@ -135,4 +152,6 @@ private:
     qreal m_lineFillHeightOffset = 0;
     qreal m_lineFillHorizontalOffset = 0;
     qreal m_lineFillVerticalOffset = 0;
+    int m_maskOf = -1;
+    bool m_layeredFills = true;
 };

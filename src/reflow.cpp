@@ -1,5 +1,8 @@
 #include "reflow.h"
 
+#include <QHash>
+#include <QUrl>
+
 namespace reflow {
 
 namespace {
@@ -38,6 +41,39 @@ void append(TextParagraph *paragraph, const TextRun &run)
         paragraph->runs.append(run);
 }
 
+// The paragraphs of `from` as they are to be in `into`: their runs' fills (textfills.h)
+// numbered as `into` has them, `into` taking those it has not. A fill `into` has already,
+// the same (the same text cut and put together again), is that one; one of another text is
+// added without what tied it to that text's file (`from` and `whole`), so that it is
+// written afresh, a media fill from its file.
+QList<TextParagraph> adopted(RichText *into, const RichText &from)
+{
+    QHash<int, int> numbers;
+    for (qsizetype k = 0; k < from.fillEffects.size(); ++k) {
+        qsizetype found = into->fillEffects.indexOf(from.fillEffects.at(k));
+        if (found < 0) {
+            QVariantMap fresh = from.fillEffects.at(k).toMap();
+            fresh.remove(QStringLiteral("from"));
+            fresh.remove(QStringLiteral("whole"));
+            const QUrl source = fresh.value(QStringLiteral("source")).toUrl();
+            if (fresh.value(QStringLiteral("kind")) == QLatin1String("media") && source.isLocalFile())
+                fresh.insert(QStringLiteral("file"), source.toLocalFile());
+            found = into->fillEffects.indexOf(QVariant(fresh));
+            if (found < 0) {
+                found = into->fillEffects.size();
+                into->fillEffects.append(fresh);
+            }
+        }
+        numbers.insert(int(k), int(found));
+    }
+    QList<TextParagraph> paragraphs = from.paragraphs;
+    for (TextParagraph &paragraph : paragraphs) {
+        for (TextRun &run : paragraph.runs)
+            run.fillEffect = run.fillEffect >= 0 ? numbers.value(run.fillEffect, -1) : -1;
+    }
+    return paragraphs;
+}
+
 // One text straight after another, with no line break put between: the second's first
 // paragraph goes on from the first's last.
 RichText spliced(const RichText &first, const RichText &second)
@@ -47,11 +83,12 @@ RichText spliced(const RichText &first, const RichText &second)
     if (second.paragraphs.isEmpty())
         return first;
     RichText result = first;
+    const QList<TextParagraph> after = adopted(&result, second);
     TextParagraph &last = result.paragraphs.last();
-    for (const TextRun &run : second.paragraphs.first().runs)
+    for (const TextRun &run : after.first().runs)
         append(&last, run);
-    for (qsizetype i = 1; i < second.paragraphs.size(); ++i)
-        result.paragraphs.append(second.paragraphs.at(i));
+    for (qsizetype i = 1; i < after.size(); ++i)
+        result.paragraphs.append(after.at(i));
     return result;
 }
 
@@ -129,6 +166,8 @@ Split splitAt(const QString &all, int caret)
 RichText cut(const RichText &text, int from, int to)
 {
     RichText result;
+    // (The fills the runs' numbers are of: see textfills.h)
+    result.fillEffects = text.fillEffects;
     const int end = qBound(0, to, length(text));
     const int start = qBound(0, from, end);
     int at = 0;
@@ -178,7 +217,7 @@ RichText joined(const RichText &first, const RichText &second)
     if (length(first) == 0)
         return second;
     RichText result = first;
-    result.paragraphs.append(second.paragraphs);
+    result.paragraphs.append(adopted(&result, second));
     return result;
 }
 

@@ -214,7 +214,7 @@ ctest --test-dir build
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
 and look at what its windows then hold and show (and, for sound, what a sound device of
-eight channels was sent, recorded): eighty scripts and some three
+eight channels was sent, recorded): eighty-one scripts and some three
 thousand checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -291,7 +291,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |
 | `src/textlayout.*` | Lays text out, the same for drawing it and for editing it in place, and finds the size at which text fits a box |
-| `src/strokedtext.*` | Draws slide text with stroke and fill |
+| `src/strokedtext.*` | Draws slide text with stroke and fill, a gradient's too, and the letters of one fill alone, for the graphics chip to draw that fill through |
+| `src/textfills.*` | ProPresenter's fills of a text's letters other than a colour, read from beside its RTF onto its runs, and their ranges written again when the words change |
 | `src/richtextbridge.*` | Lets a text box on the slide be typed into |
 | `src/thumbnailprovider.*`, `src/videoframe.*` | Thumbnails of images and videos, made on worker threads and cached, at the moment and in the crop, turn and flip a Media Inspector sets |
 | `src/mediasettings.*`, `src/mediaeffects.*` | What a piece of media's Media Inspector sets, read from and written to ProPresenter's fields, and ProPresenter's effects |
@@ -350,7 +351,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/MessagesPanel.qml` | The messages, a tab of the show controls |
 | `qml/TransitionCatalogue.qml`, `qml/TransitionControls.qml`, `qml/TransitionOptions.qml` | The transitions there are and what can be adjusted about each, the controls that choose one, and the panel for adjusting it |
 | `qml/Slide.qml`, `qml/SlideElement.qml` | Draw a slide and one element of it |
-| `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions; and in `shaders/effects` the effects media can be given, written for this app |
+| `qml/TextFills.qml` | Letters filled with a picture, a blur or an invert of what is behind them, and a box filled with what is behind it, a cut-out, a blur or an invert, drawn by the graphics chip |
+| `shaders/` | The transitions: those written for this app, and in `shaders/gl-transitions` those ported from gl-transitions; in `shaders/effects` the effects media can be given, written for this app; and others of the slides', such as `behindfill.frag`, what is behind an element inverted, for its fills |
 | `packaging/` | The launcher, icon and description that an installed copy has, and the GNOME Shell extension that keeps the output and stage windows out of Alt+Tab through Wayland |
 | `third_party/ProPresenter7-Proto` | The descriptions of ProPresenter's file formats, as a submodule |
 | `AGENTS.md`, `CLAUDE.md`, `docs/agent-playbook.md` | What an AI coding agent is told before it works here, and its guide to helping someone who uses the app |

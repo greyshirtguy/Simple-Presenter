@@ -31,6 +31,9 @@ Item {
     property bool leads: true
     // The operator window, for Screen Previews (see Slide)
     property var pictures: null
+    // What is under it, for its fills that are a blur or an invert of what is behind them
+    // (see Slide)
+    property Item backdrop: null
     // A slide held back until the media that goes with it can be shown; undefined
     // when none is
     property var heldSlide: undefined
@@ -108,6 +111,7 @@ Item {
         duration: announcements.duration
         delegate: Slide {
             pictures: announcements.pictures
+            backdrop: announcements.backdrop
         }
     }
 }

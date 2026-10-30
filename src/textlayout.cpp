@@ -25,6 +25,10 @@ const int runProperty = QTextFormat::UserProperty + 1;
 // Where each paragraph of a document keeps its line spacing.
 const int lineHeightProperty = QTextFormat::UserProperty + 2;
 const int lineHeightIsMultipleProperty = QTextFormat::UserProperty + 3;
+// Where a document keeps its text's fills (RichText::fillEffects), which its runs' formats
+// refer to by number: a property of the document, so that they come back with the runs
+// that are typed or pasted, which take the format, and the fill, of where they go.
+const char *const fillEffectsProperty = "simplePresenterFillEffects";
 
 QTextCharFormat layoutFormat(const TextRun &run)
 {
@@ -131,7 +135,7 @@ QByteArray layoutKey(const RichText &text, qreal width)
             // (The font name too: it names the face drawn, Light or Regular of one family; see fontFor)
             stream << run.text << run.fontName << run.family << run.size << run.bold << run.italic << run.underline << run.strikethrough
                    << run.kerning << run.superscript << run.capitalization << quint64(run.fill.rgba64()) << run.fillVisible
-                   << quint64(run.stroke.rgba64()) << run.strokeWidth;
+                   << quint64(run.stroke.rgba64()) << run.strokeWidth << run.fillEffect;
         }
     }
     return key;
@@ -430,6 +434,7 @@ QTextCharFormat shownFormat(const TextRun &run)
 void fillDocument(const RichText &text, QTextDocument *document, QTextCharFormat (*formatOf)(const TextRun &))
 {
     document->clear();
+    document->setProperty(fillEffectsProperty, text.fillEffects);
     document->setDocumentMargin(0);
     document->setDefaultTextOption(textOption());
 
@@ -472,6 +477,7 @@ void toShownDocument(const RichText &text, QTextDocument *document)
 RichText fromDocument(const QTextDocument *document)
 {
     RichText text;
+    text.fillEffects = document->property(fillEffectsProperty).toList();
     for (QTextBlock block = document->begin(); block.isValid(); block = block.next()) {
         TextParagraph paragraph;
         const Qt::Alignment alignment = block.blockFormat().alignment();

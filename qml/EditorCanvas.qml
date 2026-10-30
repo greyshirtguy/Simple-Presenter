@@ -842,7 +842,15 @@ Item {
         color: canvas.slide && canvas.slide.drawsBackground ? canvas.slide.backgroundColor : canvas.pageColor
         clip: true
 
+        // What the elements' fills that are a blur or an invert of what is behind them take
+        // (TextFills): the slide's media, where it has some, and the slide itself, for its
+        // background colour, which they take to be over the media, as it is on a screen
+        property Item backdrop: backdropPicture
+        readonly property var slide: canvas.slide
+
         Image {
+            id: backdropPicture
+
             anchors.fill: parent
             visible: canvas.backdrop !== ""
             source: canvas.backdrop
