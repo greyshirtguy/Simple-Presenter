@@ -427,6 +427,30 @@ int State::enabledFrom(int from, int step, int count, const QList<int> &disabled
     return -1;
 }
 
+QList<int> State::likelyNext(int live, int count, const QList<int> &disabled, const QList<int> &groupStarts)
+{
+    QList<int> places;
+    const auto take = [&](int place) {
+        if (place >= 0 && place < count && place != live && !disabled.contains(place) && !places.contains(place))
+            places.append(place);
+    };
+    if (live < 0) {
+        take(enabledFrom(0, 1, count, disabled));
+    } else {
+        take(enabledFrom(live + 1, 1, count, disabled));
+        take(enabledFrom(live - 1, -1, count, disabled));
+    }
+    QList<int> starts = groupStarts;
+    std::stable_sort(starts.begin(), starts.end(), [live](int a, int b) {
+        const int nearA = qAbs(a - live);
+        const int nearB = qAbs(b - live);
+        return nearA != nearB ? nearA < nearB : a > b;
+    });
+    for (const int start : std::as_const(starts))
+        take(start);
+    return places;
+}
+
 int State::stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements, const QList<int> &disabled,
                       int count) const
 {

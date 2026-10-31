@@ -303,6 +303,12 @@ Item {
                     effects: picture.effects
                     pictures: picture.pictures
                     backdrop: underSlide
+                    // (Its words painted on a thread of their own, as the screens' are, and
+                    // not as the operator window's frame is drawn, which the app's thread
+                    // waits for: a video on a screen came to the app late for it, at a
+                    // click, and was held up. Second to the screens, it is not waited for:
+                    // a new slide's words come a frame after the rest of it.)
+                    paintsAhead: true
                 }
             }
 
@@ -338,6 +344,9 @@ Item {
                         pictures: picture.pictures
                         logName: "screen preview"
                         backdrop: underSlide
+                        // (As the operator's preview above; changed as soon as its words are
+                        // in, and not with the frames of a video, as the screens are)
+                        paintsAhead: true
                     }
                 }
             }

@@ -87,6 +87,11 @@ QtObject {
                 check("a transition says what it is set to", said("transition", "slide layer: Ripple Wave over 0.60 s, shaders/gl-transitions/ripple.frag.qsb; options 100, 50, 0, 0"), of("transition").slice(-3).join(" | "))
                 check("the next slide, whose media is the one playing", last("live").startsWith("slide 2 of 43 of \"Move Of God\""), last("live"))
                 goLive(2)
+                return 200
+            },
+            () => {
+                // (Not in the same step: over a playing video a change waits for the video's next frame,
+                // and one asked for before that is brought in in its place, no transition begun)
                 goLive(3)
                 return 1500
             },

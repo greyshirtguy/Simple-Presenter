@@ -397,6 +397,44 @@ QVariantMap Benchmark::videoTiming(const QVariantList &marks)
     return result;
 }
 
+QVariantMap Benchmark::slideTiming(const QVariantList &clicks, const QVariantList &brought)
+{
+    if (!m_video)
+        return {};
+    const QVector<double> syncs = m_video->syncFromTimes();
+    const QVector<double> swapped = m_video->swappedTimes();
+    QVector<double> taken;
+    for (qsizetype i = 0; i < clicks.size(); ++i) {
+        const double click = clicks.at(i).toDouble();
+        const double nextClick = i + 1 < clicks.size() ? clicks.at(i + 1).toDouble() : 1e18;
+        // (The change this click asked for: the first brought in after it, before the next)
+        double in = -1;
+        for (const QVariant &at : brought) {
+            if (at.toDouble() >= click && at.toDouble() < nextClick) {
+                in = at.toDouble();
+                break;
+            }
+        }
+        if (in < 0)
+            continue;
+        // (The first frame taken from the windows after that, and not one taken before it
+        // and handed to the screen after)
+        const auto sync = std::find_if(syncs.cbegin(), syncs.cend(), [in](double at) { return at > in; });
+        if (sync == syncs.cend())
+            continue;
+        for (const double frame : swapped) {
+            if (frame > *sync) {
+                taken.append(frame - click);
+                break;
+            }
+        }
+    }
+    if (taken.isEmpty())
+        return {};
+    std::sort(taken.begin(), taken.end());
+    return {{QStringLiteral("median"), taken.at(taken.size() / 2)}, {QStringLiteral("longest"), taken.last()}};
+}
+
 QObject *Benchmark::window(const QString &name) const
 {
     const auto windows = QGuiApplication::allWindows();
@@ -405,6 +443,11 @@ QObject *Benchmark::window(const QString &name) const
             return candidate;
     }
     return nullptr;
+}
+
+QString Benchmark::setting(const QString &name) const
+{
+    return qEnvironmentVariable(QByteArray("SP_BENCHMARK_") + name.toLatin1());
 }
 
 double Benchmark::cpu() const
@@ -540,9 +583,16 @@ QString Benchmark::makeWorkspace(const QString &folder)
         const QString copied = folder + "/Video.mp4";
         if (!QFile::copy(video, copied))
             return QStringLiteral("Could not copy %1 to %2").arg(video, copied);
+        // (With ProPresenter's shadow on the words where the run is to look at that:
+        // SP_BENCHMARK_SHADOWS, see setting())
+        const bool shadows = qEnvironmentVariable("SP_BENCHMARK_SHADOWS") == QLatin1String("1");
         error = writePresentation(library + "/Video.pro", "Video", 12,
                                   [&](rv::data::Presentation *, rv::data::Cue *cue, rv::data::Slide *slide, int i) {
             addWords(slide, words(i, 2), 340, 400, 110);
+            if (shadows)
+                applyChanges(slide, idOf(slide->elements(slide->elements_size() - 1)),
+                             {{"textShadowEnabled", true}, {"textShadowAngle", 315.0}, {"textShadowOffset", 8.0},
+                              {"textShadowRadius", 7.0}, {"textShadowOpacity", 0.67}});
             if (i == 0)
                 background(cue, copied);
         });
@@ -566,6 +616,24 @@ QString Benchmark::makeWorkspace(const QString &folder)
     const screenfile::Screen output = screenfile::defaults().first();
     addShape(slide, "rectangle", QRectF(0, 180, 1440, 810),
              {{"fillKind", "screen"}, {"fillScreenId", output.id}, {"fillScreenName", output.name}, {"fillOn", true}});
+
+    // And one of the words of the slide on show over those of the next, a box of each,
+    // linked to them and made smaller to fit, as a stage screen most often shows (STAGE=text:
+    // see Benchmark::setting)
+    rv::data::Stage::Layout *currentAndNext = stage.add_layouts();
+    currentAndNext->mutable_uuid()->set_string(workspace::newUuid());
+    currentAndNext->set_name("Current and Next");
+    rv::data::Slide *page = currentAndNext->mutable_slide();
+    page->mutable_uuid()->set_string(workspace::newUuid());
+    page->set_draws_background_color(true);
+    proconvert::setColor(page->mutable_background_color(), Qt::black);
+    page->mutable_size()->set_width(1920);
+    page->mutable_size()->set_height(1080);
+    for (const bool next : {false, true}) {
+        addWords(page, QString(), next ? 600 : 40, next ? 440 : 520, next ? 64 : 96);
+        applyChanges(page, idOf(page->elements(page->elements_size() - 1)),
+                     {{"linkKind", "slideText"}, {"linkSlideNext", next}, {"textScale", 2}});
+    }
     if (!QDir().mkpath(folder + "/Configuration"))
         return QStringLiteral("Could not make the benchmark's Configuration folder in %1").arg(folder);
     return workspace::writeMessage(folder + "/Configuration/Stage", stage, QStringLiteral("the stage layouts"));

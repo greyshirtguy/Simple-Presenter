@@ -74,6 +74,14 @@ QtObject {
     property Connections outputWatch: Connections {
         target: output
 
+        // (Said on this thread as each frame of the output is about to be taken from the
+        // windows: one taken after a slide was brought in is the first that can show it)
+        function onAfterAnimating() {
+            const w = run.waiting
+            if (w && w.ofOutput && w.broughtAt > 0)
+                w.takenAfter = true
+        }
+
         function onFrameSwapped() {
             const now = run.bench.now()
             if (++run.outputFrames === 1)
@@ -116,6 +124,8 @@ QtObject {
             w.first = now - w.from
         else
             w.worstGap = Math.max(w.worstGap, now - before)
+        if (w.takenAfter && w.shown === 0)
+            w.shown = now - w.from
         w.last = now - w.from
         w.lastAt = now
     }
@@ -143,10 +153,15 @@ QtObject {
     // have shown it and be standing still: `quiet` milliseconds without a new frame.
     // `then` is given what happened: `call`, how long the doing itself took; `first`
     // and `last`, when the first frame after it and the last reached the screen;
-    // `frames`, how many there were; and `worstGap`, the longest wait between two.
+    // `frames`, how many there were; `worstGap`, the longest wait between two; and, of
+    // a change of slide on the output, `shown`, when the first frame of the output taken
+    // after its slide layer brought the change in reached the screen (0 where it brought
+    // nothing in). (`first` was that frame while a change was brought in at the click;
+    // since the slide's words are painted before it is shown, a frame can come first
+    // that makes the slide but does not show it yet.)
     function timed(ofOutput, quiet, action, then) {
         waiting = { ofOutput: ofOutput, quiet: quiet, limit: 5000, from: bench.now(), frames: 0, first: 0, last: 0,
-                    lastAt: 0, worstGap: 0, call: 0, then: then }
+                    lastAt: 0, worstGap: 0, call: 0, broughtAt: 0, takenAfter: false, shown: 0, then: then }
         action()
         waiting.call = bench.now() - waiting.from
     }
@@ -193,14 +208,22 @@ QtObject {
         const stood = []
         const calls = []
         let index = 0
+        // (When the output's slide layer brings in each change: see timed)
+        const layer = output ? findItem(output.contentItem, item => item.paced === true) : null
+        const note = () => {
+            if (waiting && waiting.ofOutput && waiting.broughtAt === 0)
+                waiting.broughtAt = bench.now()
+        }
         const one = () => timed(true, 60, () => goLive(index), (w) => {
-            shown.push(w.first)
+            shown.push(w.shown > 0 ? w.shown : w.first)
             stood.push(w.last)
             calls.push(w.call)
             if (++index < count) {
                 one()
                 return
             }
+            if (layer)
+                layer.currentItemChanged.disconnect(note)
             bench.record(label + " " + name + ": to the output showing a slide, median", median(shown), "ms")
             bench.record(label + " " + name + ": to the output showing a slide, worst", worst(shown), "ms")
             bench.record(label + " " + name + ": to the output standing still, median", median(stood), "ms")
@@ -211,7 +234,11 @@ QtObject {
             openEntry(presentation(name))
             after(500)
         })
-        jobs.push(() => one())
+        jobs.push(() => {
+            if (layer)
+                layer.currentItemChanged.connect(note)
+            one()
+        })
     }
 
     // The same with a transition between the slides, which is a run of frames: how
@@ -360,11 +387,18 @@ QtObject {
     function changing(name, label, count, spacing = 700) {
         const calls = []
         const clicks = []
+        // When the screen's slide layer brought each change in (see Benchmark::slideTiming)
+        const brought = []
+        const note = () => brought.push(bench.now())
+        let layer = null
         jobs.push(() => {
             stall = 0
             lookedAt = 0
             keepingStall = true
             watchVideo()
+            layer = output ? findItem(output.contentItem, item => item.paced === true) : null
+            if (layer)
+                layer.currentItemChanged.connect(note)
             next()
         })
         for (let index = 1; index <= count; ++index) {
@@ -378,6 +412,13 @@ QtObject {
         }
         jobs.push(() => {
             keepingStall = false
+            if (layer)
+                layer.currentItemChanged.disconnect(note)
+            const slides = bench.slideTiming(clicks, brought)
+            if (slides.median !== undefined) {
+                bench.record(label + ": from the click to the slide on the screen, median", slides.median, "ms")
+                bench.record(label + ": from the click to the slide on the screen, longest", slides.longest, "ms")
+            }
             recordVideo(label, clicks)
             bench.record(label + ": work in the click itself, median", median(calls), "ms")
             bench.record(label + ": longest the app was too busy to answer", stall, "ms")
@@ -402,11 +443,12 @@ QtObject {
             opening(name, "open again")
 
         // ---- Showing slides, with the output on and filling its screen
-        jobs.push(() => {
+        const outputOn = () => {
             output.setFullScreen(true)
             selectTransition("Cut")
             after(1200)
-        })
+        }
+        jobs.push(outputOn)
         for (const name of names)
             showing(name, "show", 18)
         // A second time round, when what they need has been loaded once
@@ -467,6 +509,7 @@ QtObject {
         // ---- A Screen Preview of the output on the stage screen, which fills a display
         // of its own if there is a second one (one the output is not on)
         const previewLayout = () => StageLayouts.layouts.find(layout => layout.name === "Screen Preview")?.id ?? ""
+        const wordsLayout = () => StageLayouts.layouts.find(layout => layout.name === "Current and Next")?.id ?? ""
         jobs.push(() => {
             const stage = Screens.stage[0]
             const other = Screens.displays.find(display => display.name !== output.screen.name)
@@ -532,7 +575,14 @@ QtObject {
         // ---- A video playing under the slides, with the stage screen's plain view and
         // then with its Screen Preview of the output: where the workspace has the video,
         // which is known only once its library is open (the jobs for it are put in
-        // front of what is left)
+        // front of what is left). The slides changed over it with the Screen Preview, or
+        // with the plain view (STAGE=plain), and dissolved for half a second, or as long
+        // as DISSOLVE says (see Benchmark::setting).
+        const videoFrom = jobs.length
+        const plainStage = bench.setting("STAGE") === "plain"
+        const wordsStage = bench.setting("STAGE") === "text"
+        const stageName = plainStage ? "the stage's plain view" : wordsStage ? "the slides' words on the stage" : "a Screen Preview on the stage"
+        const dissolve = Number(bench.setting("DISSOLVE") || 0.5)
         jobs.push(() => {
             if (presentation("Video")) {
                 const rest = jobs
@@ -549,14 +599,20 @@ QtObject {
                     after(1500)
                 })
                 playing("video, a Screen Preview on the stage", 8)
-                changing("Video", "video, a Screen Preview on the stage, slides changed", 10)
+                if (plainStage || wordsStage) {
+                    jobs.push(() => {
+                        Show.stageLayoutId = wordsStage ? wordsLayout() : ""
+                        after(1500)
+                    })
+                }
+                changing("Video", "video, " + stageName + ", slides changed", 10)
                 // And by a dissolve, each over before the next
                 jobs.push(() => {
                     selectTransition("Dissolve")
-                    transitionDuration = 0.5
+                    transitionDuration = dissolve
                     after(500)
                 })
-                changing("Video", "video, a Screen Preview on the stage, slides dissolved", 8, 1200)
+                changing("Video", "video, " + stageName + ", slides dissolved", 8, 1200)
                 jobs.push(() => {
                     selectTransition("Cut")
                     clearMedia()
@@ -570,6 +626,11 @@ QtObject {
             Show.stageLayoutId = ""
             next()
         })
+
+        // Only the video, where the run is to look at that (ONLY=video): starting up, which
+        // opens the library, the output put on, and the video's part
+        if (bench.setting("ONLY") === "video")
+            jobs = [jobs[0], outputOn].concat(jobs.slice(videoFrom))
 
         next()
     }

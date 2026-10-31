@@ -33,5 +33,10 @@ Item {
         slide: scene.layout
         effects: scene.effects
         pictures: scene.pictures
+        // (Its words painted on a thread of their own, and not in the stage's frame, which
+        // the app's thread waits for: at a click, that held up a frame of a video on an
+        // audience screen. Second to the screens, it is not waited for: changed words come a
+        // frame or two after the click.)
+        paintsAhead: true
     }
 }

@@ -34,6 +34,17 @@ Item {
     property var buildTimes: null
     // What the log calls where the builds run; "" for not to put them in it
     property string logName: ""
+    // Whether its words are painted ahead, on a thread of their own, and not as the frame
+    // that first shows them is drawn (see StrokedText); how many of its texts are still
+    // being painted; and whether none is, which is when the slide is ready to be shown
+    // (TransitionLayer waits for that). For an audience screen's slides and announcements
+    // (OutputScene, AnnouncementLayer), where painting the words as the frame was drawn
+    // made a video under them miss frames; and for the pictures of a screen in the operator
+    // window and on the stage (ScreenPicture), whose frames, painting theirs, held up the
+    // app's thread as a frame of the video came to it.
+    property bool paintsAhead: false
+    property int picturesPending: 0
+    readonly property bool ready: picturesPending <= 0
     // What runs them, while there are any to run; null otherwise
     readonly property var run: runner.item
     readonly property real slideWidth: slide?.width ?? 1920

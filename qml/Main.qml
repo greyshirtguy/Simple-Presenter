@@ -5057,6 +5057,27 @@ Window {
 
     // What a change to the show asks of the output and the timers (see Show): the
     // output window knows nothing of presentations, and is handed what to show.
+    // The slides of the live presentation most likely to be shown next (Show.likelyNext:
+    // the next, the one before, the first of each group), handed to each audience screen as
+    // it is to show them, for their words to be painted before they are asked for (see
+    // PaintAhead). A little after each change, when it is on the screens: dressing them in
+    // a theme, and handing them over, is work of the app's thread that the change does not
+    // have to wait for.
+    Timer {
+        id: lookingAhead
+
+        interval: 120
+        onTriggered: {
+            const document = win.liveDocument
+            if (!document || Show.liveIndex < 0 || Show.liveIndex >= document.slides.length)
+                return
+            const starts = []
+            document.slides.forEach((slide, place) => { if (slide.groupStart === true) starts.push(place) })
+            const places = Show.likelyNext(Show.liveIndex, document.slides.length, win.disabledOf(document), starts)
+            win.eachAudienceScene((scene, id) => scene.lookAhead(places.map(place => win.slideFor(id, document.slides[place]))))
+        }
+    }
+
     Connections {
         target: Show
 
@@ -5089,6 +5110,7 @@ Window {
                 else
                     scene.showSlide(dressed, transition, win.liveBuildTimes)
             })
+            lookingAhead.restart()
         }
 
         function onSlideCleared() {

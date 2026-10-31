@@ -180,8 +180,11 @@ Item {
     // this is a picture large enough to read hundredths of a second in.
     property bool effects: true
     // Room around the box for what the text draws outside it (strokes, the bars of a
-    // fill that is only behind the text's lines), in slide units
-    readonly property real textBleed: 60
+    // fill that is only behind the text's lines; and its shadow, where it draws that
+    // itself: see StrokedText's `shadow`), in slide units. (Its blur reaches no further
+    // than twice its radius: three of MultiEffect's sigmas at most.)
+    readonly property real textBleed: 60 + (effects && source.textShadowEnabled && words.paintingAhead
+                                            ? Math.abs(source.textShadowOffset) + 2 * source.textShadowRadius : 0)
     // A fill that is only behind the lines of the text is drawn with the text.
     readonly property bool boxFilled: source.fillShown && !source.fillLinesOnly && (standIns || !source.linkPicture)
     // Whether the shape is more than a rectangle with a plain fill, or none
@@ -523,7 +526,13 @@ Item {
 
     // (A box whose words scroll has them drawn by ScrollingText, below, where it is on
     // show; elsewhere, still, here.)
+    //
+    // (What these words are drawn from, StrokedText::lookOf works out again from an element
+    // map, for the words of the slides likely next to be painted before they are asked for
+    // (PaintAhead): the two are kept in step, or nothing is painted ahead that is wanted.)
     StrokedText {
+        id: words
+
         anchors.fill: parent
         anchors.margins: -element.textBleed * element.unit
         visible: !element.chorded && (element.source.hasText || element.textOverride !== undefined)
@@ -531,6 +540,13 @@ Item {
         content: element.textOverride !== undefined ? element.textOverride : element.source.displayText
         replacement: element.textOverride !== undefined ? undefined : element.liveLinkText
         replacementColor: element.textOverride !== undefined ? undefined : element.liveLinkColor
+        // (Links whose words change only now and then, and are painted ahead where the rest of
+        // the slide's are: a stage's boxes of the slide's words above all, which were painted,
+        // large, in the stage's frame, as the app's thread waited, at every click. A timer,
+        // the clock, a video's countdown, a marker's time and a message, which may have a
+        // timer in it, change by the second or faster, and are drawn as they change.)
+        ticking: element.source.linkKind !== "slideText" && element.source.linkKind !== "copyright"
+                 && element.source.linkKind !== "stageMessage"
         lineFill: element.source.fillEnabled && element.source.fillLinesOnly ? element.source.fillColor : "transparent"
         lineFillStyle: element.source.lineMaskStyle
         lineFillWidthOffset: element.source.lineMaskWidthOffset
@@ -545,8 +561,15 @@ Item {
         insetTop: element.source.marginTop
         insetRight: element.source.marginRight
         insetBottom: element.source.marginBottom
+        // (Drawn into its picture where it paints its words ahead, on an audience screen,
+        // and not by a layer: Qt drew more frames after a change for a layer, which held
+        // up a video playing under the words. See StrokedText.)
+        shadow: element.effects && element.source.textShadowEnabled
+                ? [element.source.textShadowColor, element.source.textShadowOffsetX, element.source.textShadowOffsetY,
+                   element.source.textShadowRadius]
+                : undefined
 
-        layer.enabled: element.effects && element.source.textShadowEnabled
+        layer.enabled: element.effects && element.source.textShadowEnabled && !paintingAhead
         layer.effect: Shadow {
             which: "textShadow"
         }

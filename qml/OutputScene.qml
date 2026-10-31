@@ -119,9 +119,33 @@ Item {
     // (as TransitionCatalogue.drawn gives it), and `times` when the slide's builds run
     // (see Slide.buildTimes); either can be left out, for the one above and for a
     // slide shown whole.
+    // Its words painted first, from its map, and only then given to the slide layer, which
+    // then has them to hand and shows the slide in the first frame that has it
+    // (PaintAhead.paintFirst). A slide whose words were painted ahead is given at once; one
+    // whose were not waits for them (`paintingFirst`), a quarter of a second at most.
     function showSlide(slide, transition, times) {
         heldSlide = undefined
+        if (slide && !paintAhead.paintFirst(slide)) {
+            paintingFirst = { slide: slide, transition: transition, times: times }
+            firstLimit.restart()
+            return
+        }
+        paintingFirst = null
+        firstLimit.stop()
         slideLayer.show(slide, { buildTimes: times ?? null }, transition)
+    }
+
+    // A slide given to be shown whose words are being painted first (see showSlide), with
+    // how it is to be shown; null while there is none
+    property var paintingFirst: null
+
+    function showPaintedFirst() {
+        const waited = paintingFirst
+        if (waited === null)
+            return
+        paintingFirst = null
+        firstLimit.stop()
+        slideLayer.show(waited.slide, { buildTimes: waited.times ?? null }, waited.transition)
     }
 
     // The slide on show has begun another step of its builds: `times` are its steps'
@@ -129,6 +153,8 @@ Item {
     function stepBuilds(times) {
         if (heldSlide !== undefined)
             heldHow = Object.assign({}, heldHow, { times: times })
+        else if (paintingFirst !== null)
+            paintingFirst = Object.assign({}, paintingFirst, { times: times })
         else if (slideLayer.currentItem)
             slideLayer.currentItem.buildTimes = times
     }
@@ -156,11 +182,21 @@ Item {
         hold(slide, transition, times)
     }
 
+    // The slides most likely to be shown here next, as this screen is to show them, best
+    // first, for their words to be painted ahead (see PaintAhead). (Handed over a little
+    // after a change, by when it is on the screen: see Main.qml's lookingAhead.)
+    function lookAhead(slides) {
+        paintAhead.slides = slides
+    }
+
     // A slide shown now, or held for the media layer if it is waiting
     function hold(slide, transition, times) {
         if (mediaLayer.waiting) {
             heldSlide = slide
             heldHow = { transition: transition, times: times }
+            // (Its words painted meanwhile)
+            if (slide)
+                paintAhead.paintFirst(slide)
         } else {
             showSlide(slide, transition, times)
         }
@@ -316,13 +352,35 @@ Item {
                     tint: scene.tint
                     direction: scene.direction
                     duration: scene.duration
+                    // (Its words painted before it is shown, and the change made with a
+                    // frame of a video playing under it, if one is: see Slide.paintsAhead
+                    // and TransitionLayer.paced)
+                    paced: true
                     delegate: Slide {
                         pictures: scene.pictures
                         logName: "slide layer"
+                        paintsAhead: true
                         // What a fill of the slide's that is a blur or an invert of what is behind
                         // it takes (TextFills): the layers under it
                         backdrop: underSlide
                     }
+                }
+
+                // The words of the slides likely to be shown next, painted before they are
+                // asked for, and of a slide given to be shown, before it is (see lookAhead and
+                // showSlide), at the size the slides are drawn at here
+                PaintAhead {
+                    id: paintAhead
+
+                    anchors.fill: slideLayer
+                    onFirstPainted: scene.showPaintedFirst()
+                }
+
+                Timer {
+                    id: firstLimit
+
+                    interval: 250
+                    onTriggered: scene.showPaintedFirst()
                 }
             }
 

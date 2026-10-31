@@ -3545,6 +3545,7 @@ TESTS = {
     "combined": test("Demo", env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_combined),
     "pptx": test("Demo", prepare=prepare_pptx),
     "textfills": test("Demo", prepare=prepare_textfills, after=after_textfills),
+    "paced": test("Demo", timeout=180),
     "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
     "quickedit": test("Act"),

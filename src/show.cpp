@@ -314,6 +314,20 @@ int Show::stepTarget(const QString &key, const QString &playlistId, int delta, b
     return m_state.stepTarget(key, playlistId, delta, announcements, places, count);
 }
 
+QVariantList Show::likelyNext(int live, int count, const QVariantList &disabled, const QVariantList &groupStarts) const
+{
+    QList<int> off;
+    for (const QVariant &place : disabled)
+        off << place.toInt();
+    QList<int> starts;
+    for (const QVariant &place : groupStarts)
+        starts << place.toInt();
+    QVariantList places;
+    for (const int place : show::State::likelyNext(live, count, off, starts))
+        places << place;
+    return places;
+}
+
 int Show::enabledFrom(int from, int step, int count, const QVariantList &disabled) const
 {
     QList<int> places;

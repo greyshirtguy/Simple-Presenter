@@ -829,6 +829,28 @@ private slots:
         QCOMPARE(State::enabledFrom(0, -1, 5, {0}), -1);
     }
 
+    // The slides whose words are painted ahead (PaintAhead): next, previous, then the
+    // groups' first slides, nearest first, the later of two as near; none twice, never
+    // the live one or a disabled one
+    void theLikelyNextSlides()
+    {
+        // A song of ten slides in groups starting at 0, 3, 6 and 8, at its fifth slide (0
+        // and 8 as near as each other: the later first)
+        QCOMPARE(State::likelyNext(4, 10, {}, {0, 3, 6, 8}), QList<int>({5, 3, 6, 8, 0}));
+        // At a group's first slide: not itself again
+        QCOMPARE(State::likelyNext(6, 10, {}, {0, 3, 6, 8}), QList<int>({7, 5, 8, 3, 0}));
+        // Next and previous past disabled slides, as the keys go; a disabled group start left out
+        QCOMPARE(State::likelyNext(4, 10, {5, 3}, {0, 3, 6, 8}), QList<int>({6, 2, 8, 0}));
+        // At the ends: no next after the last, no previous before the first
+        QCOMPARE(State::likelyNext(9, 10, {}, {0, 8}), QList<int>({8, 0}));
+        QCOMPARE(State::likelyNext(0, 3, {}, {0}), QList<int>({1}));
+        // Nothing live in it: its first slide that is not disabled, and the groups'
+        QCOMPARE(State::likelyNext(-1, 10, {0}, {0, 3, 6}), QList<int>({1, 3, 6}));
+        // Nothing to show
+        QCOMPARE(State::likelyNext(-1, 0, {}, {}), QList<int>());
+        QCOMPARE(State::likelyNext(0, 1, {}, {0}), QList<int>());
+    }
+
     void theAnnouncementsPassOverADisabledSlideToo()
     {
         State show;

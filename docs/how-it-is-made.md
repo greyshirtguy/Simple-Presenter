@@ -22,14 +22,15 @@ with Intel HD 620 graphics. On it, when each of these was last measured:
 | Putting a still on the output, even one of 8000 by 4500 | read in the background; the window is not held up |
 | A 1080p video under the words, with a [Screen Preview](features/stage-layouts.md#screen-preview) of the output on the stage | a quarter of one processor core, against a tenth without the Screen Preview; every frame on both screens, none late (measured by the benchmark, in a desktop of its own) |
 | [Scrolling text](features/scrolling-text.md) on the output, a ticker along the foot of the slide | a quarter of one processor core, the output drawn at each of its sixty frames a second, the words moving on by the same in each; a third with a Screen Preview of the output on the stage, scrolling it too; no frame late (the benchmark) |
-| Slides changed over a video of thirty frames a second, 1080p or 4K, the stage off | by a cut, a frame of the video a refresh late at about one cut in twelve (one in three before it was mended); by a dissolve, at about one in two, mostly as it begins (one or more each before); none while nothing is done. Words with a shadow are drawn through layers of Qt's that draw two frames more after a change, and a cut to them costs the video a frame. With a Screen Preview of the output on the stage, a cut costs the video a frame about one time in two (a little better than before): the output then takes nine thousandths of a second to take in a slide's change, against two without, for a reason not yet found |
+| Slides changed over a video of thirty frames a second, 1080p or 4K, the words with a shadow or without, the stage showing a Screen Preview of the output, its plain view, or the words of the slide on show and of the next | by a cut, a frame of the video a refresh late at about one cut in ten; by a dissolve of 0.3 s, at about one in six (before the words were painted ahead, at five to nine cuts in ten and four to seven dissolves in eight, with the stage on); the output taking two or three thousandths of a second to take in a change, where it took nine to twelve; each slide on the screen about a fortieth of a second after its click, as before. The desktop the benchmark runs in holds a frame of the video now and then with nothing being done |
 | Memory, with a workspace open | about 290 MB, of which 160 MB is what Qt needs for any window; up to 450 MB while a 4K video plays |
 
 What gets it there:
 
-- **Nothing is drawn twice.** A slide's text is turned into a picture once, when the
-  slide is shown, and from then on costs the graphics chip one rectangle. Nothing is
-  drawn while nothing changes.
+- **Nothing is drawn twice.** A slide's text is turned into a picture once, and from then
+  on costs the graphics chip one rectangle; for the audience screens, and the pictures
+  of them in the operator window and on the stage, before the slide is shown, on threads
+  of their own (see below). Nothing is drawn while nothing changes.
 - **A transition costs only while it runs.** It is one shader blending two textures.
   Between transitions nothing is blended and the output is drawn directly; going
   through the blend all the time, as the app once did, kept the graphics chip twice as
@@ -73,6 +74,24 @@ What gets it there:
   And a slide changed by a cut is drawn once: it was drawn a second time a moment later,
   for the textures a transition would be drawn from, and on a screen playing a video that
   frame took the video's turn too.
+- **A change of slide over a video waits for the video, with its words ready.** Painting
+  a slide's words took six or seven thousandths of a second at 1080p, in the frame that
+  first showed them, while the screen and the app's thread waited; a frame of the video
+  that came then stayed on a refresh too long, and the change itself was a frame of the
+  screen's own, which the video's next could have to wait for. So the words of an
+  audience screen's slides are painted before they are shown, on two threads kept for
+  that, their shadows with them (where the slide's thumbnails and editor have Qt draw
+  the shadow through a layer, which draws frames of its own after a change); the slides
+  most likely to be shown next, the next, the one before and the first of each group, are
+  painted after each change, before they are asked for, and some 32 MB of such pictures
+  kept, each cut to the part of it that is not see-through; a slide that was not painted
+  ahead has its words painted before it is given to the screen, so that it comes in in one
+  frame; and the change is drawn with the video's next frame, in the same frame of the
+  screen. A transition's two textures ask for no frames of their own, which Qt has them
+  do, one after another, as a dissolve begins. The stage and the operator window are
+  second to the screens: their slides' words are painted ahead too and not waited for,
+  and the stage's plain view takes a slide's words a sixteenth of a second after it.
+  See `src/strokedtext.h`, `src/paintahead.h`, `src/frameclock.h`.
 - **The log is written when something happens, never when something is drawn.** A line
   of it costs four millionths of a second and is handed to the system at once: nothing
   waits for the disk, and nothing is written for a frame. See [Log](features/log.md).
@@ -214,7 +233,7 @@ ctest --test-dir build
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
 and look at what its windows then hold and show (and, for sound, what a sound device of
-eight channels was sent, recorded): eighty-one scripts and some three
+eight channels was sent, recorded): eighty-two scripts and some three
 thousand checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -291,7 +310,9 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/richtext.*` | Styled text as the app works with it, and formatting part of it |
 | `src/rtf.*`, `src/rtfwriter.*` | Reads and writes the RTF that slide text is stored in |
 | `src/textlayout.*` | Lays text out, the same for drawing it and for editing it in place, and finds the size at which text fits a box |
-| `src/strokedtext.*` | Draws slide text with stroke and fill, a gradient's too, and the letters of one fill alone, for the graphics chip to draw that fill through |
+| `src/strokedtext.*` | Draws slide text with stroke and fill, a gradient's too, and the letters of one fill alone, for the graphics chip to draw that fill through; for the screens, ahead, on threads of its own, keeping the pictures |
+| `src/textshadow.*` | The shadow of words drawn into their own picture, as Qt's MultiEffect draws it over a layer |
+| `src/paintahead.*` | Paints the words of the slides likely next, before they are asked for |
 | `src/textfills.*` | ProPresenter's fills of a text's letters other than a colour, read from beside its RTF onto its runs, and their ranges written again when the words change |
 | `src/richtextbridge.*` | Lets a text box on the slide be typed into |
 | `src/thumbnailprovider.*`, `src/videoframe.*` | Thumbnails of images and videos, made on worker threads and cached, at the moment and in the crop, turn and flip a Media Inspector sets |

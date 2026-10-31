@@ -57,7 +57,10 @@ Anything less is as likely to be the machine as the app.
   thirtieth of a second is a frame of the video that was not shown); the processor
   used; and the longest the app's own thread was too busy to look at the clock, which
   is how long a click would have waited. Then slides changed over the video, by a cut
-  and then by a dissolve, with the work in each click and the same longest wait. These
+  and then by a dissolve, with the work in each click and the same longest wait, and how
+  long each slide took to reach the screen from its click (the middle of them and the
+  longest): a change over a video waits for the video's next frame, and for the slide's
+  words to be painted where they were not painted ahead (see `src/paintahead.h`). These
   are what to watch as more is added that keeps drawing.
 
   And over each, what became of every frame of the video on its way to the screen (see
@@ -91,6 +94,26 @@ the app's other tests are run. To compare like with like on your own screens, re
 your own once, and again whenever a slowdown has been accepted or a speed-up made:
 
     benchmark/run.py --save-baseline
+
+## Looking at one part
+
+A run can be narrowed, or changed, by these in the environment, to look into one thing;
+the baseline is of a run without them:
+
+- `SP_BENCHMARK_ONLY=video`: only the video's part (after starting up, which opens the
+  library, and the output being put on).
+- `SP_BENCHMARK_STAGE=plain`: the slides changed over the video with the stage's plain
+  view on the stage screen, and not the Screen Preview; `SP_BENCHMARK_STAGE=text`, with a
+  stage layout of the words of the slide on show over those of the next, each a box
+  linked to them, made smaller to fit.
+- `SP_BENCHMARK_DISSOLVE=<seconds>`: how long the dissolves over the video last (half a
+  second, where it is not set).
+- `SP_BENCHMARK_SHADOWS=1`: the words over the video with ProPresenter's shadow under
+  them.
+- `SP_BENCHMARK_VIDEO=<file>`: the video played under the words (`run.py` makes one and
+  gives it; without one, the video's part is left out).
+- `SP_BENCHMARK_VIDEO_TRACE=<folder>`: every time kept of the video's frames written
+  there (see above).
 
 ## One run by hand
 

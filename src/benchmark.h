@@ -69,7 +69,8 @@ private:
 // has to be the same from one run to the next, which a real workspace is not: the
 // benchmark makes its own, with three presentations of fixed content (words; shapes,
 // gradients and pictures cut to shapes; words over pictures), a stage layout whose one
-// shape is a Screen Preview of the output, and, where benchmark/run.py has made a
+// shape is a Screen Preview of the output and one of the words of the slide on show
+// and of the next (for STAGE=text: see setting), and, where benchmark/run.py has made a
 // video and named it in SP_BENCHMARK_VIDEO, a fourth presentation of words over that
 // video; and throws it away when it is done. The user's workspaces and settings are
 // not read or touched.
@@ -122,6 +123,16 @@ public:
     // One of the app's windows, by its name ("stage"), for the run to count its frames;
     // null if there is none
     Q_INVOKABLE QObject *window(const QString &name) const;
+    // A setting of the run's, from the environment variable SP_BENCHMARK_<name>, empty
+    // where it is not set. Each is for looking closer at one thing; left unset, the run is
+    // the one benchmark/baseline.txt was made by. ONLY=video: only the video part (after
+    // starting up and the output put on); STAGE=plain: the stage screen's plain view
+    // while slides change over the video, and not its Screen Preview, or STAGE=text: a stage
+    // layout of the words of the slide on show and of the next; DISSOLVE=<seconds>:
+    // the dissolve over the video that long, and not half a second; SHADOWS=1: the words
+    // over the video with ProPresenter's shadow (made with the workspace: see
+    // makeWorkspace).
+    Q_INVOKABLE QString setting(const QString &name) const;
     // Milliseconds of processor time the app has used, on all its threads
     Q_INVOKABLE double cpu() const;
     // Megabytes of memory the app holds now, and the most it has held
@@ -146,6 +157,13 @@ public:
     // well, a file for each time this is asked, with `marks` (the times the run did
     // something, on the run's clock), for reading the frames against them.
     Q_INVOKABLE QVariantMap videoTiming(const QVariantList &marks = {});
+    // How long the changes of slide made while the video was watched took to reach the
+    // screen: from each click (`clicks`) to the first frame of the output taken from the
+    // windows after the screen's slide layer brought the change in (`brought`: see
+    // TransitionLayer, which waits for the slide's words to be painted and for a frame
+    // of the video), as { median, longest }, in milliseconds. Asked before videoTiming,
+    // which ends the watching.
+    Q_INVOKABLE QVariantMap slideTiming(const QVariantList &clicks, const QVariantList &brought);
     // Begins keeping how evenly `property` of `item` changes at each sync of `window`, and
     // what was kept (see MotionTiming); each stops keeping it
     Q_INVOKABLE void watchMotion(QObject *window, QObject *item, const QString &property);

@@ -60,6 +60,10 @@ AuxWindow {
         scene.stepBuilds(times)
     }
 
+    function lookAhead(slides) {
+        scene.lookAhead(slides)
+    }
+
     function showMedia(media) {
         scene.showMedia(media)
     }

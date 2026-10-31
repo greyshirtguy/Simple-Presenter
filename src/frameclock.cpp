@@ -4,6 +4,9 @@
 
 #include <QCoreApplication>
 #include <QQuickWindow>
+#include <QSGTextureProvider>
+
+#include <memory>
 #include <QScreen>
 #include <QVideoSink>
 
@@ -59,6 +62,51 @@ void FrameClock::setRunning(bool running)
     if (running && m_frames)
         m_frames->clockStarted();
     emit runningChanged();
+}
+
+void FrameClock::silence(QQuickItem *source)
+{
+    if (!source || !window())
+        return;
+    const QPointer<QQuickItem> item(source);
+    const auto once = std::make_shared<QMetaObject::Connection>();
+    *once = connect(window(), &QQuickWindow::afterSynchronizing, source, [item, once] {
+        QObject::disconnect(*once);
+        QSGTextureProvider *provider = item ? item->textureProvider() : nullptr;
+        if (QSGTexture *texture = provider ? provider->texture() : nullptr)
+            QObject::disconnect(texture, SIGNAL(updateRequested()), item, SLOT(update()));
+    }, Qt::DirectConnection);
+}
+
+bool FrameClock::waitForVideoFrame()
+{
+    if (!m_frames || !m_frames->videoPlaying()) {
+        stopWaiting();
+        return false;
+    }
+    m_awaiting = true;
+    if (!m_awaitLimit) {
+        m_awaitLimit = new QTimer(this);
+        m_awaitLimit->setSingleShot(true);
+        connect(m_awaitLimit, &QTimer::timeout, this, &FrameClock::videoFrameArrived);
+    }
+    m_awaitLimit->start(qRound(m_frames->videoInterval() * 1.5) + 1);
+    return true;
+}
+
+void FrameClock::stopWaiting()
+{
+    m_awaiting = false;
+    if (m_awaitLimit)
+        m_awaitLimit->stop();
+}
+
+void FrameClock::videoFrameArrived()
+{
+    if (!m_awaiting)
+        return;
+    stopWaiting();
+    emit videoFrameCame();
 }
 
 void FrameClock::itemChange(ItemChange change, const ItemChangeData &value)
@@ -135,6 +183,9 @@ WindowFrames::WindowFrames(QQuickWindow *window) : QObject(window), m_window(win
     // for a screen the app draws itself, for NDI or a DeckLink card), and taken here on
     // this one, after the frame is done with.
     connect(window, &QQuickWindow::afterFrameEnd, this, &WindowFrames::frameShown, Qt::QueuedConnection);
+    // A frame begun: said on the window's drawing thread as it takes what has changed
+    // (with this thread waiting), and taken here once it may go on
+    connect(window, &QQuickWindow::beforeSynchronizing, this, [this] { ++m_framesSinceVideo; }, Qt::QueuedConnection);
     m_timer.setSingleShot(true);
     m_timer.setTimerType(Qt::PreciseTimer);
     connect(&m_timer, &QTimer::timeout, this, &WindowFrames::drawAtNext);
@@ -204,8 +255,9 @@ void WindowFrames::setPace(QVideoSink *video)
     // and the VideoOutput showing it has its own call to this thread queued just before
     // this one, to mark itself changed, so this is run as the frame is about to be drawn:
     // when it is drawn is what the moments between are counted from.)
-    if (video)
+    if (video) {
         m_paceConnection = connect(video, &QVideoSink::videoFrameChanged, this, &WindowFrames::videoFrame, Qt::QueuedConnection);
+    }
     // (Something moving keeps going by the window's own refreshes, until the new video's
     // frames come, if there is one.)
     if (anyRunning())
@@ -233,6 +285,11 @@ bool WindowFrames::videoPlaying() const
            && !framepacing::videoStopped(FrameClock::milliseconds() - m_arrivals.last(), framepacing::videoInterval(m_arrivals));
 }
 
+double WindowFrames::videoInterval() const
+{
+    return framepacing::videoInterval(m_arrivals);
+}
+
 void WindowFrames::frameShown()
 {
     if (!anyRunning())
@@ -251,6 +308,18 @@ void WindowFrames::videoFrame()
         m_arrivals.removeFirst();
     m_between.clear();
     m_timer.stop();
+    m_framesSinceVideo = 0;
+    // What waits for this frame (FrameClock::waitForVideoFrame) is changed now, before the
+    // frame is drawn, and is drawn in it. (A copy: what is told may make clocks or end them.)
+    // (Tried, 2026-10-31: a change that came to its frame 3 ms or more late waiting for the
+    // next. It moved as many held frames of the video to the late frame as it took from
+    // the change's: that frame was late from what else the app was doing, and was held
+    // for it, change or none.)
+    const QList<QPointer<FrameClock>> clocks = m_clocks;
+    for (const QPointer<FrameClock> &clock : clocks) {
+        if (clock && clock->m_awaiting)
+            clock->videoFrameArrived();
+    }
     if (!anyRunning() || !m_window->isVisible())
         return;
     // Moved on in the frame the video's own frame is drawn in, which is already asked for
@@ -269,7 +338,12 @@ void WindowFrames::drawAtNext()
     if (m_between.isEmpty())
         return;
     m_between.removeFirst();
-    if (anyRunning())
+    // Not if a frame besides the video's own has been begun since it came: that frame is
+    // in the refresh this was for, and one more would be in the video's next. (The first
+    // frame of a transition is followed by one Qt draws for the layers it is drawn from,
+    // straight after: then what moves waits for the video's next frame, and is drawn
+    // there. Found 2026-10-31: every dissolve over a video held one of its frames.)
+    if (anyRunning() && m_framesSinceVideo < 2)
         askForFrame();
     if (!m_between.isEmpty())
         m_timer.start(qMax(0, qRound(m_between.first() - FrameClock::milliseconds())));

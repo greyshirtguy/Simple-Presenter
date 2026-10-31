@@ -309,6 +309,8 @@ qt_add_qml_module(SimplePresenter
         src/framesdrawn.cpp
         src/framepacing.h
         src/framepacing.cpp
+        src/paintahead.h
+        src/paintahead.cpp
         src/delayline.h
         src/delayline.cpp
         src/framerelay.h
@@ -323,6 +325,8 @@ qt_add_qml_module(SimplePresenter
         src/richtextbridge.cpp
         src/strokedtext.h
         src/strokedtext.cpp
+        src/textshadow.h
+        src/textshadow.cpp
         src/timers.h
         src/timers.cpp
         src/props.h

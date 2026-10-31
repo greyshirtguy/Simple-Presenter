@@ -3,6 +3,22 @@
 #include "textlayout.h"
 
 #include <QColor>
+#include <QImage>
+#include <optional>
+
+// Says, on the app's thread, that a picture painted ahead has been kept (StrokedText's): for
+// what waits for the pictures of a slide before it is given to be shown (PaintAhead)
+class PicturesKept : public QObject
+{
+    Q_OBJECT
+
+public:
+    using QObject::QObject;
+
+signals:
+    void kept();
+};
+#include <QPointer>
 #include <QQuickPaintedItem>
 #include <QVariant>
 #include <QtQml/qqmlregistration.h>
@@ -47,6 +63,25 @@
 // the same glyph in the same place as before are left as they are, and only the part of
 // the image under the others is cleared, drawn and sent to the graphics chip again,
 // which for a running clock is its last digit or two.
+//
+// Painted ahead, on a thread of its own, for an audience screen's slides. Drawing the
+// words is most of what a new slide costs the screen: 6 or 7 ms for a slide's words at
+// 1080p on the laptop this is made on, in the sync of the frame that first shows them,
+// while the app's own thread and the screen's drawing both wait; and a video playing
+// under them misses a frame of its own for it (measured 2026-10-31: the video hitch at
+// slide changes). So a text inside an item whose `paintsAhead` is true (a Slide of an
+// audience screen's slide layer, or of a picture of a screen: see Slide) paints its
+// picture on one of two threads kept for that, from a copy of everything it is drawn from
+// (`Look`), whenever any of that changes, its shadow with it (castShadow), where a layer
+// of Qt's draws it everywhere else; the sync then only copies the picture. Meanwhile it
+// counts itself on that item's `picturesPending`, which the screen waits on before the
+// slide is shown (Slide.ready, TransitionLayer). The pictures are kept, about 32 MB of
+// them, each cut to what is not see-through of it, for a text drawn the same again: going
+// back to a slide, the same slide on another screen of the same size, the slides likely
+// next, painted before they are asked for, and a slide asked for, painted before it is given
+// to be shown (PaintAhead); a text that finds its picture kept is ready at once. Not text
+// that changes often, a running timer's (`ticking`), which keeps the drawing above; and
+// anywhere else, as it always was.
 class StrokedText : public QQuickPaintedItem
 {
     Q_OBJECT
@@ -97,11 +132,107 @@ class StrokedText : public QQuickPaintedItem
     // unfilled, for TextFills to draw over them (true, as it begins), or filled with
     // their own colour (false: see above)
     Q_PROPERTY(bool layeredFills MEMBER m_layeredFills NOTIFY maskOfChanged)
+    // The text's shadow, as [colour, offset across, offset down, radius] (an element's
+    // textShadow values, in slide units), or nothing for none: drawn here only where the
+    // text paints ahead, into its picture (see above and castShadow), the layer that draws
+    // it everywhere else being switched off there (SlideElement)
+    Q_PROPERTY(QVariant shadow MEMBER m_shadow NOTIFY shadowChanged)
+    // Whether a replacement that is text changes often, as a running timer's does, or the
+    // clock's: it is then drawn as it changes, a glyph at a time (see above), and never
+    // painted ahead. True, as it begins; an element linked to what changes only now and then
+    // (a slide's words, the stage's message) says false, and its words are painted ahead
+    // where the rest are (SlideElement)
+    Q_PROPERTY(bool ticking MEMBER m_ticking NOTIFY tickingChanged)
+    // Whether it paints ahead (see above)
+    Q_PROPERTY(bool paintingAhead READ isPaintingAhead NOTIFY paintingAheadChanged)
 
 public:
     explicit StrokedText(QQuickItem *parent = nullptr);
+    ~StrokedText() override;
 
     void paint(QPainter *painter) override;
+    // (Looked into first as its bindings are first worked out: by then the slide it is in
+    // is round it, and an element's shadow is never set up for the layer only to be taken
+    // down again as it is completed)
+    bool isPaintingAhead();
+
+    // Everything the text is drawn from, as the properties and the item's size say, and
+    // what was worked out from it last (the size fitted text was found to suit): a copy is
+    // drawn on another thread as the item itself is drawn.
+    struct Look
+    {
+        QVariant content;
+        QVariant replacement;
+        QVariant replacementColor;
+        qreal width = 0;
+        qreal height = 0;
+        qreal unit = 1;
+        qreal bleed = 0;
+        int vAlign = Qt::AlignVCenter;
+        int fit = 0;
+        qreal insetLeft = 0;
+        qreal insetTop = 0;
+        qreal insetRight = 0;
+        qreal insetBottom = 0;
+        QColor lineFill = Qt::transparent;
+        int lineFillStyle = 0;
+        qreal lineFillWidthOffset = 0;
+        qreal lineFillHeightOffset = 0;
+        qreal lineFillHorizontalOffset = 0;
+        qreal lineFillVerticalOffset = 0;
+        int maskOf = -1;
+        bool layeredFills = true;
+        QColor shadowColor = Qt::transparent;
+        qreal shadowOffsetX = 0;
+        qreal shadowOffsetY = 0;
+        qreal shadowRadius = 0;
+        // The last text a size was found for, the box it was found for, and the size, as
+        // a multiple of the text's own: see fitted()
+        mutable RichText fitShape;
+        mutable QSizeF fitRoom;
+        mutable int fitKind = 0;
+        mutable qreal fitScale = 1;
+
+        RichText shown() const;
+        RichText fitted() const;
+        QSizeF box() const;
+        QPointF origin(const TextLayoutResult &layout) const;
+        // Draws the text with `painter`, which draws in the item's own coordinates; `live`
+        // is the replacement's layout where that is known (see replace())
+        void paint(QPainter *painter, const TextLayoutResult *live) const;
+        // Puts the shadow of what `picture` holds under it, if there is a shadow
+        void castShadow(QImage &picture) const;
+        // Whether a text drawn from this and one drawn from `other` look the same: all they
+        // are drawn from but what was worked out last (the fit), the words last
+        bool sameAs(const Look &other) const;
+    };
+
+    // A picture painted ahead: the part of the text's picture that is not see-through, and
+    // where that part is in it, in the picture's own pixels (none, for a picture of nothing)
+    struct Picture
+    {
+        QImage image;
+        QPoint at;
+    };
+
+    // The look an element map gives the words of an audience screen's slide (SlideElement's
+    // StrokedText, which this follows: the two are to be kept in step), drawn at `unit`
+    // pixels to a slide unit, with or without shadows (Slide's `effects`); none for an
+    // element whose words are not drawn so on a screen: none, a link to something that
+    // changes (a timer, the clock, another slide's words...), or words that scroll
+    static std::optional<Look> lookOf(const QVariantMap &element, qreal unit, bool effects);
+    // Has `looks` painted ahead, `ratio` of the pictures' pixels to the items', and kept,
+    // for texts that come to be drawn so (PaintAhead): the best first, and the best kept
+    // longest; those kept already are kept on, and those being painted are not painted again
+    static void paintAhead(const QList<Look> &looks, qreal ratio);
+    // The same, before any painted ahead of being wanted, for a slide that is to be shown
+    // (PaintAhead::paintFirst): true if they are all kept already. Those waiting to be
+    // painted ahead are moved up.
+    static bool paintFirst(const QList<Look> &looks, qreal ratio);
+    // Whether the pictures of all of `looks` are kept
+    static bool allKept(const QList<Look> &looks, qreal ratio);
+    // What says that a picture has been kept
+    static PicturesKept *picturesKept();
 
 signals:
     void contentChanged();
@@ -114,17 +245,36 @@ signals:
     void insetsChanged();
     void lineFillChanged();
     void maskOfChanged();
+    void shadowChanged();
+    void tickingChanged();
+    void paintingAheadChanged();
 
 protected:
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
+    void componentComplete() override;
+    void itemChange(ItemChange change, const ItemChangeData &value) override;
+    QSGNode *updatePaintNode(QSGNode *node, UpdatePaintNodeData *data) override;
 
 private:
+    Look look() const;
+    void keepFit(const Look &look) const;
     RichText shown() const;
     RichText fitted() const;
     QSizeF box() const;
     QPointF origin(const TextLayoutResult &layout) const;
     void replace();
     QRect changedPart(const TextLayoutResult &before, const TextLayoutResult &after) const;
+    // Painting ahead (see above)
+    void changed();
+    bool paintingAhead() const;
+    void findGroup(bool tell = true);
+    void setPending(bool pending);
+    void paintPicture();
+    void acceptPicture(quint64 generation, const Picture &picture, const Look &painted);
+    void sayIfAheadChanged(bool tell = true);
+    qreal ratio() const;
+    bool takeKept();
+    friend void picturePainted(const Look &look, qreal ratio, const Picture &picture);
 
     QVariant m_content;
     QVariant m_replacement;
@@ -154,4 +304,23 @@ private:
     qreal m_lineFillVerticalOffset = 0;
     int m_maskOf = -1;
     bool m_layeredFills = true;
+    // Painting ahead: the item that asks for it (a Slide with `paintsAhead`), if any;
+    // whether this is counted on its `picturesPending`; whether a painting is to be
+    // started; which change of what the text is drawn from this is (counted), and which
+    // the picture painted ahead is of; and whether that came while the text could not be
+    // seen, and is to be handed to the window when it can
+    QPointer<QQuickItem> m_group;
+    bool m_pending = false;
+    bool m_queued = false;
+    quint64 m_generation = 0;
+    quint64 m_pictureGeneration = 0;
+    Picture m_picture;
+    bool m_unshown = false;
+    QVariant m_shadow;
+    bool m_ticking = true;
+    // Whether the item that asks for painting ahead has been looked for, and whether this
+    // was said last to be painting ahead
+    bool m_groupKnown = false;
+    bool m_saidAhead = false;
+    QMetaObject::Connection m_groupShown;
 };

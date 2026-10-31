@@ -109,9 +109,12 @@ Item {
         tint: announcements.tint
         direction: announcements.direction
         duration: announcements.duration
+        // (As the screen's own slides: see OutputScene)
+        paced: true
         delegate: Slide {
             pictures: announcements.pictures
             backdrop: announcements.backdrop
+            paintsAhead: true
         }
     }
 }

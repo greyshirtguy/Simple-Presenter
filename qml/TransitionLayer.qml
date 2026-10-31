@@ -72,8 +72,27 @@ Item {
     // Whether a transition is running, and so whether the instances are being drawn into
     // textures for the shader rather than to the window
     property bool blending: false
-    // Whether the incoming instance has been given content that it cannot show yet
+    // Whether a change is under way and not yet brought in: the incoming instance has been
+    // given content that it cannot show yet, or (`paced`) waits for a frame of the video
     property bool waiting: false
+    // Whether a change waits for the frames of a video playing on the screen (the one its
+    // frames keep to: see FramePace in src/frameclock.h), so as to be drawn in the same
+    // frame of the window as one of the video's, and to take no frame of its own: a frame
+    // of the window's own between two of the video's, still being drawn as the video's
+    // next arrives, put that on the screen a refresh late, which was the hitch in a video
+    // under a slide change (2026-10-31). What comes in is given to the incoming instance
+    // as a frame of the video arrives, since making it changes the window; and once it is
+    // ready, it is brought in as the frame after arrives (or the same, if it is ready at
+    // once). A change waits up to a frame of the video each time, about a thirtieth of a
+    // second, and not at all with no video playing. For an audience screen's slides and
+    // announcements (OutputScene, AnnouncementLayer), whose words are painted before they
+    // are shown (Slide.paintsAhead).
+    property bool paced: false
+    // What a change is waiting for the video's next frame to do (see `paced`): "give" the
+    // incoming instance what comes in (`givenLater`), or "begin" bringing it in; "" for
+    // nothing
+    property string pacing: ""
+    property var givenLater: null
     // How much of each instance is on show, from 0 to 1, for the delegates that want to
     // know. The one on show is all there until a transition takes it away, and the
     // other is not there at all until one brings it in, however long it has been ready
@@ -103,20 +122,28 @@ Item {
     // long it lasts, in milliseconds
     property double startedAt: 0
     property double length: 0
-    // The two instances as textures, which nothing draws but the shader below. Each is
-    // given its instance only while a transition runs. A source that has an item follows
-    // it, and when what is in the item changes it asks for the window to be drawn again,
-    // shader or no shader: so a slide shown by a cut was drawn twice, the second time a
-    // thousandth of a second or two after the first, for nothing. On a screen that is
-    // playing a video that second frame took the turn of the video's next frame, which
-    // then came a refresh late and showed as a stutter: at about one cut in three over a
-    // video, on the laptop this is made on (benchmark, video lines, 2026-10-24).
-    property ShaderEffectSource textureA: ShaderEffectSource {
-        sourceItem: layer.blending ? holderA : null
+    // The two instances as textures, which nothing draws but the shader below: the one on
+    // show, which the transition goes from, and the one it goes to. Each is given its
+    // instance only while a transition runs. A source that has an item follows it, and when
+    // what is in the item changes it asks for the window to be drawn again, shader or no
+    // shader: so a slide shown by a cut was drawn twice, the second time a thousandth of a
+    // second or two after the first, for nothing. On a screen that is playing a video that
+    // second frame took the turn of the video's next frame, which then came a refresh late
+    // and showed as a stutter: at about one cut in three over a video, on the laptop this
+    // is made on (benchmark, video lines, 2026-10-24). While a transition runs the frames
+    // it is drawn in are its clock's, which draws the textures again where their instances
+    // have changed: their own asking is not wanted then either (see begin()).
+    //
+    // (The shader is handed the same two throughout, and what is in them changes, and not
+    // the other way round: Qt let go of a texture the shader was handed in place of the
+    // other, which for a moment it was not handed at all, and made it again at the next
+    // transition, a new picture of the screen's size each time.)
+    property ShaderEffectSource textureFrom: ShaderEffectSource {
+        sourceItem: layer.blending ? (layer.aIsFront ? holderA : holderB) : null
         hideSource: layer.blending
     }
-    property ShaderEffectSource textureB: ShaderEffectSource {
-        sourceItem: layer.blending ? holderB : null
+    property ShaderEffectSource textureTo: ShaderEffectSource {
+        sourceItem: layer.blending ? (layer.aIsFront ? holderB : holderA) : null
         hideSource: layer.blending
     }
 
@@ -132,25 +159,55 @@ Item {
         }
         // Whatever was being waited for is given up for this.
         patience.stop()
+        clock.stopWaiting()
+        pacing = ""
+        givenLater = null
         waiting = false
         const incoming = (aIsFront ? holderB : holderA).item
         if (given) {
             for (const name in given)
                 incoming[name] = given[name]
         }
-        incoming.content = content
         asked = instead ?? null
+        // (Out of sight meanwhile: it may hold what an earlier change gave it, never shown)
+        if (paced && clock.waitForVideoFrame()) {
+            pacing = "give"
+            givenLater = content
+            waiting = true
+            return
+        }
+        give(content, false)
+    }
+
+    // Gives the incoming instance what comes in, and brings it in once it can be shown;
+    // `atFrame` as a frame of the video arrives (see `paced`)
+    function give(content, atFrame) {
+        const incoming = (aIsFront ? holderB : holderA).item
+        incoming.content = content
         if (incoming.ready === false) {
             waiting = true
             patience.start()
         } else {
-            begin()
+            begin(atFrame)
         }
     }
 
-    // Brings in what the incoming instance has been given.
-    function begin() {
+    // Brings in what the incoming instance has been given: as a frame of the video arrives,
+    // if the layer is `paced` and one is playing, and out of sight until then. Not while
+    // what comes in waits to be given: what the instance holds then is what an earlier
+    // change gave it, which a quicker click has put aside, and which, coming to be ready,
+    // is not to be brought in for it.
+    function begin(atFrame) {
+        if (pacing === "give")
+            return
         patience.stop()
+        if (paced && atFrame !== true && clock.waitForVideoFrame()) {
+            pacing = "begin"
+            waiting = true
+            return
+        }
+        clock.stopWaiting()
+        pacing = ""
         const chosen = asked ?? { name: shaderName, shader: shader, options: options, tint: tint, direction: direction, duration: duration }
         const animated = chosen.shader !== "" && chosen.duration > 0
         // (Before the clock is started, by `blending`, which it is worked out from)
@@ -165,6 +222,11 @@ Item {
             commit("")
             return
         }
+        // (What the two textures ask for themselves, a frame of the window's after their first,
+        // and after the next, was in the turn of the video's next frame, which came a refresh
+        // late at every dissolve over a video: 2026-10-31)
+        clock.silence(textureFrom)
+        clock.silence(textureTo)
         // Into the log first, and only then to the graphics driver.
         activeName = chosen.name !== "" ? chosen.name : "a transition"
         beganAt = Date.now()
@@ -224,12 +286,15 @@ Item {
         blending = false
     }
 
-    // The incoming one of the two is kept out of sight while it is being waited for.
+    // The incoming one of the two is out of sight but while a transition brings it in: it
+    // is empty, or what it holds is being waited for. (Not by whether it is waited for:
+    // its going out of sight as a wait began, empty as it was, was a frame of the window's
+    // for nothing, at nearly every change of slide, which a video under it could not spare.)
     Loader {
         id: holderA
 
         anchors.fill: parent
-        visible: layer.aIsFront || !layer.waiting
+        visible: layer.aIsFront || layer.blending
         sourceComponent: layer.delegate
     }
 
@@ -237,7 +302,7 @@ Item {
         id: holderB
 
         anchors.fill: parent
-        visible: !layer.aIsFront || !layer.waiting
+        visible: !layer.aIsFront || layer.blending
         sourceComponent: layer.delegate
     }
 
@@ -286,8 +351,8 @@ Item {
     }
 
     ShaderEffect {
-        property var fromTex: layer.aIsFront ? layer.textureA : layer.textureB
-        property var toTex: layer.aIsFront ? layer.textureB : layer.textureA
+        property var fromTex: layer.textureFrom
+        property var toTex: layer.textureTo
         property real progress: layer.progress
         // Width over height, which shaders use to keep shapes round, and the size in
         // pixels, which one uses to work in whole pixels
@@ -312,6 +377,18 @@ Item {
 
         running: layer.blending
         onTicked: (now) => layer.step(now)
+        // The frame of the video a change was waiting for (see `paced`)
+        onVideoFrameCame: {
+            const what = layer.pacing
+            layer.pacing = ""
+            if (what === "give") {
+                const content = layer.givenLater
+                layer.givenLater = null
+                layer.give(content, true)
+            } else if (what === "begin") {
+                layer.begin(true)
+            }
+        }
     }
 
     // A transition the window makes no frames for (its screen switched off, or a screen

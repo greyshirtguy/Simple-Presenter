@@ -74,12 +74,35 @@ public:
     Q_INVOKABLE double now() const;
     static double frameTime();
     static double milliseconds();
+    // Asks for `videoFrameCame` as the next frame of the video the window keeps to
+    // (FramePace) arrives, so that a change made then is drawn in the frame the video's is
+    // drawn in, and takes no frame of its own (TransitionLayer.paced): true if a video is
+    // playing there; false, with nothing to follow, if none is (a still, a paused video,
+    // none at all, a screen drawn for NDI or a card). A frame that does not come in half
+    // again as long as one lasts (the video stopped meanwhile) is not waited for any
+    // longer: `videoFrameCame` is said then. Asked again while waiting, it waits afresh.
+    Q_INVOKABLE bool waitForVideoFrame();
+    // Waits no longer, and says nothing
+    Q_INVOKABLE void stopWaiting();
+    // Has a ShaderEffectSource (`source`), used while this clock runs, ask for no frames of
+    // its own: the frames are this clock's (see TransitionLayer's textures). Qt has a
+    // source ask for one whenever its texture is to be drawn again, that is when what it
+    // shows changes, and after it is drawn the first time, twice; but where a clock is
+    // running the window is making a frame at every refresh anyway (or at each of a
+    // video's frames and between them), in which the texture is drawn again if what it
+    // shows has changed. Done as the window next takes what has changed, on its drawing
+    // thread, where the source's texture is made, and for as long as that texture lasts.
+    // (The asking is cut off by the name of Qt's own connection, signal to slot: if a
+    // later Qt makes it otherwise, nothing is cut off, and its frames are asked as before.)
+    Q_INVOKABLE void silence(QQuickItem *source);
 
 signals:
     void runningChanged();
     // The window is making a frame, at `now` (on the clock above): what moves is to be
     // where it is at that time
     void ticked(double now);
+    // The frame of the video waited for has arrived (see waitForVideoFrame)
+    void videoFrameCame();
 
 protected:
     void itemChange(ItemChange change, const ItemChangeData &value) override;
@@ -87,21 +110,31 @@ protected:
 private:
     friend class WindowFrames;
     void attach(QQuickWindow *window);
+    void videoFrameArrived();
 
     bool m_running = false;
     QPointer<class WindowFrames> m_frames;
+    // Waiting for the video's next frame, and for how long at most: made when first asked
+    bool m_awaiting = false;
+    QTimer *m_awaitLimit = nullptr;
 };
 
 // The video whose frames pace the window this is in: the one on the media layer of an
 // audience screen (OutputScene). Null while none is playing.
 //
-// (What it does not do: hold back a change of slide until the video's next frame, to be
-// drawn in the same frame as it. That was tried, and did not help: a slide whose words
-// have a shadow, which is drawn through layers of Qt's, has Qt draw two frames more after
-// it changes, for the layers, wherever the change is drawn, and two do not fit in the one
-// refresh a video of thirty frames a second leaves between its own; and the change waited
-// up to a frame of the video, a thirtieth of a second, for nothing. Tried on the Demo
-// workspace's songs, 2026-10-24.)
+// A change of slide waits for the video's next frame, to be drawn in the same frame as it
+// (FrameClock::waitForVideoFrame, TransitionLayer.paced). (Tried by itself on 2026-10-24
+// on the Demo workspace's songs, that did not help: the slide's words were painted in the
+// frame it was drawn in, which took longer than a refresh then; and words with a shadow,
+// drawn through layers of Qt's, had Qt draw two frames more after the change, wherever
+// it was drawn, two that do not fit in the one refresh a video of thirty frames a second
+// leaves between its own. On 2026-10-31 the words came to be painted before the change,
+// their shadows with them (StrokedText), and a transition's textures to ask for no frames
+// of their own (FrameClock::silence): with those, over a 1080p video on the laptop this is
+// made on, with a Screen Preview on the stage, ten cuts held a frame of the video too long
+// twice at most, where they had held five to nine, and eight dissolves of 0.3 s three
+// times at most, where they had held four to seven. The desktop that was measured in holds
+// one now and then with nothing being done.)
 class FramePace : public QQuickItem
 {
     Q_OBJECT
@@ -142,12 +175,14 @@ public:
     void remove(FrameClock *clock);
     void clockStarted();
     void setPace(QVideoSink *video);
+    bool videoPlaying() const;
+    // How long a frame of the video lasts, in milliseconds (framepacing::videoInterval)
+    double videoInterval() const;
 
 private:
     explicit WindowFrames(QQuickWindow *window);
     bool anyRunning() const;
     double refresh() const;
-    bool videoPlaying() const;
     void tick();
     void frameShown();
     void videoFrame();
@@ -164,6 +199,9 @@ private:
     // next (on FrameClock's clock), and the timer for the first of them
     QList<double> m_between;
     QTimer m_timer;
+    // How many frames of the window have been begun since the video's last frame came:
+    // its own, and any other
+    int m_framesSinceVideo = 0;
     // For the video's having stopped while something moves: no frame of it for half again
     // as long as one lasts, and the window keeps its own refreshes again
     QTimer m_stopped;

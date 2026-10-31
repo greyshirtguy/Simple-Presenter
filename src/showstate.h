@@ -322,6 +322,17 @@ public:
     // The first place from `from`, going by `step` (1 or -1), of a presentation of
     // `count` slides, that is not one of `disabled`; -1 for none
     static int enabledFrom(int from, int step, int count, const QList<int> &disabled);
+    // The slides most likely to go live after the one at `live` of a presentation of
+    // `count` slides, best first, for what they show to be made ready before they are
+    // asked for (the screens' words painted ahead: see PaintAhead): the one Next would go
+    // to, the one Previous would, and the first slide of each group (`groupStarts`, by
+    // their places), the nearest to `live` first, and of two as near, the one after it.
+    // None twice, nor `live` itself, nor one of `disabled`, which Next and Previous pass
+    // over and which are seldom shown otherwise (a group whose first slide is disabled
+    // is left out, A GUESS that it is not worth more). With nothing of the presentation
+    // live (`live` -1), its first slide, and the groups'. The maintainer's choice of
+    // slides (2026-10-31), "as potential next slides".
+    static QList<int> likelyNext(int live, int count, const QList<int> &disabled, const QList<int> &groupStarts);
     // Next, for whoever is looking at the presentation `key` of `playlistId`; or a click
     // on its slide `index` (-1 for Next, which means the slide the show is at). If that
     // is the slide on show, and it has an On Click build that has not been run, the

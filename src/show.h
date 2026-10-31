@@ -241,6 +241,10 @@ public:
     // presentation (see show::State::stepTarget).
     Q_INVOKABLE int stepTarget(const QString &key, const QString &playlistId, int delta, bool announcements = false,
                                const QVariantList &disabled = {}, int count = -1) const;
+    // The places of the slides most likely to go live after the one at `live` (-1 for
+    // none of it) of a presentation of `count` slides, best first, by the places that are
+    // disabled and those that begin a group (see show::State::likelyNext)
+    Q_INVOKABLE QVariantList likelyNext(int live, int count, const QVariantList &disabled, const QVariantList &groupStarts) const;
     // The first place from `from` by `step` of `count` slides that is not disabled, -1 for
     // none (see show::State::enabledFrom): the next slide, as what goes on by itself has it
     Q_INVOKABLE int enabledFrom(int from, int step, int count, const QVariantList &disabled) const;

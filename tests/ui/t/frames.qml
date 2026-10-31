@@ -3,8 +3,9 @@ import SimplePresenterApp
 import "lib.js" as Lib
 
 // How often the output is drawn as slides change (qml/TransitionLayer.qml, src/frameclock.h), on the Demo workspace's
-// "All Hail King Jesus", on slides whose words have no shadow (a shadow is drawn through layers of Qt's, which have
-// Qt draw two frames more after a change, whatever this app does: see FramePace): a slide shown by a cut, with
+// "All Hail King Jesus", on slides whose words have no shadow (a shadow was drawn through layers of Qt's, which had
+// Qt draw two frames more after a change; on a screen it is drawn with the words now, before they are shown, but
+// this test was made of slides without one, and is left so): a slide shown by a cut, with
 // nothing playing, is drawn once, and not a second time a moment later for the textures a transition would be drawn
 // from, which on a screen playing a video took the video's turn and had it stutter; five cuts while a video from the
 // media bin plays under them draw a frame of their own each at most (VideoTiming, src/benchmark.h, counts them), and

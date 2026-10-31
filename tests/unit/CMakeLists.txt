@@ -561,3 +561,12 @@ target_include_directories(tst_textfills PRIVATE ${PROJECT_SOURCE_DIR}/src)
 # (Qt Quick for sessionlog.h, which the log's stand-in for the font lookup includes)
 target_link_libraries(tst_textfills PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test proproto Fontconfig::Fontconfig)
 add_test(NAME textfills COMMAND tst_textfills)
+
+qt_add_executable(tst_textshadow
+    tst_textshadow.cpp
+    ${PROJECT_SOURCE_DIR}/src/textshadow.h
+    ${PROJECT_SOURCE_DIR}/src/textshadow.cpp
+)
+target_include_directories(tst_textshadow PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_textshadow PRIVATE Qt6::Gui Qt6::Test)
+add_test(NAME textshadow COMMAND tst_textshadow)
