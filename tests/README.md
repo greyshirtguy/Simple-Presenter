@@ -360,10 +360,13 @@ they were. Then the Text tab's Fill menu, ProPresenter's six, on the first slide
 Background Blur, its sliders and ProPresenter's note, the Blur slider setting its amount;
 Text Gradient, its angle set to 0, its first colour yellow at the left of the words, at the
 right once swapped, Use object bounds for gradient ticked; a picture given to the words,
-drawn there, Stretch to Fill, the Media Inspector on it turning it half round, drawn so;
-and Text Color, the words their own black again, the file with no fill left in it. And on
-a slide of blurred words over a blurred box, the words' blur set: the box's is the same,
-in the editor and in the file.
+drawn there, with ProPresenter's gear and magnifier beside its name, Stretch to Fill, the
+Media Inspector on it turning it half round, drawn so; and Text Color, the words their
+own black again, the file with no fill left in it. And on a slide of blurred words over a
+blurred box, the words' blur set: the box's is the same, in the editor and in the file.
+Then the Shape tab on the blurred box: its Fill menu saying Background Blur, with the
+sliders and the note, the Blur slider setting it; Background Invert, the red behind it
+cyan; and Colour again.
 
 `pptx` exports a presentation of the test's own (run.py's `prepare_pptx`: two groups, an
 arrangement, a picture behind the first slide, a picture that is not there, notes) by a

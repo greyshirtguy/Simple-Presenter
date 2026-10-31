@@ -10,11 +10,10 @@ the top of the [README](../README.md).
 
 - [ ] **Text fills**: letters filled with a gradient, a picture, a blur or an invert of
       what is behind them, or cut out of their box, and boxes filled with a blur or an
-      invert, are drawn and kept, and the letters' set in the Text tab as ProPresenter's
-      are (see [Text fills](features/text-fills.md)). Still to do: a box's blur or invert
-      in the Shape tab's Fill menu (how ProPresenter offers it not seen yet); a cut-out of
-      a box filled with a gradient or a picture; such letters with chords over them, or
-      scrolling; and the shadow under them.
+      invert, are drawn and kept, and set in the Text and Shape tabs as ProPresenter's are
+      (see [Text fills](features/text-fills.md)). Still to do: a cut-out of a box filled
+      with a gradient or a picture; such letters with chords over them, or scrolling; and
+      the shadow under them.
 - [ ] **Export to PowerPoint**: slide transitions and builds as PowerPoint's, sound, and
       a media cue's Media Inspector settings, are not carried over yet (see [Export to
       PowerPoint](features/export-powerpoint.md#what-does-not-go-over)).

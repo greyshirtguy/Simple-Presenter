@@ -77,7 +77,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="chords"></a><a id="the-chord-editor"></a>**[Chords](docs/features/chords.md)**: a song's chords over its words on the stage, in any key, as ProPresenter shows them.
 - <a id="search"></a>**[Search](docs/features/search.md)**: Ctrl+F finds a presentation by its name or by its words, as it is typed.
 - <a id="text"></a>**[Text](docs/features/text-format.md)**: ProPresenter's Text button, for the font, size, colour, capitals, alignment, outline and shadow of the words of every slide at once, or of the slides selected with Ctrl and Shift. Its arrows step each one's own size, so that large words and small keep apart.
-- <a id="text-fills"></a>**[Text fills](docs/features/text-fills.md)**: letters filled with a gradient, a picture, a blur or an invert of what is behind them, or cut out of their box, and boxes filled with a blur or an invert, drawn as ProPresenter draws them, and the letters' set in the editor's Text tab as ProPresenter's are.
+- <a id="text-fills"></a>**[Text fills](docs/features/text-fills.md)**: letters filled with a gradient, a picture, a blur or an invert of what is behind them, or cut out of their box, and boxes filled with a blur or an invert, drawn as ProPresenter draws them, and set in the editor as ProPresenter's are.
 
 | [The editor](docs/features/editing.md) | [Chords on the stage](docs/features/chords.md) |
 |:---:|:---:|

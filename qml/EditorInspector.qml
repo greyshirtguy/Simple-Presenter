@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Shapes
 import SimplePresenterApp
 
 // The properties of the element picked in the editor, in two parts as ProPresenter has
@@ -35,6 +36,8 @@ Rectangle {
     // Inspector on the one they have
     property var chooseTextMedia: () => {}
     property var inspectTextMedia: () => {}
+    // Shows a file in the file manager, picked (Catalog.showInFolder)
+    property var showInFolder: (path) => {}
     property var setFormat: (format, interim) => {}
     property var settle: () => {}
     // The Color Triggers kept as the default ([{ time, color }]), in the app's own
@@ -98,6 +101,19 @@ Rectangle {
 
     function oneLine(name) {
         return name.replace(/\s+/g, " ").trim()
+    }
+
+    // The amount of a blur of what is behind already on the slide, of words or of a box,
+    // which a new one shares, as ProPresenter shares it; or 0.5 (A GUESS at where
+    // ProPresenter's starts, from its picture, its slider halfway)
+    function slideBlur() {
+        for (const element of elements) {
+            const ones = (element.fills?.text ?? []).concat(element.boxFill ? [element.boxFill] : [])
+            const blur = ones.find(one => one.kind === "blur")
+            if (blur)
+                return blur.amount
+        }
+        return 0.5
     }
 
     color: "#2b2d31"
@@ -510,11 +526,14 @@ Rectangle {
 
             // What it is filled with: a colour, a gradient from one colour to another, a
             // picture, a Screen Preview, which is what one of the workspace's screens is
-            // showing (see ScreenPicture), or one of the workspace's video inputs, live
-            // (see VideoInputs), as ProPresenter's fill menu has them. Choosing a kind
-            // turns the fill on. A Screen Preview starts as the first audience screen, a
-            // video input as the first input. (Where Video Input is in the menu is A
-            // GUESS at ProPresenter's.)
+            // showing (see ScreenPicture), one of the workspace's video inputs, live
+            // (see VideoInputs), or a blur or an invert of what is behind the box
+            // (TextFills), as ProPresenter's fill menu has them. Choosing a kind turns the
+            // fill on. A Screen Preview starts as the first audience screen, a video input
+            // as the first input, a blur at the amount of one already on the slide.
+            // (Where Video Input, Background Blur and Background Invert are in the menu
+            // is A GUESS at ProPresenter's; the last two are its Text tab's names, and have
+            // its Text tab's controls, as the maintainer says ProPresenter's Shape tab has.)
             CheckLine {
                 id: fillLine
 
@@ -527,11 +546,17 @@ Rectangle {
                 Choice {
                     objectName: "fillKind"
                     width: shapeTab.width - 78
-                    model: ["Colour", "Gradient", "Media", "Screen Preview", "Video Input"]
+                    model: ["Colour", "Gradient", "Media", "Screen Preview", "Video Input", "Background Blur", "Background Invert"]
                     choice: fillLine.kind === "gradient" ? 1 : fillLine.kind === "media" ? 2 : fillLine.kind === "screen" ? 3
-                          : fillLine.kind === "input" ? 4 : 0
+                          : fillLine.kind === "input" ? 4 : fillLine.kind === "blur" ? 5 : fillLine.kind === "invert" ? 6 : 0
                     onChosen: (index) => {
-                        if (index === 2) {
+                        if (index === 5) {
+                            if (fillLine.kind !== "blur")
+                                inspector.setProperties({ fillKind: "blur", fillBlurAmount: inspector.slideBlur(), fillOn: true }, false)
+                        } else if (index === 6) {
+                            if (fillLine.kind !== "invert")
+                                inspector.setProperties({ fillKind: "invert", fillOn: true }, false)
+                        } else if (index === 2) {
                             inspector.chooseMedia()
                         } else if (index === 4) {
                             if (fillLine.kind !== "input")
@@ -552,6 +577,7 @@ Rectangle {
             Line {
                 caption: "Colour"
                 visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen" && fillLine.kind !== "input"
+                         && fillLine.kind !== "blur" && fillLine.kind !== "invert"
 
                 // Picking a colour turns the fill on, and makes it a plain colour.
                 ColorButton {
@@ -559,6 +585,62 @@ Rectangle {
                     onChanging: (value) => inspector.setProperties({ fillColor: value, fillOn: true }, true)
                     onPicked: (value) => inspector.setProperties({ fillColor: value, fillOn: true }, false)
                     onClosed: inspector.finished()
+                }
+            }
+
+            // A blur of what is behind: as the Text tab's (see there), made only for a box
+            // with one
+            Loader {
+                width: parent.width
+                // (Its content's height, and none once it is unloaded, which a Loader does not
+                // go back to by itself)
+                height: item ? item.implicitHeight : 0
+                active: fillLine.kind === "blur"
+
+                sourceComponent: Column {
+                    id: boxBlur
+
+                    readonly property var blur: inspector.element && inspector.element.boxFill ? inspector.element.boxFill : ({})
+
+                    Line {
+                        caption: "Saturation"
+
+                        AppSlider {
+                            objectName: "boxBlurSaturation"
+                            width: shapeTab.width - 78
+                            anchors.verticalCenter: parent.verticalCenter
+                            from: 0
+                            to: 2
+                            value: boxBlur.blur.saturation ?? 1
+                            onMoved: inspector.setProperties({ fillBlurSaturation: Math.round(value * 100) / 100 }, true)
+                            onPressedChanged: {
+                                if (!pressed)
+                                    inspector.settle()
+                            }
+                        }
+                    }
+
+                    Line {
+                        caption: "Blur"
+
+                        AppSlider {
+                            objectName: "boxBlurAmount"
+                            width: shapeTab.width - 78
+                            anchors.verticalCenter: parent.verticalCenter
+                            from: 0
+                            to: 1
+                            value: boxBlur.blur.amount ?? 0.5
+                            onMoved: inspector.setProperties({ fillBlurAmount: Math.round(value * 1000) / 1000 }, true)
+                            onPressedChanged: {
+                                if (!pressed)
+                                    inspector.settle()
+                            }
+                        }
+                    }
+
+                    Note {
+                        text: "Blur percentage is shared among all objects on a slide."
+                    }
                 }
             }
 
@@ -1176,13 +1258,13 @@ Rectangle {
             // colour was, each with its own controls: Text Color its colour; Text Gradient
             // its two colours, a button between them that swaps them, its angle, and "Use
             // object bounds for gradient" (the file's stretch_to_document_bounds); Media Fill
-            // its file, the Media Inspector and how it is scaled; Background Blur its
+            // its file, with a gear for another and a magnifier to show it in the file
+            // manager, the Media Inspector and how it is scaled; Background Blur its
             // saturation and its blur, with ProPresenter's own note under them. (The order of
             // the menu is A GUESS, the order the pictures were taken in. ProPresenter's angle
-            // has a dial too, and its media fill a gear and a magnifier, not seen at work,
-            // which are not here.) Each sets the fill of the selected words, or of all of
-            // them (RichText's `fill`, textfills.h); a blur's amount is set for every blur on
-            // the slide, as ProPresenter's note says.
+            // has a dial too, which is not here.) Each sets the fill of the selected words, or
+            // of all of them (RichText's `fill`, textfills.h); a blur's amount is set for
+            // every blur on the slide, as ProPresenter's note says.
             Line {
                 id: textFill
 
@@ -1194,18 +1276,6 @@ Rectangle {
                 // The fill, with these changed
                 function changed(changes) {
                     return Object.assign({}, fill, changes)
-                }
-
-                // The amount of a blur already on the slide, which a new one shares, or 0.5 (A
-                // GUESS at where ProPresenter's starts, from its picture, its slider halfway)
-                function slideBlur() {
-                    for (const element of inspector.elements) {
-                        const ones = (element.fills?.text ?? []).concat(element.boxFill ? [element.boxFill] : [])
-                        const blur = ones.find(one => one.kind === "blur")
-                        if (blur)
-                            return blur.amount
-                    }
-                    return 0.5
                 }
 
                 // A fill of a kind, as it starts: a gradient from the words' colour to that
@@ -1221,7 +1291,7 @@ Rectangle {
                         inspector.setFormat({ fill: { kind: "gradient", angle: 270, radial: false, stretch: false,
                                                       stops: [{ color: color, position: 0 }, { color: Qt.darker(color, 3), position: 1 }] } }, false)
                     else if (kind === "blur")
-                        inspector.setFormat({ fill: { kind: "blur", amount: slideBlur(), saturation: 1 } }, false)
+                        inspector.setFormat({ fill: { kind: "blur", amount: inspector.slideBlur(), saturation: 1 } }, false)
                     else
                         inspector.setFormat({ fill: { kind: kind } }, false)
                 }
@@ -1252,6 +1322,9 @@ Rectangle {
             // never open
             Loader {
                 width: parent.width
+                // (Its content's height, and none once it is unloaded, which a Loader does not
+                // go back to by itself)
+                height: item ? item.implicitHeight : 0
                 active: textFill.kind === "gradient" || textFill.kind === "media" || textFill.kind === "blur"
 
                 sourceComponent: Column {
@@ -1334,10 +1407,12 @@ Rectangle {
                         visible: textFill.kind === "media"
 
                         Text {
+                            id: textMediaName
+
                             readonly property string path: textFill.kind === "media" && textFill.fill.source
                                                            ? decodeURIComponent(String(textFill.fill.source).replace(/^file:\/\//, "")) : ""
 
-                            width: textTab.width - 78 - 90
+                            width: textTab.width - 78 - 2 * 28 - 12
                             anchors.verticalCenter: parent.verticalCenter
                             elide: Text.ElideMiddle
                             color: path === "" ? "#d07070" : "#e6e6e6"
@@ -1345,12 +1420,82 @@ Rectangle {
                             text: path === "" ? "Not found" : path.split("/").pop()
                         }
 
-                        AppButton {
-                            width: 84
-                            height: 26
-                            font.pixelSize: 12
-                            text: "Choose…"
+                        // ProPresenter's gear, for another file (KNOWN, the maintainer: it opens a
+                        // file browser to replace the media), and its magnifier, which shows the
+                        // file in the file manager, picked (KNOWN, the same: on the Mac it shows
+                        // it in Finder). Drawn here, ProPresenter's pack having neither picture,
+                        // in these two buttons alone, and not among IconButton's own, which every
+                        // button carries.
+                        IconButton {
+                            id: textMediaChoose
+
+                            objectName: "textFillChoose"
                             onClicked: inspector.chooseTextMedia()
+
+                            // A gear: a ring, its hole, and eight teeth
+                            Shape {
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                preferredRendererType: Shape.CurveRenderer
+
+                                ShapePath {
+                                    fillColor: "transparent"
+                                    strokeColor: textMediaChoose.ink
+                                    strokeWidth: 1.7
+                                    capStyle: ShapePath.RoundCap
+
+                                    PathAngleArc { centerX: 8; centerY: 8; radiusX: 4.4; radiusY: 4.4; startAngle: 0; sweepAngle: 360 }
+                                    PathMove { x: 9.6; y: 8 }
+                                    PathAngleArc { centerX: 8; centerY: 8; radiusX: 1.6; radiusY: 1.6; startAngle: 0; sweepAngle: 360 }
+                                    PathMove { x: 13.40; y: 8.00 }
+                                    PathLine { x: 15.30; y: 8.00 }
+                                    PathMove { x: 11.82; y: 11.82 }
+                                    PathLine { x: 13.16; y: 13.16 }
+                                    PathMove { x: 8.00; y: 13.40 }
+                                    PathLine { x: 8.00; y: 15.30 }
+                                    PathMove { x: 4.18; y: 11.82 }
+                                    PathLine { x: 2.84; y: 13.16 }
+                                    PathMove { x: 2.60; y: 8.00 }
+                                    PathLine { x: 0.70; y: 8.00 }
+                                    PathMove { x: 4.18; y: 4.18 }
+                                    PathLine { x: 2.84; y: 2.84 }
+                                    PathMove { x: 8.00; y: 2.60 }
+                                    PathLine { x: 8.00; y: 0.70 }
+                                    PathMove { x: 11.82; y: 4.18 }
+                                    PathLine { x: 13.16; y: 2.84 }
+                                }
+                            }
+                        }
+
+                        IconButton {
+                            id: textMediaShow
+
+                            objectName: "textFillShow"
+                            available: textMediaName.path !== ""
+                            onClicked: {
+                                if (available)
+                                    inspector.showInFolder(textMediaName.path)
+                            }
+
+                            // A magnifying glass, as the toolbar's Search has
+                            Shape {
+                                anchors.centerIn: parent
+                                width: 16
+                                height: 16
+                                preferredRendererType: Shape.CurveRenderer
+
+                                ShapePath {
+                                    fillColor: "transparent"
+                                    strokeColor: textMediaShow.ink
+                                    strokeWidth: 1.7
+                                    capStyle: ShapePath.RoundCap
+
+                                    PathAngleArc { centerX: 7; centerY: 7; radiusX: 4.6; radiusY: 4.6; startAngle: 0; sweepAngle: 360 }
+                                    PathMove { x: 10.5; y: 10.5 }
+                                    PathLine { x: 14.3; y: 14.3 }
+                                }
+                            }
                         }
                     }
 

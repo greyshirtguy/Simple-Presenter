@@ -66,6 +66,8 @@ Rectangle {
     property var showMenu: (items, item, x, y) => {}
     // Brings up the Media Inspector, as the operator window's inspectMedia()
     property var inspectMedia: (media, about, keeper, after) => {}
+    // Shows a file in the file manager, picked (Catalog.showInFolder)
+    property var showInFolder: (path) => {}
     // A timer link's Color Triggers kept as the default, and how one is kept (the
     // window's, in the app's own settings): for the inspector
     property var colorTriggerDefault: []
@@ -1333,6 +1335,7 @@ Rectangle {
         inspectMedia: () => screen.inspectFill()
         chooseTextMedia: () => screen.chooseMedia("textFill")
         inspectTextMedia: () => screen.inspectTextFill()
+        showInFolder: (path) => screen.showInFolder(path)
         setFormat: (format, interim) => canvas.setFormat(format, interim)
         settle: () => canvas.settle()
         colorTriggerDefault: screen.colorTriggerDefault

@@ -102,7 +102,8 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 // A slide as the QML side consumes it: size, background, label, plain text, and a list
 // of elements. Each element is a map of
 //   id, name, x, y, width, height, rotation, opacity, locked, hidden
-//   fillOn, fillKind ("color", "gradient", "media", "screen", "other" or "none"),
+//   fillOn, fillKind ("color", "gradient", "media", "screen", "input", "blur" or
+//     "invert" (of what is behind the box: its settings are in `boxFill`), "other" or "none"),
 //     fillColor, and fillEnabled (on, and a plain colour, which is the kind that is
 //     drawn)
 //   fillLinesOnly (the fill is only behind the lines of the text) and how: lineMaskStyle
@@ -213,7 +214,9 @@ QVariantMap elementMap(const rv::data::Slide::Element &element);
 // keys; these can be changed:
 //   x, y, width, height, opacity, name, locked, hidden
 //   fillOn, fillColor (which also makes the fill a plain colour), fillLinesOnly
-//   fillKind ("color", "gradient" or "screen"), fillGradientFrom, fillGradientTo,
+//   fillKind ("color", "gradient", "screen", "blur" or "invert"), fillBlurAmount (a
+//     blur's, which is every blur's on the slide, as ProPresenter shares it; and the one a
+//     blur starts with), fillBlurSaturation, fillGradientFrom, fillGradientTo,
 //     fillGradientAngle, fillMediaPath (which makes the fill that file, keeping what
 //     mediasettings::carryOver keeps), fillMediaScale, fillMediaSettings (changes in
 //     mediasettings::apply's terms, all left out if one is a value that cannot be),

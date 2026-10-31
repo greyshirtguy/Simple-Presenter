@@ -40,14 +40,18 @@ has them:
 - **Text Gradient**: its two colours, with the button between them that swaps them; its
   angle; and **Use object bounds for gradient**, for the gradient to run across the whole
   box and not across its letters.
-- **Media Fill**: the file (**Choose…** for another), **Inspector…** for the Media
-  Inspector on it (cropping, turning, effects and the rest, for the words' picture alone),
-  and its scale.
+- **Media Fill**: the file, with ProPresenter's gear beside it for another and its
+  magnifier to show it in the file manager; **Inspector…** for the Media Inspector on it
+  (cropping, turning, effects and the rest, for the words' picture alone); and its scale.
 - **Background Blur**: **Saturation** and **Blur**, with ProPresenter's own note under
   them: *Blur percentage is shared among all objects on a slide.* So it is: setting the
   blur of one sets it for every blur on the slide, of words and of shapes alike; each
   keeps its own saturation.
 - **Text Cut Out** and **Background Invert**: nothing more.
+
+A box's own blur or invert of what is behind it is set in the Shape tab, as ProPresenter
+has it: **Background Blur** and **Background Invert** in its Fill menu, a blur with the same
+**Saturation** and **Blur**, its amount shared with every other blur on the slide.
 
 A fill set over all of the words is written as ProPresenter writes it, as the text's own
 fill and as a range over the words; over some of them, as a range. A fill read from the
@@ -66,7 +70,8 @@ box.
 
 - That a blur grows in proportion to its amount, from the one measured, and that its
   saturation multiplies the colours' own.
-- The order of the Fill menu (the order ProPresenter's pictures of it were taken in); the
+- The order of the Fill menu (the order ProPresenter's pictures of it were taken in), and
+  where Background Blur and Background Invert are in the Shape tab's (at its end); the
   Saturation slider's range, 0 to 2, its middle the colours as they are (ProPresenter's
   picture had it in the middle for a blur with none set); and how a new fill starts: a
   gradient from the words' colour to that colour darker, upwards, as a shape's does here;
@@ -89,11 +94,7 @@ box.
 
 ## Not yet
 
-- A box's own fill of a blur or an invert is drawn and kept, but is not offered in the
-  Shape tab's Fill menu yet: how ProPresenter offers it has not been seen.
-- ProPresenter's angle has a dial beside its number, and its media fill a gear and a
-  magnifier beside the file's name, which are not here (what the two do has not been
-  seen).
+- ProPresenter's angle has a dial beside its number, which is not here.
 - A cut-out of a box filled with a gradient or a picture leaves its letters unfilled,
   showing the box's fill, and not holes in it.
 - Words with chords over them on the stage, or scrolling, have letters filled with a

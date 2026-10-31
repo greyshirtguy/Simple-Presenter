@@ -470,6 +470,8 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
         {"fillKind", fill.has_color() ? QStringLiteral("color") : fill.has_gradient() ? QStringLiteral("gradient")
                      : fill.has_media() && videoinputfile::isInput(fill.media()) ? QStringLiteral("input")
                      : fill.has_media() ? QStringLiteral("media")
+                     : fill.has_backgroundeffect() && fill.backgroundeffect().has_backgroundblur() ? QStringLiteral("blur")
+                     : fill.has_backgroundeffect() && fill.backgroundeffect().has_backgroundinvert() ? QStringLiteral("invert")
                      : fill.FillType_case() == rv::data::Graphics::Fill::FILLTYPE_NOT_SET ? QStringLiteral("none")
                      : QStringLiteral("other")},
         {"fillEnabled", fill.enable() && fill.has_color()},
@@ -1470,7 +1472,33 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
             setColor(fill->mutable_color(), fill->has_gradient() && fill->gradient().stops_size() > 0
                                                 ? toColor(fill->gradient().stops(0).color())
                                                 : QColor::fromRgbF(0.13f, 0.59f, 0.95f));
+        } else if (kind == QLatin1String("blur")
+                   && !(fill->has_backgroundeffect() && fill->backgroundeffect().has_backgroundblur())) {
+            // (At the amount it is given, which the editor makes that of a blur already on
+            // the slide, as ProPresenter shares it: see fillBlurAmount)
+            fill->mutable_backgroundeffect()->mutable_backgroundblur()->set_blur_amount(changes.value("fillBlurAmount", 0.5).toDouble());
+        } else if (kind == QLatin1String("invert")
+                   && !(fill->has_backgroundeffect() && fill->backgroundeffect().has_backgroundinvert())) {
+            fill->mutable_backgroundeffect()->mutable_backgroundinvert();
         }
+    }
+    // A blur of what is behind the box (TextFills): its amount, which is every blur's on
+    // the slide, of words and of shapes, as ProPresenter's note under its slider says
+    // (textfills::shareBlur); and its saturation, its own, left unsaid in the file at 1, the
+    // colours as they are, as ProPresenter leaves it
+    const auto blurOf = [element]() -> rv::data::Graphics::BackgroundEffect::BackgroundEffectBlur * {
+        rv::data::Graphics::Fill *fill = element->mutable_fill();
+        return fill->has_backgroundeffect() && fill->backgroundeffect().has_backgroundblur()
+                   ? fill->mutable_backgroundeffect()->mutable_backgroundblur() : nullptr;
+    };
+    if (changes.contains("fillBlurAmount") && blurOf()) {
+        blurOf()->set_blur_amount(std::max(0.0, number("fillBlurAmount")));
+        textfills::shareBlur(slide, std::max(0.0, number("fillBlurAmount")));
+    }
+    if (changes.contains("fillBlurSaturation") && blurOf()) {
+        auto *blur = blurOf();
+        if ((blur->saturation() > 0 ? blur->saturation() : 1.0) != number("fillBlurSaturation"))
+            blur->set_saturation(number("fillBlurSaturation"));
     }
     if (changes.contains("fillGradientFrom"))
         setColor(gradient()->mutable_stops(0)->mutable_color(), changes.value("fillGradientFrom").value<QColor>());

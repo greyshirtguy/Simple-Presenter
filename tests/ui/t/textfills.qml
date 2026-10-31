@@ -305,6 +305,9 @@ QtObject {
                       JSON.stringify(fills) + " yellow " + fixed(yellow))
                 check("and the menu says Media Fill, with the file's name and the Media Inspector", named("textFillKind").choice === 3
                       && shown("Fills Picture.png") && named("textFillInspector").enabled)
+                check("and ProPresenter's gear, for another file, and its magnifier, to show this one in the file manager",
+                      named("textFillChoose") !== null && named("textFillChoose").visible && named("textFillShow") !== null
+                      && named("textFillShow").visible && named("textFillShow").available)
                 testInput.grab("editor-text-media")
                 named("textFillScale").chosen(2)
                 return 800
@@ -379,6 +382,59 @@ QtObject {
                 const box = editScreen.canvas.elements.find(e => e.name === "Blurred Box")
                 check("the words' blur set to 0.8, the box's on the same slide is 0.8 too", box !== undefined && box.boxFill !== undefined
                       && Math.abs(box.boxFill.amount - 0.8) < 0.001, box ? JSON.stringify(box.boxFill) : "no box")
+                stopEditing()
+                return 800
+            },
+            // A box's own blur and invert, in the Shape tab, with the Text tab's controls
+            () => {
+                openEntry(entry("Text Fills"))
+                return 1200
+            },
+            () => {
+                startEditing(currentEntry(), document.slides[5].id)
+                return 1800
+            },
+            () => {
+                editScreen.canvas.pick(editScreen.canvas.elements[0].id)
+                editScreen.inspector.tab = "shape"
+                return 600
+            },
+            () => {
+                const menu = named("fillKind")
+                check("the Shape tab's fill menu says the box's fill, Background Blur, with its saturation, its blur and ProPresenter's note",
+                      menu.choice === 5 && Array.from(menu.model).includes("Background Invert") && named("boxBlurSaturation") !== null
+                      && named("boxBlurAmount").visible && shown("Blur percentage is shared among all objects on a slide."),
+                      Array.from(menu.model).join(", ") + " / " + menu.choice)
+                const slider = named("boxBlurAmount")
+                slider.value = 0.8
+                slider.moved()
+                return 400
+            },
+            () => {
+                editScreen.canvas.settle()
+                return 800
+            },
+            () => {
+                const box = editScreen.canvas.elements[0].boxFill
+                check("the Blur slider sets the box's blur", box !== undefined && box.kind === "blur" && Math.abs(box.amount - 0.8) < 0.001,
+                      JSON.stringify(box))
+                testInput.grab("editor-shape-blur")
+                named("fillKind").chosen(6)
+                return 1000
+            },
+            () => {
+                const element = editScreen.canvas.elements[0]
+                const cyan = pageShare(0.2, 0.3, 0.2, 0.1, "#00ffff", 60)
+                check("Background Invert chosen: the box is what is behind it inverted, the red cyan", element.fillKind === "invert"
+                      && element.boxFill !== undefined && element.boxFill.kind === "invert" && cyan > 0.5,
+                      element.fillKind + " " + JSON.stringify(element.boxFill) + " cyan " + fixed(cyan))
+                testInput.grab("editor-shape-invert")
+                named("fillKind").chosen(0)
+                return 1000
+            },
+            () => {
+                const element = editScreen.canvas.elements[0]
+                check("and Colour: a colour again", element.fillKind === "color" && element.boxFill === undefined, element.fillKind)
                 stopEditing()
                 return 800
             },

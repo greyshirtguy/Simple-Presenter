@@ -5942,6 +5942,7 @@ Window {
         backdropFor: (slideId) => win.slideBackdrop(slideId)
         showMenu: (items, item, x, y) => menu.show(items, item, x, y)
         inspectMedia: (media, about, keeper, after) => win.inspectMedia(media, about, keeper, after)
+        showInFolder: (path) => win.catalog.showInFolder(path)
         colorTriggerDefault: win.colorTriggerDefault
         onColorTriggerDefaultKept: (list) => win.colorTriggerDefault = list
         mediaFilter: win.catalog.mediaDialogFilter
