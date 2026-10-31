@@ -128,20 +128,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.120: A box's blur and invert, set in the editor.** The Shape tab's Fill menu has ProPresenter's Background Blur and Background Invert, with the Text tab's controls, a blur's amount shared by every blur on its slide; and a media fill of words has ProPresenter's gear, for another file, and magnifier, to show it in the file manager. See [Text fills](docs/features/text-fills.md#setting-them).
 - **0.119: Text fills.** Letters ProPresenter fills with a gradient, a picture, a blur or an invert of what is behind them, or cuts out of their box, and boxes filled with a blur or an invert, drawn as ProPresenter draws them, on the screens, the previews and in the editor, and set in the editor's Text tab with ProPresenter's own controls. See [Text fills](docs/features/text-fills.md).
 - **0.118: Export to PowerPoint.** A right click on a presentation writes it as a PowerPoint file, slide for slide as it is shown, with its words as text that can be edited, its media behind them, notes and sections: the maintainer's ProToPPTX for the Mac, brought in, with words ProPresenter fills with a blur, an invert or a cut-out filled with a picture of what is behind them. See [Export to PowerPoint](docs/features/export-powerpoint.md).
 - **0.117: Two outputs as one wide screen.** An audience screen can be two outputs side by side drawn as one picture, as ProPresenter's Combined arrangement is: two 1920x1080 outputs as one 3840x1080 screen, each going wherever a screen can, and two outputs of a card drawn and handed over together. See [Screens](docs/features/screens.md#combined-screens).
 - **0.116: Fonts drawn as their files name them.** A family's Light, Medium, Black or Condensed face is drawn as itself, not as its Regular or Bold, and a family installed from two makers, which Qt shows as `CMG Sans [ULA]`, is called by its own name, no longer marked missing, and written into the file as ProPresenter names it. See [Editing](docs/features/editing.md).
-- **0.115: ProPresenter's Text button, and slides selected.** The font, size, colour, capitals, alignment, outline and shadow of the words of every slide at once, or of the slides selected with Ctrl and Shift, the size's arrows stepping each one's own size so that large words and small keep apart ([Text](docs/features/text-format.md)); Apply This Text Style to All in a slide's menu; and the live slide drawn again on the screens when a theme or a text style is put on it.
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.119_amd64.deb` from the
+`simplepresenter_0.120_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.119_amd64.deb
+sudo apt install ./simplepresenter_0.120_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

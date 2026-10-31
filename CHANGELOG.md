@@ -6,6 +6,17 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.120](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.120) · 2026-10-31
+
+- A box filled with a blur or an invert of what is behind it is set in the editor's Shape
+  tab, as ProPresenter has it: Background Blur and Background Invert in its Fill menu, a
+  blur with the Text tab's Saturation and Blur, its amount shared by every blur on the
+  slide. See [Text fills](docs/features/text-fills.md#setting-them).
+- A media fill of words has ProPresenter's gear beside the file's name, for another file,
+  and its magnifier, which shows the file in the file manager.
+- An empty space no longer stays under a fill's menu after a blur is changed for another
+  fill.
+
 ## [0.119](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.119) · 2026-10-30
 
 - Text fills: letters ProPresenter fills with a gradient, a picture, a blur or an invert

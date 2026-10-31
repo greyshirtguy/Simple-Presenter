@@ -39,6 +39,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.120" date="2026-10-31">
+      <description>
+        <p>
+          A box filled with a blur or an invert of what is behind it set in the editor's
+          Shape tab, with the Text tab's controls; and a media fill of words with
+          ProPresenter's gear, for another file, and magnifier, to show it in the file
+          manager.
+        </p>
+      </description>
+    </release>
     <release version="0.119" date="2026-10-30">
       <description>
         <p>
