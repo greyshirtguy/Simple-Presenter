@@ -117,8 +117,9 @@ ProPresenter had them. The list will grow.
 
 <a id="built-for-modest-hardware"></a>**It is made for an old laptop.** Everything here is measured on a 2017 laptop with
 integrated graphics. On it, the app starts in about a second, costs next to nothing while
-a slide is up, and plays a 4K video under the words with most of the machine to spare:
-see [Built for modest hardware](docs/how-it-is-made.md#built-for-modest-hardware).
+a slide is up, and plays a 4K video under the words with most of the machine to spare,
+the video kept moving as the slides change over it: see
+[Built for modest hardware](docs/how-it-is-made.md#built-for-modest-hardware).
 
 <a id="todo"></a>**What it cannot do yet** is a longer list. ProPresenter does a great deal more than this:
 there are no timelines here yet and no capture, nor video in from a DeckLink card or over NDI, among much else. See
@@ -128,20 +129,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.121: A video kept moving as slides change over it.** A slide's words, and their shadow, are painted before it is shown, the slides likely next ahead of being asked for, and a change over a playing video is made with the video's next frame: on the 2017 laptop a cut now holds a frame of the video on the screen about one time in ten, and a dissolve one in six, where most did. See [Built for modest hardware](docs/how-it-is-made.md#built-for-modest-hardware).
 - **0.120: A box's blur and invert, set in the editor.** The Shape tab's Fill menu has ProPresenter's Background Blur and Background Invert, with the Text tab's controls, a blur's amount shared by every blur on its slide; and a media fill of words has ProPresenter's gear, for another file, and magnifier, to show it in the file manager. See [Text fills](docs/features/text-fills.md#setting-them).
 - **0.119: Text fills.** Letters ProPresenter fills with a gradient, a picture, a blur or an invert of what is behind them, or cuts out of their box, and boxes filled with a blur or an invert, drawn as ProPresenter draws them, on the screens, the previews and in the editor, and set in the editor's Text tab with ProPresenter's own controls. See [Text fills](docs/features/text-fills.md).
 - **0.118: Export to PowerPoint.** A right click on a presentation writes it as a PowerPoint file, slide for slide as it is shown, with its words as text that can be edited, its media behind them, notes and sections: the maintainer's ProToPPTX for the Mac, brought in, with words ProPresenter fills with a blur, an invert or a cut-out filled with a picture of what is behind them. See [Export to PowerPoint](docs/features/export-powerpoint.md).
 - **0.117: Two outputs as one wide screen.** An audience screen can be two outputs side by side drawn as one picture, as ProPresenter's Combined arrangement is: two 1920x1080 outputs as one 3840x1080 screen, each going wherever a screen can, and two outputs of a card drawn and handed over together. See [Screens](docs/features/screens.md#combined-screens).
-- **0.116: Fonts drawn as their files name them.** A family's Light, Medium, Black or Condensed face is drawn as itself, not as its Regular or Bold, and a family installed from two makers, which Qt shows as `CMG Sans [ULA]`, is called by its own name, no longer marked missing, and written into the file as ProPresenter names it. See [Editing](docs/features/editing.md).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.120_amd64.deb` from the
+`simplepresenter_0.121_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.120_amd64.deb
+sudo apt install ./simplepresenter_0.121_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

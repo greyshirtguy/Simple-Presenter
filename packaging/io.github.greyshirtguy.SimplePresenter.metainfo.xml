@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.121" date="2026-11-01">
+      <description>
+        <p>
+          A video playing on an audience screen kept moving as slides change over it: a
+          slide's words painted before it is shown, the slides likely next painted ahead of
+          being asked for, and a change over the video made with its next frame.
+        </p>
+      </description>
+    </release>
     <release version="0.120" date="2026-10-31">
       <description>
         <p>

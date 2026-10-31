@@ -6,6 +6,20 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.121](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.121) · 2026-11-01
+
+- A video playing on an audience screen is kept moving as slides change over it. A slide's
+  words, and their shadow, are painted before it is shown, on threads of their own; the
+  next slide, the one before and the first slide of each group are painted after each
+  change, ahead of being asked for; and a change over a playing video is made with the
+  video's next frame. On the 2017 laptop a cut held a frame of the video too long about one
+  time in ten, and a dissolve one in six, where most did. See
+  [Built for modest hardware](docs/how-it-is-made.md#built-for-modest-hardware).
+- The stage and the operator's pictures of the screens paint their slides' words the same
+  way, and are not waited for; the stage's plain view takes a slide's words a sixteenth of
+  a second after it.
+- Two clicks in quick succession over a playing video show the second slide only.
+
 ## [0.120](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.120) · 2026-10-31
 
 - A box filled with a blur or an invert of what is behind it is set in the editor's Shape
