@@ -1297,6 +1297,19 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
         // things to say of it). It is played from no playlist, so nothing follows it.
         effects << note("action", title);
         startAudio(action.value("audio").toMap(), QString(), effects);
+    } else if (kind == QLatin1String("media")) {
+        // A picture or a video, as a row of the media bin is (a macro's: see
+        // actions.h), put on the media layer as a click on the row puts it: left to
+        // play on if it is playing already, unless it is set to retrigger. It is shown
+        // from no playlist, so nothing follows it, and its playback markers are its
+        // own to go by but not kept anywhere they could be changed from the transport.
+        const QVariantMap media = action.value("media").toMap();
+        if (media.value("missing").toBool() || media.value("path").toString().isEmpty()) {
+            effects << problem(QStringLiteral("The media %1 is not on this computer, and was not shown").arg(quoted(media.value("name").toString())));
+            return;
+        }
+        effects << note("action", title);
+        effects << showMedia(media, QString());
     } else if (kind == QLatin1String("clearGroup")) {
         const QVariantMap group = findClearGroup(action.value("groupId").toString(), action.value("groupName").toString(), workspace);
         effects << note("action", title + (group.isEmpty() ? QStringLiteral(": there is no such clear group here") : QString()));

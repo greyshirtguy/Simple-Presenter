@@ -150,6 +150,9 @@ struct PlaylistFile
     // "" for nothing, "next", "random", "first", or "cue" with `targetId` the row to go
     // to. Anything to follow makes the row's video stop at its end.
     static QString setMediaNext(const QString &root, const QString &itemId, const QString &next, const QString &targetId = {});
+    // A copy of the media action of a row, as the file has it, for a macro that is to
+    // play the same thing: as audioAction does for a row of the audio bin.
+    static QString mediaAction(const QString &root, const QString &itemId, rv::data::Action *action);
     // What the Media Inspector sets of a row's media, as mediasettings::apply takes
     // changes (of the media bin's rows, or the audio bin's, whose sound alone it sets);
     // and the row's media replaced by another file, keeping what

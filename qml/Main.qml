@@ -1897,7 +1897,9 @@ Window {
 
     // What is being dragged, as an action, by the item that is (a drag's or a drop's
     // `source`): the payload of a drag out of the show controls, or a playlist of either
-    // bin, or a message, being dragged out of its list ({ kind, id, name }); null for
+    // bin, or a message, being dragged out of its list ({ kind, id, name }), or a picture
+    // or a video out of the media bin ({ kind "media", id, name, video }), which only a
+    // macro takes as an action (a slide takes it as its media: see SlideGrid); null for
     // anything else. A folder of playlists is no playlist. (By the item and not by which
     // drag is active: a drag is no longer active by the time its drop arrives.)
     function draggedAction(source) {
@@ -1905,6 +1907,8 @@ Window {
             return null
         if (source === actionDrag)
             return actionDrag.payload
+        if (source === mediaDrag)
+            return mediaDrag.media ? { kind: "media", id: mediaDrag.media.id, name: mediaDrag.media.name, video: mediaDrag.media.video } : null
         const kind = source === mediaPlaylistDrag ? "mediaPlaylist" : source === audioPlaylistDrag ? "audioPlaylist"
                    : source === messageDrag ? "message" : ""
         return kind !== "" && source.entry && !source.entry.folder ? { kind: kind, id: source.entry.path, name: source.entry.name } : null
@@ -1913,6 +1917,8 @@ Window {
     // The keys of the drags that stand for actions, for whatever takes them; and the
     // drag the messages' list moves (see MessagesPanel)
     readonly property var actionDragKeys: ["action", "mediaPlaylist", "audioPlaylist", "message"]
+    // and those a macro takes: those, and media out of the media bin
+    readonly property var macroDragKeys: actionDragKeys.concat(["media"])
     readonly property Item messageDragProxy: messageDrag
 
     // What was being dragged has been dropped on a slide, or on a macro (`target` is
@@ -1920,15 +1926,18 @@ Window {
     // own, which is the show controls' drag if it is not said). A timer and a stage
     // screen bring up the panel that says what is to be done to them; a prop asks
     // whether it is to be put on or taken off; a message whose tokens are given words
-    // brings up the panel for them; a macro, a playlist, a message with no such tokens
-    // and one of the clear buttons (a layer's or a group's) need nothing more.
+    // brings up the panel for them; a macro, a playlist, a message with no such tokens,
+    // one of the clear buttons (a layer's or a group's) and, on a macro, a picture or a
+    // video out of the media bin need nothing more.
     function dropAction(target, item, source) {
         const dropped = draggedAction(source ?? actionDrag)
-        if (!dropped || (target.slide !== undefined && !document) || (dropped.kind === "macro" && dropped.id === target.macro))
+        if (!dropped || (target.slide !== undefined && !document) || (dropped.kind === "macro" && dropped.id === target.macro)
+                || (dropped.kind === "media" && target.macro === undefined))
             return
         Log.note("drop", "a " + (dropped.kind === "stage" ? "stage screen" : dropped.kind === "clear" ? "clear button"
                                  : dropped.kind === "clearGroup" ? "clear group's button" : dropped.kind === "mediaPlaylist" ? "media playlist"
                                  : dropped.kind === "audioPlaylist" ? "audio playlist" : dropped.kind === "videoInput" ? "video input"
+                                 : dropped.kind === "media" ? (dropped.video ? "video" : "picture")
                                  : dropped.kind) + " dropped on "
                  + (target.macro !== undefined ? "a macro" : "slide " + (target.slide + 1) + " of " + quoted(document.name)))
         if (dropped.kind === "timer")
@@ -1945,6 +1954,8 @@ Window {
             commitAction(target, clearGroupAction(dropped.id, dropped.groupName), "")
         else if (dropped.kind === "audio")
             commitAction(target, { kind: "audio", item: dropped.id }, "")
+        else if (dropped.kind === "media")
+            commitAction(target, { kind: "media", item: dropped.id }, "")
         else if (dropped.kind === "mediaPlaylist" || dropped.kind === "audioPlaylist")
             commitAction(target, playlistAction(dropped.kind, { path: dropped.id, name: dropped.name }), "")
         else if (dropped.kind === "videoInput")
@@ -1965,18 +1976,33 @@ Window {
         return audioDragged
     }
 
-    // A piece of audio dropped on the bare list of the macros, on no macro: it is given
-    // a macro of its own, called what the piece is called, whose one action plays it.
-    function dropAudioAsMacro() {
-        const dropped = draggedAudio()
-        if (!dropped)
+    // The picture or the video that is being dragged out of the media bin, as a row of
+    // the bin is, or null
+    readonly property var mediaDragged: mediaDrag.Drag.active && mediaDrag.media ? mediaDrag.media : null
+
+    // Whether what is being dragged (by `source`, a drag's or a drop's) is what can be
+    // given a macro of its own: a piece of audio, or a picture or a video of the media
+    // bin.
+    function makesAMacro(source) {
+        return draggedAudio() !== null || (source === mediaDrag && mediaDrag.media !== null)
+    }
+
+    // A piece of audio, or a picture or a video of the media bin, dropped on the bare
+    // list of the macros, on no macro: it is given a macro of its own, called what it
+    // is called (a file of the media bin without its ending), whose one action plays
+    // it. (A GUESS that ProPresenter does so; it is what was asked for audio.)
+    function dropAsMacro(source) {
+        const audio = draggedAudio()
+        const media = audio === null && source === mediaDrag ? mediaDrag.media : null
+        if (!audio && !media)
             return
-        Log.note("drop", "a piece of audio dropped on the macros, on none of them: a macro is made for it")
+        Log.note("drop", "a " + (audio ? "piece of audio" : media.video ? "video" : "picture")
+                 + " dropped on the macros, on none of them: a macro is made for it")
         const made = Macros.add("")
         if (!report(made.error))
             return
-        report(Macros.rename(made.id, dropped.name))
-        commitAction({ macro: made.id }, { kind: "audio", item: dropped.id }, "")
+        report(Macros.rename(made.id, audio ? audio.name : media.name.replace(/\.[^.]*$/, "")))
+        commitAction({ macro: made.id }, audio ? { kind: "audio", item: audio.id } : { kind: "media", item: media.id }, "")
     }
 
     function dropActionOnSlide(index, item, source) {

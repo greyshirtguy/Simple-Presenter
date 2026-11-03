@@ -2,7 +2,9 @@
 
 #include "audiocue.h"
 #include "communications.h"
+#include "mediasettings.h"
 #include "messagefile.h"
+#include "playbackmarkers.h"
 #include "playlistactions.h"
 #include "videoinputfile.h"
 #include "playlistfile.h"
@@ -334,6 +336,37 @@ QVariantMap describe(const rv::data::Action &action)
         // A playlist of the media bin or of the audio bin, to be played from its start
         // (see playlistactions.h)
         map.insert(playlistactions::describe(action));
+    } else if (action.has_media() && (action.media().element().has_video() || action.media().element().has_image())) {
+        // A picture or a video, to be put on the media layer: what a row of the media
+        // bin is, by itself, as a macro has one (a slide's own media is not one of its
+        // listed actions: see listed()). `media` is what a row of the bin is to whatever
+        // shows it (see PlaylistFile), so that it is played as the row would be; its id
+        // is the action's. It is called what the action is called, or failing that what
+        // its file is, as a piece of audio is.
+        const rv::data::Media &element = action.media().element();
+        const QString file = workspace::findMediaFile(element.url());
+        const QString fileName = file.isEmpty() ? QFileInfo(QUrl(text(element.url().absolute_string())).path()).fileName()
+                                                : QFileInfo(file).fileName();
+        QVariantMap media {
+            {"id", text(action.uuid().string())},
+            {"name", fileName},
+            {"path", file},
+            {"source", file.isEmpty() ? QUrl() : QUrl::fromLocalFile(file)},
+            {"video", element.has_video()},
+            {"missing", file.isEmpty()},
+        };
+        if (mediasettings::isSet(element))
+            media.insert("settings", mediasettings::describe(element));
+        workspace::mediaBehaviour(action).describe(&media);
+        const QVariantList markers = playbackmarkers::describe(action, describe);
+        if (!markers.isEmpty())
+            media.insert("markers", markers);
+        QString name = text(action.name());
+        if (name.isEmpty())
+            name = QFileInfo(fileName).completeBaseName();
+        map.insert("kind", QStringLiteral("media"));
+        map.insert("media", media);
+        map.insert("title", QStringLiteral("Show the %1 %2").arg(element.has_video() ? QStringLiteral("video") : QStringLiteral("picture"), quoted(name)));
     } else {
         const QString about = subject(action);
         map.insert("kind", QStringLiteral("other"));
@@ -417,6 +450,17 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
             return QStringLiteral("That is not a way audio can be played");
         if (wanted.contains("effect"))
             audiocue::setEffect(action, wanted.value("effect").toBool());
+    } else if (kind == QLatin1String("media")) {
+        // A new one is a copy of the media action of a row of the media bin, `item`, as
+        // audio's is of a row of the audio bin (above). One that is there is left as it
+        // is: there is nothing of it to change here yet.
+        if (!(action->has_media() && (action->media().element().has_video() || action->media().element().has_image()))) {
+            const std::string id = action->uuid().string();
+            const QString error = PlaylistFile::mediaAction(workspace::openWorkspace(), wanted.value("item").toString(), action);
+            if (!error.isEmpty())
+                return error;
+            action->mutable_uuid()->set_string(id);
+        }
     } else if (kind == QLatin1String("communication")) {
         return communications::build(wanted, action);
     } else if (kind == QLatin1String("mediaPlaylist") || kind == QLatin1String("audioPlaylist")) {

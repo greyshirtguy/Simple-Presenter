@@ -17,11 +17,12 @@ import QtQuick
 // own. It is the last here, being the last that was made.) Under them,
 // at the right, is the button that adds to what the tab holds.
 //
-// A piece of audio dragged out of the audio bin and held over a tab brings that tab
-// forward after a moment, so that it can be dropped on what the tab holds: on a macro.
-// (Only a piece of audio. What is dragged is carried by the row it was dragged from,
-// and a row that is put out of sight lets go of it: the audio bin is kept, unseen,
-// while one of its pieces is on its way, which the other tabs are not.)
+// A piece of audio dragged out of the audio bin, or a picture or a video out of the
+// media bin, held over a tab brings that tab forward after a moment, so that it can be
+// dropped on what the tab holds: on a macro. (Only those. What is dragged out of a tab
+// is carried by the row it was dragged from, and a row that is put out of sight lets
+// go of it: the audio bin is kept, unseen, while one of its pieces is on its way, which
+// the other tabs are not. The media bin is not one of these tabs.)
 Item {
     id: control
 
@@ -81,15 +82,16 @@ Item {
                     size: 25
                 }
 
-                // A piece of audio dragged out of the audio bin, held over the tab,
-                // brings the tab forward. (Let go here, it is dropped on nothing: the
-                // drag is meant to go on to what the tab holds.)
+                // A piece of audio dragged out of the audio bin, or media out of the
+                // media bin, held over the tab, brings the tab forward. (Let go here, it
+                // is dropped on nothing: the drag is meant to go on to what the tab
+                // holds.)
                 DropArea {
                     id: over
 
                     anchors.fill: parent
-                    keys: ["action"]
-                    enabled: control.win.audioDragged !== null
+                    keys: ["action", "media"]
+                    enabled: control.win.audioDragged !== null || control.win.mediaDragged !== null
                 }
 
                 Timer {

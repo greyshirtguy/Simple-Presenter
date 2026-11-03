@@ -2063,6 +2063,87 @@ def after_transports(workspace, test_dir):
     ]
 
 
+def prepare_macromedia(workspace, test_dir):
+    """The test's own media bin (MEDIA_BIN): in Walk In, a red video of three seconds that goes round, as ProPresenter
+    21.4 writes a video's row (VIDEO_ROW), made with ffmpeg in the test's folder, and a green picture; and a presentation
+    "Macro Media" of two blocks. The bin and the macros as given are kept (macromedia-media-before,
+    macromedia-macros-before). Nothing is written outside the test's folder, and nothing under the copy's Media."""
+    configuration = os.path.join(workspace, "Configuration")
+    library = os.path.join(workspace, "Libraries", "MainHall")
+    playlists = os.path.join(workspace, "Playlists")
+    for target in (configuration, library, playlists):
+        if not os.path.realpath(target).startswith(os.path.realpath(test_dir) + os.sep):
+            raise RuntimeError("the macro media test would write outside its own folder: " + os.path.realpath(target))
+    media = os.path.join(test_dir, "media")
+    os.makedirs(media)
+    make_video(os.path.join(media, "Red.mp4"), 3, "red", test_dir)
+    with open(os.path.join(media, "Green.png"), "wb") as out:
+        out.write(quarters_png(320, 180, [(0, 255, 0)] * 4))
+    walkin = (VIDEO_ROW % {"id": "0F0F0F0F-0000-0000-0000-000000000001", "name": "Red", "file": "Red.mp4", "seconds": 3,
+                           "address": "file://" + urllib.parse.quote(os.path.join(media, "Red.mp4")),
+                           "loop": "playback_behavior: PLAYBACK_BEHAVIOR_LOOP"}
+              + media_row(2, "Green", "Green.png", media))
+    with open(os.path.join(playlists, "Media"), "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (MEDIA_BIN % {"walkin": walkin, "backgrounds": ""}).encode()))
+    shutil.copy(os.path.join(playlists, "Media"), os.path.join(test_dir, "macromedia-media-before"))
+    shutil.copy(os.path.join(configuration, "Macros"), os.path.join(test_dir, "macromedia-macros-before"))
+    text = blocks_presentation("Macro Media", [(1, 1, 1), (0, 0, 1)], 100, 100)
+    with open(os.path.join(library, "Macro Media.pro"), "wb") as out:
+        out.write(protoc("encode", "rv.data.Presentation", "presentation.proto", text.encode()))
+
+
+def after_macromedia(workspace, test_dir):
+    """The macros' file once the test has dragged the video and the picture onto the macros, read with protoc and not by
+    the app: one macro more, Red, and every other to the letter as it was; its two actions each its row's own action as
+    the media bin's file has it, line for line, but for an id of its own and the row's name, which it is given; and the
+    media bin's file as it was, to the byte."""
+    def decoded(path, message, proto):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def macros(text):
+        return {re.search(r'^  name: "([^"]*)"', block, re.M).group(1): block for block in re.findall(r"^macros \{\n.*?^\}\n", text, re.S | re.M)}
+
+    def row_action(text, name):
+        """The media action of the row of the bin called `name`, as lines without their indent."""
+        for item in re.finditer(r"^( +)items \{\n\1  uuid \{\n.*?^\1\}\n", text, re.S | re.M):
+            if re.search(r'^ +name: "%s"$' % re.escape(name), item.group(0), re.M):
+                action = re.search(r"^( +)actions \{\n.*?^\1\}\n", item.group(0), re.S | re.M)
+                return [line.strip() for line in action.group(0).splitlines()] if action else []
+        return []
+
+    def own_id(lines):
+        """An action's own id, the first thing in it"""
+        return lines[2] if len(lines) > 3 and lines[1] == "uuid {" else ""
+
+    bin_was = decoded(os.path.join(test_dir, "macromedia-media-before"), "rv.data.PlaylistDocument", "propresenter.proto")
+    with open(os.path.join(test_dir, "macromedia-media-before"), "rb") as was, open(os.path.join(workspace, "Playlists", "Media"), "rb") as now:
+        bin_same = was.read() == now.read()
+    macros_was = macros(decoded(os.path.join(test_dir, "macromedia-macros-before"), "rv.data.MacrosDocument", "macros.proto"))
+    macros_now = macros(decoded(os.path.join(workspace, "Configuration", "Macros"), "rv.data.MacrosDocument", "macros.proto"))
+    made = macros_now.get("Red", "")
+    actions = [[line.strip() for line in block.splitlines()] for block in re.findall(r"^  actions \{\n.*?^  \}\n", made, re.S | re.M)]
+    red, green = row_action(bin_was, "Red"), row_action(bin_was, "Green")
+    # (An action's own id is its first four lines; the name the row gives it comes straight after.)
+    copies = [(action, row) for action, row in zip(actions, (red, green))]
+    return [
+        said(set(macros_now) == set(macros_was) | {"Red"} and all(macros_now[name] == macros_was[name] for name in macros_was),
+             "in the macros' file: one macro more, and the others to the letter as they were", ", ".join(sorted(set(macros_now) ^ set(macros_was)))),
+        said(len(actions) == 2 and len(red) > 30 and len(green) > 15
+             and all(action[:1] + action[5:] == row[:1] + row[4:] for action, row in copies),
+             "in the macros' file: its two actions are the video's and the picture's rows' own, line for line, as ProPresenter wrote them",
+             "; ".join("%d lines, its row's %d" % (len(action), len(row)) for action, row in copies)),
+        said(len(actions) == 2 and [action[4] for action in actions] == ['name: "Red"', 'name: "Green"'],
+             "in the macros' file: each called what its row is called", ", ".join(action[4] if len(action) > 4 else "-" for action in actions)),
+        said(len(actions) == 2 and all(own_id(action) != own_id(row) and re.fullmatch(r'string: "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}"', own_id(action))
+                                       for action, row in copies),
+             "in the macros' file: each with an id of its own, in the form ProPresenter uses", ", ".join(own_id(action) for action in actions)),
+        said("completion_target" not in made and "playback_behavior: PLAYBACK_BEHAVIOR_LOOP" in "\n".join(actions[0] if actions else []),
+             "in the macros' file: the video goes round as its row's does, and nothing of what follows a row is there"),
+        said(bin_same, "the media bin's file is as it was given, to the byte"),
+    ]
+
+
 def prepare_disabledates(workspace, test_dir):
     """The disable dates' test (disabledates): "Holy Holy Holy" as it was given (disabledates-before.pro), and a file of
     dates in the workspace with one for its third slide long past, a key of the file's and one of the date's that this
@@ -3553,6 +3634,7 @@ TESTS = {
     "themebuilds": test("Act", timeout=240),
     "devices": test("Act", timeout=300, env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_devices, after=after_devices),
     "playacts": test("Act", timeout=300, prepare=prepare_playacts, after=after_playacts),
+    "macromedia": test("Act", timeout=240, prepare=prepare_macromedia, after=after_macromedia),
     "transports": test("Act", timeout=300, prepare=prepare_transports, after=after_transports),
     "markers": test("Act", timeout=360, prepare=prepare_markers, after=after_markers),
     "copyright": test("Act", timeout=300, prepare=prepare_copyright, after=after_copyright),

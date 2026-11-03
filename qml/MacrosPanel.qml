@@ -176,15 +176,16 @@ Item {
         text: "No macros. Add one with the + above."
     }
 
-    // A piece of audio dropped on the bare list is given a macro of its own. (This
-    // is under the list, so a macro that is there has the drag first.)
+    // A piece of audio, or a picture or a video of the media bin, dropped on the bare
+    // list is given a macro of its own. (This is under the list, so a macro that is
+    // there has the drag first.)
     DropArea {
         id: bareDrop
 
         anchors.fill: parent
-        keys: ["action"]
-        onEntered: (drag) => drag.accepted = panel.win.draggedAudio() !== null
-        onDropped: panel.win.dropAudioAsMacro()
+        keys: ["action", "media"]
+        onEntered: (drag) => drag.accepted = panel.win.makesAMacro(drag.source)
+        onDropped: (drop) => panel.win.dropAsMacro(drop.source)
     }
 
     Rectangle {
@@ -196,8 +197,8 @@ Item {
         border.color: "#c0ffffff"
     }
 
-    // The strip that takes a piece of audio for a macro of its own: there only while
-    // one is being dragged.
+    // The strip that takes a piece of audio, or a picture or a video of the media bin,
+    // for a macro of its own: there only while one is being dragged.
     Rectangle {
         id: newStrip
 
@@ -207,7 +208,7 @@ Item {
         anchors.bottom: parent.bottom
         height: 30
         z: 1
-        visible: panel.win.audioDragged !== null
+        visible: panel.win.audioDragged !== null || panel.win.mediaDragged !== null
         radius: 6
         color: stripDrop.containsDrag ? "#3a3c42" : "#232427"
         border.width: stripDrop.containsDrag ? 2 : 1
@@ -224,9 +225,9 @@ Item {
             id: stripDrop
 
             anchors.fill: parent
-            keys: ["action"]
-            onEntered: (drag) => drag.accepted = panel.win.draggedAudio() !== null
-            onDropped: panel.win.dropAudioAsMacro()
+            keys: ["action", "media"]
+            onEntered: (drag) => drag.accepted = panel.win.makesAMacro(drag.source)
+            onDropped: (drop) => panel.win.dropAsMacro(drop.source)
         }
     }
 
@@ -301,12 +302,13 @@ Item {
 
             // Something that stands for an action, dropped on a macro, gives the macro
             // that action: one of the clear buttons, say, or a playlist or a message
-            // dragged out of its list. (Not the macro itself, nor a folder of playlists.)
+            // dragged out of its list, or a picture or a video out of the media bin.
+            // (Not the macro itself, nor a folder of playlists.)
             DropArea {
                 id: dropArea
 
                 anchors.fill: parent
-                keys: panel.win.actionDragKeys
+                keys: panel.win.macroDragKeys
                 enabled: !row.heading
                 onEntered: (drag) => {
                     const dragged = panel.win.draggedAction(drag.source)

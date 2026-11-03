@@ -1087,6 +1087,28 @@ QString PlaylistFile::setAudioEffect(const QString &root, const QString &itemId,
     });
 }
 
+// (The row's cue is not copied, only its media action: so what the row's Next Cue says
+// follows it is not, a macro having no playlist for anything to follow in. What its
+// Media Inspector set, how it plays on from its end, whether it is a foreground or a
+// background, and its playback markers are the action's, and go with it.)
+QString PlaylistFile::mediaAction(const QString &root, const QString &itemId, rv::data::Action *action)
+{
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, Media, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    const rv::data::Action *found = item && item->has_cue() ? mediaActionOf(item) : nullptr;
+    if (!found)
+        return QStringLiteral("That media is no longer in its playlist");
+    *action = *found;
+    action->mutable_uuid()->set_string(newUuid());
+    // (As a piece of audio does, below: the row's name goes with it. A GUESS, as there.)
+    if (action->name().empty())
+        action->set_name(item->name());
+    return {};
+}
+
 QString PlaylistFile::audioAction(const QString &root, const QString &itemId, rv::data::Action *action)
 {
     rv::data::PlaylistDocument document;

@@ -15,16 +15,18 @@
 //
 // What is done with them here. Some kinds are understood, which is to say shown, made,
 // changed and run: those to do with timers, clearing (a layer, or a clear group), the
-// stage, props, looks and macros, those that play a piece of audio or a playlist of the
-// media bin or of the audio bin (playlistactions.h), those that show a message, and
-// those that tell a communication device something (communications.h).
+// stage, props, looks and macros, those that play a piece of audio, a picture or a video
+// of the media bin (in a macro), or a playlist of the media bin or of the audio bin
+// (playlistactions.h), those that show a message, and those that tell a communication
+// device something (communications.h).
 // Every other kind is shown for what it is and left alone. This is the one place that
 // turns an action into the plain map QML works with, and such a map back into an
 // action, for a slide's cue and for a macro alike.
 //
 // The map has, for every action:
 //   id, kind ("timer", "clear", "clearGroup", "stage", "prop", "look", "macro",
-//   "audio", "mediaPlaylist", "audioPlaylist", "message", "communication" or "other"),
+//   "audio", "media", "mediaPlaylist", "audioPlaylist", "message", "communication" or
+//   "other"),
 //   title (a few words saying what it does),
 //   done (whether this app runs it), and picture:
 //   which of ProPresenter's own pictures stands for it, by name (see iconprovider.h),
@@ -50,6 +52,10 @@
 //           playlistfile.h), and playback ("stop" or "loop") and effect (whether it is
 //           a sound effect and not music) beside it. To make one, `item` is the id of
 //           the row of the audio bin it is to be a copy of (see audiocue.h)
+//   media:  media (the picture or the video, as a row of the media bin is: see
+//           playlistfile.h), for a macro: a slide's own media is not one of the
+//           actions it lists (see listed()). To make one, `item` is the id of the row
+//           of the media bin it is to be a copy of (see PlaylistFile::mediaAction)
 //   mediaPlaylist, audioPlaylist: playlistId, playlistName, itemId, itemName, selects,
 //           retrigger (Always Retrigger): see playlistactions::describe
 //   message: messageId, messageName, and values, a list of { tokenId, name, kind,

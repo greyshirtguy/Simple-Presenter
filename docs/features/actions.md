@@ -24,6 +24,10 @@ is marked as the live one, and the arrow keys go on from it.)
 - **Audience Look**: make one of the workspace's [looks](looks.md) the live one.
 - **Audio**: play a piece of the [audio bin](audio.md), music or a sound effect. It is
   made by dragging the piece onto the slide.
+- **Media**, in a [macro](macros.md): show a picture or a video of the
+  [media bin](media.md) on the media layer, as a click on it in the bin does. It is made
+  by dragging it onto the macro. (On a slide, media is the slide's own, not an action
+  of it: dropped on a slide, it is the media the slide triggers.)
 - **Media Playlist** and **Audio Playlist**: play a playlist of the [media bin](media.md)
   or of the [audio bin](audio.md) from its first row (see below).
 - **Message**: show one of the workspace's [messages](messages.md), with words of the

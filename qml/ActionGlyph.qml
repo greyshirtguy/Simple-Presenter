@@ -4,7 +4,7 @@ import QtQuick.Shapes
 // The small picture of what an action does, for an ActionIcon and for the lists of
 // actions. `kind` is the kind of action, as they are named (see src/actions.h):
 // "timer", "clear", "look", "stage", "prop", "macro", "message", "videoInput",
-// "mediaPlaylist", "audioPlaylist" or "other".
+// "media", "mediaPlaylist", "audioPlaylist" or "other".
 //
 // For the first eight ProPresenter has a picture of its own, and that is what is
 // drawn (see ProIcon): its timer, its crossed circle, its glasses and moustache for a
@@ -13,9 +13,12 @@ import QtQuick.Shapes
 // either bin (see icons/README.md), so those two are this app's own: what the bin
 // holds beside three short lines, as a list is drawn in the bins' own lists. A
 // picture in a frame, with a play mark in it, for the media bin; the audio bin's two
-// joined notes for the audio bin. An action can say which picture is its own more exactly than its kind
-// does, in `picture`: one that clears the media has ProPresenter's picture of clearing
-// the media and not the plain crossed circle (see actions::describe, which chooses).
+// joined notes for the audio bin. Nor has it one for media (the toolbar's Media is
+// this app's own drawing as well), so a picture or a video of the media bin, "media",
+// is the media bin's picture in a frame by itself, without the lines. An action can
+// say which picture is its own more exactly than its kind does, in `picture`: one
+// that clears the media has ProPresenter's picture of clearing the media and not the
+// plain crossed circle (see actions::describe, which chooses).
 // "other" is three dots, and so, for now, is "communication": ProPresenter has a picture
 // for an action that tells a device something (a mast sending out its rings), but the
 // pack of its pictures here does not (see icons/README.md).
@@ -44,6 +47,7 @@ Item {
                                   : kind === "audio" || kind === "music" ? "music" : ""
     readonly property string shown: audio !== "" ? "" : picture !== "" ? picture : (pictures[kind] ?? "")
     readonly property bool list: kind === "mediaPlaylist" || kind === "audioPlaylist"
+    readonly property bool framed: kind === "mediaPlaylist" || kind === "media"
     readonly property bool wide: list || shown === "Looks" || shown === "Macro" || shown === "ClearVideoInput" || shown === "ClearPresentation"
                                  || shown === "VideoInput"
 
@@ -113,15 +117,18 @@ Item {
         }
     }
 
-    // A playlist of either bin: what it holds at the left, three lines at the right
+    // A playlist of either bin: what it holds at the left, three lines at the right.
+    // And a picture or a video of the media bin: the first of those by itself, in the
+    // middle of its box.
     Loader {
         anchors.fill: parent
-        active: glyph.list
+        active: glyph.list || glyph.framed
 
         sourceComponent: Item {
             // The media bin's: a picture in a frame, with a play mark in it
             Shape {
-                visible: glyph.kind === "mediaPlaylist"
+                x: glyph.list ? 0 : 0.6
+                visible: glyph.framed
                 preferredRendererType: Shape.CurveRenderer
 
                 ShapePath {
@@ -158,7 +165,7 @@ Item {
             }
 
             Repeater {
-                model: 3
+                model: glyph.list ? 3 : 0
 
                 delegate: Rectangle {
                     required property int index

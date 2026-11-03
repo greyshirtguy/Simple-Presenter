@@ -2183,6 +2183,40 @@ private slots:
         QCOMPARE(show.music.value("playback").toString(), "loop");
     }
 
+    // A macro's picture or video (actions.h, "media") is put on the media layer as a
+    // click on its row of the media bin puts it, but from no playlist.
+    void aMacroShowsMediaAsTheBinDoes()
+    {
+        const auto mediaAction = [](const QVariantMap &media) {
+            return QVariantMap {{"kind", "media"}, {"title", "Show the video"}, {"done", true}, {"media", media}};
+        };
+        QVariantMap clouds = video("Clouds");
+        clouds.insert("id", "action-clouds");
+        QVariantMap gone = mediaRow("Gone", {}, {}, true);
+        Workspace w = workspace();
+        w.macros = {QVariantMap {{"id", "m"}, {"name", "Macros"}, {"macros", QVariantList {
+            QVariantMap {{"id", "sky"}, {"name", "Sky"}, {"actions", QVariantList {mediaAction(clouds)}}},
+            QVariantMap {{"id", "gone"}, {"name", "Gone"}, {"actions", QVariantList {mediaAction(gone)}}}}}}};
+        State show;
+        // (What was playing came from a playlist: what the macro shows does not.)
+        show.showMedia(mediaRow("Walk In"), "list");
+        Effects effects = show.runMacro("sky", w);
+        QCOMPARE(outside(effects), "media");
+        QVERIFY(show.hasMedia);
+        QCOMPARE(show.media.value("name").toString(), "Clouds");
+        QVERIFY(show.mediaPlaylistId.isEmpty());
+        QVERIFY(show.placeOf("media").isEmpty());
+        // Run again while it plays, it is left to play on
+        effects = show.runMacro("sky", w);
+        QCOMPARE(outside(effects), "");
+        QVERIFY(noted(effects, "playing already"));
+        // One whose file is not on this computer is said to be, and changes nothing
+        effects = show.runMacro("gone", w);
+        QCOMPARE(outside(effects), "problem");
+        QVERIFY(noted(effects, "\"Gone\" is not on this computer"));
+        QCOMPARE(show.media.value("name").toString(), "Clouds");
+    }
+
     // ---- messages
 
     void messagesStackInTheOrderTheyWereShown()

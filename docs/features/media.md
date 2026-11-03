@@ -88,6 +88,11 @@ or picked from Add Action, under Media Playlist: that gives it an action that pl
 playlist from its first row. Run again while the playlist is playing, it leaves it to
 play on, unless its Always Retrigger is on. See [Actions](actions.md).
 
+A **picture or a video** can be dragged out of the bin onto a [macro](macros.md): held
+over the macros' tab, the tab comes forward, and dropped on a macro, it gives the macro
+an action that shows it, a copy of its row as the bin's file has it; dropped on the
+strip along the bottom of the macros, it is given a macro of its own.
+
 <a id="next-cue"></a>**Next Cue.** A video in a media playlist can be followed by another of
 its playlist when it has played to its end, as in ProPresenter: **Next Cue** in its
 right-click menu leads to **None** (it stays on its last frame), **Next** (the row after

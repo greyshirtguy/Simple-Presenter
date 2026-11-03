@@ -12,14 +12,15 @@ import QtQuick.Controls.Basic
 // are set up in Settings → Inputs, which + and a right click lead to.
 //
 // Click a file to put it on the output's media layer. Drag one onto a slide to make that
-// slide trigger it, between two slides to give it a slide of its own, or onto another
-// file of the playlist to move it there. Files dragged in from another application,
-// such as the file manager, are added: to a playlist they are dropped on in the list,
-// or to the one being browsed, at the place among its thumbnails where they are
-// dropped. They are referred to where they are on disk, not copied. The thumbnails come
-// from the thumbnail provider (src/thumbnailprovider.h): each is asked for by a url
-// and arrives when it has been made, so a playlist full of video opens at once and
-// fills in.
+// slide trigger it, between two slides to give it a slide of its own, onto a macro (by
+// way of the macros' tab, which comes forward under it) to give the macro an action
+// that shows it, or onto another file of the playlist to move it there. Files dragged
+// in from another application, such as the file manager, are added: to a playlist
+// they are dropped on in the list, or to the one being browsed, at the place among its
+// thumbnails where they are dropped. They are referred to where they are on disk, not
+// copied. The thumbnails come from the thumbnail provider (src/thumbnailprovider.h):
+// each is asked for by a url and arrives when it has been made, so a playlist full of
+// video opens at once and fills in.
 Rectangle {
     id: bin
 
