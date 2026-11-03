@@ -6,6 +6,16 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.122](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.122) · 2026-11-04
+
+- A picture or a video can be dragged out of the media bin onto a
+  [macro](docs/features/macros.md), as a piece of the audio bin could: held over the macros'
+  tab, it brings the tab forward; dropped on a macro, it gives the macro an action that
+  shows it on the media layer, as a click on it in the bin does; dropped on the strip along
+  the bottom of the macros, it is given a macro of its own, called what its file is called.
+- A playback marker's action that shows a picture or a video is done, where it was kept
+  and not done.
+
 ## [0.121](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.121) · 2026-11-01
 
 - A video playing on an audience screen is kept moving as slides change over it. A slide's
