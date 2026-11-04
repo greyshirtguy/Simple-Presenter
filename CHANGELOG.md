@@ -6,6 +6,13 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.123](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.123) · 2026-11-05
+
+- How long the ~ key is held to switch [Simple View](docs/features/simple-view.md) is a
+  setting, **Hold ~ for** in Settings → Simple View: a slider and a box, in seconds, from 0
+  to 2. It is 0.56 s to begin with, where it was 0.7 s; at 0 a press of the key switches
+  the view at once, and held on, the key does not switch it back.
+
 ## [0.122](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.122) · 2026-11-04
 
 - A picture or a video can be dragged out of the media bin onto a
