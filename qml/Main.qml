@@ -23,7 +23,9 @@ import SimplePresenterApp
 // a view that takes everything familiar away must not be one that a stray key can
 // land in. `simpleView` and the properties after it are all there is to it. A setting
 // (`simpleKeepsSidePanel`) leaves the pane at the right where it is, for whoever wants
-// the room without losing sight of what is live.
+// the room without losing sight of what is live; another (`simpleViewHold`) is how
+// long the key is held, down to no time at all, for whoever would rather it were a
+// press.
 //
 // How it is organised. This file is the state and the logic; the files named above are
 // the views. Everything the app knows about the show is a property here: what is being
@@ -508,9 +510,16 @@ Window {
     // the slides have the whole window.
     readonly property bool chromeShown: !simple || chrome > 0
     // How long the ~ key has to be held to switch Simple View, in milliseconds: long
-    // enough that brushing it does nothing, and short enough not to be a wait. And how
-    // far a hold of it has got, from 0 to 1, for the buttons that show it.
-    readonly property int simpleViewHold: 700
+    // enough that brushing it does nothing, and short enough not to be a wait. It is a
+    // setting (Settings → Simple View), from 0, at which the key switches it as it goes
+    // down, to `simpleViewHoldMost`; `simpleViewHoldUsual` unless it is changed, which is
+    // four fifths of the 700 it was before it could be changed (which at times felt a
+    // little long). How far a hold of it has got, from 0 to 1, is for the buttons that
+    // show it; nothing is shown of it for its first `holdQuiet`.
+    property int simpleViewHold: simpleViewHoldUsual
+    readonly property int simpleViewHoldUsual: 560
+    readonly property int simpleViewHoldMost: 2000
+    readonly property int holdQuiet: 150
     property real holdProgress: 0
     // Set if the workspace changed on disk while the editor was up: the lists are
     // brought up to date when it comes down, not after every change it saves.
@@ -872,10 +881,19 @@ Window {
 
     // The key has gone down, and has come up again (or the window has lost the
     // keyboard). Simple View is switched when it has been down for long enough, and
-    // then not again until it has been let go and pressed afresh.
+    // then not again until it has been let go and pressed afresh. Set to be held for no
+    // time at all, it is switched as the key goes down (and, the key going on being
+    // held, not again: what a held key sends after its first press is not a press
+    // here, see Keys.onPressed). A hold too short for anything of it to be shown before
+    // it is over shows nothing.
     function beginHold() {
+        if (simpleViewHold <= 0) {
+            setSimpleView(!simpleView, "the ~ key, pressed")
+            return
+        }
         holdTimer.restart()
-        holdShown.restart()
+        if (simpleViewHold > holdQuiet)
+            holdShown.restart()
     }
 
     function endHold() {
@@ -4325,6 +4343,8 @@ Window {
         videoDecoding = ["processor", "hardware"].includes(decoding) ? decoding : "auto"
         decodingNoticeSeen = String(saved("decodingNoticeSeen", false)) === "true"
         simpleKeepsSidePanel = String(saved("simpleKeepsSidePanel", false)) === "true"
+        const hold = Number(saved("simpleViewHold", simpleViewHoldUsual))
+        simpleViewHold = isFinite(hold) ? Math.max(0, Math.min(simpleViewHoldMost, Math.round(hold))) : simpleViewHoldUsual
         // (The port and name before the switch, so that it listens once, on the right port.)
         networkPort = Number(saved("networkPort", HttpApi.defaultPort)) || HttpApi.defaultPort
         networkName = String(saved("networkName", ""))
@@ -4526,6 +4546,12 @@ Window {
     }
     onActionIconOpacityChanged: save("actionIconOpacity", actionIconOpacity)
     onSimpleKeepsSidePanelChanged: save("simpleKeepsSidePanel", simpleKeepsSidePanel)
+    onSimpleViewHoldChanged: {
+        save("simpleViewHold", simpleViewHold)
+        if (restored)
+            Log.note("settings", simpleViewHold > 0 ? "the ~ key switches Simple View held for " + (simpleViewHold / 1000).toFixed(2) + " s"
+                                                    : "the ~ key switches Simple View as it is pressed")
+    }
     onNetworkEnabledChanged: save("networkEnabled", networkEnabled)
     onNetworkNameChanged: save("networkName", networkName)
     onNetworkPortChanged: save("networkPort", networkPort)
@@ -4557,17 +4583,19 @@ Window {
     }
 
     // What shows a hold of the key shows nothing for the first moment of it, so that a
-    // key only brushed does not set something flickering.
+    // key only brushed does not set something flickering. (It is only started for a
+    // hold longer than that moment: see beginHold. The two guards are for the bindings,
+    // which are worked out whatever the hold is set to.)
     SequentialAnimation {
         id: holdShown
 
-        PauseAnimation { duration: 150 }
+        PauseAnimation { duration: win.holdQuiet }
         NumberAnimation {
             target: win
             property: "holdProgress"
-            from: 150 / win.simpleViewHold
+            from: win.simpleViewHold > win.holdQuiet ? win.holdQuiet / win.simpleViewHold : 1
             to: 1
-            duration: win.simpleViewHold - 150
+            duration: Math.max(0, win.simpleViewHold - win.holdQuiet)
         }
     }
 
@@ -6316,6 +6344,10 @@ Window {
         onApiBibleKeyEdited: (key) => win.apiBibleKey = key
         simpleKeepsSidePanel: win.simpleKeepsSidePanel
         onSimpleKeepsSidePanelEdited: (keeps) => win.simpleKeepsSidePanel = keeps
+        simpleViewHold: win.simpleViewHold
+        simpleViewHoldUsual: win.simpleViewHoldUsual
+        simpleViewHoldMost: win.simpleViewHoldMost
+        onSimpleViewHoldEdited: (ms) => win.simpleViewHold = Math.max(0, Math.min(win.simpleViewHoldMost, Math.round(ms)))
         networkEnabled: win.networkEnabled
         networkName: win.networkName
         networkPort: win.networkPort

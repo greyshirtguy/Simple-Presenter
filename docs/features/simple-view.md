@@ -22,10 +22,11 @@ It is switched on and off in three ways:
 - The small button that floats over the slides while the view is on. It is in the place
   where the toolbar's button was, so the same spot on the screen switches the view both
   ways, and a second click undoes the first.
-- The **~ key, held down** for seven tenths of a second. Only pressing it does nothing:
-  the key is one that is easily brushed, and a view that takes everything familiar away
-  should not be one a stray key can land in. A line under the button counts the hold as
-  it goes, and the view switches when the line is full, without the key being let go.
+- The **~ key, held down**, for 0.56 of a second unless the settings say otherwise (see
+  below). Only pressing it does nothing: the key is one that is easily brushed, and a
+  view that takes everything familiar away should not be one a stray key can land in. A
+  line under the button counts the hold as it goes, and the view switches when the line
+  is full, without the key being let go.
 
 So that nobody is left stranded in it, the floating button makes itself known when the
 view is entered. For five seconds it is large and bright and says in words how to go
@@ -39,8 +40,14 @@ out again for every frame of the way would cost more than all the rest, and the 
 meant to stay quick on a slow machine. The editor and the settings screen need the
 toolbar, and bring it back for as long as they are up.
 
-**Keeping the right pane.** The settings have a part for Simple View with one box in
-it: *Keep the preview and controls at the right*. With it ticked, Simple View takes
+**How long the key is held.** The settings' part for Simple View has a slider and a box
+for it, **Hold ~ for**, in seconds: from 0 to 2, 0.56 to begin with (it was 0.7 before
+there was a setting, which at times felt a little long). At 0 a press of the key
+switches the view at once, and a key brushed by mistake does too; held on, it does not
+switch it back.
+
+**Keeping the right pane.** The same part has a box: *Keep the preview and controls at
+the right*. With it ticked, Simple View takes
 the toolbar, the lists and the media bin away and leaves the pane at the right where it
 is, with the preview of a screen, the clears and the show controls,
 for whoever wants the room without losing sight of what is live. The pane then has the

@@ -20,9 +20,10 @@ a page of its own, linked from the
 
 These are not ProPresenter's.
 
-- **Simple View.** Hold the ~ key for most of a second, or click Simple View in the
+- **Simple View.** Hold the ~ key for about half a second, or click Simple View in the
   toolbar, and everything round the slides gets out of the way, so that as many of them
-  as will fit can be seen at once. The same again brings it all back.
+  as will fit can be seen at once. The same again brings it all back. How long the key
+  is held is a setting (Settings → Simple View), down to a plain press.
 - **Two chord editors.** In the editor, **Chords** is a sheet of the whole song, the
   chords put on with the mouse and the keys 1 to 7; **ChordPro** is the same song as
   ChordPro text. ProPresenter shows the chords a song came with, and has no way to put
@@ -68,7 +69,7 @@ is longer, and not even it is the whole of it.
 | Down / Up | Next / previous presentation |
 | F1 | Clear the first clear group, which to begin with is Clear All |
 | F2 / F3 / F4 / F5 / F6 | Clear the slide layer / media layer / props / audio / messages |
-| ~, held for most of a second | Simple View on or off |
+| ~, held for about half a second (a setting) | Simple View on or off |
 | A letter or a digit | The hotkey of a group: its first slide |
 | A number, then Enter | The slide with that number |
 | Ctrl+E / Ctrl+S | The editor / back to the show |

@@ -8,7 +8,7 @@
 | Down / Up | Next / previous presentation |
 | F1 | Clear the first [clear group](clear-groups.md), which to begin with is Clear All |
 | F2 / F3 / F4 / F5 / F6 | Clear the slide layer / media layer / props / audio / messages |
-| ~, held for most of a second | [Simple View](simple-view.md) on or off |
+| ~, held for about half a second (a setting) | [Simple View](simple-view.md) on or off |
 | A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
 | A number, then Enter | Goes to the slide with that number |
 | Ctrl+E | Edit mode: the editor, for the presentation being viewed |

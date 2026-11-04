@@ -252,6 +252,16 @@ def after_keys2(workspace, test_dir):
     ]
 
 
+def after_simple(workspace, test_dir):
+    """The app's own settings once the test has set how long the ~ key is held (to 0, then by the slider to about 1.2 s),
+    read from the file and not by the app: kept there in thousandths of a second, as it was last set."""
+    path = os.path.join(test_dir, "config", "SimplePresenter", "SimplePresenter.conf")
+    text = open(path).read() if os.path.exists(path) else ""
+    held = re.search(r"^simpleViewHold=(\d+)$", text, re.M)
+    return [said(held is not None and 1180 <= int(held.group(1)) <= 1220, "in the app's settings: how long the ~ key is held, as it was last set",
+                 held.group(0) if held else "not there")]
+
+
 def after_screens(workspace, test_dir):
     with open(os.path.join(workspace, "Configuration", "Workspace"), "rb") as source:
         text = protoc("decode", "rv.data.ProPresenterWorkspace", "proworkspace.proto", source.read()).decode()
@@ -3646,7 +3656,7 @@ TESTS = {
     "frames": test("Demo", timeout=120),
     "mediainspector": test("Demo", timeout=300, prepare=prepare_quarters_picture),
     "drop": test("Demo"),
-    "simple": test("Demo"),
+    "simple": test("Demo", env={"SP_TEST_REMEMBER": "1"}, after=after_simple),
     "shapes": test("Shapes", SHELL, 120),
     "order": test("Shapes", SHELL, 120, after=after_order),
     "slides": test("Shapes", SHELL, 120),

@@ -4,7 +4,7 @@ import SimplePresenterApp
 import "lib.js" as Lib
 
 // Simple View: the slides and nothing else. Its button in the toolbar, the button that floats over the slides while it
-// is on, and the ~ key, which has to be held.
+// is on, and the ~ key, which has to be held: for 0.56 s unless the setting for it says otherwise, down to a press.
 QtObject {
     id: t
 
@@ -182,7 +182,7 @@ QtObject {
                 return 800
             },
             () => {
-                check("held for more than seven tenths of a second, it switches the view, without being let go", simpleView && simple && simpleToggle.announcing && holdProgress === 0, kept.repeats + " repeats")
+                check("held for longer than its 0.56 s, it switches the view, without being let go", simpleView && simple && simpleToggle.announcing && holdProgress === 0, kept.repeats + " repeats")
                 return 1500
             },
             () => {
@@ -371,10 +371,94 @@ QtObject {
                 simpleKeepsSidePanel = false
                 return 200
             },
+            // ---- How long the key is held: the setting, down to a press
             () => {
-                check("the log has a line for each switch, saying what made it", logged(/  view  /).length === 10 && logged(/Simple View on, by its button in the toolbar/).length === 1
-                      && logged(/Simple View off, by the button over the slides/).length === 1 && logged(/Simple View on, by the ~ key, held/).length === 2
-                      && logged(/Simple View off, by the ~ key, held/).length === 1, logged(/  view  /).length + ": " + logged(/  view  /).map(l => l.slice(26, 90)).join(" | "))
+                settingsOpen = true
+                Lib.find(contentItem, item => item.section !== undefined && item.sections !== undefined).section = "simple"
+                return 400
+            },
+            () => {
+                const slider = named("simpleViewHoldSlider")
+                const field = named("simpleViewHoldField")
+                check("the part for Simple View has a slider and a box for how long the key is held, 0.56 s to begin with", slider !== null && slider.visible
+                      && field !== null && field.visible && simpleViewHold === 560 && Math.abs(slider.value - 0.56) < 0.001 && field.text === "0.56 s",
+                      simpleViewHold + " " + (field ? field.text : "-"))
+                const label = Lib.find(slider.parent, item => item.text === "Hold ~ for")
+                check("named, and the name drawn", label !== null && strokes(label).light > 3)
+                testInput.grab("8-hold-setting")
+                click(centre(field))
+                testInput.key(Qt.Key_A, Qt.ControlModifier)
+                testInput.type("0")
+                testInput.key(Qt.Key_Return)
+                return 300
+            },
+            () => {
+                check("typed as 0, it is the window's setting, and the slider and the box show it", simpleViewHold === 0 && named("simpleViewHoldSlider").value === 0
+                      && named("simpleViewHoldField").text === "0 s", simpleViewHold + " " + named("simpleViewHoldField").text)
+                check("kept with the app's settings", String(settings.value("simpleViewHold", "none")) === "0", String(settings.value("simpleViewHold", "none")))
+                check("and the log says so", logged(/settings\s+the ~ key switches Simple View as it is pressed/).length === 1)
+                settingsOpen = false
+                takeFocus()
+                return 400
+            },
+            () => {
+                hold()
+                return 100
+            },
+            () => {
+                check("at 0, a press of the key switches the view at once", simpleView && simple && holdProgress === 0)
+                return 700
+            },
+            () => {
+                check("and held on, the key does not switch it back", simpleView && kept.repeats > 8, kept.repeats + " repeats")
+                letGo()
+                hold()
+                return 100
+            },
+            () => {
+                check("pressed again, it goes off at once", !simpleView)
+                letGo()
+                settingsOpen = true
+                return 400
+            },
+            () => {
+                // A click on the slider three fifths of the way along it: 1.2 s, of its 2
+                const slider = named("simpleViewHoldSlider")
+                const handle = slider.handle.width
+                const at = slider.mapToItem(null, slider.leftPadding + handle / 2 + 0.6 * (slider.availableWidth - handle), slider.height / 2)
+                click(at)
+                return 300
+            },
+            () => {
+                check("dragged on the slider to 1.2 s, it is the window's setting, and the box shows it", Math.abs(simpleViewHold - 1200) <= 20
+                      && named("simpleViewHoldField").text === Number((simpleViewHold / 1000).toFixed(2)) + " s", simpleViewHold + " " + named("simpleViewHoldField").text)
+                kept.hold = simpleViewHold
+                settingsOpen = false
+                takeFocus()
+                return 400
+            },
+            () => {
+                hold()
+                return 800
+            },
+            () => {
+                check("held for 0.8 s, at 1.2 s the view is not switched yet, and the hold is shown part of the way", !simpleView && holdProgress > 0.5 && holdProgress < 0.8,
+                      holdProgress.toFixed(2))
+                return kept.hold - 800 + 300
+            },
+            () => {
+                check("and then it is", simpleView)
+                check("kept with the app's settings as it now is", String(settings.value("simpleViewHold", "none")) === String(kept.hold),
+                      String(settings.value("simpleViewHold", "none")))
+                letGo()
+                setSimpleView(false, "the test")
+                return 500
+            },
+            () => {
+                check("the log has a line for each switch, saying what made it", logged(/  view  /).length === 14 && logged(/Simple View on, by its button in the toolbar/).length === 1
+                      && logged(/Simple View off, by the button over the slides/).length === 1 && logged(/Simple View on, by the ~ key, held/).length === 3
+                      && logged(/Simple View off, by the ~ key, held/).length === 1 && logged(/Simple View on, by the ~ key, pressed/).length === 1
+                      && logged(/Simple View off, by the ~ key, pressed/).length === 1, logged(/  view  /).length + ": " + logged(/  view  /).map(l => l.slice(26, 90)).join(" | "))
                 check("nothing went wrong on the way", logged(/PROBLEM|WARNING|ERROR/).filter(l => !l.includes("qt.qpa.theme")).length === 0, logged(/PROBLEM|WARNING|ERROR/).slice(0, 3).join(" | "))
             }
         ]

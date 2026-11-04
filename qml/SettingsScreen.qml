@@ -45,6 +45,11 @@ Rectangle {
 
     // Whether Simple View leaves the pane at the right where it is: see Main.qml
     property bool simpleKeepsSidePanel: false
+    // How long the ~ key is held to switch Simple View, in milliseconds, what it is
+    // unless it is changed, and the most it can be: see Main.qml
+    property int simpleViewHold: 560
+    property int simpleViewHoldUsual: 560
+    property int simpleViewHoldMost: 2000
     // The HTTP API (the Network section): whether it listens, its Network Name ("" for
     // the computer's name) and its port. See src/httpapiserver.h.
     property bool networkEnabled: false
@@ -76,6 +81,7 @@ Rectangle {
     signal chordSignsEdited(bool on)
     signal apiBibleKeyEdited(string key)
     signal simpleKeepsSidePanelEdited(bool keeps)
+    signal simpleViewHoldEdited(int ms)
     signal networkEnabledEdited(bool on)
     signal networkNameEdited(string name)
     signal networkPortEdited(int port)
@@ -745,6 +751,51 @@ Rectangle {
                 color: "#b0b3b8"
                 font.pixelSize: 13
                 text: "Simple View takes away what is round the slides, so that more of them can be seen at once: the toolbar, the lists at the left, the media bin, and the preview and controls at the right. It is switched from the toolbar, or by holding the ~ key."
+            }
+
+            // How long the key is held: dragged, or typed, in seconds (kept in
+            // thousandths, as Main.qml has it)
+            Row {
+                spacing: 12
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 14
+                    text: "Hold ~ for"
+                }
+
+                AppSlider {
+                    objectName: "simpleViewHoldSlider"
+                    width: 260
+                    anchors.verticalCenter: parent.verticalCenter
+                    from: 0
+                    to: screen.simpleViewHoldMost / 1000
+                    stepSize: 0.01
+                    value: screen.simpleViewHold / 1000
+                    onMoved: screen.simpleViewHoldEdited(Math.round(value * 100) * 10)
+                }
+
+                NumberField {
+                    objectName: "simpleViewHoldField"
+                    width: 70
+                    anchors.verticalCenter: parent.verticalCenter
+                    from: 0
+                    to: screen.simpleViewHoldMost / 1000
+                    step: 0.05
+                    decimals: 2
+                    suffix: " s"
+                    value: screen.simpleViewHold / 1000
+                    onEdited: (value) => screen.simpleViewHoldEdited(Math.round(value * 1000))
+                }
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: "#8d9097"
+                font.pixelSize: 12
+                text: "How long the ~ key has to be held down before Simple View switches, on or off: " + (screen.simpleViewHoldUsual / 1000).toFixed(2) + " s unless it is changed. Shorter is quicker. At 0 a press switches it at once, and so does the key brushed by mistake."
             }
 
             AppCheck {
