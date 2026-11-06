@@ -71,7 +71,7 @@ Item {
     // had it been open: by its place, from 0
     function triggerActive(index) {
         const document = activeDocument
-        if (!document || index < 0 || index >= document.slides.length)
+        if (!document || !(index >= 0 && index < document.slides.length))
             return notFound
         window.goLiveIn(document, Show.liveKey, Show.livePlaylistId, index)
         return done
@@ -80,7 +80,7 @@ Item {
     // The same for the presentation on the announcements layer
     function triggerAnnouncement(index) {
         const document = Show.announcementAtSlide ? window.announcementDocument : null
-        if (!document || index < 0 || index >= document.slides.length)
+        if (!document || !(index >= 0 && index < document.slides.length))
             return notFound
         window.goLiveIn(document, Show.announcementKey, Show.announcementPlaylistId, index)
         return done
@@ -94,7 +94,7 @@ Item {
         if (!row || !window.openable(row))
             return notFound
         const document = window.load(row)
-        if (document.error !== "" || index < 0 || index >= document.slides.length)
+        if (document.error !== "" || !(index >= 0 && index < document.slides.length))
             return notFound
         window.goLiveIn(document, row.path, playlist, index)
         return done
@@ -296,7 +296,7 @@ Item {
     // A slide of the presentation open in the window goes live, as a click on it does
     function triggerFocused(index) {
         const document = focusedDocument
-        if (!document || index < 0 || index >= document.slides.length)
+        if (!document || !(index >= 0 && index < document.slides.length))
             return notFound
         window.goLive(index)
         return done

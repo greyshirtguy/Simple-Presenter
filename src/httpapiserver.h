@@ -149,6 +149,9 @@ private:
         bool streaming = false;
         bool updates = false;
         QList<Watched> watched;
+        // Runs while nothing has come from the client; a client that is quiet too long,
+        // and streams nothing, is let go (see accept)
+        QTimer *quiet = nullptr;
     };
     struct Answer
     {
@@ -181,6 +184,8 @@ private:
     QJSValue m_handler;
     QTcpServer *m_server = nullptr;
     QList<Client *> m_clients;
+    // Whether as many clients as are kept are connected, and the log has said so
+    bool m_full = false;
     bool m_refreshDue = false;
     QTimer m_tick;
 };

@@ -267,6 +267,22 @@ QtObject {
                       && logged(/  network +GET \/v1\/presentation\/focused\/2\/trigger from 127\.0\.0\.1: 204$/).length === 1
                       && logged(/  network +127\.0\.0\.1 streams timer\/system_time, status\/slide, presentation\/slide_index/).length === 1
                       && logged(/  network +answering .* went wrong/).length === 0, logged(/  network /).slice(0, 6).join(" | "))
+                // More clients at once than are kept (64): the ones over are turned away, the rest answered. (Some
+                // twenty of the test's own connections are open still, kept alive as a client's are.)
+                kept.many = []
+                for (let i = 0; i < 70; ++i)
+                    kept.many.push(send("GET", "/version"))
+                return 1500
+            },
+            () => {
+                const answered = kept.many.filter(id => response(id).status === 200)
+                const turnedAway = kept.many.filter(id => response(id).status === 0 && !testInput.httpOpen(id))
+                check("seventy connections at once: as many as are kept are answered, the rest turned away, and the log says so once",
+                      answered.length + turnedAway.length === 70 && answered.length >= 30 && answered.length <= 64 && turnedAway.length >= 6
+                      && logged(/  network +64 clients are connected, which is as many as are kept/).length === 1,
+                      answered.length + " answered, " + turnedAway.length + " turned away")
+                for (const id of kept.many)
+                    testInput.httpClose(id)
                 settingsOpen = true
                 Lib.find(contentItem, item => item.section !== undefined && item.sections !== undefined).section = "network"
                 return 600

@@ -26,8 +26,17 @@ QString peerOf(const QTcpSocket *socket)
     return ok ? QHostAddress(four).toString() : address.toString();
 }
 
-// A stream that a client does not read is let go of before it holds more than this
+// A stream that a client does not read is let go of before it holds more than this; and
+// so is any client whose answers it leaves unread, which it asks for in a few bytes each
 constexpr qint64 mostUnsent = 8 * 1024 * 1024;
+// How many clients are kept at once, and how long one may be quiet, in milliseconds, before
+// it is let go: a connection held open costs a file of the process's, which has only so
+// many, and a few hundred held by one program that opens them and forgets them would keep
+// the app from opening a video or a presentation. A stream is never quiet. (The app's own
+// numbers: what ProPresenter allows is not known. Companion keeps one connection for its
+// requests and one for its stream, and makes them again if they are closed.)
+constexpr int mostClients = 64;
+constexpr int quietLimit = 120 * 1000;
 
 }
 
@@ -305,14 +314,33 @@ void HttpApi::fail(const QString &why)
 void HttpApi::accept()
 {
     while (m_server && m_server->hasPendingConnections()) {
+        QTcpSocket *socket = m_server->nextPendingConnection();
+        if (m_clients.size() >= mostClients) {
+            // (Said once for each time it fills, not for every connection turned away)
+            if (!m_full)
+                SessionLog::write("network", QStringLiteral("%1 clients are connected, which is as many as are kept: %2 is turned away")
+                                                 .arg(mostClients).arg(peerOf(socket)));
+            m_full = true;
+            socket->abort();
+            socket->deleteLater();
+            continue;
+        }
         auto *client = new Client;
-        client->socket = m_server->nextPendingConnection();
+        client->socket = socket;
         m_clients << client;
         connect(client->socket, &QTcpSocket::readyRead, this, [this, client] { readFrom(client); });
         connect(client->socket, &QTcpSocket::disconnected, this, [this, client] {
             if (m_clients.contains(client))
                 drop(client);
         });
+        client->quiet = new QTimer(client->socket);
+        client->quiet->setSingleShot(true);
+        client->quiet->setInterval(quietLimit);
+        connect(client->quiet, &QTimer::timeout, this, [this, client] {
+            if (m_clients.contains(client) && !client->streaming)
+                drop(client);
+        });
+        client->quiet->start();
     }
 }
 
@@ -327,6 +355,7 @@ void HttpApi::drop(Client *client)
     if (streamed)
         SessionLog::write("network", QStringLiteral("a stream to %1 has ended").arg(peer));
     delete client;
+    m_full = false;
     if (streamed) {
         emit streamsChanged();
         updateTicking();
@@ -335,6 +364,14 @@ void HttpApi::drop(Client *client)
 
 void HttpApi::readFrom(Client *client)
 {
+    // (A stream keeps the connection: anything sent after it is not for the API, and is not
+    // kept either. It was read as requests and kept, every one, for as long as the stream
+    // lasted: a client that went on sending had the app hold all of it.)
+    if (client->streaming) {
+        client->socket->readAll();
+        return;
+    }
+    client->quiet->start();
     if (!client->parser.feed(client->socket->readAll())) {
         httpapi::Request none;
         none.version = "HTTP/1.1";
@@ -423,6 +460,13 @@ void HttpApi::send(Client *client, const httpapi::Request &request, int status, 
         headers.emplaceBack("connection", "close");
     headers.emplaceBack("date", httpapi::httpDate(QDateTime::currentDateTimeUtc()));
     client->socket->write(httpapi::head(status, headers) + body);
+    // (A client that asks and asks and reads nothing of the answers, which are many times
+    // the size of what it asks, is let go as a stream it does not read is)
+    if (client->socket->bytesToWrite() > mostUnsent) {
+        SessionLog::write("network", QStringLiteral("%1 is not reading its answers: let go of").arg(peerOf(client->socket)));
+        drop(client);
+        return;
+    }
     if (closing)
         client->socket->disconnectFromHost();
 }

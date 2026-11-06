@@ -13,8 +13,11 @@ set), and `/version` says this is SimplePresenter, on Linux: it does not pretend
 ProPresenter.
 
 **Anyone on the network can operate the show through it**, as with ProPresenter: there
-is no password. It is off until switched on, and while it is off no port is open and it
-costs nothing.
+is no password. It listens on every network the computer is on, not only the one the
+show's devices are on, so a laptop on a hotel's Wi-Fi offers it to the hotel; and, as
+ProPresenter does, it answers any web page open in a browser on the network, not only
+programs. It is off until switched on, and while it is off no port is open and it costs
+nothing.
 
 What is there, by ProPresenter's paths under `/v1/`:
 
