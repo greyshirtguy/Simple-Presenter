@@ -579,3 +579,10 @@ qt_add_executable(tst_zipreader
 target_include_directories(tst_zipreader PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_zipreader PRIVATE Qt6::Core Qt6::Test ZLIB::ZLIB)
 add_test(NAME zipreader COMMAND tst_zipreader)
+
+qt_add_executable(tst_sourcesweep
+    tst_sourcesweep.cpp
+)
+target_compile_definitions(tst_sourcesweep PRIVATE SIMPLEPRESENTER_QML_DIR="${PROJECT_SOURCE_DIR}/qml")
+target_link_libraries(tst_sourcesweep PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME sourcesweep COMMAND tst_sourcesweep)

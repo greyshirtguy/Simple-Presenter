@@ -11,7 +11,7 @@ class QQuickWindow;
 class QVideoSink;
 
 // The time of a screen's own frames, for what moves on it: a slide's transition, scrolling
-// text, a build (TransitionLayer, ScrollingText, BuildRun); and for what
+// text, a build, a fade (TransitionLayer, ScrollingText, BuildRun, FrameFade); and for what
 // changes on it at moments of its own, a timer's text, to be changed as a frame of a video
 // playing there comes (StrokedText, by waitForVideoFrame).
 //

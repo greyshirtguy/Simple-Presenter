@@ -27,12 +27,11 @@ import QtQuick
 // so many of its frames late (`videoDelay`; FrameDelay says how), whether it is in a
 // window or sent out of sight.
 //
-// Left as it was, for now: the fades of the layers as a look changes (lookFade), and of
-// the props and messages as they come and go, are Qt's own animations (a Behavior, a
-// NumberAnimation), which Qt steps by a timer of its own while two windows are showing,
-// out of time with the screen, where a transition, scrolling text and builds keep to the
-// screen's refreshes (see src/frameclock.h). They come seldom, beside the slides'
-// changes; moved to a FrameClock, they would not take a playing video's turn either.
+// The fades of the layers as a look changes (lookFade), and of the props and messages as
+// they come and go (PropsLayer), keep to the screen's refreshes as a transition, scrolling
+// text and builds do (FrameFade; see src/frameclock.h). They were Qt's own animations
+// until 2026-11-06, stepped by a timer of Qt's own while two windows are showing, out of
+// time with the screen, and a look changed over a playing video took the video's turn.
 Item {
     id: scene
 
@@ -277,18 +276,23 @@ Item {
                     // played while it is on an audience screen (see VideoInputs). An input that takes
                     // the place of another is a cut. (A GUESS: ProPresenter has a transition of its own
                     // for video inputs, which is not done here yet.)
+                    // How much of each layer is on show, as the look has it, faded by the
+                    // screen's own frames (see FrameFade)
+                    FrameFade {
+                        id: videoInputFade
+
+                        to: scene.videoInputOn ? 1 : 0
+                        duration: scene.lookFade
+                    }
+
                     Loader {
                         id: videoInputLayer
 
                         objectName: "videoInputLayer"
                         anchors.fill: parent
                         active: scene.videoInput >= 0
-                        opacity: scene.videoInputOn ? 1 : 0
+                        opacity: videoInputFade.value
                         visible: opacity > 0
-
-                        Behavior on opacity {
-                            NumberAnimation { duration: scene.lookFade }
-                        }
 
                         sourceComponent: VideoInputView {
                             index: scene.videoInput
@@ -297,16 +301,19 @@ Item {
                         }
                     }
 
+                    FrameFade {
+                        id: mediaFade
+
+                        to: scene.mediaOn ? 1 : 0
+                        duration: scene.lookFade
+                    }
+
                     TransitionLayer {
                         id: mediaLayer
 
                         anchors.fill: parent
-                        opacity: scene.mediaOn ? 1 : 0
+                        opacity: mediaFade.value
                         visible: opacity > 0
-
-                        Behavior on opacity {
-                            NumberAnimation { duration: scene.lookFade }
-                        }
                         name: "media layer"
                         shaderName: scene.transitionName
                         shader: scene.shader
@@ -335,16 +342,19 @@ Item {
                     }
                 }
 
+                FrameFade {
+                    id: slideFade
+
+                    to: scene.slideOn ? 1 : 0
+                    duration: scene.lookFade
+                }
+
                 TransitionLayer {
                     id: slideLayer
 
                     anchors.fill: parent
-                    opacity: scene.slideOn ? 1 : 0
+                    opacity: slideFade.value
                     visible: opacity > 0
-
-                    Behavior on opacity {
-                        NumberAnimation { duration: scene.lookFade }
-                    }
                     name: "slide layer"
                     shaderName: scene.transitionName
                     shader: scene.shader
@@ -408,6 +418,13 @@ Item {
 
             // The announcements, over the slides and under the props. Made when the first
             // announcement is shown, and kept: a show that has none has nothing made for them.
+            FrameFade {
+                id: announcementsFade
+
+                to: scene.announcementsOn ? 1 : 0
+                duration: scene.lookFade
+            }
+
             Loader {
                 id: announcementsLayer
 
@@ -415,12 +432,8 @@ Item {
 
                 anchors.fill: parent
                 active: wanted
-                opacity: scene.announcementsOn ? 1 : 0
+                opacity: announcementsFade.value
                 visible: opacity > 0
-
-                Behavior on opacity {
-                    NumberAnimation { duration: scene.lookFade }
-                }
 
                 sourceComponent: AnnouncementLayer {
                     leads: scene.leads
@@ -437,24 +450,34 @@ Item {
                 }
             }
 
+            FrameFade {
+                id: propsFade
+
+                to: scene.propsOn ? 1 : 0
+                duration: scene.lookFade
+            }
+
             PropsLayer {
                 id: propsLayer
 
                 anchors.fill: parent
                 pictures: scene.pictures
                 backdrop: underLayers
-                opacity: scene.propsOn ? 1 : 0
+                opacity: propsFade.value
                 visible: opacity > 0
-
-                Behavior on opacity {
-                    NumberAnimation { duration: scene.lookFade }
-                }
             }
 
             // The messages' layer, over everything. It is the props' layer again, a message
             // being a slide laid over the rest as a prop is. It is made when the first message
             // is shown, and kept from then on (the last message to go fades in it): a show in
             // which no message is ever shown has nothing made for them.
+            FrameFade {
+                id: messagesFade
+
+                to: scene.messagesOn ? 1 : 0
+                duration: scene.lookFade
+            }
+
             Loader {
                 id: messagesLayer
 
@@ -462,12 +485,8 @@ Item {
 
                 anchors.fill: parent
                 active: wanted
-                opacity: scene.messagesOn ? 1 : 0
+                opacity: messagesFade.value
                 visible: opacity > 0
-
-                Behavior on opacity {
-                    NumberAnimation { duration: scene.lookFade }
-                }
 
                 sourceComponent: PropsLayer {
                     props: scene.messages

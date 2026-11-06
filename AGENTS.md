@@ -108,8 +108,11 @@ what you checked; do not say "the tests pass" and mean a part of them.
 - Something new that moves on a screen moves by a `FrameClock` (`src/frameclock.h`),
   not by Qt's `NumberAnimation` or `FrameAnimation`: while two windows are showing, Qt
   steps those by a timer of its own, out of time with the screen, and a video under them
-  stutters. (Transitions, scrolling text, builds and media effects do; the fades of a
-  look's layers, of props and of messages in `OutputScene` are older and still Qt's.)
+  stutters. (Transitions, scrolling text, builds, media effects and the fades of a look's
+  layers, of props and of messages all do, the fades through `FrameFade`; and a timer's
+  or a clock's text on a screen playing a video changes with the video's frames, see
+  `StrokedText::replace`.) `tests/unit/tst_sourcesweep.cpp` looks through the screens'
+  files for Qt's animations and fails on one.
 - Words the user reads say plainly what a thing does. They never promise help, never
   call the app a product, and never say or suggest that it is fit to be relied on.
 - A thing ProPresenter has a picture for is shown with ProPresenter's picture, not a

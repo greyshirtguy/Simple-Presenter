@@ -73,8 +73,9 @@ What gets it there:
   refresh took the turn of the video's next frame, which stayed on a refresh too long.
   And a slide changed by a cut is drawn once: it was drawn a second time a moment later,
   for the textures a transition would be drawn from, and on a screen playing a video that
-  frame took the video's turn too. The text of a timer or a clock on a screen playing a
-  video, which changes by the second or thirty times in one, is changed as a frame of
+  frame took the video's turn too. The fades of a look's layers, and of props and
+  messages, go by the same clock; and the text of a timer or a clock on a screen playing
+  a video, which changes by the second or thirty times in one, is changed as a frame of
   the video comes and drawn in that frame, and in none of its own (which, for a timer's
   hundredths, were twenty-nine a second).
 - **A change of slide over a video waits for the video, with its words ready.** Painting

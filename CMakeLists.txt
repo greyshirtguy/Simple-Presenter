@@ -196,6 +196,7 @@ qt_add_qml_module(SimplePresenter
         qml/EditorTool.qml
         qml/EmptyNote.qml
         qml/FontPicker.qml
+        qml/FrameFade.qml
         qml/IconButton.qml
         qml/KineticWheel.qml
         qml/LiveRing.qml

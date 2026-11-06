@@ -6,7 +6,8 @@ import QtQuick
 //
 // It is given the props that are on and keeps a list of its own in step with them by
 // id, so that turning one prop on or off leaves the others exactly as they are, and so
-// that one that has been turned off is still here to be drawn while it fades.
+// that one that has been turned off is still here to be drawn while it fades. A fade
+// keeps to the screen's own frames (FrameFade), as a transition does.
 Item {
     id: stack
 
@@ -81,7 +82,7 @@ Item {
             slide: kept
             effects: stack.effects
             pictures: stack.pictures
-            opacity: on && made ? 1 : 0
+            opacity: fade.value
             onNowChanged: {
                 if (now)
                     kept = now.slide
@@ -97,10 +98,11 @@ Item {
                     Qt.callLater(stack.sweep)
             }
 
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: stack.duration
-                }
+            FrameFade {
+                id: fade
+
+                to: prop.on && prop.made ? 1 : 0
+                duration: stack.duration
             }
         }
     }
