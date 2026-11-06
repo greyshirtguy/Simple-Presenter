@@ -38,6 +38,9 @@ PlaylistImport PlaylistImport::unpack(const QString &archive, const QString &roo
         if (entry.name.endsWith(u'/'))
             continue;
         const QString name = QFileInfo(entry.name).fileName();
+        // (Nothing to copy out of an entry that has no file name: a folder's, or a damaged one's)
+        if (name.isEmpty())
+            continue;
 
         if (entry.name == QLatin1String("data")) {
             if (!zip.read(entry, &result.playlistData, error))

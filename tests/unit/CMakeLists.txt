@@ -570,3 +570,12 @@ qt_add_executable(tst_textshadow
 target_include_directories(tst_textshadow PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_textshadow PRIVATE Qt6::Gui Qt6::Test)
 add_test(NAME textshadow COMMAND tst_textshadow)
+
+qt_add_executable(tst_zipreader
+    tst_zipreader.cpp
+    ${PROJECT_SOURCE_DIR}/src/zipreader.h
+    ${PROJECT_SOURCE_DIR}/src/zipreader.cpp
+)
+target_include_directories(tst_zipreader PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_zipreader PRIVATE Qt6::Core Qt6::Test ZLIB::ZLIB)
+add_test(NAME zipreader COMMAND tst_zipreader)

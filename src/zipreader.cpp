@@ -174,9 +174,14 @@ bool ZipReader::copyOut(const Entry &entry, QIODevice *out, QString *error)
     quint64 written = 0;
     bool ok = true;
 
+    // (No more than the directory says the file is: an archive that inflates to more is
+    // damaged, or made to be, and is found out before it fills the memory or the disk, and
+    // not after.)
     const auto emitBytes = [&](const char *bytes, qint64 length) {
-        crc = crc32(crc, reinterpret_cast<const Bytef *>(bytes), uInt(length));
         written += quint64(length);
+        if (written > entry.size)
+            return false;
+        crc = crc32(crc, reinterpret_cast<const Bytef *>(bytes), uInt(length));
         return out->write(bytes, length) == length;
     };
 
