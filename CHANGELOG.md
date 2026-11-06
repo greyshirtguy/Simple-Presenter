@@ -6,6 +6,24 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.124](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.124) · 2026-11-06
+
+- A timer's or a clock's text on a slide over a playing video is changed as the video's
+  frames come, and drawn in them: each change was a frame of the output's own, which could
+  put the video's next frame on the screen a refresh late. The fades of a look's layers,
+  and of props and messages, keep to the screen's own frames too, where they were Qt's
+  animations, stepped by a timer out of time with the screen. See
+  [Built for modest hardware](docs/how-it-is-made.md#built-for-modest-hardware).
+- The network [API](docs/features/api.md) keeps no more of one client than it should: what
+  a client sends down its stream's connection is no longer kept, a client that does not
+  read its answers is let go, sixty-four clients are kept at most, and one that is quiet
+  for two minutes is let go. Its page says that it listens on every network the computer
+  is on, and answers any web page.
+- A playlist bundle's entry that inflates to more than it says it is, is found out at that
+  point, and not after it has filled the memory or the disk.
+- The benchmark's baseline is recorded afresh, at this version, with every line the
+  benchmark now has.
+
 ## [0.123](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.123) · 2026-11-05
 
 - How long the ~ key is held to switch [Simple View](docs/features/simple-view.md) is a

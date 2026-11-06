@@ -39,6 +39,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.124" date="2026-11-06">
+      <description>
+        <p>
+          A timer's text over a playing video changes with the video's frames, as the fades of
+          a look's layers, props and messages now do; the network API keeps no more of one
+          client than it should; a playlist bundle that inflates past what it says is found
+          out before it fills the memory.
+        </p>
+      </description>
+    </release>
     <release version="0.123" date="2026-11-05">
       <description>
         <p>
