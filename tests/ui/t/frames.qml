@@ -9,9 +9,11 @@ import "lib.js" as Lib
 // nothing playing, is drawn once, and not a second time a moment later for the textures a transition would be drawn
 // from, which on a screen playing a video took the video's turn and had it stutter; five cuts while a video from the
 // media bin plays under them draw a frame of their own each at most (VideoTiming, src/benchmark.h, counts them), and
-// not two each; a dissolve over the video, which keeps to the video's frames, ends on time when the video is cleared
-// half way through it; and a dissolve with nothing playing is drawn at the screen's refreshes, a frame at each for as
-// long as it lasts, and ends when it should.
+// not two each; a timer's hundredths on a slide over the video, changing thirty times a second, are drawn with the
+// video's frames and in none of the output's own (the box linked to the timer in the editor, as link.qml does it); a
+// dissolve over the video, which keeps to the video's frames, ends on time when the video is cleared half way through
+// it; and a dissolve with nothing playing is drawn at the screen's refreshes, a frame at each for as long as it lasts,
+// and ends when it should.
 QtObject {
     id: t
 
@@ -89,6 +91,45 @@ QtObject {
                       kept.cuts === 5 && video.frames > 50 && video.others <= 6, kept.cuts + " cuts; others, ms after their cut: " + after.join(" ")
                       + "; held " + video.held + ", not shown " + video.notShown)
                 kept.timer.destroy()
+                // A text box linked to a timer, its hundredths shown, on the slide over the video
+                startEditing(entry("All Hail King Jesus"), document.slides[kept.index].id)
+                return 900
+            },
+            () => {
+                check("(the editor is up on the slide)", editing && editScreen.canvas.slide.id === document.slides[kept.index].id)
+                kept.element = document.slides[kept.index].elements.find(e => e.hasText)
+                editScreen.canvas.pick(kept.element.id)
+                editScreen.inspector.tab = "text"
+                return 400
+            },
+            () => {
+                const countdown = Timers.timers[0]
+                editScreen.inspector.setProperties({ linkKind: "timer", linkTimerId: countdown.id, linkTimerName: countdown.name, linkTimerHours: Timers.None,
+                                                     linkTimerMinutes: Timers.None, linkTimerSeconds: Timers.Long, linkTimerHundredths: Timers.Long }, false)
+                return 400
+            },
+            () => {
+                stopEditing()
+                return 1000
+            },
+            () => {
+                Timers.configure(Timers.timers[0].id, { duration: 600 })
+                Timers.start(Timers.timers[0].id)
+                goLive(kept.index)
+                return 2000
+            },
+            () => {
+                const texts = Lib.findAll(output.contentItem, item => typeof item.replacement === "string" && item.visible)
+                check("(a running timer's hundredths are on the output, over the video)", output.liveVideoSink !== null && texts.some(x => /\d\.\d\d/.test(x.replacement)),
+                      texts.map(x => x.replacement).join("|"))
+                testInput.watchVideo()
+                return 3000
+            },
+            () => {
+                const video = testInput.videoSoFar()
+                check("a timer's hundredths over a video, changing thirty times a second, are drawn with the video's frames and in no frames of the output's own",
+                      video.frames > 60 && video.others <= 4, "others " + video.others + " in " + video.frames + " frames; held " + video.held)
+                Timers.stop(Timers.timers[0].id)
                 // A dissolve over the video, the video cleared half way through it
                 selectTransition("Dissolve")
                 transitionDuration = 0.5

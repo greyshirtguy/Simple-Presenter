@@ -1,5 +1,6 @@
 #include "strokedtext.h"
 
+#include "frameclock.h"
 #include "richtext.h"
 #include "textshadow.h"
 
@@ -568,7 +569,11 @@ QPointF StrokedText::Look::origin(const TextLayoutResult &layout) const
 }
 
 // The replacement has changed. If the one before it is known, and both are drawn glyph
-// by glyph, only what has changed between them is drawn again.
+// by glyph, only what has changed between them is drawn again. On a screen that is playing
+// a video, not now but as the video's next frame comes, to be drawn in the frame the
+// video's own is drawn in and in none of its own, which took the video's turn as often as
+// not (see the top); changed again before the frame comes, it is the latest that is drawn
+// then. Where no video plays, at once, as it always was.
 void StrokedText::replace()
 {
     const bool live = m_replacement.typeId() == QMetaType::QString && box().width() > 0 && box().height() > 0;
@@ -580,6 +585,36 @@ void StrokedText::replace()
     }
     // (A timer's running text is never painted ahead: see above)
     setPending(false);
+    if (m_ticking && waitForVideoFrame())
+        return;
+    relayout();
+}
+
+// Whether the change is to wait for the next frame of a video playing on the window this is
+// in (FrameClock::waitForVideoFrame: false, and nothing to wait for, where none is), to be
+// made as it comes
+bool StrokedText::waitForVideoFrame()
+{
+    if (!window())
+        return false;
+    if (!m_pace) {
+        // (Made first and put inside this after: a child made with its parent is told of the
+        // window while it is being made, before it is a FrameClock that can take it in. Found
+        // by the frames test, 2026-11-06: nothing waited, and nothing failed to.)
+        m_pace = new FrameClock;
+        m_pace->setParent(this);
+        m_pace->setParentItem(this);
+        connect(m_pace, &FrameClock::videoFrameCame, this, &StrokedText::relayout);
+    }
+    return m_pace->waitForVideoFrame();
+}
+
+// Lays the replacement out, and has what differs from the last drawn again
+void StrokedText::relayout()
+{
+    // (Gone from a string to the content's own words while this waited: drawn as those)
+    if (m_replacement.typeId() != QMetaType::QString || box().width() <= 0 || box().height() <= 0)
+        return;
     const TextLayoutResult before = m_live;
     const bool known = m_liveKnown;
     m_live = layoutText(fitted(), box().width(), true);

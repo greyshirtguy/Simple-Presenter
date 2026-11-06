@@ -8,6 +8,8 @@
 
 // Says, on the app's thread, that a picture painted ahead has been kept (StrokedText's): for
 // what waits for the pictures of a slide before it is given to be shown (PaintAhead)
+class FrameClock;
+
 class PicturesKept : public QObject
 {
     Q_OBJECT
@@ -82,6 +84,15 @@ signals:
 // to be shown (PaintAhead); a text that finds its picture kept is ready at once. Not text
 // that changes often, a running timer's (`ticking`), which keeps the drawing above; and
 // anywhere else, as it always was.
+//
+// A timer's text on a screen playing a video changes as the video's frames come. It
+// changes by the second, or thirty times in one for its hundredths, at moments of its own,
+// and the frame of the screen drawn for each change came in the refresh before a frame of
+// the video as often as not, which put that frame on the screen a refresh late (see
+// src/framepacing.h: twenty-nine frames a second of the output's own, measured over a video
+// with a timer's hundredths on it, 2026-11-06). So on such a screen the change waits for the
+// video's next frame and is drawn in it (replace, by FrameClock::waitForVideoFrame), a
+// thirtieth of a second late at most; anywhere else, at once.
 class StrokedText : public QQuickPaintedItem
 {
     Q_OBJECT
@@ -263,6 +274,8 @@ private:
     QSizeF box() const;
     QPointF origin(const TextLayoutResult &layout) const;
     void replace();
+    bool waitForVideoFrame();
+    void relayout();
     QRect changedPart(const TextLayoutResult &before, const TextLayoutResult &after) const;
     // Painting ahead (see above)
     void changed();
@@ -318,6 +331,9 @@ private:
     bool m_unshown = false;
     QVariant m_shadow;
     bool m_ticking = true;
+    // What waits for the video's next frame, on a screen playing one, for a change of the
+    // replacement to be drawn in (see replace); made when first wanted
+    FrameClock *m_pace = nullptr;
     // Whether the item that asks for painting ahead has been looked for, and whether this
     // was said last to be painting ahead
     bool m_groupKnown = false;

@@ -11,7 +11,9 @@ class QQuickWindow;
 class QVideoSink;
 
 // The time of a screen's own frames, for what moves on it: a slide's transition, scrolling
-// text, a build (TransitionLayer, ScrollingText, BuildRun).
+// text, a build (TransitionLayer, ScrollingText, BuildRun); and for what
+// changes on it at moments of its own, a timer's text, to be changed as a frame of a video
+// playing there comes (StrokedText, by waitForVideoFrame).
 //
 // Why not Qt's own animations. Qt Quick moves its animations (NumberAnimation,
 // FrameAnimation) by the screen's refreshes only while a single window is showing. With
