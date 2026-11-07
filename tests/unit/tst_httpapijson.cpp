@@ -243,6 +243,57 @@ private slots:
         QCOMPARE(binItem({{"video", false}}, 1, false).value("type").toString(), QStringLiteral("image"));
         QCOMPARE(binItem({{"duration", 280.0}}, 0, true).value("type").toString(), QStringLiteral("audio"));
     }
+
+    void aTimerSentBackToBeSetUp()
+    {
+        QString error;
+        // Companion's Timer Set, as it was sent on 2026-11-07: a countdown of half an hour, may overrun, no id
+        QVariantMap changes = timerChanges({{"allows_overrun", true}, {"countdown", QVariantMap {{"duration", 1800}}}, {"id", QVariantMap {}}}, &error);
+        QVERIFY(error.isEmpty());
+        QCOMPARE(changes.value("kind").toString(), QStringLiteral("countdown"));
+        QCOMPARE(changes.value("duration").toDouble(), 1800.0);
+        QCOMPARE(changes.value("overrun").toBool(), true);
+        QVERIFY(!changes.contains("name"));
+        QCOMPARE(changes.size(), 3);
+        // A countdown to a time of day, on the twelve-hour clock and on the 24-hour one
+        changes = timerChanges({{"count_down_to_time", QVariantMap {{"time_of_day", 9000}, {"period", QStringLiteral("pm")}}}}, &error);
+        QCOMPARE(changes.value("kind").toString(), QStringLiteral("countdownTo"));
+        QCOMPARE(changes.value("timeOfDay").toDouble(), 9000.0 + 12 * 3600);
+        QCOMPARE(timerChanges({{"count_down_to_time", QVariantMap {{"time_of_day", 50000}, {"period", QStringLiteral("AM")}}}}, &error).value("timeOfDay").toDouble(),
+                 50000.0 - 12 * 3600);
+        QCOMPARE(timerChanges({{"count_down_to_time", QVariantMap {{"time_of_day", 50000}, {"period", QStringLiteral("24_hour")}}}}, &error).value("timeOfDay").toDouble(),
+                 50000.0);
+        // An elapsed time, with an end and without; a name in the id
+        changes = timerChanges({{"elapsed", QVariantMap {{"start_time", 30}, {"end_time", 90}}}, {"id", QVariantMap {{"name", QStringLiteral("Sermon")}}}}, &error);
+        QCOMPARE(changes.value("kind").toString(), QStringLiteral("elapsed"));
+        QCOMPARE(changes.value("startTime").toDouble(), 30.0);
+        QCOMPARE(changes.value("endTime").toDouble(), 90.0);
+        QCOMPARE(changes.value("hasEndTime").toBool(), true);
+        QCOMPARE(changes.value("name").toString(), QStringLiteral("Sermon"));
+        changes = timerChanges({{"elapsed", QVariantMap {{"start_time", 0}}}}, &error);
+        QCOMPARE(changes.value("hasEndTime").toBool(), false);
+        QVERIFY(!changes.contains("endTime"));
+        // What timers gives comes back as it went
+        const QVariantMap given = timer({{"id", QStringLiteral("9212EC2F-00DD-4A94-A017-D89A1521D6AA")}, {"name", QStringLiteral("Timer")},
+                                         {"kind", QStringLiteral("countdown")}, {"duration", 180.0}, {"overrun", false}}, 0);
+        changes = timerChanges(given, &error);
+        QVERIFY(error.isEmpty());
+        QCOMPARE(changes.value("kind").toString(), QStringLiteral("countdown"));
+        QCOMPARE(changes.value("duration").toDouble(), 180.0);
+        QCOMPARE(changes.value("overrun").toBool(), false);
+        QCOMPARE(changes.value("name").toString(), QStringLiteral("Timer"));
+        // Nothing of a timer's asks for nothing; what is not a timer's is refused, and gives nothing
+        QVERIFY(timerChanges({{"other", 1}}, &error).isEmpty());
+        QVERIFY(error.isEmpty());
+        QVERIFY(timerChanges({{"countdown", QVariantMap {{"duration", QStringLiteral("long")}}}}, &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+        QVERIFY(timerChanges({{"allows_overrun", QStringLiteral("yes")}}, &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+        QVERIFY(timerChanges({{"countdown", QVariantMap {{"duration", 5}}}, {"elapsed", QVariantMap {}}}, &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+        QVERIFY(timerChanges({{"countdown", 5}}, &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+    }
 };
 
 QTEST_APPLESS_MAIN(TestHttpApiJson)

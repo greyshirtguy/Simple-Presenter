@@ -132,6 +132,94 @@ QVariantMap timerCurrent(const QVariantMap &timer, const QVariantMap &state, int
             {"state", timerState(timer, state)}};
 }
 
+QVariantMap timerChanges(const QVariantMap &body, QString *error)
+{
+    QVariantMap changes;
+    QString problem;
+    // A time of `map`, in seconds, by `key`: false when there is none, or it is not a
+    // number (which is a problem)
+    const auto seconds = [&problem](const QVariantMap &map, const char *key, double *out) {
+        if (!map.contains(QLatin1String(key)))
+            return false;
+        const QVariant value = map.value(QLatin1String(key));
+        const int type = value.typeId();
+        if (type != QMetaType::Double && type != QMetaType::LongLong && type != QMetaType::ULongLong
+            && type != QMetaType::Int && type != QMetaType::UInt) {
+            problem = QStringLiteral("%1 is not a number").arg(QLatin1String(key));
+            return false;
+        }
+        *out = value.toDouble();
+        return true;
+    };
+    const auto object = [&problem](const QVariantMap &map, const char *key, QVariantMap *out) {
+        if (!map.contains(QLatin1String(key)))
+            return false;
+        const QVariant value = map.value(QLatin1String(key));
+        if (value.typeId() != QMetaType::QVariantMap) {
+            problem = QStringLiteral("%1 is not an object").arg(QLatin1String(key));
+            return false;
+        }
+        *out = value.toMap();
+        return true;
+    };
+    constexpr double halfDay = 12 * 3600;
+    QVariantMap part;
+    int kinds = 0;
+    double time = 0;
+    if (object(body, "countdown", &part)) {
+        ++kinds;
+        changes.insert("kind", QStringLiteral("countdown"));
+        if (seconds(part, "duration", &time))
+            changes.insert("duration", time);
+    }
+    if (object(body, "count_down_to_time", &part)) {
+        ++kinds;
+        changes.insert("kind", QStringLiteral("countdownTo"));
+        if (seconds(part, "time_of_day", &time)) {
+            // (As Timers reads the file's: see secondsOfDay there)
+            const QString period = part.value("period").toString().toLower();
+            if (period == QLatin1String("pm") && time < halfDay)
+                time += halfDay;
+            else if (period == QLatin1String("am") && time >= halfDay)
+                time -= halfDay;
+            changes.insert("timeOfDay", time);
+        }
+    }
+    if (object(body, "elapsed", &part)) {
+        ++kinds;
+        changes.insert("kind", QStringLiteral("elapsed"));
+        if (seconds(part, "start_time", &time))
+            changes.insert("startTime", time);
+        if (seconds(part, "end_time", &time)) {
+            changes.insert("endTime", time);
+            changes.insert("hasEndTime", true);
+        } else if (!part.contains("end_time")) {
+            changes.insert("hasEndTime", false);
+        }
+    }
+    if (body.contains("allows_overrun")) {
+        if (body.value("allows_overrun").typeId() != QMetaType::Bool)
+            problem = QStringLiteral("allows_overrun is not true or false");
+        else
+            changes.insert("overrun", body.value("allows_overrun").toBool());
+    }
+    if (object(body, "id", &part)) {
+        const QString name = part.value("name").toString();
+        if (!name.isEmpty())
+            changes.insert("name", name);
+    }
+    if (kinds > 1)
+        problem = QStringLiteral("a timer is one of a countdown, a count_down_to_time and an elapsed, not more");
+    if (!problem.isEmpty()) {
+        if (error)
+            *error = problem;
+        return {};
+    }
+    if (error)
+        error->clear();
+    return changes;
+}
+
 QVariantMap look(const QVariantMap &look, const QStringList &screenIds, const QString &name, int index)
 {
     const QVariantMap screens = look.value("screens").toMap();

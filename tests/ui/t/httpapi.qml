@@ -241,6 +241,11 @@ QtObject {
                       && win.liveDocument.name === kept.other.name && Show.liveIndex === 1 && document.name === documents[0].name
                       && onOutput() !== kept.byClick, win.liveDocument.name + " / " + document.name)
                 kept.timer = send("GET", "/v1/timer/0/start")
+                // Companion's Timer Set: the timer sent back by PUT with its new length, along with start, as it was sent on 2026-11-07
+                // (and answered 404); and bodies that are not a timer's
+                kept.timerSet = send("PUT", "/v1/timer/0/start", "{\"allows_overrun\": true, \"countdown\": {\"duration\": 1800}, \"id\":{} }")
+                kept.timerBad = send("PUT", "/v1/timer/0", "[1]")
+                kept.timerOdd = send("PUT", "/v1/timer/0/start", "{\"countdown\": {\"duration\": \"long\"}}")
                 kept.message = send("PUT", "/v1/stage/message", JSON.stringify("Two minutes"))
                 kept.audienceOff = send("PUT", "/v1/status/audience_screens", "false")
                 return 1600
@@ -254,13 +259,23 @@ QtObject {
                       && lastOf(now, "status/audience_screens") === false, JSON.stringify(now.slice(-6)).slice(0, 600))
                 check("the clock and the running timer every second", now.filter(update => update.url === "timer/system_time").length >= 3
                       && now.filter(update => update.url === "timers/current").length >= 3, now.map(update => update.url).join(" "))
+                check("a timer set up by PUT along with start, as Companion's Timer Set sends it: half an hour, may overrun, and running from there",
+                      response(kept.timerSet).status === 204 && Timers.timers[0].kind === "countdown" && Timers.timers[0].duration === 1800 && Timers.timers[0].overrun === true
+                      && Timers.state(Timers.timers[0].id).running && Timers.state(Timers.timers[0].id).seconds > 1700,
+                      response(kept.timerSet).status + " " + JSON.stringify(Timers.timers[0]) + " " + JSON.stringify(Timers.state(Timers.timers[0].id)))
+                check("a body that is not a timer's is refused, and does nothing", response(kept.timerBad).status === 400 && response(kept.timerOdd).status === 400
+                      && Timers.timers[0].duration === 1800, response(kept.timerBad).status + " " + response(kept.timerOdd).status)
                 kept.audienceOn = send("PUT", "/v1/status/audience_screens", "true")
                 kept.reset = send("GET", "/v1/timer/0/reset")
+                // Set up by itself, back to a minute and a half that stops at its end
+                kept.timerBack = send("PUT", "/v1/timer/0", JSON.stringify({ countdown: { duration: 90 }, allows_overrun: false }))
                 kept.hidden = send("DELETE", "/v1/stage/message")
                 return 600
             },
             () => {
                 check("and back", win.outputEnabled && Show.stageMessage === "" && Timers.state(Timers.timers[0].id).running === false)
+                check("a timer set up by PUT by itself, which stands at its new start", response(kept.timerBack).status === 204 && Timers.timers[0].duration === 90
+                      && Timers.timers[0].overrun === false && Timers.state(Timers.timers[0].id).seconds === 90, JSON.stringify(Timers.timers[0]))
                 check("the log says it listened, what operated the show, by whom, and who streamed",
                       logged(/  network +the API is listening on port 50123, at /).length === 1
                       && logged(/  network +GET \/v1\/trigger\/next from 127\.0\.0\.1: 204$/).length === 1

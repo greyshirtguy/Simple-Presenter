@@ -199,6 +199,13 @@ QVariantMap HttpApi::timerCurrent(const QVariantMap &timer, const QVariantMap &s
     return httpapijson::timerCurrent(timer, state, index);
 }
 
+QVariantMap HttpApi::timerChanges(const QVariantMap &body) const
+{
+    QString error;
+    const QVariantMap changes = httpapijson::timerChanges(body, &error);
+    return {{"changes", changes}, {"error", error}};
+}
+
 QVariantMap HttpApi::look(const QVariantMap &look, const QStringList &screenIds, const QString &name, int index) const
 {
     return httpapijson::look(look, screenIds, name, index);

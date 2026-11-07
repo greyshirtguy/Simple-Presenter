@@ -35,6 +35,8 @@ Item {
     readonly property var done: ({ status: 204 })
     readonly property var notFound: ({ status: 404 })
     readonly property var bad: ({ status: 400 })
+    // (Something the app itself could not do, such as write a file)
+    readonly property var failed: ({ status: 500 })
 
     // A body that is JSON, or undefined
     function parsed(body) {
@@ -659,16 +661,44 @@ Item {
             const found = timerAt(params.id)
             return found ? ok(HttpApi.timer(found.timer, found.index)) : notFound
         }
-        case "timer/{id}/{operation}": {
+        case "timer/{id}/{operation}":
+        case "timer/{id}#PUT":
+        case "timer/{id}/{operation}#PUT": {
             const found = timerAt(params.id)
             if (!found)
                 return notFound
-            switch (params.operation) {
-            case "start": Timers.start(found.timer.id); return done
-            case "stop": Timers.stop(found.timer.id); return done
-            case "reset": Timers.reset(found.timer.id); return done
+            const operation = params.operation ?? ""
+            if (operation !== "" && !["start", "stop", "reset"].includes(operation))
+                return notFound
+            // Sent back by PUT, the timer is first set up as the body says (Companion's
+            // Timer Set sends its new length along with start: HttpApi.timerChanges says
+            // what is taken). A body that is not a timer's is refused and nothing is
+            // done; one with nothing of a timer's in it changes nothing. Set up anew,
+            // a timer starts again from its start, as one set up by hand does. (A
+            // GUESS, that ProPresenter answers these with nothing, as it does the GETs.)
+            if (route.endsWith("#PUT")) {
+                const asked = parsed(body)
+                if (typeof asked !== "object" || asked === null || Array.isArray(asked))
+                    return bad
+                const wanted = HttpApi.timerChanges(asked)
+                if (wanted.error !== "") {
+                    Log.note("network", "a timer sent back to be set up was not a timer's: " + wanted.error)
+                    return bad
+                }
+                if (Object.keys(wanted.changes).length > 0) {
+                    const error = Timers.configure(found.timer.id, wanted.changes)
+                    if (error !== "") {
+                        Log.problem("The API asked for the timer " + found.timer.name + " to be set up, which failed: " + error)
+                        return failed
+                    }
+                }
             }
-            return notFound
+            switch (operation) {
+            case "start": Timers.start(found.timer.id); break
+            case "stop": Timers.stop(found.timer.id); break
+            case "reset": Timers.reset(found.timer.id); break
+            }
+            return done
         }
         case "timers/{operation}":
             if (!["start", "stop", "reset"].includes(params.operation))

@@ -62,6 +62,16 @@ QString timerState(const QVariantMap &timer, const QVariantMap &state);
 QVariantMap timer(const QVariantMap &timer, int index);
 // timers/current's entry for it: {id, time, state}
 QVariantMap timerCurrent(const QVariantMap &timer, const QVariantMap &state, int index);
+// The changes a timer sent back by PUT asks for (timer/{id}, and timer/{id}/{operation},
+// which is what Companion's Timer Set sends: a timer as timer() gives it, with what is
+// to be otherwise), as Timers::configure takes them: kind, duration, timeOfDay,
+// startTime, endTime and hasEndTime, overrun, and name, from the id's. Only what the
+// body has goes in; a body with nothing of a timer's in it asks for nothing. A time of
+// day comes with its period, "am" or "pm" (anything else being the 24-hour clock), as
+// the file has it. Sets *error, and gives nothing, for a body that is not a timer's: a
+// time that is not a number, overrun that is not true or false, more than one kind.
+// (That a name in the id goes with the rest is a GUESS; Companion sends an empty id.)
+QVariantMap timerChanges(const QVariantMap &body, QString *error);
 
 // A look as looks and look/current give it: {id, screens}, a screen for each of the
 // audience screens in their order (Looks' lines: see looks.h), each saying which

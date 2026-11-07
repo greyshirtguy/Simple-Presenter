@@ -200,7 +200,7 @@ const QList<Route> &routes()
     // in status/updates is not refused for one the app has nothing behind. The rest:
     // what reads and operates the show (the maintainer's first round, 2026-10-17); what
     // makes, changes or deletes things in ProPresenter's files, and thumbnails, are not
-    // here yet.
+    // here yet, but for a timer being set up.
     static const QList<Route> all = [] {
         QList<Route> made;
         auto get = [&made](const QByteArray &pattern) { made.append({"GET", QString::fromLatin1(pattern)}); };
@@ -357,6 +357,11 @@ const QList<Route> &routes()
         get("timers/{operation}");
         get("timer/{id}");
         get("timer/{id}/{operation}");
+        // (A timer set up, by itself or along with an operation on it: the one change
+        // to the workspace's files that is here, since Companion's Timer Set sends the
+        // latter, 2026-11-07.)
+        put("timer/{id}");
+        put("timer/{id}/{operation}");
         get("timer/{id}/increment/{time}");
         clocked("timer/system_time");
         clocked("timer/video_countdown");

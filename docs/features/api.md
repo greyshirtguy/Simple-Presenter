@@ -28,7 +28,7 @@ What is there, by ProPresenter's paths under `/v1/`:
 | **Libraries and playlists** | the libraries, by name; the playlists, as a tree; a playlist's items; the playlist and item live and open; their items triggered, and next and previous |
 | **Clearing** | each layer, and the workspace's clear groups |
 | **Looks, props, messages, macros** | listed, and the live look; a look made live; a prop on and off; a message shown, with the words of its text tokens, and hidden; a macro run |
-| **Timers** | listed, with their times now; started, stopped, reset, and given more time |
+| **Timers** | listed, with their times now; started, stopped, reset, and given more time; and set up by PUT (the kind, its times, and whether it may overrun), by itself or along with starting, stopping or resetting it, which is what Companion's Timer Set sends |
 | **The stage** | its screens and layouts, which layout each screen has, and changing it; the stage message shown and hidden |
 | **Media and audio** | the media playlists and the audio bin, their items played, next and previous; the video playing on the media layer played, paused, and moved through; the time left of it |
 | **Video inputs** | listed, and one put on the [video input](video-inputs.md) layer; whether one is on it, and clearing it |
@@ -42,7 +42,8 @@ JSON followed by an empty line (CR LF CR LF), so that a client can tell where on
 when the network splits it.
 
 **Not there yet**: whatever makes, changes or deletes things in the workspace's files
-(looks, messages, timers, props, playlists, macros, clear groups); the pictures of
+(looks, messages, props, playlists, macros, clear groups; of the timers, only setting
+one up is here); the pictures of
 slides, media and props; the chord chart; and what waits on things the app does not do
 yet (capture, a timeline, pausing or moving through the audio bin's
 music). Those answer 404, as ProPresenter answers what it does not know. Nor is
@@ -61,6 +62,7 @@ ProPresenter's other form of the API, over TCP/IP, nor its server-sent events.
 - Next and previous do what the arrow keys do here, which stay in the presentation.
 - The JSON's keys come in alphabetical order, and a whole number has no ".0".
 
-It has been tried with requests made by hand and by the app's own tests; not yet with
-Companion itself. The log says when it listened, who streamed what, and each request
+It has been tried with requests made by hand and by the app's own tests, and with
+Companion, whose Timer Set (a PUT with the timer's new length) is what brought the
+timers' PUT here. The log says when it listened, who streamed what, and each request
 that operated the show, with who sent it.

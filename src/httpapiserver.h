@@ -116,6 +116,8 @@ public:
     Q_INVOKABLE QString findPresentation(const QString &uuid, const QStringList &files) const;
     Q_INVOKABLE QVariantMap timer(const QVariantMap &timer, int index) const;
     Q_INVOKABLE QVariantMap timerCurrent(const QVariantMap &timer, const QVariantMap &state, int index) const;
+    // { changes, error }, from httpapijson::timerChanges
+    Q_INVOKABLE QVariantMap timerChanges(const QVariantMap &body) const;
     Q_INVOKABLE QVariantMap look(const QVariantMap &look, const QStringList &screenIds, const QString &name, int index) const;
     Q_INVOKABLE QVariantMap prop(const QVariantMap &prop, int index, bool active) const;
     Q_INVOKABLE QVariantMap message(const QVariantMap &message, int index, bool active) const;
