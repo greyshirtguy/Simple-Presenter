@@ -6,6 +6,21 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.126](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.126) · 2026-11-08
+
+- The media bin has a [transition](docs/features/transitions.md) of its own, chosen with
+  the same controls at the foot of the bin, as ProPresenter's media bin has at its bottom
+  left: media played from the bin, or by an action, comes in by it, so that a background
+  can cut in while the slides dissolve, or the other way about. Media a slide brings with
+  it comes in with the slide, by the slide's transition (a guess at ProPresenter).
+- Rows of a [playlist](docs/features/workspaces.md#rows-of-a-playlist) are copied and
+  pasted: Ctrl+C copies the selected rows and Ctrl+V pastes them under the row selected,
+  while the rows are what was last clicked, and a row's menu has Copy and Paste too. A
+  pasted row is the row it was copied from, its arrangement and all, and the copies can
+  go into another playlist.
+- A slide's menu adds an action to every slide selected, when the slide clicked is among
+  them, the file written once; the menu says so.
+
 ## [0.125](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.125) · 2026-11-08
 
 - Rows of a [playlist](docs/features/workspaces.md#rows-of-a-playlist) are selected

@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.126" date="2026-11-08">
+      <description>
+        <p>
+          The media bin has a transition of its own, chosen at its foot, apart from the
+          slides'; rows of a playlist are copied and pasted, into any playlist; and a slide's
+          menu adds an action to every slide selected.
+        </p>
+      </description>
+    </release>
     <release version="0.125" date="2026-11-08">
       <description>
         <p>
