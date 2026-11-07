@@ -699,6 +699,51 @@ QString PlaylistFile::addPresentation(const QString &root, const QString &playli
     return write(root, kind, document);
 }
 
+QString PlaylistFile::copyItems(const QString &root, Kind kind, const QStringList &itemIds, const QString &playlistId,
+                                const QString &underId, QStringList *ids)
+{
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::Playlist *playlist = findNode(document.mutable_root_node(), playlistId.toStdString());
+    if (!playlist || playlist->has_playlists())
+        return QStringLiteral("That playlist is no longer there");
+
+    // The copies first, whole (everything of a row, known here or not, goes with it),
+    // each with an id of its own; before any is added, so that a row copied into its own
+    // playlist is found as it was
+    QList<rv::data::PlaylistItem> copies;
+    for (const QString &itemId : itemIds) {
+        if (const rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString())) {
+            copies.append(*item);
+            copies.last().mutable_uuid()->set_string(newUuid());
+        }
+    }
+    if (copies.isEmpty())
+        return QStringLiteral("The rows copied are no longer there");
+
+    // Each added at the end and walked back up under the one before it (the row named
+    // for the first; one not there any more: the end), as addPresentation does
+    auto *items = playlist->mutable_items()->mutable_items();
+    std::string under = underId.toStdString();
+    for (const rv::data::PlaylistItem &copy : copies) {
+        *items->Add() = copy;
+        if (!under.empty()) {
+            int place = items->size() - 1;
+            for (int i = 0; i < items->size() - 1; ++i) {
+                if (items->Get(i).uuid().string() == under)
+                    place = i + 1;
+            }
+            for (int i = items->size() - 1; i > place; --i)
+                items->SwapElements(i, i - 1);
+        }
+        under = copy.uuid().string();
+        ids->append(QString::fromStdString(copy.uuid().string()));
+    }
+    return write(root, kind, document);
+}
+
 namespace {
 
 // Every row of every playlist under a node, handed to `each`.

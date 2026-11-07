@@ -127,6 +127,14 @@ struct PlaylistFile
     // as `underId`, just under that row. Sets *id, if given, to the new row's id.
     static QString addPresentation(const QString &root, const QString &playlistId, const QString &file,
                                    const QString &underId = {}, QString *id = nullptr);
+    // Copies rows (presentations or headings, of any playlist), by their ids, into the
+    // playlist `playlistId`: each as it is, its arrangement and all, with an id of its
+    // own; at the playlist's end, or under the row `underId`, in the order given (rows
+    // copied and pasted together, see pasteCopiedRows in Main.qml: the file read and
+    // written once). Sets *ids to the new rows' ids. A row no longer there is passed
+    // over; with none of them left it is an error, and nothing is written.
+    static QString copyItems(const QString &root, Kind kind, const QStringList &itemIds, const QString &playlistId,
+                             const QString &underId, QStringList *ids);
     // Adds the playlists of an exported playlist document (the `data` of a .proplaylist
     // archive) inside the folder `parentId`, or at the top level for "". Their
     // presentations are taken to be in the folder `library`. Sets *id to the first

@@ -129,6 +129,14 @@ Window {
     // (The maintainer's ask of 2026-11-07, from running services.)
     property var selectedRows: []
     property string lastRowSelected: ""
+    // The rows copied, by their ids, for pasting into a playlist (Ctrl+C and Ctrl+V, and
+    // a row's menu: see copyRows and pasteCopiedRows): a pasted row is the row it was
+    // copied from, its arrangement and all. This app's own copy, not the system's
+    // clipboard. And whether the rows are what was last clicked (`rowsFocused`), which
+    // the two keys go by: Ctrl+V is the media bin otherwise, and a click on a slide,
+    // or Esc, makes it that again. (The maintainer's ask of 2026-11-08.)
+    property var copiedRows: []
+    property bool rowsFocused: false
     // What is live. It is kept by Show (src/show.h), which is also the only thing that
     // changes it, by the rules of src/showstate.h: the functions below that put a slide
     // or media on the output, turn a prop over or clear a layer only ask it to. What it
@@ -331,6 +339,7 @@ Window {
     function selectSlide(index, withShift) {
         if (!document || index < 0 || index >= document.slides.length)
             return
+        rowsFocused = false
         const now = withShift ? SlideSelection.extended(selectedPlaces(), lastSelected, activeSlideIndex, index)
                               : SlideSelection.toggled(selectedPlaces(), activeSlideIndex, index)
         selectedSlideIds = now.map(place => document.slides[place].id)
@@ -836,6 +845,7 @@ Window {
         playlistId = ""
         libraryPath = path
         clearRowSelection()
+        rowsFocused = false
         refreshLists()
         openFirst()
     }
@@ -846,6 +856,8 @@ Window {
         selectedNode = id
         playlistId = id
         clearRowSelection()
+        // (Opened from the list: its rows are what is being worked on, for a paste)
+        rowsFocused = true
         refreshLists()
         openFirst()
     }
@@ -910,6 +922,7 @@ Window {
     // otherwise opened, but for a heading or a row whose presentation is missing, which
     // are only selected, by themselves (a missing row, for Delete to take it out).
     function pickRow(entry, modifiers) {
+        rowsFocused = true
         const rows = playlistId !== "" && !bibleMode
         if (rows && (modifiers & (Qt.ControlModifier | Qt.ShiftModifier))) {
             selectRow(entry, (modifiers & Qt.ShiftModifier) !== 0)
@@ -1046,6 +1059,47 @@ Window {
         Log.note("edit", quoted(file.replace(/^.*\//, "").replace(/\.pro$/, "")) + " added to the playlist " + quoted(playlist ? playlist.name : playlistId)
                  + (underRow ? ", under " + quoted(underRow.name) : ", at its end"))
         return { id: made.id, under: underRow ? underRow.name : "" }
+    }
+
+    // ---- Rows copied and pasted (see copiedRows)
+
+    // Copies rows of the playlist being browsed, by their ids, for pasting: in the
+    // list's order, whatever order they were selected in. Returns whether there were any.
+    function copyRows(ids) {
+        if (playlistId === "" || ids.length === 0)
+            return false
+        const rows = documents.filter(d => ids.includes(d.path))
+        if (rows.length === 0)
+            return false
+        copiedRows = rows.map(r => r.path)
+        notice = (rows.length === 1 ? "“" + rows[0].name + "” copied" : rows.length + " rows copied") + "."
+        noticeIsError = false
+        return true
+    }
+
+    // Pastes the rows copied into the playlist being browsed, under the row with this
+    // id or at the end for "", as they were copied (Catalog.copyPlaylistItems); the new
+    // rows are then the ones selected, and the first of them is lit. A copied row that
+    // has since been removed is passed over. Returns whether any went in.
+    function pasteCopiedRows(under) {
+        if (playlistId === "" || copiedRows.length === 0)
+            return false
+        const playlist = catalog.playlists.find(p => p.path === playlistId)
+        const underRow = documents.find(d => d.path === under)
+        const made = catalog.copyPlaylistItems(copiedRows, playlistId, under)
+        if (!report(made.error))
+            return false
+        // (The lists have followed the change.)
+        selectedRows = made.ids
+        lastRowSelected = made.ids[made.ids.length - 1]
+        sidebar.flashRow(made.ids[0])
+        const names = documents.filter(d => made.ids.includes(d.path)).map(d => quoted(d.name))
+        Log.note("edit", counted(made.ids.length, "row", "rows") + " pasted into the playlist " + quoted(playlist ? playlist.name : playlistId)
+                 + (underRow ? ", under " + quoted(underRow.name) : ", at its end") + ": " + names.join(", "))
+        notice = (made.ids.length === 1 ? "“" + documents.find(d => d.path === made.ids[0]).name + "” pasted" : made.ids.length + " rows pasted")
+                 + " into “" + (playlist ? playlist.name : playlistId) + "”."
+        noticeIsError = false
+        return true
     }
 
     // Switches Simple View on or off. `how` says what asked, for the log.
@@ -3022,8 +3076,12 @@ Window {
         }
         if (entry.playlistItem) {
             items.push({ header: "Playlist" })
-            // The row, or every row selected if it is one of them (see removeRows)
+            // The row, or every row selected if it is one of them (see removeRows and
+            // copyRows); a paste goes under the row clicked
             const several = selectedRows.length > 1 && selectedRows.includes(entry.path)
+            items.push({ label: several ? "Copy " + selectedRows.length + " Rows" : "Copy", run: () => copyRows(several ? selectedRows : [entry.path]) })
+            items.push({ label: copiedRows.length > 1 ? "Paste " + copiedRows.length + " Rows Under" : "Paste Under", disabled: copiedRows.length === 0,
+                         run: () => pasteCopiedRows(entry.path) })
             items.push({ label: several ? "Remove " + selectedRows.length + " Rows from Playlist" : "Remove from Playlist",
                          run: () => removeRows(several ? selectedRows : [entry.path]) })
         }
@@ -4338,6 +4396,7 @@ Window {
     function clickSlide(index, withoutMedia) {
         // (A click alone leaves nothing else selected: the slide it takes live is)
         clearSlideSelection()
+        rowsFocused = false
         if (!viewedGoesToAnnouncements && Show.stepBuild(documentKey, viewedPlaylistId, index))
             return
         goLive(index, withoutMedia)
@@ -5963,8 +6022,19 @@ Window {
             }
             if (event.modifiers & Qt.ControlModifier) {
                 switch (event.key) {
+                case Qt.Key_C:
+                    // The rows selected in the playlist, while the rows are what was last
+                    // clicked (see copiedRows); otherwise nothing is copied here
+                    if (!win.rowsFocused || !win.copyRows(win.selectedRows))
+                        return
+                    break
                 case Qt.Key_V:
-                    win.mediaBinVisible = !win.mediaBinVisible
+                    // The rows copied, under the row selected, while the rows are what was
+                    // last clicked and there are rows to paste; the media bin otherwise
+                    if (win.rowsFocused && win.copiedRows.length > 0 && win.playlistId !== "")
+                        win.pasteCopiedRows(win.rowToAddUnder())
+                    else
+                        win.mediaBinVisible = !win.mediaBinVisible
                     break
                 case Qt.Key_1:
                     win.outputEnabled = !win.outputEnabled
@@ -5985,6 +6055,12 @@ Window {
                     win.closeTextFormat()
                 else
                     win.clearSlideSelection()
+                event.accepted = true
+                return
+            }
+            // Then Esc leaves the playlist's rows, so that Ctrl+V is the media bin again
+            if (event.key === Qt.Key_Escape && win.typedNumber === "" && win.rowsFocused) {
+                win.rowsFocused = false
                 event.accepted = true
                 return
             }

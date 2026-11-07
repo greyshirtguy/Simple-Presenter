@@ -20,7 +20,8 @@
 | Ctrl+click / Shift+click on a slide | [Select](text-format.md#selecting-slides) it, or let it go / select every slide from the last one selected |
 | Ctrl+click / Shift+click on a row of a playlist | [Select](workspaces.md#rows-of-a-playlist) it as well, or let it go / select every row from the last one selected; a heading can be selected too. What is open stays open |
 | Delete | Take the selected rows out of the playlist |
-| Ctrl+V | Show or hide the media bin |
+| Ctrl+C / Ctrl+V | Copy the selected rows of a playlist / paste them under the row selected, while the rows are what was last clicked; a click on a slide, or Esc, and Ctrl+V is the media bin again |
+| Ctrl+V | Show or hide the media bin (unless rows are being pasted, above) |
 | Ctrl+1 / Ctrl+2 | Switch the audience screens / the stage screens on or off |
 | Ctrl+, | The settings, from the editor as well |
 | Esc | Close a menu, or the [Text](text-format.md) popover; then let go of the slides selected |

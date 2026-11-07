@@ -128,6 +128,9 @@ public:
     Q_INVOKABLE QString removePlaylistItem(const QString &item);
     // Several rows at one go, the file written once
     Q_INVOKABLE QString removePlaylistItems(const QStringList &items);
+    // Copies rows, by their ids, into the playlist, under the row `under` or at its end
+    // for "": { ids, error }, the ids the new rows' (see PlaylistFile::copyItems)
+    Q_INVOKABLE QVariantMap copyPlaylistItems(const QStringList &items, const QString &playlist, const QString &under);
     Q_INVOKABLE QString movePlaylistItem(const QString &item, const QString &target, bool after);
     // Moves a playlist or folder "before" or "after" another, or "onto" (into) a folder.
     Q_INVOKABLE QString movePlaylistNode(const QString &id, const QString &target, const QString &where);

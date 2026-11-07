@@ -449,6 +449,13 @@ QString Catalog::removePlaylistItems(const QStringList &items)
     return afterChange(PlaylistFile::removeItems(m_root, PlaylistFile::Presentations, items));
 }
 
+QVariantMap Catalog::copyPlaylistItems(const QStringList &items, const QString &playlist, const QString &under)
+{
+    QStringList ids;
+    const QString error = afterChange(PlaylistFile::copyItems(m_root, PlaylistFile::Presentations, items, playlist, under, &ids));
+    return {{"ids", ids}, {"error", error}};
+}
+
 QString Catalog::setArrangement(const QString &path, const QString &arrangement)
 {
     const QString error = ProDocument::setArrangement(path, arrangement);

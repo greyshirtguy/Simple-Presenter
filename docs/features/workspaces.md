@@ -117,6 +117,15 @@ them; the row that took their place is then the one selected. [Search](search.md
 a presentation under the selected row. (How ProPresenter selects rows, and what it
 shows after Delete, has not been looked at: a guess.)
 
+Rows are copied and pasted as well: **Ctrl+C** copies the selected rows and **Ctrl+V**
+pastes them under the row selected, while the rows are what was last clicked (a click
+on a slide, or Esc, gives Ctrl+V back to the media bin); a row's menu has Copy and
+Paste too, the paste going under that row. A pasted row is the row it was copied from,
+its arrangement and all, and the copies can go into another playlist: open it from the
+list, and Ctrl+V puts them under the row selected there, which is the presentation
+opened with the playlist until a row is clicked. The copy is the app's own, not the
+system clipboard's.
+
 Under the list of presentations is a box that narrows it. What is typed there leaves
 the presentations whose names have every word of it, in any order, as a word or part of
 one, with capitals, accents and punctuation aside, as [Search](search.md) has them. It

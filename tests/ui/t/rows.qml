@@ -4,8 +4,10 @@ import "lib.js" as Lib
 
 // The rows of a playlist selected several at a time, with Ctrl and Shift held, headings among them, with what is open
 // staying open; the Delete key taking the selected rows out, and the menu's Remove for all of them; and the search's
-// Ctrl+Enter adding under the row selected, the new row selected and lit, and named at the foot of the search. What the
-// playlists file then holds is looked at when the test is over, by after_rows in run.py.
+// Ctrl+Enter adding under the row selected, the new row selected and lit, and named at the foot of the search; rows
+// copied with Ctrl+C and pasted with Ctrl+V, under the row selected, into another playlist at its end, and from a row's
+// menu, with Ctrl+V the media bin again once a slide has been clicked. What the playlists file then holds is looked at
+// when the test is over, by after_rows in run.py.
 QtObject {
     id: t
 
@@ -213,6 +215,88 @@ QtObject {
                       && documentKey === documents[7].path && notice === "“" + kept.heading + "” removed from “Sunday Morning”." && !noticeIsError, notice)
                 check("what took its place is selected, and not opened", selectedRows.length === 1 && selectedRows[0] === documents[kept.headingAt].path && documentKey === documents[7].path,
                       selectedNames().join(", "))
+                // ---- Rows copied and pasted
+                click(centre(rowAt(1)))
+                return 400
+            },
+            () => {
+                clickWith(centre(rowAt(2)), Qt.ControlModifier)
+                return 300
+            },
+            () => {
+                check("(two presentations selected, the first of them open)", selectedRows.length === 2 && documentKey === documents[1].path
+                      && documents[1].kind === "presentation" && documents[2].kind === "presentation", selectedNames().join(", "))
+                kept.copied = [documents[1], documents[2]]
+                notice = ""
+                testInput.key(Qt.Key_C, Qt.ControlModifier)
+                return 300
+            },
+            () => {
+                check("Ctrl+C copies the selected rows, and says so", copiedRows.length === 2 && copiedRows[0] === documents[1].path && copiedRows[1] === documents[2].path
+                      && notice === "2 rows copied." && !noticeIsError, notice)
+                check("and the playlist is as it was", documents.length === kept.count)
+                click(centre(rowAt(0)))
+                return 300
+            },
+            () => {
+                check("(the first heading selected)", selectedRows.length === 1 && documents[0].kind === "header" && selectedRows[0] === documents[0].path)
+                notice = ""
+                kept.bin = mediaBinVisible
+                testInput.key(Qt.Key_V, Qt.ControlModifier)
+                return 700
+            },
+            () => {
+                check("Ctrl+V pastes them under the heading selected, as they were, arrangements and all; what is open stays open, and the media bin as it was",
+                      documents.length === kept.count + 2 && documents[1].name === kept.copied[0].name && documents[2].name === kept.copied[1].name
+                      && documents[1].file === kept.copied[0].file && documents[1].arrangement === kept.copied[0].arrangement
+                      && documents[2].arrangement === kept.copied[1].arrangement && documents[1].path !== kept.copied[0].path
+                      && documentKey === documents[3].path && mediaBinVisible === kept.bin, names().slice(0, 5).join(", "))
+                check("the pasted rows are the ones selected, drawn so, and the first lit", selectedRows.length === 2 && selectedRows[0] === documents[1].path
+                      && selectedRows[1] === documents[2].path && drawnSelected(1) && drawnSelected(2) && lit(1), selectedNames().join(", "))
+                check("and the operator is told", notice === "2 rows pasted into “Sunday Morning”." && !noticeIsError, notice)
+                // A slide clicked: the rows are no longer what was last clicked
+                click(centre(slideCell(0)))
+                return 400
+            },
+            () => {
+                check("(the rows are no longer what was last clicked)", !rowsFocused)
+                testInput.key(Qt.Key_V, Qt.ControlModifier)
+                return 400
+            },
+            () => {
+                check("after a click on a slide, Ctrl+V is the media bin again, and pastes nothing", mediaBinVisible === !kept.bin && documents.length === kept.count + 2)
+                testInput.key(Qt.Key_V, Qt.ControlModifier)
+                return 400
+            },
+            () => {
+                check("(and back)", mediaBinVisible === kept.bin)
+                click(centre(rowAt(5)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                check("a row's menu has Copy and Paste", menu.opened && labels().includes("Copy, Paste 2 Rows Under, Remove from Playlist"), labels())
+                kept.under = documents[5].name
+                click(menuRow("Paste 2 Rows Under"))
+                return 700
+            },
+            () => {
+                check("Paste puts them under that row", documents.length === kept.count + 4 && documents[6].name === kept.copied[0].name
+                      && documents[7].name === kept.copied[1].name && documents[5].name === kept.under, names().slice(4, 9).join(", "))
+                // Into another playlist, opened from the list: at its end
+                openPlaylist(catalog.playlists.find(p => p.name === "Demo Playlist").path)
+                return 500
+            },
+            () => {
+                kept.other = documents.length
+                testInput.key(Qt.Key_V, Qt.ControlModifier)
+                return 700
+            },
+            () => {
+                // (The playlist's first presentation was opened with it, and is the row selected: they go under it, which in
+                // this playlist of one row is its end)
+                check("in another playlist, opened from the list, Ctrl+V pastes them under the row selected there, the one opened with it", documents.length === kept.other + 2
+                      && documents[kept.other].name === kept.copied[0].name && documents[kept.other + 1].name === kept.copied[1].name && selectedRows.length === 2,
+                      names().slice(-3).join(", "))
                 // ---- In a library, Delete does nothing
                 openLibrary(catalog.libraries[0].path)
                 return 500
@@ -231,6 +315,8 @@ QtObject {
                       && logged(/  edit +1 row removed from the playlist "Sunday Morning": /).length === 1
                       && logged(/  edit +"Jesus Have It All" added to the playlist "Sunday Morning", under "9:00am Songs"/).length === 1
                       && logged(/  edit +"Move Of God" added to the playlist "Sunday Morning", under "/).length === 1, logged(/  edit /).slice(-6).join(" | "))
+                check("and what was pasted where", logged(/  edit +2 rows pasted into the playlist "Sunday Morning", under "/).length === 2
+                      && logged(/  edit +2 rows pasted into the playlist "Demo Playlist", under "All Hail King Jesus": /).length === 1, logged(/ pasted /).join(" | "))
                 check("nothing went wrong on the way", logged(/PROBLEM|WARNING|ERROR/).filter(l => !l.includes("qt.qpa.theme")).length === 0, logged(/PROBLEM|WARNING|ERROR/).slice(0, 3).join(" | "))
             }
         ]
