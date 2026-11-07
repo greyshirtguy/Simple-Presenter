@@ -99,6 +99,8 @@ QtObject {
                 openPlaylist(playlist.path)
                 kept.playlist = playlist.path
                 kept.before = catalog.playlistItems(playlist.path).length
+                // (Opening the playlist opened its first presentation, whose row is the one selected: what is added goes under it)
+                kept.open = documents.findIndex(d => d.path === documentKey)
                 named("searchButton").clicked()
                 return 400
             },
@@ -115,8 +117,26 @@ QtObject {
             },
             () => {
                 const items = catalog.playlistItems(kept.playlist)
-                check("Ctrl+Enter adds it to the end of the playlist", items.length === kept.before + 1 && items[items.length - 1].name === "Build My Life", items.length)
-                check("and the search stays, saying what it did", searchOpen && named("searchHint").text.includes("Added") && named("searchHint").text.includes("Build My Life"))
+                const made = items[kept.open + 1]
+                check("Ctrl+Enter adds it to the playlist, under the row selected there (the presentation open)", items.length === kept.before + 1 && kept.open >= 0
+                      && made.name === "Build My Life" && items[kept.open].path === documentKey, items.map(i => i.name).join(", "))
+                check("the new row is the one selected, and the presentation open is as it was", selectedRows.length === 1 && selectedRows[0] === made.path && documentKey === items[kept.open].path
+                      && document.name === items[kept.open].name, JSON.stringify(selectedRows))
+                const list = named("presentationList")
+                list.positionViewAtIndex(kept.open + 1, ListView.Contain)
+                const row = list.itemAtIndex(kept.open + 1)
+                check("and is drawn selected, and lit for a moment, for the eye to find", row !== null && row.selected === true && list.litPath === made.path
+                      && Lib.find(row, item => item.color !== undefined && Qt.colorEqual(item.color, "#ff8a1f") && item.opacity > 0.1) !== null, list.litPath)
+                check("and the search stays, saying what it did and where", searchOpen && named("searchHint").text.includes("Added") && named("searchHint").text.includes("Build My Life")
+                      && named("searchHint").text.includes("under “" + items[kept.open].name + "”"), named("searchHint").text)
+                testInput.key(Qt.Key_Return, Qt.ControlModifier)
+                return 500
+            },
+            () => {
+                const items = catalog.playlistItems(kept.playlist)
+                check("added again, it goes under the one just added: several added in turn come in that order", items.length === kept.before + 2
+                      && items[kept.open + 1].name === "Build My Life" && items[kept.open + 2].name === "Build My Life" && selectedRows[0] === items[kept.open + 2].path
+                      && named("searchHint").text.includes("under “Build My Life”"), items.map(i => i.name).join(", "))
                 retype("move of god")
                 return 400
             },

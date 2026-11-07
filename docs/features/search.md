@@ -13,7 +13,7 @@ slides look.
 | --- | --- |
 | Up, Down | Pick another |
 | Enter | Open the one picked, in its library |
-| Ctrl+Enter | Add it to the end of the playlist that is open, and stay, to add another |
+| Ctrl+Enter | Add it to the playlist that is open, under the [row selected](workspaces.md#rows-of-a-playlist) there (so under the one just added, when several are added in turn), and stay, to add another. The new row is selected, lit for a moment in the list, and named at the foot of the search |
 | Esc | Put the search away |
 
 The libraries are read for it once, off the thread that draws, when the workspace is

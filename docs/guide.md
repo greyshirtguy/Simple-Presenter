@@ -76,6 +76,8 @@ is longer, and not even it is the whole of it.
 | Ctrl+R | The reflow editor |
 | Ctrl+F | Search |
 | Ctrl+click / Shift+click on a slide | Select it, or let it go / select every slide from the last one selected, for the Text button |
+| Ctrl+click / Shift+click on a row of a playlist | Select it as well, or let it go / select every row from the last one selected; a heading can be selected too. What is open stays open |
+| Delete | Take the selected rows out of the playlist |
 | Esc | Put the Text button's popover away; then let go of the slides selected |
 | Ctrl+Alt+B | Bible mode on or off |
 | Ctrl+Alt+C | The Calendar |

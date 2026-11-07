@@ -88,6 +88,11 @@ struct PlaylistFile
                             const QString &where);
     // Removes a row from its playlist.
     static QString removeItem(const QString &root, Kind kind, const QString &itemId);
+    // Removes rows, of any of the playlists, at one go: those of the ids that are still
+    // there (several rows selected and removed together, see removeSelectedRows in
+    // Main.qml: the file read and written once, not once a row). It is an error only
+    // when none of them is there.
+    static QString removeItems(const QString &root, Kind kind, const QStringList &itemIds);
     // Moves a row to just before, or with `after` just after, another row of the same
     // playlist.
     static QString moveItem(const QString &root, Kind kind, const QString &itemId, const QString &targetId,
@@ -117,9 +122,11 @@ struct PlaylistFile
     // row is changed, its arrangement least of all. With no rows there is nothing to
     // do, and nothing is written.
     static QString renameRows(const QString &root, const QStringList &ids, const QString &oldName, const QString &fileName);
-    // Appends a presentation file to a playlist, using the arrangement the presentation
-    // has selected.
-    static QString addPresentation(const QString &root, const QString &playlistId, const QString &file);
+    // Adds a presentation file to a playlist, using the arrangement the presentation
+    // has selected: at its end, or, given one of its rows (a heading or a presentation)
+    // as `underId`, just under that row. Sets *id, if given, to the new row's id.
+    static QString addPresentation(const QString &root, const QString &playlistId, const QString &file,
+                                   const QString &underId = {}, QString *id = nullptr);
     // Adds the playlists of an exported playlist document (the `data` of a .proplaylist
     // archive) inside the folder `parentId`, or at the top level for "". Their
     // presentations are taken to be in the folder `library`. Sets *id to the first

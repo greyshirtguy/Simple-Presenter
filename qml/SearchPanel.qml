@@ -12,7 +12,10 @@ import SimplePresenterApp
 //
 //   Up, Down      pick another
 //   Enter         open the one picked, in its library
-//   Ctrl+Enter    add it to the playlist that is open, and stay, to add another
+//   Ctrl+Enter    add it to the playlist that is open, under the row selected there
+//                 (so under the one just added, when several are added in turn), and
+//                 stay, to add another; the row it made is selected, and lit for a
+//                 moment in the list, and the foot of this says where it went
 //   Esc           put the search away
 Rectangle {
     id: search
@@ -27,8 +30,10 @@ Rectangle {
     readonly property var playlist: win.playlistId === "" ? null : (win.catalog.playlists.find(p => p.path === win.playlistId) ?? null)
     // Whether the one picked is shown as its slides, and not as its words
     property bool asSlides: false
-    // What was last added, to say so
+    // What was last added, to say so, and the name of the row it went under ("" for
+    // the end)
     property string added: ""
+    property string addedUnder: ""
 
     signal closed
 
@@ -36,6 +41,7 @@ Rectangle {
         field.text = ""
         picked = 0
         added = ""
+        addedUnder = ""
         field.forceActiveFocus()
     }
 
@@ -53,8 +59,11 @@ Rectangle {
     function addPicked() {
         if (pick === null || playlist === null)
             return
-        win.addToPlaylist(playlist.path, pick.path)
+        const made = win.addToPlaylistHere(pick.path)
+        if (made === null)
+            return
         added = pick.name
+        addedUnder = made.under
     }
 
     onFoundChanged: picked = 0
@@ -323,10 +332,13 @@ Rectangle {
                 anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 elide: Text.ElideRight
-                color: "#8a8d93"
+                // (What was added is said in the playlists' green, to be seen)
+                color: search.added !== "" ? "#5fd38d" : "#8a8d93"
                 font.pixelSize: 12
-                text: search.added !== "" && search.playlist !== null ? "Added “" + search.added + "” to “" + search.playlist.name + "”."
-                    : search.playlist !== null ? "Enter opens it. Ctrl+Enter adds it to “" + search.playlist.name + "”."
+                text: search.added !== "" && search.playlist !== null
+                      ? "✓ Added “" + search.added + "” to “" + search.playlist.name + "”"
+                        + (search.addedUnder !== "" ? ", under “" + search.addedUnder + "”." : ", at its end.")
+                    : search.playlist !== null ? "Enter opens it. Ctrl+Enter adds it to “" + search.playlist.name + "”, under the row selected there."
                     : "Enter opens it. To add to a playlist, have the playlist open first."
             }
 

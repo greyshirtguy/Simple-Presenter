@@ -1,14 +1,17 @@
 import QtQuick
 import QtQuick.Controls.Basic
 
-// A list of { name, path } entries, one selected and one optionally marked live (or, for
+// A list of { name, path } entries, one selected (`selectedPath`), or several
+// (`selectedPaths`, for the rows of a playlist), and one optionally marked live (or, for
 // a list of which several things can be live at once, each entry that says `live`). Entries
 // with a `depth` are indented by it, which is how trees are drawn, and a `detail` is
 // shown dimmed after the name. An entry with a `kind` of "header" only labels what
-// follows it: it is drawn in its `color` and is not picked by a click. An entry marked
-// `missing` is drawn as unavailable. An entry with an `icon` (see RowIcon) has it drawn
-// before its name. An entry with `calendar` (a playlist an event of the Calendar goes
-// live from) has a calendar's page drawn at the end of its row.
+// follows it: it is drawn in its `color`, and is not picked by a click unless the list
+// says headings can be (`headersPickable`, for a playlist's, so that a presentation can
+// be added under one). An entry marked `missing` is drawn as unavailable. An entry with
+// an `icon` (see RowIcon) has it drawn before its name. An entry with `calendar` (a
+// playlist an event of the Calendar goes live from) has a calendar's page drawn at the
+// end of its row. One entry can be lit up for a moment (flash()), for the eye to find.
 //
 // Entries sit a little in from the left edge, so a title above the list reads as their
 // heading. Optionally, entries can be renamed in place, dragged out, and dropped onto.
@@ -16,6 +19,14 @@ ListView {
     id: list
 
     property string selectedPath
+    // The paths of the entries that are selected as well, by their paths: those of a
+    // playlist's rows, where several can be (see selectedRows in Main.qml)
+    property var selectedPaths: []
+    // Whether a click on a heading picks it, as one on a row does (and a right click
+    // opens its menu)
+    property bool headersPickable: false
+    // The entry lit up for a moment, by path: see flash()
+    property string litPath: ""
     property string livePath
     // How far in from the left edge entries start.
     property real baseIndent: 22
@@ -36,7 +47,8 @@ ListView {
     property var dropKeys: []
     property var dropZone: (entry, source, urls) => "onto"
 
-    signal picked(var entry)
+    // Left-click, with the keys held (Qt.ControlModifier, Qt.ShiftModifier)
+    signal picked(var entry, int modifiers)
     // Right-click; `item` is the entry's row, for placing a menu by it.
     signal menuRequested(var entry, Item item)
     // A rename in place was confirmed with a new, non-empty name.
@@ -51,6 +63,23 @@ ListView {
 
     function escaped(text) {
         return text.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    }
+
+    // Lights the entry at `path` up for a moment, fading, and brings it into view: the
+    // row the search has just added to a playlist, so that it is seen where it went
+    // (the search panel stays up over the window, dimming it). Lit again while it is
+    // lit, it starts again from bright.
+    function flash(path) {
+        if (litPath === path)
+            litPath = ""
+        litPath = path
+        for (let index = 0; index < count; ++index) {
+            const entry = model[index]
+            if (entry && entry.path === path) {
+                positionViewAtIndex(index, ListView.Contain)
+                return
+            }
+        }
     }
 
     // Ends a rename in place. `name` is what was typed, or "" if it was abandoned. Done
@@ -75,11 +104,12 @@ ListView {
     // array (seen with Qt 6.10): asking that first, as this did, found nothing, ever, and
     // every list stayed at its top.
     onModelChanged: Qt.callLater(() => {
-        if (selectedPath === "")
+        const wanted = selectedPath !== "" ? selectedPath : selectedPaths.length > 0 ? selectedPaths[0] : ""
+        if (wanted === "")
             return
         for (let index = 0; index < count; ++index) {
             const entry = model[index]
-            if (entry && entry.path === selectedPath) {
+            if (entry && entry.path === wanted) {
                 positionViewAtIndex(index, ListView.Contain)
                 return
             }
@@ -94,9 +124,10 @@ ListView {
         id: entry
 
         required property var modelData
-        readonly property bool selected: modelData.path === list.selectedPath
+        readonly property bool selected: modelData.path === list.selectedPath || list.selectedPaths.includes(modelData.path)
         readonly property bool header: modelData.kind === "header"
-        readonly property bool label: header
+        // A heading that is only a heading: nothing to click
+        readonly property bool label: header && !list.headersPickable
         readonly property bool editing: list.editingPath !== "" && modelData.path === list.editingPath
         readonly property real indent: list.baseIndent + (modelData.depth ?? 0) * 14
         readonly property bool hasIcon: (modelData.icon ?? "") !== ""
@@ -110,7 +141,7 @@ ListView {
         // Selection and hover both lighten whatever is behind, so they read on any
         // pane's background without bringing in a colour of their own; selection is
         // the stronger, and is edged above and below.
-        color: header ? "#232427" : selected ? "#22ffffff" : mouse.containsMouse && !label ? "#10ffffff" : "transparent"
+        color: header && !selected ? "#232427" : selected ? "#22ffffff" : mouse.containsMouse && !label ? "#10ffffff" : "transparent"
 
         Rectangle {
             anchors.left: parent.left
@@ -137,6 +168,30 @@ ListView {
             width: 6
             visible: (list.livePath !== "" && entry.modelData.path === list.livePath) || entry.modelData.live === true
             color: "#ff8a1f"
+        }
+
+        // Lit up for a moment, and fading (see flash()), under its name: made for that
+        // row alone, and only while it is the one. It fades by the window's own frames (FrameFade), as
+        // everything that moves here does, and once faded asks for no more of them.
+        Loader {
+            anchors.fill: parent
+            active: list.litPath !== "" && entry.modelData.path === list.litPath
+
+            sourceComponent: Rectangle {
+                color: "#ff8a1f"
+                // (Strong enough to be seen through the search panel's dimming of the
+                // window, and long enough to be seen once the panel is put away)
+                opacity: 0.6 * glow.value
+
+                FrameFade {
+                    id: glow
+
+                    to: 0
+                    duration: 1800
+                }
+
+                Component.onCompleted: glow.flash(1)
+            }
         }
 
         RowIcon {
@@ -238,12 +293,12 @@ ListView {
                 if (dragging) {
                     list.dragProxy.Drag.drop()
                     finish()
-                } else if (entry.header) {
+                } else if (entry.label) {
                     return
                 } else if (mouse.button === Qt.RightButton) {
                     list.menuRequested(entry.modelData, entry)
-                } else if (!entry.label) {
-                    list.picked(entry.modelData)
+                } else {
+                    list.picked(entry.modelData, mouse.modifiers)
                 }
             }
             onCanceled: finish()

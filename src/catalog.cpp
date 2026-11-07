@@ -383,9 +383,21 @@ QString Catalog::addToPlaylist(const QString &playlist, const QString &file)
     return afterChange(PlaylistFile::addPresentation(m_root, playlist, file));
 }
 
+QVariantMap Catalog::insertInPlaylist(const QString &playlist, const QString &file, const QString &under)
+{
+    QString id;
+    const QString error = afterChange(PlaylistFile::addPresentation(m_root, playlist, file, under, &id));
+    return {{"id", id}, {"error", error}};
+}
+
 QString Catalog::removePlaylistItem(const QString &item)
 {
     return afterChange(PlaylistFile::removeItem(m_root, PlaylistFile::Presentations, item));
+}
+
+QString Catalog::removePlaylistItems(const QStringList &items)
+{
+    return afterChange(PlaylistFile::removeItems(m_root, PlaylistFile::Presentations, items));
 }
 
 QString Catalog::setArrangement(const QString &path, const QString &arrangement)

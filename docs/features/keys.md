@@ -18,6 +18,8 @@
 | Ctrl+S | Show mode: out of the editor, whichever one is up |
 | Ctrl+F | [Search](search.md) |
 | Ctrl+click / Shift+click on a slide | [Select](text-format.md#selecting-slides) it, or let it go / select every slide from the last one selected |
+| Ctrl+click / Shift+click on a row of a playlist | [Select](workspaces.md#rows-of-a-playlist) it as well, or let it go / select every row from the last one selected; a heading can be selected too. What is open stays open |
+| Delete | Take the selected rows out of the playlist |
 | Ctrl+V | Show or hide the media bin |
 | Ctrl+1 / Ctrl+2 | Switch the audience screens / the stage screens on or off |
 | Ctrl+, | The settings, from the editor as well |

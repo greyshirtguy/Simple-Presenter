@@ -649,6 +649,49 @@ def prepare_library(workspace, test_dir):
     shutil.copy(path, os.path.join(test_dir, "playlists-before"))
 
 
+def after_rows(workspace, test_dir):
+    """Rows of a playlist taken out and one added (rows): the playlists file is what it was, but for the rows that
+    went and the row that came, each a block of its own; the rest of it, to the byte of its decoded text, is as it was."""
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.PlaylistDocument", "propresenter.proto", source.read()).decode()
+
+    def rows_and_rest(text):
+        """The rows of the playlists (an `items {` block that has a `uuid {` of its own), by uuid, and the text with
+        those blocks cut out."""
+        lines = text.splitlines()
+        rows, rest, at = {}, [], 0
+        while at < len(lines):
+            line = lines[at]
+            indent = len(line) - len(line.lstrip())
+            if line.strip() == "items {" and at + 1 < len(lines) and lines[at + 1].strip() == "uuid {":
+                end = at + 1
+                while end < len(lines) and not (lines[end].strip() == "}" and len(lines[end]) - len(lines[end].lstrip()) == indent):
+                    end += 1
+                block = lines[at:end + 1]
+                found = re.search(r'string: "([^"]+)"', block[2])
+                rows[found.group(1) if found else "?%d" % at] = "\n".join(block)
+                at = end + 1
+                continue
+            rest.append(line)
+            at += 1
+        return rows, "\n".join(rest)
+
+    before, before_rest = rows_and_rest(decoded(os.path.join(FIXTURES, "workspaces", "Demo", "Playlists", "Library")))
+    after, after_rest = rows_and_rest(decoded(os.path.join(workspace, "Playlists", "Library")))
+    gone = [uuid for uuid in before if uuid not in after]
+    came = [uuid for uuid in after if uuid not in before]
+    kept_changed = [uuid for uuid in before if uuid in after and before[uuid] != after[uuid]]
+    return [
+        said(len(gone) == 1 and "header {" in before[gone[0]] and "10:30am Service" in before[gone[0]], "in the playlists file: the one row gone is the heading that was deleted last",
+             "%d gone: %s" % (len(gone), [before[u][:120] for u in gone])),
+        said(len(came) == 1 and 'name: "Move Of God"' in after[came[0]] and "presentation {" in after[came[0]] and 'arrangement_name: "Default"' in after[came[0]],
+             "the one row come is Move Of God, a presentation with its arrangement", "%d came: %s" % (len(came), [after[u][:160] for u in came])),
+        said(not kept_changed and before_rest == after_rest and len(before) > 15,
+             "and every other row, and everything else in the file, is as it was", "%d rows changed; rest %s" % (len(kept_changed), "same" if before_rest == after_rest else "differs")),
+    ]
+
+
 def after_library(workspace, test_dir):
     """A presentation renamed, from a library and from a playlist, and one deleted: what the files then hold. A renamed
     file is the file it was but for the name inside it; the playlists are what they were but for the name and the
@@ -3667,6 +3710,7 @@ TESTS = {
     "refine": test("Act"),
     "search": test("Demo"),
     "library": test("Demo", prepare=prepare_library, after=after_library),
+    "rows": test("Demo", after=after_rows),
     "slidemenu": test("Act", timeout=240, prepare=prepare_slidemenu, after=after_slidemenu),
     "cleargroups": test("Act", timeout=240, prepare=prepare_cleargroups, after=after_cleargroups),
     # (With its settings read and saved, as a run of the app's own has them: the tests are of a setting.)

@@ -37,6 +37,12 @@ Rectangle {
         presentationList.editingPath = path
     }
 
+    // Lights a row of the presentations up for a moment, bringing it into view: the
+    // one the search has just added to the playlist (see SidebarList.flash).
+    function flashRow(id) {
+        presentationList.flash(id)
+    }
+
     // Starts renaming a playlist or folder in place, bringing its row into view first:
     // a new one may be below the bottom of the pane.
     function renamePlaylist(id) {
@@ -292,20 +298,22 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: presentationsHeader.bottom
         anchors.bottom: filterBar.top
+        // In a playlist the rows selected are marked, several or one, and a heading can
+        // be picked (see selectedRows in Main.qml); in a library, and in Bible mode, the
+        // presentation open is.
+        readonly property bool rowsSelected: sidebar.win.playlistId !== "" && !sidebar.win.bibleMode
+
         // As the box under the list narrows it (see documentFilter in Main.qml)
         model: sidebar.win.shownDocuments
-        selectedPath: sidebar.win.selectedPresentation
+        selectedPath: rowsSelected ? "" : sidebar.win.selectedPresentation
+        selectedPaths: rowsSelected ? sidebar.win.selectedRows : []
+        headersPickable: rowsSelected
         livePath: sidebar.win.cueLive && sidebar.win.livePlaylistId === sidebar.win.playlistId ? sidebar.win.liveKey : ""
         dragProxy: sidebar.presentationDrag
         draggable: (entry) => entry.playlistItem || sidebar.win.openable(entry)
         dropKeys: sidebar.win.playlistId !== "" ? ["presentation"] : []
         dropZone: (entry, source) => "between"
-        onPicked: (entry) => {
-            if (entry.missing)
-                sidebar.win.report("“" + entry.name + "” is in the playlist but not in the libraries here.")
-            else
-                sidebar.win.openEntry(entry)
-        }
+        onPicked: (entry, modifiers) => sidebar.win.pickRow(entry, modifiers)
         onMenuRequested: (entry, item) => sidebar.win.showPresentationMenu(entry, item)
         onRenamed: (entry, name) => sidebar.win.renamePresentation(entry, name)
         onEditingEnded: sidebar.win.takeFocus()

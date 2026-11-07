@@ -11,7 +11,9 @@ import SimplePresenterApp
 // come and go (PropsLayer): `opacity: fade.value`.
 //
 // It goes straight to `to` with no duration, and as it is made. A change of `to` half way
-// through a fade goes on from where the fade has got to, as Qt's Behavior did.
+// through a fade goes on from where the fade has got to, as Qt's Behavior did. And it
+// serves for something lit up that fades (a row of a list, in the operator window): see
+// flash().
 Item {
     id: fade
 
@@ -55,6 +57,13 @@ Item {
         value = from + (to - from) * t
         if (t >= 1)
             end()
+    }
+
+    // Goes to `to` again, from `start`: a flash, for something lit up that fades, with
+    // `to` 0 and `start` 1
+    function flash(start) {
+        value = start
+        begin()
     }
 
     // Over: at `to`, with no more frames asked for

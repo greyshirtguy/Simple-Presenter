@@ -19,6 +19,7 @@
 #include <QUrl>
 
 #include <functional>
+#include <unordered_set>
 
 namespace {
 
@@ -654,7 +655,8 @@ QString PlaylistFile::removeNode(const QString &root, Kind kind, const QString &
     return write(root, kind, document);
 }
 
-QString PlaylistFile::addPresentation(const QString &root, const QString &playlistId, const QString &file)
+QString PlaylistFile::addPresentation(const QString &root, const QString &playlistId, const QString &file,
+                                      const QString &underId, QString *id)
 {
     const Kind kind = Presentations;
     rv::data::PlaylistDocument document;
@@ -665,8 +667,10 @@ QString PlaylistFile::addPresentation(const QString &root, const QString &playli
     if (!playlist || playlist->has_playlists())
         return QStringLiteral("That playlist is no longer there");
 
-    rv::data::PlaylistItem *item = playlist->mutable_items()->add_items();
-    item->mutable_uuid()->set_string(newUuid());
+    auto *items = playlist->mutable_items()->mutable_items();
+    rv::data::PlaylistItem *item = items->Add();
+    const std::string madeId = newUuid();
+    item->mutable_uuid()->set_string(madeId);
     item->set_name(QFileInfo(file).completeBaseName().toStdString());
 
     rv::data::PlaylistItem::Presentation *presentation = item->mutable_presentation();
@@ -678,6 +682,20 @@ QString PlaylistFile::addPresentation(const QString &root, const QString &playli
         presentation->mutable_arrangement()->set_string(ProDocument::arrangementId(file, selected).toStdString());
         presentation->set_arrangement_name(selected.toStdString());
     }
+
+    // Under the row named, if it is there: added at the end, as above, and walked back
+    // up to its place, as a moved row is. (A row not there any more: the end.)
+    if (!underId.isEmpty()) {
+        int place = items->size() - 1;
+        for (int i = 0; i < items->size() - 1; ++i) {
+            if (items->Get(i).uuid().string() == underId.toStdString())
+                place = i + 1;
+        }
+        for (int i = items->size() - 1; i > place; --i)
+            items->SwapElements(i, i - 1);
+    }
+    if (id)
+        *id = QString::fromStdString(madeId);
     return write(root, kind, document);
 }
 
@@ -782,6 +800,42 @@ QString PlaylistFile::removeItem(const QString &root, Kind kind, const QString &
         }
     }
     return QStringLiteral("The playlist no longer has that entry");
+}
+
+QString PlaylistFile::removeItems(const QString &root, Kind kind, const QStringList &itemIds)
+{
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+
+    std::unordered_set<std::string> wanted;
+    for (const QString &itemId : itemIds)
+        wanted.insert(itemId.toStdString());
+    // Every playlist is walked, as for one row; a playlist with no rows is left as it
+    // is, with nothing made in it.
+    int removed = 0;
+    QList<rv::data::Playlist *> pending {document.mutable_root_node()};
+    while (!pending.isEmpty()) {
+        rv::data::Playlist *node = pending.takeFirst();
+        if (node->has_playlists()) {
+            for (rv::data::Playlist &child : *node->mutable_playlists()->mutable_playlists())
+                pending.append(&child);
+            continue;
+        }
+        if (!node->has_items())
+            continue;
+        auto *items = node->mutable_items()->mutable_items();
+        for (int i = items->size() - 1; i >= 0; --i) {
+            if (wanted.count(items->Get(i).uuid().string()) > 0) {
+                items->DeleteSubrange(i, 1);
+                ++removed;
+            }
+        }
+    }
+    if (removed == 0)
+        return QStringLiteral("The playlist no longer has those entries");
+    return write(root, kind, document);
 }
 
 QString PlaylistFile::moveItem(const QString &root, Kind kind, const QString &itemId, const QString &targetId,

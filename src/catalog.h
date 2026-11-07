@@ -122,7 +122,12 @@ public:
     Q_INVOKABLE QString renamePlaylist(const QString &id, const QString &name);
     Q_INVOKABLE QString removePlaylist(const QString &id);
     Q_INVOKABLE QString addToPlaylist(const QString &playlist, const QString &file);
+    // The same, with the new row put just under the row `under` of the playlist (a
+    // heading or a presentation; "" for the end): { id, error }, the id the new row's.
+    Q_INVOKABLE QVariantMap insertInPlaylist(const QString &playlist, const QString &file, const QString &under);
     Q_INVOKABLE QString removePlaylistItem(const QString &item);
+    // Several rows at one go, the file written once
+    Q_INVOKABLE QString removePlaylistItems(const QStringList &items);
     Q_INVOKABLE QString movePlaylistItem(const QString &item, const QString &target, bool after);
     // Moves a playlist or folder "before" or "after" another, or "onto" (into) a folder.
     Q_INVOKABLE QString movePlaylistNode(const QString &id, const QString &target, const QString &where);

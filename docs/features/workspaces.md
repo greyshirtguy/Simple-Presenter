@@ -66,6 +66,19 @@ not Delete: there, only the row is ever removed. (Whether ProPresenter offers th
 the same places, and what it does with the rows of a deleted presentation, has not
 been looked at: that is a guess.)
 
+### Rows of a playlist
+
+A click on a row of a playlist opens its presentation, and that row is then the one
+selected. Several can be selected: a click with **Ctrl** held selects a row as well as
+those that are, or lets it go, and one with **Shift** held every row from the last one
+selected to it, headings between them too; neither opens anything, so what is open
+stays open. A heading can be selected by itself, as a row. **Delete** takes the
+selected rows out of the playlist, without asking (a row is only a row: the
+presentation stays in its library), and the menu's Remove does the same for all of
+them; the row that took their place is then the one selected. [Search](search.md) adds
+a presentation under the selected row. (How ProPresenter selects rows, and what it
+shows after Delete, has not been looked at: a guess.)
+
 Under the list of presentations is a box that narrows it. What is typed there leaves
 the presentations whose names have every word of it, in any order, as a word or part of
 one, with capitals, accents and punctuation aside, as [Search](search.md) has them. It

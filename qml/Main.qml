@@ -117,6 +117,18 @@ Window {
     // library or playlist is opened, so that what is opened is seen whole.
     property string documentFilter: ""
     readonly property var shownDocuments: documentFilter.trim() === "" ? documents : Search.narrowed(documents, documentFilter)
+    // ---- The rows of the playlist being browsed that are selected, by their ids, and
+    // the last one a click selected, by its id (SlideSelection's rules, as the slides
+    // have them: a click selects a row alone, and opens it; one with Ctrl held selects
+    // it as well, or lets it go, and one with Shift held every row from the last one
+    // selected to it, neither opening anything, so that rows can be picked out while
+    // what is open stays open). A heading can be selected too, for a presentation to be
+    // added under it. Delete takes the selected rows out of the playlist (removeRows),
+    // and the search adds under the last of them (addToPlaylistHere). In a library
+    // nothing is selected but the presentation open, which the list marks by itself.
+    // (The maintainer's ask of 2026-11-07, from running services.)
+    property var selectedRows: []
+    property string lastRowSelected: ""
     // What is live. It is kept by Show (src/show.h), which is also the only thing that
     // changes it, by the rules of src/showstate.h: the functions below that put a slide
     // or media on the output, turn a prop over or clear a layer only ask it to. What it
@@ -796,6 +808,7 @@ Window {
         selectedNode = ""
         playlistId = ""
         libraryPath = path
+        clearRowSelection()
         refreshLists()
         openFirst()
     }
@@ -805,6 +818,7 @@ Window {
             documentFilter = ""
         selectedNode = id
         playlistId = id
+        clearRowSelection()
         refreshLists()
         openFirst()
     }
@@ -836,6 +850,9 @@ Window {
             return
         }
         documentKey = entry.path
+        // (In a playlist, the row opened is the row selected, and no other.)
+        if (playlistId !== "")
+            selectRowAlone(entry.path)
         document = load(entry)
         grid.positionViewAtBeginning()
         Log.note("open", quoted(document.name) + (document.arrangement !== "" ? " [" + document.arrangement + "]" : "") + ", "
@@ -857,6 +874,151 @@ Window {
 
     function counted(count, one, many) {
         return count + " " + (count === 1 ? one : many)
+    }
+
+    // ---- The rows selected (see selectedRows)
+
+    // A row of the list of presentations clicked, with `modifiers` the keys held: in a
+    // playlist with Ctrl or Shift held, selected (selectRow) and nothing opened;
+    // otherwise opened, but for a heading or a row whose presentation is missing, which
+    // are only selected, by themselves (a missing row, for Delete to take it out).
+    function pickRow(entry, modifiers) {
+        const rows = playlistId !== "" && !bibleMode
+        if (rows && (modifiers & (Qt.ControlModifier | Qt.ShiftModifier))) {
+            selectRow(entry, (modifiers & Qt.ShiftModifier) !== 0)
+            return
+        }
+        if (entry.kind === "header") {
+            if (rows)
+                selectRowAlone(entry.path)
+            return
+        }
+        if (entry.missing) {
+            report("“" + entry.name + "” is in the playlist but not in the libraries here.")
+            if (rows)
+                selectRowAlone(entry.path)
+            return
+        }
+        openEntry(entry)
+    }
+
+    function selectRowAlone(id) {
+        selectedRows = [id]
+        lastRowSelected = id
+    }
+
+    function clearRowSelection() {
+        if (selectedRows.length > 0)
+            selectedRows = []
+        lastRowSelected = ""
+    }
+
+    // A row clicked with Ctrl held (toggled) or with Shift (extended), by its place in
+    // the list as shown (narrowed by the box under it, if it is): the rules are the
+    // slides' (SlideSelection), with the presentation open as the anchor of a Shift
+    // click where no click has selected a row, as the live slide is among the slides.
+    function selectRow(entry, withShift) {
+        const index = shownDocuments.findIndex(d => d.path === entry.path)
+        if (index < 0)
+            return
+        const places = []
+        shownDocuments.forEach((row, place) => {
+            if (selectedRows.includes(row.path))
+                places.push(place)
+        })
+        const last = shownDocuments.findIndex(d => d.path === lastRowSelected)
+        const open = shownDocuments.findIndex(d => d.path === documentKey)
+        const now = withShift ? SlideSelection.extended(places, last, open, index)
+                              : SlideSelection.toggled(places, -1, index)
+        selectedRows = now.map(place => shownDocuments[place].path)
+        lastRowSelected = now.includes(index) ? entry.path : ""
+    }
+
+    // Takes rows out of the playlist being browsed, by their ids, at one go: the file
+    // written once, and the lists followed once. Nothing is asked first: a row is only
+    // a row, and the presentation stays in its library. What took the first one's place
+    // is then selected (and not opened), for Delete pressed again to go on down the
+    // list; if the presentation open was among them, that row is opened instead, if it
+    // can be, as the nearest thing to what was being looked at (a GUESS at what
+    // ProPresenter shows then). Returns whether anything was taken out.
+    function removeRows(ids) {
+        if (playlistId === "" || ids.length === 0)
+            return false
+        const playlist = catalog.playlists.find(p => p.path === playlistId)
+        const rows = documents.filter(d => ids.includes(d.path))
+        if (!playlist || rows.length === 0)
+            return false
+        const place = shownDocuments.findIndex(d => ids.includes(d.path))
+        const openGoes = ids.includes(documentKey)
+        // (The lists are followed here, not as the catalog says: see holdingLists.)
+        holdingLists = true
+        const error = catalog.removePlaylistItems(rows.map(r => r.path))
+        holdingLists = false
+        if (!report(error))
+            return false
+        Log.note("edit", counted(rows.length, "row", "rows") + " removed from the playlist " + quoted(playlist.name) + ": "
+                 + rows.map(r => quoted(r.name)).join(", "))
+        refreshLists()
+        const next = shownDocuments.length > 0 ? shownDocuments[Math.max(0, Math.min(place, shownDocuments.length - 1))] : null
+        if (openGoes) {
+            const opening = next && openable(next) ? next : documents.find(openable)
+            if (opening) {
+                openEntry(opening)
+            } else {
+                documentKey = ""
+                document = null
+            }
+        }
+        if (next)
+            selectRowAlone(next.path)
+        else
+            clearRowSelection()
+        notice = (rows.length === 1 ? "“" + rows[0].name + "” removed" : rows.length + " rows removed") + " from “" + playlist.name + "”."
+        noticeIsError = false
+        return true
+    }
+
+    // The Delete key: the rows selected
+    function removeSelectedRows() {
+        return removeRows(selectedRows)
+    }
+
+    // The row of the playlist being browsed that a presentation added by the search goes
+    // under: the lowest in the list of the rows selected (which is the one just added,
+    // once one has been, so that several added in turn come in that order), or failing
+    // that the row of the presentation open; "" for the end.
+    function rowToAddUnder() {
+        if (playlistId === "")
+            return ""
+        const ids = selectedRows.length > 0 ? selectedRows : [documentKey]
+        let under = ""
+        for (const row of documents) {
+            if (ids.includes(row.path))
+                under = row.path
+        }
+        return under
+    }
+
+    // Adds a presentation to the playlist being browsed, under that row: { id, under },
+    // the new row's id and the name of the row it went under ("" for the end), or null
+    // when it could not be. The new row is then the one selected, and is lit for a
+    // moment in the list, so that it is seen where it went (the search stays up for the
+    // next: see SearchPanel).
+    function addToPlaylistHere(file) {
+        if (playlistId === "")
+            return null
+        const playlist = catalog.playlists.find(p => p.path === playlistId)
+        const under = rowToAddUnder()
+        const underRow = documents.find(d => d.path === under)
+        const made = catalog.insertInPlaylist(playlistId, file, under)
+        if (!report(made.error))
+            return null
+        // (The lists have followed the change.)
+        selectRowAlone(made.id)
+        sidebar.flashRow(made.id)
+        Log.note("edit", quoted(file.replace(/^.*\//, "").replace(/\.pro$/, "")) + " added to the playlist " + quoted(playlist ? playlist.name : playlistId)
+                 + (underRow ? ", under " + quoted(underRow.name) : ", at its end"))
+        return { id: made.id, under: underRow ? underRow.name : "" }
     }
 
     // Switches Simple View on or off. `how` says what asked, for the log.
@@ -2754,7 +2916,10 @@ Window {
         }
         if (entry.playlistItem) {
             items.push({ header: "Playlist" })
-            items.push({ label: "Remove from Playlist", run: () => report(catalog.removePlaylistItem(entry.path)) })
+            // The row, or every row selected if it is one of them (see removeRows)
+            const several = selectedRows.length > 1 && selectedRows.includes(entry.path)
+            items.push({ label: several ? "Remove " + selectedRows.length + " Rows from Playlist" : "Remove from Playlist",
+                         run: () => removeRows(several ? selectedRows : [entry.path]) })
         }
         if (openable(entry)) {
             items.push({ header: "Presentation" })
@@ -4700,6 +4865,10 @@ Window {
     // it is still there and otherwise falling back to the first.
     function followCatalog() {
         refreshLists()
+        // (Rows that are gone are no longer selected.)
+        const kept = selectedRows.filter(id => documents.some(d => d.path === id))
+        if (kept.length !== selectedRows.length)
+            selectedRows = kept
         // (Only what has changed is read again.)
         Search.read(catalog.librariesDirectory)
         const firstLibrary = catalog.libraries.length > 0 ? catalog.libraries[0].path : ""
@@ -5696,6 +5865,12 @@ Window {
                 break
             case Qt.Key_F6:
                 win.clearMessages()
+                break
+            case Qt.Key_Delete:
+                // The rows selected in the playlist (see removeRows); nothing else is
+                // deleted by a key here
+                if (!win.removeSelectedRows())
+                    return
                 break
             default:
                 return
