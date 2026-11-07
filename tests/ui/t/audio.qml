@@ -129,6 +129,9 @@ QtObject {
                 check("the one that goes round says that", Lib.find(row("Round"), item => item.objectName === "audioRowPlayback").kind === "loop")
                 check("there is a button that clears the audio, grey with nothing to clear", named("clearAudio") !== null && !red(named("clearAudio")) && !audioLive)
                 check("and no meter in the preview", named("audioMeter").item === null && !AudioMeter.sounding)
+                // Four bars beside the preview, one a channel: the pieces are on the third and fourth (below), and the
+                // setting starts at two, the first two, which nothing here goes to (the routing test has the setting)
+                audioMeters = 4
                 // The pieces go to the app's third and fourth channels, as ProPresenter's file has them (and as the
                 // maintainer's own has every piece of its audio bin), and this workspace has four, as ProPresenter
                 // has it. The test's sound device has two, which the app's first two go to by Auto, and the others
@@ -158,13 +161,15 @@ QtObject {
                 check("the button that clears the audio is red", red(named("clearAudio")) && audioLive)
                 check("its playlist is marked in the list of them", named("audioPlaylistList").livePath === audioPlaylistId)
                 // The file is a steady note at half of as loud as can be, on both sides: 6 dB down, nine tenths of the way up.
-                check("the meter is in the preview, both bars at the height of a note half as loud as can be", named("audioMeter").item !== null && AudioMeter.sounding
-                      && Math.abs(AudioMeter.left - 0.9) < 0.03 && Math.abs(AudioMeter.right - 0.9) < 0.03, AudioMeter.left + " and " + AudioMeter.right)
-                const bar = Lib.find(named("audioMeter"), item => item.objectName === "audioMeterLeft")
+                check("the meters are in the preview, the third and fourth channels' bars at the height of a note half as loud as can be", named("audioMeter").item !== null && AudioMeter.sounding
+                      && Math.abs(AudioMeter.levels[2] - 0.9) < 0.03 && Math.abs(AudioMeter.levels[3] - 0.9) < 0.03, AudioMeter.levels[2] + " and " + AudioMeter.levels[3])
+                // (The third channel's bar is up the right edge: two of four go up each edge, see PreviewPanel)
+                const bar = Lib.find(named("audioMeterRight"), item => item.objectName === "audioMeterBar:2")
                 const low = bar.mapToItem(null, bar.width / 2, bar.height * 0.6), top = bar.mapToItem(null, bar.width / 2, bar.height * 0.03)
                 const drawn = String(testInput.windowPixel(low.x, low.y))
-                check("and drawn: green part of the way up, and nothing at the very top", parseInt(drawn.substring(3, 5), 16) > 150 && parseInt(drawn.substring(1, 3), 16) < 120 && grey(top.x, top.y) < 90,
-                      drawn + " and " + testInput.windowPixel(top.x, top.y))
+                // (Half solid, as the meters start: the green is half of itself over the dark behind it)
+                check("and drawn, half solid: green part of the way up, and nothing at the very top", parseInt(drawn.substring(3, 5), 16) > 90 && parseInt(drawn.substring(3, 5), 16) > parseInt(drawn.substring(1, 3), 16) + 40
+                      && grey(top.x, top.y) < 90, drawn + " and " + testInput.windowPixel(top.x, top.y))
                 check("the log says what was played", logged(/audio\s+music "Walk In", then the next/).length === 1 && logged(/"Walk In" started/).length === 1)
                 testInput.grab("2-playing")
                 // Other music takes its place, at once: nothing is crossed unless that is switched on.
@@ -174,7 +179,7 @@ QtObject {
             () => {
                 check("other music takes its place", liveMusic.name === "Second Tune" && liveSounds.length === 0, playing())
                 check("at once: one piece is sounding, not two", AudioLayer.voices === 1, AudioLayer.voices)
-                check("this one is a quarter as loud as can be, and the meter is lower for it", Math.abs(AudioMeter.left - 0.8) < 0.04 && Math.abs(AudioMeter.right - 0.8) < 0.04, AudioMeter.left + " and " + AudioMeter.right)
+                check("this one is a quarter as loud as can be, and the meter is lower for it", Math.abs(AudioMeter.levels[2] - 0.8) < 0.04 && Math.abs(AudioMeter.levels[3] - 0.8) < 0.04, AudioMeter.levels[2] + " and " + AudioMeter.levels[3])
                 check("the rows say which is playing", row("Second Tune").sounding === true && row("Walk In").sounding === false)
                 // Sound effects, from the other playlist
                 click(centre(listRow("Effects")))
@@ -204,8 +209,8 @@ QtObject {
                 check("sound effects play over the music and over each other: the same one twice is two", liveMusic !== null && liveMusic.name === "Second Tune"
                       && liveSounds.map(s => s.name).join() === "Thunder,Bell,Bell" && AudioLayer.voices === 4, playing() + ", " + AudioLayer.voices + " sounding")
                 check("their rows are marked", row("Bell").sounding === true && row("Thunder").sounding === true && row("Bell").music === false)
-                // The bell is on the left only: with the others the left is the louder.
-                check("the meter has them all, and the left louder for the bell that is only on the left", AudioMeter.left > AudioMeter.right + 0.02 && AudioMeter.right > 0.75, AudioMeter.left + " and " + AudioMeter.right)
+                // The bell is on the left only, which goes to the third channel: with the others the third is the louder.
+                check("the meters have them all, and the third channel's louder for the bell that is only on the left", AudioMeter.levels[2] > AudioMeter.levels[3] + 0.02 && AudioMeter.levels[3] > 0.75, AudioMeter.levels[2] + " and " + AudioMeter.levels[3])
                 testInput.grab("3-effects-over-music")
                 return 1900
             },
@@ -219,7 +224,7 @@ QtObject {
                 check("the next that has a file is what follows", liveMusic !== null && liveMusic.name === "Last Tune" && liveMusicPlaylistId === playlist("Before the Service").path, playing())
                 // ---- Clearing
                 audioFade = 0.4
-                kept.meter = AudioMeter.left
+                kept.meter = AudioMeter.levels[2]
                 click(centre(named("clearAudio")))
                 check("a click on the button that clears the audio clears it: nothing is said to be playing", liveMusic === null && liveSounds.length === 0 && !audioLive)
                 check("and the button is grey again", !red(named("clearAudio")))
@@ -228,12 +233,12 @@ QtObject {
                 return 100
             },
             () => {
-                // (Looked at every 40 ms through the fade and after it. The meter shows the loudest that was sent to
-                // the device since it last looked, a tenth of a second before; what is sent is behind the fade by what
+                // (Looked at every 40 ms through the fade and after it. The meter shows the loudest that was sent on
+                // its channel since it last looked, a tenth of a second before; what is sent is behind the fade by what
                 // the mixer keeps in hand, which for a piece of the audio bin, handed over 4096 frames at a time, is
                 // over a tenth of a second more; and a fade's curve goes down slowly at first. So the moment it is
                 // part of the way down moves, and one look at one moment was found too soon, on a busy computer.)
-                kept.looks.push(AudioMeter.sounding ? AudioMeter.left : -1)
+                kept.looks.push(AudioMeter.sounding ? AudioMeter.levels[2] : -1)
                 if (kept.looks.length < 15) {
                     --at
                     return 40
@@ -247,7 +252,7 @@ QtObject {
                 return 700
             },
             () => {
-                check("and the meter has gone from the preview", !AudioMeter.sounding && named("audioMeter").item === null && AudioMeter.left === 0)
+                check("and the meter has gone from the preview", !AudioMeter.sounding && named("audioMeter").item === null && AudioMeter.levels[2] === 0)
                 // The last of a playlist, which the next would follow: there is none.
                 audioFade = 0
                 click(centre(listRow("Before the Service")))
@@ -350,7 +355,7 @@ QtObject {
                 return 1000
             },
             () => {
-                check("music started with nothing playing starts as loud as it is", liveMusic.name === "Walk In" && AudioLayer.voices === 1 && Math.abs(AudioMeter.left - 0.9) < 0.03, AudioMeter.left)
+                check("music started with nothing playing starts as loud as it is", liveMusic.name === "Walk In" && AudioLayer.voices === 1 && Math.abs(AudioMeter.levels[2] - 0.9) < 0.03, AudioMeter.levels[2])
                 click(centre(row("Second Tune")))
                 return 450
             },
@@ -360,7 +365,7 @@ QtObject {
                 return 1300
             },
             () => {
-                check("and when the fade is done only the new one is", liveMusic.name === "Second Tune" && AudioLayer.voices === 1 && Math.abs(AudioMeter.left - 0.8) < 0.04, AudioLayer.voices + " sounding, the meter at " + AudioMeter.left)
+                check("and when the fade is done only the new one is", liveMusic.name === "Second Tune" && AudioLayer.voices === 1 && Math.abs(AudioMeter.levels[2] - 0.8) < 0.04, AudioLayer.voices + " sounding, the meter at " + AudioMeter.levels[2])
                 return 800
             },
             () => {
@@ -600,7 +605,7 @@ QtObject {
             () => {
                 check("run, the macro plays it", liveSounds.map(s => s.name).join() === "Thunder", playing())
                 // The meter has its row's volume in it: half of a half
-                check("at half its file's loudness: the meter is 6 dB lower than for a file played at full", Math.abs(AudioMeter.left - 0.8) < 0.04, AudioMeter.left)
+                check("at half its file's loudness: the meter is 6 dB lower than for a file played at full", Math.abs(AudioMeter.levels[2] - 0.8) < 0.04, AudioMeter.levels[2])
                 clearAudio()
                 // And onto a macro that is there
                 sidePanel.showControlTab = "audio"

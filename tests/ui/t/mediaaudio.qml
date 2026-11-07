@@ -216,7 +216,7 @@ QtObject {
             },
             () => {
                 check("and louder when the ramp is done", AudioMeter.left > kept.early + 0.1, kept.early + " then " + AudioMeter.left)
-                check("heard on the left alone: the app's first channel, which goes to the device's first", AudioMeter.right < 0.05, AudioMeter.right)
+                check("on the app's first channel alone, and nothing on its second", AudioMeter.right < 0.05, AudioMeter.right)
                 clearMedia()
                 return 400
             },

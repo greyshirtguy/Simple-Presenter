@@ -44,6 +44,8 @@ These are not ProPresenter's.
   the action that clears that layer, or that clear group.
 - **How solid the icons on the slides are** is a setting (Settings → Slides), from
   nearly gone to solid.
+- **The meters beside the preview**: how many of the app's channels have one, from two
+  to sixteen, and how solid they are, are settings (Settings → Audio).
 - **A slide disabled at a date.** Disable On… in a slide's menu sets a day and a time for
   the slide to be disabled by itself. Until then it is marked with the day.
 - **Apply This Text Style to All.** In a slide's menu, under Copy Text Style: the slide's

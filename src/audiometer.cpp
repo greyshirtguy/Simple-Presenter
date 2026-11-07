@@ -48,27 +48,41 @@ void AudioMeter::start()
 
 void AudioMeter::tick()
 {
-    float left = 0;
-    float right = 0;
+    std::array<float, audiomix::kMostBuses> peaks {};
     bool playing = false;
     if (AudioMixer *mixer = AudioMixer::existing()) {
-        mixer->takePeaks(&left, &right);
+        mixer->takePeaks(peaks.data(), int(peaks.size()));
         playing = mixer->sounding();
     }
     const double seconds = m_since.restart() / 1000.0;
-    // To the nearest decibel, which is a sixtieth of the meter's height: a bar that
-    // has not moved by that much has not moved to the eye, and is not drawn again.
+    // To the nearest decibel, which is a sixtieth of a bar's height: a bar that has not
+    // moved by that much has not moved to the eye, and is not drawn again.
     const auto whole = [](double level) { return std::round(level * 60) / 60; };
-    const double nowLeft = whole(audiolevel::settled(m_left, audiolevel::metered(left), seconds));
-    const double nowRight = whole(audiolevel::settled(m_right, audiolevel::metered(right), seconds));
-    if (nowLeft != m_left || nowRight != m_right) {
-        m_left = nowLeft;
-        m_right = nowRight;
-        emit levelsChanged();
+    bool moved = false;
+    bool up = false;
+    for (size_t bus = 0; bus < m_levels.size(); ++bus) {
+        const double now = whole(audiolevel::settled(m_levels[bus], audiolevel::metered(peaks[bus]), seconds));
+        if (now != m_levels[bus]) {
+            m_levels[bus] = now;
+            moved = true;
+        }
+        if (now > 0)
+            up = true;
     }
+    if (moved)
+        emit levelsChanged();
     // Nothing playing and the bars at the bottom: there is nothing more to follow.
-    if (!playing && m_left <= 0 && m_right <= 0) {
+    if (!playing && !up) {
         m_clock.stop();
         emit soundingChanged();
     }
+}
+
+QVariantList AudioMeter::levels() const
+{
+    QVariantList list;
+    list.reserve(int(m_levels.size()));
+    for (const double level : m_levels)
+        list.append(level);
+    return list;
 }

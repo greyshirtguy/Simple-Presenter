@@ -11,6 +11,7 @@
 
 #include <QTest>
 
+#include <array>
 #include <cmath>
 
 using namespace audiomix;
@@ -84,11 +85,10 @@ private slots:
         const std::vector<float> out = mixed(mixer, 1024, 2);
         QVERIFY(qAbs(middle(out, 2, 0) - 0.5f) < 0.01f);
         QVERIFY(qAbs(middle(out, 2, 1) - 0.25f) < 0.01f);
-        float left = 0;
-        float right = 0;
-        mixer.takePeaks(&left, &right);
-        QVERIFY(qAbs(left - 0.5f) < 0.02f);
-        QVERIFY(qAbs(right - 0.25f) < 0.02f);
+        float peaks[2] = {0, 0};
+        mixer.takePeaks(peaks, 2);
+        QVERIFY(qAbs(peaks[0] - 0.5f) < 0.02f);
+        QVERIFY(qAbs(peaks[1] - 0.25f) < 0.02f);
     }
 
     void routed()
@@ -307,10 +307,14 @@ private slots:
         QCOMPARE(feed->takeUnderruns(), 0);
     }
 
-    void meterIsWhatTheDeviceIsSent()
+    void metersAreOfTheAppsChannels()
     {
         // The app's third and fourth channels, on a device of two: by Auto they go
-        // nowhere, and nothing is metered; sent to the device's two, they are
+        // nowhere on it, and they are metered all the same, as their bars on a desk would
+        // be, while the first two, with nothing on them, are at nothing, and so is every
+        // channel the app has not got. Sent to the device's two, they are heard, and
+        // metered as before. Muted, a channel is at nothing. And only as many as are
+        // asked for are taken: the rest wait.
         Mixer mixer;
         mixer.setConfig(config(4, 2, {{0}, {1}, {}, {}}));
         auto feed = std::make_shared<Feed>();
@@ -322,18 +326,38 @@ private slots:
         mixer.add(feed);
         sent(*feed, steady(9600, 2, 0.5f), 9600, 2);
         std::vector<float> out = mixed(mixer, 1024, 2);
-        float left = 1;
-        float right = 1;
-        mixer.takePeaks(&left, &right);
+        std::array<float, kMostBuses> peaks;
+        peaks.fill(1);
+        mixer.takePeaks(peaks.data(), kMostBuses);
         QCOMPARE(middle(out, 2, 0), 0.0f);
-        QCOMPARE(left, 0.0f);
-        QCOMPARE(right, 0.0f);
+        QCOMPARE(peaks[0], 0.0f);
+        QCOMPARE(peaks[1], 0.0f);
+        QVERIFY(qAbs(peaks[2] - 0.5f) < 0.02f);
+        QVERIFY(qAbs(peaks[3] - 0.25f) < 0.02f);
+        QCOMPARE(peaks[4], 0.0f);
+        QCOMPARE(peaks[15], 0.0f);
         mixer.setConfig(config(4, 2, {{0}, {1}, {0}, {1}}));
         out = mixed(mixer, 1024, 2);
-        mixer.takePeaks(&left, &right);
+        mixer.takePeaks(peaks.data(), kMostBuses);
         QVERIFY(qAbs(middle(out, 2, 0) - 0.5f) < 0.01f);
-        QVERIFY(qAbs(left - 0.5f) < 0.02f);
-        QVERIFY(qAbs(right - 0.25f) < 0.02f);
+        QCOMPARE(peaks[0], 0.0f);
+        QVERIFY(qAbs(peaks[2] - 0.5f) < 0.02f);
+        QVERIFY(qAbs(peaks[3] - 0.25f) < 0.02f);
+        Config set = config(4, 2, {{0}, {1}, {0}, {1}});
+        set.muted = {false, false, true, false};
+        mixer.setConfig(set);
+        // (Sent more: what it was first given was cut to what it is to hold as it was
+        // first heard, and two stretches have used that up)
+        sent(*feed, steady(9600, 2, 0.5f), 9600, 2);
+        out = mixed(mixer, 1024, 2);
+        float two[2] = {1, 1};
+        mixer.takePeaks(two, 2);
+        QCOMPARE(middle(out, 2, 0), 0.0f);
+        QCOMPARE(two[0], 0.0f);
+        QCOMPARE(two[1], 0.0f);
+        mixer.takePeaks(peaks.data(), kMostBuses);
+        QCOMPARE(peaks[2], 0.0f);
+        QVERIFY(qAbs(peaks[3] - 0.25f) < 0.02f);
     }
 
     void gapsAreCountedStopsAreNot()

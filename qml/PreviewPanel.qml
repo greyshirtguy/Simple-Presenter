@@ -3,8 +3,8 @@ import QtMultimedia
 import SimplePresenterApp
 
 // The right of the operator window, from the toolbar to the bottom, laid out as
-// ProPresenter's is: the preview of one of the screens (with, at its left edge while
-// anything is sounding, how loud that is), and under it the picker of which screen that
+// ProPresenter's is: the preview of one of the screens (with, up its edges while
+// anything is sounding, how loud that is on each of the app's channels), and under it the picker of which screen that
 // is; at its right the buttons that clear the output, in two columns up against the
 // window's edge, the workspace's clear groups and then the layers, each column as high
 // as the preview's area; then the transport, with a strip of tabs over it for whether it
@@ -277,6 +277,8 @@ Rectangle {
             border.color: "#3a3c42"
 
             Item {
+                id: face
+
                 anchors.fill: parent
                 anchors.margins: 1
 
@@ -292,84 +294,130 @@ Rectangle {
                     namePrefix: "preview"
                 }
 
-            // How loud what the app is playing is, on the left and on the right: two
-            // bars up the preview's left edge, as ProPresenter has its meters, there
-            // only while something is sounding (a piece of audio, a video with its
-            // sound) and for the moment after in which they fall, and made only then. They go by decibels, each tenth of
-            // their height being 6 dB (see AudioMeter): green, then yellow for the top
-            // 12 dB, then red for the top 3, where sound is near as loud as it can be.
+            // How loud what the app is playing is, on each of the app's channels: a bar
+            // for each up the preview's edges, as ProPresenter has its meters beside its
+            // preview, there only while something is sounding (a piece of audio, a video
+            // with its sound, a test tone) and for the moment after in which they fall,
+            // and made only then. How many channels have a bar is a setting (Settings →
+            // Audio: two to sixteen, two unless changed), and how solid the bars are
+            // (half, unless changed, so that the preview shows through them). Laid out as
+            // the maintainer described ProPresenter's (2026-11-07): two up the left edge
+            // for two; two up each edge for three or four; four up each for five to
+            // eight; and above eight each column holds two bars, one over the other at
+            // half the height, eight up each edge. The left edge fills before the right
+            // gets any, so three is two and one, five is four and one, and nine is eight
+            // and one. They go by decibels, each tenth of their height being 6 dB (see
+            // AudioMeter): green, then yellow for the top 12 dB, then red for the top 3,
+            // where sound is near as loud as it can be.
             //
-            // A GUESS at ProPresenter, whose preview has meters at its side: how many
-            // bars, where the colours change and how fast they fall are this app's own.
-            Loader {
-                objectName: "audioMeter"
-                anchors.left: parent.left
+            // GUESSES at ProPresenter: that an odd count fills the left edge first; which
+            // channel is where once a column holds two (here the first four along the
+            // top of the left edge, the next four under them, and so on); where the
+            // colours change and how fast the bars fall; and that its meters are of its
+            // channels as they go on to the device (here a channel that goes nowhere on
+            // the device is on its bar all the same).
+            readonly property int meters: Math.max(2, Math.min(AudioMeter.most, sidePanel.win.audioMeters))
+            readonly property bool halved: meters > 8
+            // How many the left edge holds before the right gets any
+            readonly property int perEdge: meters <= 4 ? 2 : meters <= 8 ? 4 : 8
+
+            // The bars of one edge: `count` channels from the app's `first`, in columns
+            // of one bar, or of two when `halved`; `solid` is how solid, from 0 to 1
+            component Meters: Loader {
+                id: block
+
+                property int first: 0
+                property int count: 0
+                property bool halved: false
+                property real solid: 1
+                readonly property int columns: Math.min(count, 4)
+
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: 13
-                active: AudioMeter.sounding
+                width: columns * 5 + 3
+                active: AudioMeter.sounding && count > 0
+                opacity: solid
 
                 sourceComponent: Rectangle {
+                    id: panel
+
+                    // (Taken once for all the bars at each move of the meter)
+                    readonly property var levels: AudioMeter.levels
+
                     color: "#b0000000"
 
-                    component Bar: Item {
-                        id: bar
+                    Repeater {
+                        model: block.count
 
-                        // How far up it is, from 0 to 1
-                        property real level: 0
+                        // One channel's bar: three stretches, each as much of itself
+                        // as the level reaches
+                        Item {
+                            id: bar
 
-                        width: 4
+                            required property int index
+                            readonly property int channel: block.first + index
+                            // How far up it is, from 0 to 1
+                            readonly property real level: panel.levels[channel]
+                            // Its height: the block's, or half of it less a gap, when
+                            // a column holds two, the second row under the first
+                            readonly property real space: block.halved ? (panel.height - 8) / 2 : panel.height - 6
 
-                        Rectangle {
-                            anchors.fill: parent
-                            color: "#30ffffff"
+                            objectName: "audioMeterBar:" + channel
+                            x: 2 + (index % 4) * 5
+                            y: index < 4 ? 3 : 5 + space
+                            width: 4
+                            height: space
+
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "#30ffffff"
+                            }
+
+                            Rectangle {
+                                objectName: "audioMeterGreen"
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: Math.min(bar.level, 0.8) * parent.height
+                                color: "#35c463"
+                            }
+
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                y: parent.height * (1 - Math.min(bar.level, 0.95))
+                                height: Math.max(0, Math.min(bar.level, 0.95) - 0.8) * parent.height
+                                color: "#e6c229"
+                            }
+
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                y: parent.height * (1 - bar.level)
+                                height: Math.max(0, bar.level - 0.95) * parent.height
+                                color: "#e5484d"
+                            }
                         }
-
-                        // Three stretches, each as much of itself as the level reaches
-                        Rectangle {
-                            objectName: "audioMeterGreen"
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: Math.min(bar.level, 0.8) * parent.height
-                            color: "#35c463"
-                        }
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            y: parent.height * (1 - Math.min(bar.level, 0.95))
-                            height: Math.max(0, Math.min(bar.level, 0.95) - 0.8) * parent.height
-                            color: "#e6c229"
-                        }
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            y: parent.height * (1 - bar.level)
-                            height: Math.max(0, bar.level - 0.95) * parent.height
-                            color: "#e5484d"
-                        }
-                    }
-
-                    Bar {
-                        objectName: "audioMeterLeft"
-                        x: 2
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        anchors.margins: 3
-                        level: AudioMeter.left
-                    }
-
-                    Bar {
-                        objectName: "audioMeterRight"
-                        x: 7
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        anchors.margins: 3
-                        level: AudioMeter.right
                     }
                 }
+            }
+
+            Meters {
+                objectName: "audioMeter"
+                anchors.left: parent.left
+                first: 0
+                count: Math.min(face.meters, face.perEdge)
+                halved: face.halved
+                solid: sidePanel.win.audioMeterOpacity
+            }
+
+            Meters {
+                objectName: "audioMeterRight"
+                anchors.right: parent.right
+                first: face.perEdge
+                count: face.meters - face.perEdge
+                halved: face.halved
+                solid: sidePanel.win.audioMeterOpacity
             }
             }
         }

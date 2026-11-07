@@ -42,6 +42,10 @@ Rectangle {
     property string otherHotkeys: ""
     // How solid the icons on the slides are: see Main.qml
     property real actionIconOpacity: 0.8
+    // How many of the app's channels have a meter beside the preview, and how solid the
+    // meters are: see Main.qml
+    property int audioMeters: 2
+    property real audioMeterOpacity: 0.5
 
     // Whether Simple View leaves the pane at the right where it is: see Main.qml
     property bool simpleKeepsSidePanel: false
@@ -76,6 +80,8 @@ Rectangle {
     signal videoDecodingEdited(string mode)
     signal chordSheetColorEdited(string color)
     signal audioDeviceEdited(string id)
+    signal audioMetersEdited(int count)
+    signal audioMeterOpacityEdited(real opacity)
     signal chordTextColorEdited(string color)
     signal chordLineColorEdited(string color)
     signal chordSignsEdited(bool on)
@@ -1152,6 +1158,81 @@ Rectangle {
                             + "piece as its media says (in its Media Inspector, under Audio), and they go on to the device's "
                             + "own channels as Channel Routing sends them: by Auto, the first to the first and so on, as far "
                             + "as the device has channels."
+                    }
+
+                    Text {
+                        topPadding: 14
+                        color: "#8d9097"
+                        font.pixelSize: 11
+                        font.bold: true
+                        text: "THE METERS BESIDE THE PREVIEW"
+                    }
+
+                    // How many of the channels have a bar beside the preview, and how
+                    // solid the bars are: this app's own, and this computer's, kept with
+                    // its settings (PreviewPanel has how they are laid out)
+                    Row {
+                        spacing: 10
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 110
+                            color: "#b0b3b8"
+                            font.pixelSize: 13
+                            text: "Meters"
+                        }
+
+                        NumberField {
+                            objectName: "audioMeters"
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 70
+                            from: 2
+                            to: AudioMeter.most
+                            value: screen.audioMeters
+                            onEdited: (value) => screen.audioMetersEdited(Math.round(value))
+                        }
+                    }
+
+                    Row {
+                        spacing: 10
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 110
+                            color: "#b0b3b8"
+                            font.pixelSize: 13
+                            text: "Opacity"
+                        }
+
+                        AppSlider {
+                            objectName: "audioMeterOpacity"
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 200
+                            from: 0.05
+                            to: 1
+                            stepSize: 0.05
+                            value: screen.audioMeterOpacity
+                            onMoved: screen.audioMeterOpacityEdited(Math.round(value * 100) / 100)
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 44
+                            color: "#b0b3b8"
+                            font.pixelSize: 13
+                            text: Math.round(screen.audioMeterOpacity * 100) + "%"
+                        }
+                    }
+
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        color: "#9a9da3"
+                        font.pixelSize: 13
+                        text: "A bar for each of the first so many channels, beside the preview while anything is sounding, laid "
+                            + "out as ProPresenter lays its own: two up its left edge for two, two up each edge for three or four, "
+                            + "four up each for five to eight, and above eight two to a column at half the height. Two unless it "
+                            + "is changed, and half solid, so that the preview shows through them."
                     }
 
                     // (Made the first time it is opened)

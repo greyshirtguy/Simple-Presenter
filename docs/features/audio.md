@@ -78,14 +78,20 @@ followed by the next as music clicked here is. Run again while the playlist is p
 it leaves it to play on, unless its Always Retrigger is on. It can be picked from Add
 Action as well, under Audio Playlist. See [Actions](actions.md).
 
-**How loud it is** is shown in the operator's preview: two bars up its left edge,
-the left and the right, there while anything is sounding (a piece of audio, a video
-with its sound, or a test tone) and gone when nothing is. They go by decibels as a sound
-desk's do: green, yellow for the top 12, red for the top 3. They show what the app sends
-the sound device: the left bar its odd-numbered channels, the right its even-numbered (a
-stereo pair's two sides, wherever on the device the pair is), the loudest of each. So
-sound sent to channels that go nowhere on the device is not on them, as it is not heard.
-The system's own volume, and whatever comes after the app, is not in them.
+**How loud it is** is shown in the operator's preview: a bar for each of the app's
+channels, up the preview's edges, there while anything is sounding (a piece of audio, a
+video with its sound, or a test tone) and gone when nothing is. They go by decibels as a
+sound desk's do: green, yellow for the top 12, red for the top 3. Each shows its channel
+as it goes on to the device, after its Mute and Solo and with its tone, whether or not
+the channel goes anywhere on the device: sound sent to a channel that goes nowhere is on
+its bar, as it would be on a desk's, though it is not heard. The system's own volume, and
+whatever comes after the app, is not in them. How many channels have a bar is a setting
+(Settings → Audio, Meters: from two to sixteen, two unless it is changed), and so is how
+solid the bars are (half, unless changed, so that the preview shows through them). They
+are laid out as ProPresenter lays its own out: two up the left edge for two; two up
+each edge for three or four; four up each for five to eight; and above eight two to a
+column at half the height, eight up each edge. The left edge fills before the right gets
+any: three is two and one, nine is eight and one.
 
 **Where sound goes** is in the settings, under **Audio**: the system's own choice, which
 is wherever this computer sends sound, or one of the devices it has. It is for
@@ -199,8 +205,13 @@ and one file of its own having been read (version 21.4, six pieces):
   not been checked there.
 - What ProPresenter gives a slide's or a macro's action that plays audio: here it is a
   copy of the bin's own action for the piece, with the piece's name on it.
-- How many bars ProPresenter's meters have, where their colours change and how fast
-  they fall; and that its meter is of what goes to the device.
+- Of ProPresenter's meters: where their colours change and how fast they fall; that
+  they are of its channels as they go on to the device (here a channel that goes nowhere
+  on the device is on its bar all the same); that an odd count fills the left edge
+  first; and, once a column holds two, which channel is where (here the first four along
+  the top of the left edge, the next four under them, and so on). How many there are,
+  and how they are shared between the two edges, is as the maintainer described
+  ProPresenter's.
 - Of the app's channels: what ProPresenter calls the Channels box, and what it starts a
   workspace with (here two, called Channel 1 and Channel 2, which are written to the file
   only when they are first changed); that a channel that is muted is not heard even when

@@ -4,6 +4,7 @@
 
 #include <QtGlobal>
 
+#include <array>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -268,11 +269,13 @@ public:
     void add(const std::shared_ptr<Feed> &feed);
     // How many feeds it has, those fading out among them
     int feeds();
-    // The loudest the device's channels have been since this was last asked, from 0 to 1
-    // (and over, for sound that is clipped), its odd-numbered channels on the left and
-    // its even-numbered on the right (its only channel on both, for a device with one):
-    // for the meter
-    void takePeaks(float *left, float *right);
+    // The loudest each of the app's channels has been since this was last asked, from 0
+    // to 1 (and over, for sound that would be clipped): the first `count` of them, up to
+    // kMostBuses, into `peaks`, as they go on to the device's matrix (after their Mute
+    // and Solo, with their tones: a channel not heard is 0, one the app has not got is
+    // 0, and one that goes nowhere on the device is measured all the same, as its meter
+    // on a sound desk would be). For the meters (audiometer.h).
+    void takePeaks(float *peaks, int count);
 
     // From the device's thread
     //
@@ -303,8 +306,7 @@ private:
     std::vector<float> m_buses;
     std::vector<float> m_scratch;
     double m_tonePhase = 0;
-    std::atomic<float> m_peakLeft {0};
-    std::atomic<float> m_peakRight {0};
+    std::array<std::atomic<float>, kMostBuses> m_peaks {};
 };
 
 } // namespace audiomix

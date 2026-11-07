@@ -240,10 +240,10 @@ int Mixer::feeds()
     return m_feedCount.load(std::memory_order_relaxed);
 }
 
-void Mixer::takePeaks(float *left, float *right)
+void Mixer::takePeaks(float *peaks, int count)
 {
-    *left = m_peakLeft.exchange(0, std::memory_order_relaxed);
-    *right = m_peakRight.exchange(0, std::memory_order_relaxed);
+    for (int bus = 0; bus < count; ++bus)
+        peaks[bus] = bus < kMostBuses ? m_peaks[size_t(bus)].exchange(0, std::memory_order_relaxed) : 0.0f;
 }
 
 // What the operator window has changed, if it is not changing it at this moment (in
@@ -489,6 +489,25 @@ void Mixer::mixPart(float *out, int frames)
     if (anyTone)
         m_tonePhase = std::fmod(m_tonePhase + step * frames, 2 * M_PI);
 
+    // For the meters, the loudest of each of the app's channels as it goes on from here
+    // (one not heard was filled with nothing above, unless its tone is on), before the
+    // device's channels are held to full below, so that sound that would be clipped
+    // shows. Kept as the most since the meter last asked.
+    const auto raise = [](std::atomic<float> &kept, float value) {
+        float had = kept.load(std::memory_order_relaxed);
+        while (value > had && !kept.compare_exchange_weak(had, value, std::memory_order_relaxed)) {
+        }
+    };
+    for (int bus = 0; bus < buses; ++bus) {
+        if (!m_heard[size_t(bus)] && !m_active.tone[size_t(bus)])
+            continue;
+        const float *samples = &m_buses[size_t(bus) * kPart];
+        float most = 0;
+        for (int frame = 0; frame < frames; ++frame)
+            most = std::max(most, std::abs(samples[frame]));
+        raise(m_peaks[size_t(bus)], most);
+    }
+
     // To the device's channels, by its matrix
     for (int bus = 0; bus < buses && bus < m_active.deviceRoutes.size(); ++bus) {
         const float *samples = &m_buses[size_t(bus) * kPart];
@@ -499,25 +518,9 @@ void Mixer::mixPart(float *out, int frames)
                 out[size_t(frame) * deviceChannels + channel] += samples[frame];
         }
     }
-    // For the meter, what the device is sent: the loudest of its odd-numbered channels
-    // and of its even-numbered (a stereo pair's left and right, wherever on it the pair
-    // is), before it is held to full, so that sound that is clipped shows
-    float left = 0;
-    float right = 0;
-    for (size_t sample = 0; sample < size_t(frames) * deviceChannels; ++sample) {
-        float &most = sample % deviceChannels % 2 == 0 ? left : right;
-        most = std::max(most, std::abs(out[sample]));
+    // Held to full: the device is sent no more than a sample can say
+    for (size_t sample = 0; sample < size_t(frames) * deviceChannels; ++sample)
         out[sample] = std::clamp(out[sample], -1.0f, 1.0f);
-    }
-    if (deviceChannels == 1)
-        right = left;
-    const auto raise = [](std::atomic<float> &kept, float value) {
-        float had = kept.load(std::memory_order_relaxed);
-        while (value > had && !kept.compare_exchange_weak(had, value, std::memory_order_relaxed)) {
-        }
-    };
-    raise(m_peakLeft, left);
-    raise(m_peakRight, right);
 }
 
 } // namespace audiomix

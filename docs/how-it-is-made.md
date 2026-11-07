@@ -265,7 +265,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/playlistfile.*` | Reads and writes the three playlists files: of presentations, of media, and of the audio bin |
 | `src/audiocue.*` | How a piece of audio plays, as ProPresenter's files say it: read from a row of the audio bin or an action, and changed there |
 | `src/audiolayer.*` | What plays the audio layer: the music and the sound effects, their fades and crossing, and the choice of the device sound goes to |
-| `src/audiometer.*`, `src/audiolevel.*` | The meter of what is being played, and the arithmetic of sound: how loud a stretch of it is, what a meter shows of that, how a fade goes |
+| `src/audiometer.*`, `src/audiolevel.*` | The meters of what is being played, one a channel, and the arithmetic of sound: how loud a stretch of it is, what a meter shows of that, how a fade goes |
 | `src/audiorouting.*` | Where sound goes, as plain rules: ProPresenter's Auto for media and for a device, matrices clicked, Mute and Solo, a channel's decibels, the ramps, and what a player is told of a media's sound |
 | `src/audiosetupfile.*` | The app's channels in ProPresenter's file of how the workspace is set up: how many, their names, Mute and Solo |
 | `src/audiomix.*` | The app's own mixer, with nothing of a device or a player in it: each player's sound brought to the device's rate and kept in step with it, mixed into the app's channels and on to the device's |

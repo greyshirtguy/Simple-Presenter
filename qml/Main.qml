@@ -185,6 +185,13 @@ Window {
     property bool audioCrossfade: false
     property string audioDevice: ""
     property real audioSplit: 66
+    // How many of the app's channels have a meter beside the preview (two to sixteen:
+    // see PreviewPanel), and how solid the meters are (half, unless changed, so that
+    // the preview shows through them). The maintainer asked for both on 2026-11-07,
+    // with a workspace of four channels whose preview showed two bars. This app's own,
+    // and this computer's: kept in its settings.
+    property int audioMeters: 2
+    property real audioMeterOpacity: 0.5
     // What is in the box of the stage message (see StagePanel), and how high the list
     // of messages is over what one of them is made of (see MessagesPanel): how each
     // was left, kept with the app's settings.
@@ -4485,6 +4492,10 @@ Window {
         audioDevice = String(saved("audioDevice", ""))
         const split = Number(saved("audioSplit", audioSplit))
         audioSplit = isFinite(split) ? Math.max(36, split) : 66
+        const meters = Number(saved("audioMeters", audioMeters))
+        audioMeters = isFinite(meters) ? Math.max(2, Math.min(AudioMeter.most, Math.round(meters))) : 2
+        const meterOpacity = Number(saved("audioMeterOpacity", audioMeterOpacity))
+        audioMeterOpacity = isFinite(meterOpacity) ? Math.max(0.05, Math.min(1, meterOpacity)) : 0.5
         stageMessageText = String(saved("stageMessage", ""))
         arrangementsShown = String(saved("arrangementsShown", false)) === "true"
         const messagesHeight = Number(saved("messagesSplit", messagesSplit))
@@ -4821,6 +4832,8 @@ Window {
     onAudioCrossfadeChanged: save("audioCrossfade", audioCrossfade)
     onAudioDeviceChanged: save("audioDevice", audioDevice)
     onAudioSplitChanged: save("audioSplit", audioSplit)
+    onAudioMetersChanged: save("audioMeters", audioMeters)
+    onAudioMeterOpacityChanged: save("audioMeterOpacity", audioMeterOpacity)
     onStageMessageTextChanged: save("stageMessage", stageMessageText)
     onMessagesSplitChanged: save("messagesSplit", messagesSplit)
     onPreviewHeightChanged: save("previewHeight", previewHeight)
@@ -6518,6 +6531,10 @@ Window {
             win.audioDevice = id
             Log.note("settings", id === "" ? "sound is to be played wherever the system sends it" : "a device was chosen for sound")
         }
+        audioMeters: win.audioMeters
+        onAudioMetersEdited: (count) => win.audioMeters = Math.max(2, Math.min(AudioMeter.most, count))
+        audioMeterOpacity: win.audioMeterOpacity
+        onAudioMeterOpacityEdited: (opacity) => win.audioMeterOpacity = Math.max(0.05, Math.min(1, opacity))
         chordSheetColor: win.chordSheetColor
         chordTextColor: win.chordTextColor
         chordLineColor: win.chordLineColor

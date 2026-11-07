@@ -130,8 +130,9 @@ public:
     void playing(bool on);
     // Whether anything is playing, or a tone is on
     bool sounding() const { return m_playing > 0 || m_tones > 0; }
-    // The loudest the app's first two channels have been since this was last asked
-    void takePeaks(float *left, float *right) { m_mixer.takePeaks(left, right); }
+    // The loudest each of the app's channels has been since this was last asked: the
+    // first `count` of them (see audiomix::Mixer::takePeaks)
+    void takePeaks(float *peaks, int count) { m_mixer.takePeaks(peaks, count); }
 
 signals:
     void channelsChanged();
