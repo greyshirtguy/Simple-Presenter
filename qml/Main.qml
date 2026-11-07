@@ -1616,7 +1616,9 @@ Window {
     function showMediaBehaviourMenu(index, item) {
         const slide = document.slides[index]
         menu.show([
-            { header: "Media" },
+            // Its caption plays the media and that alone, as the slide's own menu's
+            // does (the maintainer's ask of 2026-11-07): see playSlideMedia
+            { header: "Media", run: slide.media ? () => playSlideMedia(index) : undefined },
             { label: "Background", current: !slide.mediaForeground, run: () => setSlideMediaForeground(index, false) },
             { label: "Foreground", current: slide.mediaForeground, run: () => setSlideMediaForeground(index, true) },
             { label: "Inspector", disabled: !slide.media, run: () => inspectSlideMedia(index) }
