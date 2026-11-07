@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are fifty-one:
+So far there are fifty-seven:
 
 | Test | What it tries |
 | --- | --- |
@@ -71,6 +71,9 @@ So far there are fifty-one:
 | `tst_textformat` | The Text button's formats (`src/textformat.h`): what a run and a box are given, and only what differs from what they have; the size's arrows stepping each run's own size, never below a point, and the other numbers' each one's own, the opacity kept from 0 to 1 and the angle turned round; a face by its style's name; an outline turned on at three hundredths of a run's size, and by its colour alone; a shadow's colour turning it on; what many runs and boxes have in common, a key dropped for good at the first that differs |
 | `tst_textfills` | ProPresenter's fills of a text's letters (`src/textfills.h`), on attributes made as ProPresenter writes them: a fill of the whole text and fills over ranges, the runs cut where a range begins or ends inside one and a paragraph break counted as one; the same fill over two ranges one fill; ranges read before the whole text's fill; a gradient's stops spread where the file has them at one place; a blur's size and saturation; a video filling nothing; which fills the graphics chip draws. And the fills written back from the runs: texts as ProPresenter writes them, not changed, byte for byte; the ranges written again for new words, each a copy of the file's own with what the app does not know of in it, over a paragraph break where it went over one; a fill set over all the words as ProPresenter writes one, over some of them as a range, the words' colour the text's own; back to a colour; a fill changed keeping the rest of the file's; a media fill given a file; a blur's amount shared over a slide, of words and shapes |
 | `tst_fontnames` | Font names (`src/fontnames.h`), as the maintainer's CMG Sans has them: Qt's name for a family it has from two foundries (`CMG Sans [ULA ]`) made the family's own again, and a menu's list with each family once; what to ask Qt for to have a face of one of the foundries; style names compared whatever their spacing and case; the style part of a PostScript name |
+| `tst_textshadow` | The shadow a slide's words cast, painted in a picture of its own (`src/textshadow.h`): MultiEffect's measured blur read off its table; a dot's shadow where the offset puts it, with all of the dot's cover, spread as far as the sigma asked for and in the colour asked for, at each size the picture is worked out at; what is under it left as it was; none for a colour with no opacity |
+| `tst_zipreader` | The zip reader the playlist import reads ProPresenter's exported playlists with (`src/zipreader.h`): an archive laid out as a zip writer lays one out, read and copied out; and an entry that inflates to more than the directory says, found out as it goes past that and not after it has filled the memory or the disk |
+| `tst_sourcesweep` | A sweep of the screens' scripts (`qml/`) for Qt's own animations, which the brief keeps off anything that moves on a screen (AGENTS.md): the files of what is drawn on an audience or a stage screen looked through, their comments aside, and the test failing on one |
 
 **Adding one.** A part can be unit tested if it compiles without the windows: it takes
 what it needs as values and says what is to happen as values, where the code round it
