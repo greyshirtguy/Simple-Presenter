@@ -751,15 +751,30 @@ QString ProDocument::replaceCueMediaFile(const QString &path, const QString &cue
     });
 }
 
-QString ProDocument::addCueAction(const QString &path, const QString &cueId, const QVariantMap &action)
+QString ProDocument::addCueActions(const QString &path, const QStringList &cueIds, const QVariantMap &action)
 {
-    return changeCue(path, cueId, [&](rv::data::Cue *cue) {
-        rv::data::Action made;
-        const QString error = actions::build(action, &made);
-        if (error.isEmpty())
-            *cue->add_actions() = made;
+    rv::data::Presentation presentation;
+    QString error;
+    if (!readPresentation(path, &presentation, &error))
         return error;
-    });
+    for (const QString &cueId : cueIds) {
+        bool found = false;
+        for (rv::data::Cue &cue : *presentation.mutable_cues()) {
+            if (QString::fromStdString(cue.uuid().string()) != cueId)
+                continue;
+            // (Built for each: every one of them gets an id of its own)
+            rv::data::Action made;
+            error = actions::build(action, &made);
+            if (!error.isEmpty())
+                return error;
+            *cue.add_actions() = made;
+            found = true;
+            break;
+        }
+        if (!found)
+            return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+    }
+    return writePresentation(path, presentation);
 }
 
 QString ProDocument::changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action)

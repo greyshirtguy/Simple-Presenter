@@ -585,9 +585,9 @@ void Catalog::showInFolder(const QString &path) const
     });
 }
 
-QString Catalog::addSlideAction(const QString &path, const QString &slideId, const QVariantMap &action)
+QString Catalog::addSlideActions(const QString &path, const QStringList &slideIds, const QVariantMap &action)
 {
-    return ProDocument::addCueAction(path, slideId, action);
+    return ProDocument::addCueActions(path, slideIds, action);
 }
 
 QString Catalog::changeSlideAction(const QString &path, const QString &slideId, const QString &actionId, const QVariantMap &action)

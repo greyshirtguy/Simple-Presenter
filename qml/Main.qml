@@ -1826,9 +1826,11 @@ Window {
     }
 
     // What an action is added to, changed in or taken from: `target` is { slide } for
-    // the slide at that place in the presentation being viewed, or { macro } for the
-    // macro with that id. An action is a map as src/actions.h describes; with
-    // `existingId` it takes the place of the action that has that id.
+    // the slide at that place in the presentation being viewed (with `slides`, the
+    // places of every slide selected, when the slide was among them: an action added
+    // goes to each of them, the file written once), or { macro } for the macro with
+    // that id. An action is a map as src/actions.h describes; with `existingId` it
+    // takes the place of the action that has that id.
     function commitAction(target, action, existingId) {
         // A playback marker's (see showMarkerMenu): `target.place` is where its media is
         if (target.marker !== undefined) {
@@ -1844,10 +1846,12 @@ Window {
             return report(existingId ? Macros.changeAction(target.macro, existingId, action) : Macros.addAction(target.macro, action))
         }
         const slide = document.slides[target.slide]
-        Log.note("edit", "an action " + (existingId ? "changed on" : "added to") + " slide " + (target.slide + 1) + " of "
+        const places = !existingId && target.slides !== undefined && target.slides.length > 1 ? target.slides : [target.slide]
+        Log.note("edit", "an action " + (existingId ? "changed on" : "added to")
+                 + (places.length > 1 ? " slides " + places.map(place => place + 1).join(", ") : " slide " + (target.slide + 1)) + " of "
                  + quoted(document.name) + ": " + action.kind)
         const done = report(existingId ? catalog.changeSlideAction(document.path, slide.id, existingId, action)
-                                       : catalog.addSlideAction(document.path, slide.id, action))
+                                       : catalog.addSlideActions(document.path, places.map(place => document.slides[place].id), action))
         if (done)
             reloadDocument()
         return done
@@ -3122,13 +3126,17 @@ Window {
     function showSlideMenu(index, item, x, y) {
         const slide = document.slides[index]
         const none = slide.mediaName === ""
-        const target = { slide: index }
+        // With the slide among those selected, an action added goes to every one of them
+        // (`slides`: see commitAction), and the menu says so; otherwise to the slide alone
+        // (the maintainer's ask of 2026-11-08)
+        const several = selectedIn === document.path && selectedSlideIds.length > 1 && selectedSlideIds.includes(slide.id) ? selectedPlaces() : undefined
+        const target = { slide: index, slides: several }
         menu.show([
             { label: "Edit", run: () => startEditing(currentEntry(), slide.id) },
             // Its words alone, put right over its thumbnail: see quickEdit
             { label: "Quick Edit", run: () => quickEdit(index, item) },
             // What else the slide does when it is shown: see src/actions.h
-            { label: "Add Action", items: () => addActionItems(target) },
+            { label: several ? "Add Action to " + several.length + " Slides" : "Add Action", items: () => addActionItems(target) },
             { label: "Remove Action", disabled: slide.actions.length === 0, items: [{ header: "Remove Action" }].concat(
                 slide.actions.map(action => ({ label: action.title, glyph: action.kind, picture: action.picture,
                                                run: () => removeAction(target, action) }))) },

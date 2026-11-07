@@ -312,7 +312,8 @@ public:
     Q_INVOKABLE void showInFolder(const QString &path) const;
     // The actions a slide has besides showing itself and its media (see src/actions.h
     // for what one is): gives it another, changes one by its id, takes one away.
-    Q_INVOKABLE QString addSlideAction(const QString &path, const QString &slideId, const QVariantMap &action);
+    // (To one slide, or to several selected together: the file written once)
+    Q_INVOKABLE QString addSlideActions(const QString &path, const QStringList &slideIds, const QVariantMap &action);
     Q_INVOKABLE QString changeSlideAction(const QString &path, const QString &slideId, const QString &actionId, const QVariantMap &action);
     Q_INVOKABLE QString removeSlideAction(const QString &path, const QString &slideId, const QString &actionId);
     // Stops a slide triggering media, and saves the presentation file.

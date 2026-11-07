@@ -177,10 +177,13 @@ struct ProDocument
     static QVariantMap cueMediaSettings(const QString &path, const QString &cueId);
     static QString replaceCueMediaFile(const QString &path, const QString &cueId, const QString &mediaPath,
                                        const QString &workspace);
-    // Gives the cue another action, changes one it has, by the action's id, and takes
-    // one away. The action is a map as src/actions.h describes. Each writes the file
-    // back and returns an error message, empty on success.
-    static QString addCueAction(const QString &path, const QString &cueId, const QVariantMap &action);
+    // Gives each of several cues an action, each one of its own (with an id of its
+    // own), the file read and written once (a slide, or several selected together,
+    // given one: see commitAction in Main.qml); changes an action a cue has, by the
+    // action's id; and takes one away. The action is a map as src/actions.h describes.
+    // Each writes the file back and returns an error message, empty on success; a cue
+    // not there is an error, and nothing is written.
+    static QString addCueActions(const QString &path, const QStringList &cueIds, const QVariantMap &action);
     static QString changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action);
     static QString removeCueAction(const QString &path, const QString &cueId, const QString &actionId);
     // Sets the key the presentation's chords are written in, as chords.h names keys.

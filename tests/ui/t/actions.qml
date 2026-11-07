@@ -18,6 +18,10 @@ QtObject {
         return Timers.state(timer(name).id)
     }
 
+    function logged(pattern) {
+        return testInput.readText(Log.path).split("\n").filter(line => pattern.test(line))
+    }
+
     function all() {
         return ["One", "Two", "Elapsed"].map(name => name + (state(name).running ? " running " : " stopped ") + Math.round(state(name).seconds)).join(", ")
     }
@@ -117,6 +121,70 @@ QtObject {
                 check("nothing was reported along the way", notice === "", notice)
                 Timers.timers.forEach(x => { Timers.stop(x.id); Timers.reset(x.id) })
                 return 100
+            },
+            () => {
+                // ---- An action added to every slide selected, when the one clicked is among them
+                click(centre(slideCell(3)))
+                return 400
+            },
+            () => {
+                const p = centre(slideCell(4))
+                testInput.mouse(0, p.x, p.y, Qt.ControlModifier)
+                testInput.mouse(2, p.x, p.y, Qt.ControlModifier)
+                return 300
+            },
+            () => {
+                check("(two slides selected, the fourth and the fifth)", selectedSlideIds.length === 2 && selectedSlideIds.includes(document.slides[3].id)
+                      && selectedSlideIds.includes(document.slides[4].id), selectedSlideIds.length)
+                kept.counts = document.slides.map(s => s.actions.length)
+                click(centre(slideCell(4)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                check("the menu of one of them says an action added goes to both", menu.opened && labels().includes("Add Action to 2 Slides"), labels())
+                const row = menuRow("Add Action to 2 Slides")
+                testInput.mouse(4, row.x, row.y)
+                return 500
+            },
+            () => {
+                const row = menuRow("Clear")
+                testInput.mouse(4, row.x, row.y)
+                return 500
+            },
+            () => {
+                click(menuRow("The Media"))
+                return 800
+            },
+            () => {
+                const counts = document.slides.map(s => s.actions.length)
+                const last = place => document.slides[place].actions[document.slides[place].actions.length - 1]
+                check("both slides have it, and no other", counts.join("") === kept.counts.map((n, i) => i === 3 || i === 4 ? n + 1 : n).join(""), counts.join(""))
+                check("each its own: the two have ids of their own, and clear the media", last(3).id !== last(4).id && last(3).kind === "clear" && last(4).kind === "clear",
+                      last(3).id + " " + last(4).id)
+                check("the log says which slides", logged(/  edit +an action added to slides 4, 5 of "Timer Actions": clear/).length === 1, logged(/an action added/).join(" | "))
+                kept.counts = counts
+                click(centre(slideCell(6)), Qt.RightButton)
+                return 400
+            },
+            () => {
+                check("a slide not among those selected gets one by itself", menu.opened && labels().includes("Add Action, ") && !labels().includes("Add Action to"), labels())
+                const row = menuRow("Add Action")
+                testInput.mouse(4, row.x, row.y)
+                return 500
+            },
+            () => {
+                const row = menuRow("Clear")
+                testInput.mouse(4, row.x, row.y)
+                return 500
+            },
+            () => {
+                click(menuRow("The Slide"))
+                return 800
+            },
+            () => {
+                const counts = document.slides.map(s => s.actions.length)
+                check("and it alone has it", counts.join("") === kept.counts.map((n, i) => i === 6 ? n + 1 : n).join(""), counts.join(""))
+                check("nothing was reported", notice === "", notice)
             }
         ]
         next()
