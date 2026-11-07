@@ -2235,6 +2235,15 @@ Window {
         if (files !== draggedFiles) {
             draggedFiles = files
             draggedFilesMedia = catalog.mediaAmong(drag.urls)
+            // A drag that is refused shows nothing but its pointer, so the log says what
+            // came and why it was refused: a .mov the maintainer dragged in was refused
+            // (2026-11-07) where the app takes one, so it was not the file's name.
+            if (draggedFilesMedia.length === 0) {
+                Log.note("drop", drag.urls.length === 0
+                         ? "a drag from another application came with no files in it (the other application gave none, or not in time): refused"
+                         : counted(drag.urls.length, "file", "files") + " dragged in from another application, none an image or video this can show (by name, as a file that is here): refused; "
+                           + drag.urls.slice(0, 8).map(url => String(url)).join(", ") + (drag.urls.length > 8 ? ", …" : ""))
+            }
         }
         return draggedFilesMedia
     }

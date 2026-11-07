@@ -15,6 +15,8 @@ QtObject {
     readonly property string picture: made + "j-picture.png"
     readonly property string bars: made + "k-bars.jpg"
     readonly property string notes: made + "notes.txt"
+    // A QuickTime file (.mov), which the maintainer found refused on 2026-11-07
+    readonly property string quicktime: made + "l-quicktime.mov"
 
     function spot(item, fx, fy) {
         return item.mapToItem(null, item.width * fx, item.height * fy)
@@ -72,7 +74,17 @@ QtObject {
                 check("nor can a folder", over(spot(cell, 0.5, 0.5), [made]) === "refused")
                 testInput.fileDrag(2, 0, 0)
                 check("nothing has changed yet", ids().join() === kept.before.join() && document.slides[kept.plain].mediaName === "")
-                // Dropped onto the slide: its background
+                // A QuickTime file is a video like any other
+                check("a QuickTime video can be dropped as any other video can", over(spot(cell, 0.5, 0.5), [quicktime]) === "copy" && area.zone === "onto", area.zone)
+                check("dropped onto the slide, it is taken as a copy", dropAt(spot(cell, 0.5, 0.5), [quicktime]) === "copy")
+                return 400
+            },
+            () => {
+                const slide = document.slides[kept.plain]
+                check("and the slide triggers it as a background", slide.mediaName === "l-quicktime.mov" && slide.mediaForeground === false && slide.media !== undefined
+                      && slide.media.path === quicktime && slide.mediaVideo === true, JSON.stringify([slide.mediaName, slide.mediaForeground, slide.mediaVideo]))
+                // Dropped onto the slide: its background, in place of that one
+                const cell = slideCell(kept.plain)
                 check("dropped onto the slide (Shift held), it is taken as a copy", dropAt(spot(cell, 0.5, 0.5), [video], Qt.ShiftModifier) === "copy")
                 return 400
             },
@@ -284,7 +296,13 @@ QtObject {
                 check("they are at the end of that playlist", there.length === kept.otherCount + 2 && there[there.length - 2].name === "i-with-sound.mp4" && there[there.length - 1].name === "j-picture.png", there.length)
                 check("the playlist that is open is as it was", mediaFiles.length === kept.count)
                 check("and the user is told, in words, what went where and what was left out", /2 files added to .*; 1 left out/.test(notice) && !noticeIsError, notice)
-                check("the log has a line for each drop", logged(/  drop  /).length === 11, logged(/  drop  /).length + ": " + logged(/  drop  /).map(l => l.slice(26, 110)).join(" | "))
+                const dropped = logged(/  drop  /).filter(line => !line.includes("refused"))
+                const refused = logged(/  drop  /).filter(line => line.includes("refused"))
+                check("the log has a line for each drop", dropped.length === 12, dropped.length + ": " + dropped.map(l => l.slice(26, 110)).join(" | "))
+                // (The same files dragged on, over somewhere else, are the same drag to the window: said once.)
+                check("and one for each drag of files it refused, saying what they were: the text file twice and the folder, never the videos",
+                      refused.length === 3 && refused.filter(line => line.includes("notes.txt")).length === 2 && refused.every(line => !line.includes(".mp4") && !line.includes(".mov")),
+                      refused.length + ": " + refused.map(l => l.slice(26, 140)).join(" | "))
                 check("nothing went wrong on the way", logged(/PROBLEM|WARNING|ERROR/).filter(l => !l.includes("qt.qpa.theme")).length === 0, logged(/PROBLEM|WARNING|ERROR/).slice(0, 3).join(" | "))
             }
         ]

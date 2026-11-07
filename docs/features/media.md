@@ -77,7 +77,8 @@ Files dragged from the file manager into the media bin are added to a media play
 the one they are dropped on in the list, or the one being browsed, at the place among
 its thumbnails where they are dropped. Files are referred to where they are on disk,
 never copied or moved, and anything in a drag that is not an image or a video the app
-can show is left out.
+can show is left out. A drag with nothing in it the app can show is refused, and the
+[log](log.md) says what was in it.
 
 First in the bin's list is **Video Inputs**, as in ProPresenter: the workspace's
 [video inputs](video-inputs.md), which a click puts on a layer of their own under the
