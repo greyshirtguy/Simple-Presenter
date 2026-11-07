@@ -130,20 +130,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.125: Rows of a playlist selected together, a meter for each channel, and songs from SongSelect.** Ctrl+click and Shift+click select rows of a [playlist](docs/features/workspaces.md#rows-of-a-playlist), Delete takes them out, and the search adds under the row selected; a [meter](docs/features/audio.md) beside the preview for each of the app's channels, laid out as ProPresenter's; a song's words brought in from [SongSelect](docs/features/workspaces.md#a-songs-words-from-songselect)'s lyrics file or the clipboard, with the lines on a slide, a theme, the library and a playlist asked; a timer set up over the [API](docs/features/api.md), as Companion's Timer Set does.
 - **0.124: A timer's text over a video changes with the video's frames.** A running timer or clock on a slide over a playing video no longer draws frames of the output's own, and nor do the fades of a look's layers, of props and of messages; the network [API](docs/features/api.md) keeps no more of one client than it should; a playlist bundle that inflates past what it says is found out before it fills the memory.
 - **0.123: How long the ~ key is held for Simple View is a setting.** Settings → Simple View, from 0.56 s to begin with (it was 0.7 s) down to 0, at which a press switches the view.
 - **0.122: Media dragged onto macros.** A picture or a video dragged out of the media bin onto a [macro](docs/features/macros.md) gives it an action that shows it, as a click in the bin does; dropped along the bottom of the macros, it is given a macro of its own.
 - **0.121: A video kept moving as slides change over it.** A slide's words, and their shadow, are painted before it is shown, the slides likely next ahead of being asked for, and a change over a playing video is made with the video's next frame: on the 2017 laptop a cut now holds a frame of the video on the screen about one time in ten, and a dissolve one in six, where most did. See [Built for modest hardware](docs/how-it-is-made.md#built-for-modest-hardware).
-- **0.120: A box's blur and invert, set in the editor.** The Shape tab's Fill menu has ProPresenter's Background Blur and Background Invert, with the Text tab's controls, a blur's amount shared by every blur on its slide; and a media fill of words has ProPresenter's gear, for another file, and magnifier, to show it in the file manager. See [Text fills](docs/features/text-fills.md#setting-them).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.124_amd64.deb` from the
+`simplepresenter_0.125_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.124_amd64.deb
+sudo apt install ./simplepresenter_0.125_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

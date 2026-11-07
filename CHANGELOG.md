@@ -6,6 +6,31 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.125](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.125) · 2026-11-08
+
+- Rows of a [playlist](docs/features/workspaces.md#rows-of-a-playlist) are selected
+  together: a click with Ctrl held selects a row as well or lets it go, one with Shift
+  held every row from the last one selected to it, and a heading can be selected too;
+  what is open stays open. Delete takes the selected rows out, and the menu's Remove
+  does the same for all of them. The [search](docs/features/search.md) adds a
+  presentation under the row selected, says so, and lights the new row for a moment.
+- A meter beside the preview for each of the app's channels, where there were two bars
+  of what the device was sent: how many, from two to sixteen, and how solid they are,
+  are settings on the [Audio](docs/features/audio.md) page. They are laid out as
+  ProPresenter's: two up the left edge for two, two up each edge for three or four,
+  four up each for five to eight, and above eight two to a column at half the height.
+- A song's words brought in from
+  [SongSelect](docs/features/workspaces.md#a-songs-words-from-songselect), from the
+  lyrics file it gives out or the words copied to the clipboard: a panel asks the lines
+  on a slide, a theme slide to dress the slides in, the library and a playlist, and
+  remembers the last three; the song's details go where the
+  [copyright display](docs/features/copyright.md) looks.
+- The network [API](docs/features/api.md) sets a timer up by PUT, by itself or along
+  with starting, stopping or resetting it, which is what Companion's Timer Set sends.
+- The menu under a slide's media icon plays the media from its Media caption, as the
+  slide's own menu does; and a drag from another application that the app refuses is
+  said in the [log](docs/features/log.md), with what came.
+
 ## [0.124](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.124) · 2026-11-06
 
 - A timer's or a clock's text on a slide over a playing video is changed as the video's

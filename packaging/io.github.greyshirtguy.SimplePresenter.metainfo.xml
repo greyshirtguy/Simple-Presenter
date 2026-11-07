@@ -39,6 +39,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.125" date="2026-11-08">
+      <description>
+        <p>
+          Rows of a playlist selected together with Ctrl and Shift, taken out with Delete, and
+          added under by the search; a meter beside the preview for each of the app's
+          channels, laid out as ProPresenter's; a song's words brought in from SongSelect's
+          lyrics file or the clipboard; a timer set up over the network API, as Companion
+          does.
+        </p>
+      </description>
+    </release>
     <release version="0.124" date="2026-11-06">
       <description>
         <p>
