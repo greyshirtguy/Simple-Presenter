@@ -1,7 +1,11 @@
 #include "songimport.h"
 
 #include "proconvert.h"
+#include "songselect.h"
+#include "themefile.h"
 #include "workspacefiles.h"
+
+#include "template.pb.h"
 
 #include <QDateTime>
 #include <QFile>
@@ -10,7 +14,7 @@
 
 namespace songimport {
 
-chords::Song readFile(const QString &path, QString *error)
+QString readTextFile(const QString &path, QString *error)
 {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -30,6 +34,14 @@ chords::Song readFile(const QString &path, QString *error)
     QString text = utf8(bytes);
     if (utf8.hasError())
         text = QString::fromLatin1(bytes);
+    return text;
+}
+
+chords::Song readFile(const QString &path, QString *error)
+{
+    const QString text = readTextFile(path, error);
+    if (!error->isEmpty())
+        return {};
     const chords::Song song = chords::parseSong(text);
     if (song.sections.isEmpty()) {
         *error = QStringLiteral("%1 has no words in it").arg(QFileInfo(path).fileName());
@@ -38,31 +50,41 @@ chords::Song readFile(const QString &path, QString *error)
     return song;
 }
 
-rv::data::Presentation build(const chords::Song &song, const QString &name, int linesPerSlide)
+rv::data::Presentation build(const QList<chords::Section> &sections, const QString &name, int linesPerSlide, const Credits &credits,
+                             const QString &key)
 {
     rv::data::Presentation presentation = proconvert::newPresentation(name);
     presentation.mutable_last_modified_date()->set_seconds(QDateTime::currentSecsSinceEpoch());
 
-    if (!song.title.isEmpty() || !song.artist.isEmpty() || !song.copyright.isEmpty() || !song.ccli.isEmpty()) {
+    if (!credits.title.isEmpty() || !credits.artist.isEmpty() || !credits.author.isEmpty() || !credits.publisher.isEmpty()
+        || credits.year > 0 || !credits.songNumber.isEmpty()) {
         auto *ccli = presentation.mutable_ccli();
-        ccli->set_song_title(song.title.toStdString());
-        ccli->set_artist_credits(song.artist.toStdString());
-        ccli->set_publisher(song.copyright.toStdString());
+        ccli->set_song_title(credits.title.toStdString());
+        if (!credits.artist.isEmpty())
+            ccli->set_artist_credits(credits.artist.toStdString());
+        if (!credits.author.isEmpty())
+            ccli->set_author(credits.author.toStdString());
+        if (!credits.publisher.isEmpty())
+            ccli->set_publisher(credits.publisher.toStdString());
+        if (credits.year > 0)
+            ccli->set_copyright_year(uint32_t(credits.year));
         bool isNumber = false;
-        const uint number = song.ccli.toUInt(&isNumber);
+        const uint number = credits.songNumber.toUInt(&isNumber);
         if (isNumber)
             ccli->set_song_number(number);
+        if (credits.display)
+            ccli->set_display(true);
     }
-    if (chords::keyNumber(song.key) >= 0) {
+    if (chords::keyNumber(key) >= 0) {
         using Scale = rv::data::MusicKeyScale;
         for (Scale *target : {presentation.mutable_music()->mutable_original(), presentation.mutable_music()->mutable_user()}) {
-            target->set_music_key(Scale::MusicKey(chords::keyNumber(song.key)));
-            target->set_music_scale(chords::keyIsMinor(song.key) ? Scale::MUSIC_SCALE_MINOR : Scale::MUSIC_SCALE_MAJOR);
+            target->set_music_key(Scale::MusicKey(chords::keyNumber(key)));
+            target->set_music_scale(chords::keyIsMinor(key) ? Scale::MUSIC_SCALE_MINOR : Scale::MUSIC_SCALE_MAJOR);
         }
     }
 
     const QSizeF size(1920, 1080);
-    for (const chords::Section &section : song.sections) {
+    for (const chords::Section &section : sections) {
         // A part with no name in the file is a verse like any other to whoever runs
         // the words; but naming it one would be a guess, so it is left unnamed, in a
         // group with no name, which shows as plain slides.
@@ -109,6 +131,16 @@ rv::data::Presentation build(const chords::Song &song, const QString &name, int 
     return presentation;
 }
 
+rv::data::Presentation build(const chords::Song &song, const QString &name, int linesPerSlide)
+{
+    Credits credits;
+    credits.title = song.title;
+    credits.artist = song.artist;
+    credits.publisher = song.copyright;
+    credits.songNumber = song.ccli;
+    return build(song.sections, name, linesPerSlide, credits, song.key);
+}
+
 QString importFile(const QString &file, const QString &library, int linesPerSlide, QString *made)
 {
     QString error;
@@ -122,6 +154,57 @@ QString importFile(const QString &file, const QString &library, int linesPerSlid
     const QString path = proconvert::presentationFileFor(library, song.title.isEmpty() ? QFileInfo(file).completeBaseName() : song.title,
                                                          QStringLiteral("Song"), &unique);
     error = proconvert::writePresentation(path, build(song, unique, linesPerSlide));
+    if (error.isEmpty())
+        *made = path;
+    return error;
+}
+
+QString importLyrics(const QString &text, const QString &library, int linesPerSlide, const QString &workspace, const QString &themePlace,
+                     const QString &themeSlideId, QString *made)
+{
+    const songselect::Song song = songselect::parse(text);
+    if (song.sections.isEmpty())
+        return song.title.isEmpty() ? QStringLiteral("There are no words to make a song of") : QStringLiteral("%1 has no words in it").arg(song.title);
+    if (!QFileInfo(library).isDir())
+        return QStringLiteral("There is no library to put it in");
+
+    // The theme slide first, so that nothing is written if it is not to be found
+    rv::data::Template::Document theme;
+    const rv::data::Template::Slide *themed = nullptr;
+    QSet<QString> themeElements;
+    if (!themePlace.isEmpty()) {
+        QString error;
+        if (!themefile::read(workspace, themePlace, &theme, &error))
+            return error;
+        themed = themefile::slideOf(theme, themeSlideId);
+        if (!themed)
+            return QStringLiteral("The theme \"%1\" no longer has that slide").arg(themePlace);
+        themeElements = themefile::elementIds(workspace);
+    }
+
+    QString unique;
+    const QString path = proconvert::presentationFileFor(library, song.title, QStringLiteral("Song"), &unique);
+    Credits credits;
+    credits.title = song.title;
+    credits.author = song.author;
+    credits.publisher = song.publisher;
+    credits.year = song.year;
+    credits.songNumber = song.songNumber;
+    // Shown by the copyright display when the song came with its details, as
+    // ProPresenter's own files from SongSelect are; words pasted with none have only
+    // their title there, as a ChordPro song has, and the display off (a GUESS at what
+    // ProPresenter does for a song typed in: that its display starts off)
+    credits.display = !song.author.isEmpty() || !song.publisher.isEmpty() || song.year > 0 || !song.songNumber.isEmpty();
+    rv::data::Presentation presentation = build(song.sections, unique, linesPerSlide, credits, QString());
+    if (themed) {
+        for (rv::data::Cue &cue : *presentation.mutable_cues()) {
+            for (rv::data::Action &action : *cue.mutable_actions()) {
+                if (action.has_slide() && action.slide().has_presentation())
+                    themefile::dress(action.mutable_slide()->mutable_presentation()->mutable_base_slide(), themed->base_slide(), themeElements);
+            }
+        }
+    }
+    const QString error = proconvert::writePresentation(path, presentation);
     if (error.isEmpty())
         *made = path;
     return error;

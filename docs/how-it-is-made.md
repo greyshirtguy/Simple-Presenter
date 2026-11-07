@@ -237,7 +237,7 @@ ctest --test-dir build
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
 and look at what its windows then hold and show (and, for sound, what a sound device of
-eight channels was sent, recorded): eighty-four scripts and some three
+eight channels was sent, recorded): eighty-five scripts and some three
 thousand checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -298,7 +298,8 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/maskfile.*`, `src/masks.*` | The workspace's masks, in the same file: each a slide and a name, read, made, renamed and removed |
 | `src/themefile.*`, `src/thememath.*`, `src/themes.*` | The workspace's themes: reading them, which text box of a slide goes into which of a theme's, and dressing slides in a theme, for good or for a screen |
 | `src/chords.*`, `src/chordsbridge.*` | Chords: what one is, changing key, the four notations, ChordPro text; and the same for QML to call |
-| `src/songimport.*` | A new presentation made of a ChordPro file |
+| `src/songimport.*` | A new presentation made of a ChordPro file, or of a song's words from SongSelect, dressed in a theme as it comes |
+| `src/songselect.*` | A song as the lyrics file SongSelect gives out has it: its parts under their labels, and its details |
 | `src/bible.*`, `src/biblexml.*` | A Bible: its books, chapters and verses, the books' names, a passage as it is typed and as it is written; and reading one from an XML file of the four kinds |
 | `src/bibleflow.*` | How a passage's words are shared out across slides: Fill, and Even at natural pauses, and where that fails; and round slides kept as they were |
 | `bibles/` | The three public-domain Bibles that come with the app, as Zefania files, the list the app reads, and the script that made them from eBible.org's (its README) |
@@ -358,6 +359,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `qml/ChordedText.qml`, `qml/chordlayout.js` | Words with chords over them, as a stage screen draws them; and where a chord stands over its line |
 | `qml/ExportPowerPoint.qml` | The panel a presentation is exported to PowerPoint from: its options, how far it has got, and its report |
 | `qml/ImportSong.qml` | The panel a ChordPro file is imported from |
+| `qml/ImportLyrics.qml` | The panel a song's words from SongSelect are imported from: the lines on a slide, a theme, the library and a playlist |
 | `qml/NewPresentation.qml` | The panel a new presentation is named in |
 | `qml/SlideLabel.qml` | The panel a label is made in: its words and its colour |
 | `qml/ArrangementBar.qml`, `qml/ArrangementsPanel.qml` | The arrangement editor over the slides: Master's groups and the arrangement being viewed, as labels that are dragged; and the window that lists a presentation's arrangements |

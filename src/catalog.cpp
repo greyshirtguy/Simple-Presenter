@@ -6,6 +6,7 @@
 #include "mediasettings.h"
 #include "playbackmarkers.h"
 #include "songimport.h"
+#include "songselect.h"
 
 #include "playlistimport.h"
 #include "prodocument.h"
@@ -297,6 +298,54 @@ QVariantMap Catalog::importSong(const QUrl &file, const QString &library, int li
     const QString error = songimport::importFile(file.isLocalFile() ? file.toLocalFile() : file.toString(), library, linesPerSlide, &made);
     // The library has one more in it than was listed: the lists are told at once, not
     // when the folder's watcher gets round to it.
+    if (error.isEmpty())
+        rescan();
+    return {{"path", made}, {"error", error}};
+}
+
+namespace {
+
+QVariantMap describedLyrics(const songselect::Song &song, const QString &error)
+{
+    QVariantList sections;
+    for (const chords::Section &section : song.sections)
+        sections.append(QVariantMap {{"name", section.name}, {"lines", int(section.lines.size())}});
+    return {
+        {"title", song.title},
+        {"author", song.author},
+        {"publisher", song.publisher},
+        {"year", song.year},
+        {"songNumber", song.songNumber},
+        {"sections", sections},
+        {"error", !error.isEmpty()            ? error
+                  : song.sections.isEmpty() ? (song.title.isEmpty() ? QStringLiteral("There are no words to make a song of")
+                                                                    : QStringLiteral("%1 has no words in it").arg(song.title))
+                                            : QString()},
+    };
+}
+
+}
+
+QVariantMap Catalog::describeLyrics(const QString &text) const
+{
+    return describedLyrics(songselect::parse(text), QString());
+}
+
+QVariantMap Catalog::describeLyricsFile(const QString &path) const
+{
+    QString error;
+    const QString text = songimport::readTextFile(path, &error);
+    QVariantMap described = describedLyrics(error.isEmpty() ? songselect::parse(text) : songselect::Song(), error);
+    described.insert("text", text);
+    return described;
+}
+
+QVariantMap Catalog::importLyrics(const QString &text, const QString &library, int linesPerSlide, const QString &themePlace,
+                                  const QString &themeSlideId)
+{
+    QString made;
+    const QString error = songimport::importLyrics(text, library, linesPerSlide, m_root, themePlace, themeSlideId, &made);
+    // (As for a ChordPro file: the lists are told at once)
     if (error.isEmpty())
         rescan();
     return {{"path", made}, {"error", error}};

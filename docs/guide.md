@@ -30,6 +30,10 @@ These are not ProPresenter's.
   one on by hand.
 - **Importing a ChordPro file** as a new song, chords and all: Import ChordPro File… in
   the menu of the + beside Libraries.
+- **Importing a song's words from SongSelect**: Import Lyrics File… and Import Lyrics
+  from Clipboard in the same menu take the lyrics file SongSelect gives out, or its
+  words copied, and ask the lines on a slide, a theme, the library and a playlist; the
+  song's details go where the copyright display looks.
 - **A Bible passage shared out evenly.** In Bible mode the words can be shared out across
   the slides, broken at a full stop or a comma where there is one near, with no slide
   left holding a scrap.

@@ -42,14 +42,52 @@ An exported playlist is imported from the "+" beside Playlists. Its presentation
 into the library last browsed and its media under `Media`, keeping the folders it had
 below ProPresenter's own `Media` folder; files already there are left as they are.
 The "+" beside Libraries makes a new presentation in the library that is open, makes a
-new library, which is a folder, and brings a song in from a ChordPro file
-([Chords](chords.md)). **New Presentation…** asks for a name first, the name being the
+new library, which is a folder, brings a song in from a ChordPro file
+([Chords](chords.md)), and brings a song's words in from SongSelect (below).
+**New Presentation…** asks for a name first, the name being the
 file's and what playlists find it by, and gives the presentation one slide with nothing
 on it, which the [editor](editing.md) then puts text boxes, shapes and pictures on. A
 second of the same name gets a number after it. The file starts as ProPresenter's own
 presentations do, with a slide written as ProPresenter writes an empty one; but that
 ProPresenter opens a presentation that was made here is a guess, and has not been
 tried.
+
+### A song's words from SongSelect
+
+CCLI's SongSelect lets a church download a song's words as a plain text file (the
+"lyrics" download, `<Title>-lyrics.txt`): the title on the first line, each part's
+words under its label (Verse 1, Chorus, Bridge), and at the foot the authors, the CCLI
+song number, the copyright line with the publishers, and the church's licence number.
+**Import Lyrics File…** takes such a file, and **Import Lyrics from Clipboard** the
+same words copied from SongSelect's page, and puts up a panel that says what was found
+(the title, the authors, the parts, the number) and asks:
+
+- **Lines on a slide**, two unless changed, every time; the panel says how many slides
+  that makes.
+- **Theme**: a theme slide to dress every slide in as it comes in, from the workspace's
+  themes as a slide's Theme menu has them, or None. The slides are dressed before the
+  file is first written, so there is no earlier version of it to keep.
+- **Library**: which library the song goes into.
+- **Add to playlist**: a playlist to add it to the end of, or None.
+
+The theme, the library and the playlist start as they were for the last song brought
+into this workspace (this computer's settings), the library as the one that is open
+until then; so a run of songs for a service comes in with a few clicks each. The song
+is then opened in its library. Each labelled part is a group of that name; a block of
+words with no label is a group with no name (a verse, no doubt, but naming it would be
+a guess). The song's details go where ProPresenter keeps a song's from SongSelect, for
+the [copyright display](copyright.md): the title, the authors on one line, the
+publishers one a line, the year, and the song number, with the display on, as
+ProPresenter's own files from SongSelect have them; the church's licence number is
+the workspace's, not the song's, and is left out. A song with none of these, pasted
+words say, has only its title there, and the display off.
+
+Guesses: the labels a block may start with are the usual names of a song's parts, and
+a label with nothing under it is left out; the year goes in the year field alone and
+not at the start of the publisher as some of ProPresenter's own files from SongSelect
+have it (the copyright display has a place of its own for the year); and whether
+ProPresenter's own SongSelect window asks the same things has not been looked at. The
+controls are as the maintainer asked for them.
 
 A right click on a presentation has **Rename**, which renames it in place in the list,
 as a library or a playlist is renamed: the file is renamed, the name inside it is

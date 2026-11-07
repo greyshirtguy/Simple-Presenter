@@ -210,6 +210,7 @@ qt_add_qml_module(SimplePresenter
         qml/BuildRun.qml
         qml/EditorBuilds.qml
         qml/ExportPowerPoint.qml
+        qml/ImportLyrics.qml
         qml/ImportSong.qml
         qml/LooksPanel.qml
         qml/MacroGlyph.qml
@@ -432,6 +433,8 @@ qt_add_qml_module(SimplePresenter
         src/bibles.cpp
         src/songimport.h
         src/songimport.cpp
+        src/songselect.h
+        src/songselect.cpp
         src/thememath.h
         src/thememath.cpp
         src/themefile.h

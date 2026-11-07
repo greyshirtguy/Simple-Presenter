@@ -284,6 +284,40 @@ _KEPT = os.path.join(REPO, "third_party", "ndi-sdk", "download", "Install_NDI_SD
 NDI_INSTALLER = "file://" + (_KEPT if os.path.exists(_KEPT) else "/nonexistent/Install_NDI_SDK_v6_Linux.tar.gz")
 
 
+# A song's words as SongSelect's lyrics file lays them out (see src/songselect.h), made up: a song's own are its
+# owner's. The sign on the copyright line is the file's own.
+LYRICS_SONG = """Morning Song
+
+Verse 1
+The first line of the first verse
+The second line of it
+The third line of it
+The fourth line of it
+
+Chorus
+The chorus starts here
+The chorus goes on
+The chorus ends
+
+Verse 2
+The first line of the second verse
+The second line of that
+The third line of that
+The fourth line of that
+
+Bridge
+A bridge line
+Another bridge line
+
+Ending
+The last line of all
+
+Nobody Inparticular, Another Nobody
+CCLI Song #1234567
+\u00a9 2001 Example Music; Sample Songs Publishing
+For use solely with the SongSelect\u00ae Terms of Use.  All rights reserved. www.ccli.com
+CCLI License #99999"""
+
 PLAIN_SONG = """{title: Plain Song}
 {artist: Nobody At All}
 {key: G}
@@ -795,6 +829,38 @@ def prepare_chords(workspace, test_dir):
         shutil.copy(os.path.join(songs, name), library)
     with open(os.path.join(workspace, "Plain Song.cho"), "w") as out:
         out.write(PLAIN_SONG)
+
+
+def prepare_lyrics(workspace, test_dir):
+    """A lyrics file as SongSelect gives one out, in the workspace's folder, for the test to import."""
+    with open(os.path.join(workspace, "Morning Song-lyrics.txt"), "w", encoding="utf-8") as out:
+        out.write(LYRICS_SONG)
+
+
+def after_lyrics(workspace, test_dir):
+    """The songs the import made (lyrics), as files: the details where ProPresenter keeps a song's from SongSelect, the
+    groups by the file's labels, a slide a cue, and each slide's one text box the theme's, by name and font."""
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    morning = decoded(os.path.join(workspace, "Libraries", "Hymns", "Morning Song.pro"))
+    evening = decoded(os.path.join(workspace, "Libraries", "Hymns", "Evening Song.pro"))
+    ccli = re.search(r"^ccli \{\n((?:  .*\n)*)\}", morning, re.M)
+    details = ccli.group(1) if ccli else ""
+    groups = re.findall(r"^cue_groups \{\n  group \{\n(?:    .*\n)*?    name: \"([^\"]*)\"", morning, re.M)
+    return [said(all(line in details for line in ('author: "Nobody Inparticular, Another Nobody"', 'song_title: "Morning Song"',
+                                                   'publisher: "Example Music\\nSample Songs Publishing"', "copyright_year: 2001",
+                                                   "song_number: 1234567", "display: true")),
+                 "the song's details are in its file as ProPresenter writes a song's from SongSelect", details.replace("\n", " | ")),
+            said(groups == ["Verse 1", "Chorus", "Verse 2", "Bridge", "Ending"], "a group for each labelled part, in the file's order", groups),
+            said(morning.count("\ncues {\n") == 7 and evening.count("\ncues {\n") == 2, "a cue a slide: seven, and two",
+                 "%d and %d" % (morning.count("\ncues {\n"), evening.count("\ncues {\n"))),
+            said(morning.count('name: "Text"') == 7 and evening.count('name: "Text"') == 2 and 'name: "Lyrics"' not in morning,
+                 "every slide's text box is the theme's, by name", "%d and %d" % (morning.count('name: "Text"'), evening.count('name: "Text"'))),
+            said(morning.count('family: "Helvetica"') >= 7, "in the theme's font", morning.count('family: "Helvetica"')),
+            said('song_title: "Evening Song"' in evening and "song_number" not in evening and "author" not in evening and "display" not in evening,
+                 "a song with no details has only its title in the block, and the display off")]
 
 
 def after_chords(workspace, test_dir):
@@ -3723,6 +3789,8 @@ TESTS = {
     "looks": test("Act", after=after_looks),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),
+    # (Settings remembered: the import's last choices are kept there, by the workspace.)
+    "lyrics": test("Act", env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_lyrics, after=after_lyrics),
     "chords2": test("ProPresenter MR", timeout=240, prepare=prepare_chords),
     "chords3": test("ProPresenter MR", timeout=240, prepare=prepare_chords, after=after_chords3),
     "chords4": test("ProPresenter MR", timeout=240, prepare=prepare_chords),

@@ -580,6 +580,17 @@ target_include_directories(tst_zipreader PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_zipreader PRIVATE Qt6::Core Qt6::Test ZLIB::ZLIB)
 add_test(NAME zipreader COMMAND tst_zipreader)
 
+qt_add_executable(tst_songselect
+    tst_songselect.cpp
+    ${PROJECT_SOURCE_DIR}/src/songselect.h
+    ${PROJECT_SOURCE_DIR}/src/songselect.cpp
+    ${PROJECT_SOURCE_DIR}/src/chords.h
+    ${PROJECT_SOURCE_DIR}/src/chords.cpp
+)
+target_include_directories(tst_songselect PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_songselect PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME songselect COMMAND tst_songselect)
+
 qt_add_executable(tst_sourcesweep
     tst_sourcesweep.cpp
 )

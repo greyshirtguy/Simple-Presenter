@@ -386,6 +386,13 @@ Window {
         return [{ header: "Theme" }].concat(of(Themes.tree))
     }
 
+    // The same menu under `item`, with None first, for choosing a theme slide or none:
+    // `current` is the place of the theme chosen so far, "" for none. (The lyrics
+    // import's Theme button.)
+    function pickThemeWith(item, current, pick) {
+        menu.show([{ header: "Theme" }, { label: "None", current: current === "", run: () => pick("", "") }].concat(themePickItems(pick).slice(1)), item)
+    }
+
     // Whether the Looks window is up (see LooksPanel)
     property bool looksOpen: false
 
@@ -2719,7 +2726,10 @@ Window {
         menu.show([
             { label: "New Presentation…", disabled: libraryPath === "", run: () => newPresentationPanel.show() },
             { label: "New Library", run: () => newLibrary() },
-            { label: "Import ChordPro File…", disabled: libraryPath === "", run: () => songDialog.open() }
+            { label: "Import ChordPro File…", disabled: libraryPath === "", run: () => songDialog.open() },
+            // (The panel has a picker for the library, so these need only a library to exist)
+            { label: "Import Lyrics File…", disabled: catalog.libraries.length === 0, run: () => lyricsDialog.open() },
+            { label: "Import Lyrics from Clipboard", disabled: catalog.libraries.length === 0, run: () => importLyricsFromClipboard() }
         ], item)
     }
 
@@ -2838,6 +2848,66 @@ Window {
         openDocument(made.path)
         Search.read(catalog.librariesDirectory)
         Log.note("import", "A song came in from " + quoted(String(file).replace(/^.*\//, "")) + " as " + quoted(made.path.replace(/^.*\//, "")))
+    }
+
+    // A song's words from SongSelect (see ImportLyrics.qml): a lyrics file it gave out,
+    // or its words copied from its page, are put up in the panel to be made a song of.
+    function importLyricsFromClipboard() {
+        const words = Chords.copiedText()
+        if (words.trim() === "") {
+            report("There are no words on the clipboard")
+            return
+        }
+        importLyricsPanel.show(words, "the clipboard")
+    }
+
+    // Makes a presentation of the words, in the library at `library`, with so many lines
+    // of words on a slide, each slide dressed in the theme slide if one is named, adds
+    // it to the end of the playlist with this id if one is, and opens it. `source` is
+    // where the words came from, for the log.
+    function importLyrics(words, lines, themePlace, themeSlideId, library, playlist, source) {
+        const made = catalog.importLyrics(words, library, lines, themePlace, themeSlideId)
+        if (!report(made.error))
+            return
+        const name = made.path.replace(/^.*\//, "").replace(/\.pro$/, "")
+        rememberImport("themePlace", themePlace)
+        rememberImport("themeSlide", themeSlideId)
+        saveSelection("importLibrary", library)
+        saveSelection("importPlaylist", playlist)
+        let where = ""
+        if (playlist !== "") {
+            // (The song is made all the same: the playlist can be given it by hand)
+            const node = catalog.playlists.find(node => node.path === playlist)
+            const error = catalog.addToPlaylist(playlist, made.path)
+            if (error !== "")
+                report(error)
+            else
+                where = ", and added to the playlist " + quoted(node ? node.name : playlist)
+        }
+        // The song's library is browsed, and the song opened in it
+        if (playlistId !== "" || libraryPath !== library)
+            documentFilter = ""
+        selectedNode = ""
+        playlistId = ""
+        libraryPath = library
+        clearRowSelection()
+        refreshLists()
+        openDocument(made.path)
+        Search.read(catalog.librariesDirectory)
+        const themed = themePlace !== "" ? Themes.slide(themePlace, themeSlideId) : null
+        Log.note("import", "A song came in from " + source + " as " + quoted(name) + " in the library " + quoted(library.replace(/^.*\//, ""))
+                 + ", " + lines + (lines === 1 ? " line" : " lines") + " to a slide"
+                 + (themed ? ", dressed in " + quoted(themed.name) + " of the theme " + quoted(themePlace.split("/").pop()) : "") + where)
+    }
+
+    // What the lyrics import did last time in this workspace, for it to start from
+    // (the app's own settings, by the workspace: a theme is the workspace's)
+    function savedImport(key) {
+        return remember ? String(settings.value(selectionKey("import/" + key), "")) : ""
+    }
+
+    function rememberImport(key, value) {
+        save(selectionKey("import/" + key), value)
     }
 
     function showAddMenu(item) {
@@ -4979,6 +5049,15 @@ Window {
         onAccepted: importSongPanel.show(decodeURIComponent(String(selectedFile).replace(/^file:\/\//, "")))
     }
 
+    // A lyrics file SongSelect gave out, to the panel
+    FileDialog {
+        id: lyricsDialog
+
+        title: "Import Lyrics File"
+        nameFilters: ["Text files (*.txt)", "All files (*)"]
+        onAccepted: importLyricsPanel.showFile(decodeURIComponent(String(selectedFile).replace(/^file:\/\//, "")))
+    }
+
     FileDialog {
         id: importDialog
 
@@ -6482,6 +6561,17 @@ Window {
     // What a ChordPro file holds, and how it is to come in
     ImportSong {
         id: importSongPanel
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 20
+        win: win
+        onClosed: win.takeFocus()
+    }
+
+    // A song's words from SongSelect, and how they are to come in
+    ImportLyrics {
+        id: importLyricsPanel
 
         anchors.fill: parent
         anchors.topMargin: toolbar.height

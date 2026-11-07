@@ -172,6 +172,18 @@ public:
     // `linesPerSlide` lines of its words on each slide (see songimport.h). Returns
     // { path, error }.
     Q_INVOKABLE QVariantMap importSong(const QUrl &file, const QString &library, int linesPerSlide);
+    // What SongSelect lyrics text holds (see songselect.h), for the import to say
+    // before it is made: { title, author, publisher, year, songNumber, sections:
+    // [{ name, lines }], error }, `error` saying why no song could be made of it.
+    Q_INVOKABLE QVariantMap describeLyrics(const QString &text) const;
+    // The same for such a file, with its `text`, for the import to go on with.
+    Q_INVOKABLE QVariantMap describeLyricsFile(const QString &path) const;
+    // Makes a presentation of SongSelect lyrics text in the library folder `library`,
+    // with `linesPerSlide` lines of its words on each slide, every slide dressed in the
+    // theme slide `themeSlideId` of the theme at `themePlace` if one is named (see
+    // songimport::importLyrics). Returns { path, error }.
+    Q_INVOKABLE QVariantMap importLyrics(const QString &text, const QString &library, int linesPerSlide, const QString &themePlace,
+                                         const QString &themeSlideId);
 
     // The same changes for the media playlists, and adding media files to one. Files are
     // referred to where they are, not copied.

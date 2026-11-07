@@ -714,8 +714,8 @@ QtObject {
                 return 400
             },
             () => {
-                check("the + beside Libraries offers a new presentation, a new library and a ChordPro file",
-                      labels() === "New Presentation…, New Library, Import ChordPro File…", labels())
+                check("the + beside Libraries offers a new presentation, a new library, a ChordPro file, and a song's words from SongSelect",
+                      labels() === "New Presentation…, New Library, Import ChordPro File…, Import Lyrics File…, Import Lyrics from Clipboard", labels())
                 menu.close()
                 importSongPanel.show(kept.file)
                 return 400

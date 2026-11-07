@@ -4,8 +4,9 @@
 
 The copyright of the song that is live, laid over its slides on the audience screens,
 for the CCLI licence a church shows songs under, as ProPresenter's copyright display
-is. Songs from SongSelect come with their details; any presentation can be given them
-in the editor.
+is. Songs from SongSelect come with their details, and a song brought in from
+SongSelect's lyrics file ([workspaces](workspaces.md#a-songs-words-from-songselect))
+gets them from its foot; any presentation can be given them in the editor.
 
 ## Setting it up
 
