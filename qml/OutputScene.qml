@@ -8,8 +8,9 @@ import QtQuick
 // Layers are what make a presenter more than a slide show. A background video on the
 // media layer keeps playing while the slides over it change, and either layer can be
 // changed or cleared without touching the other. Each is a TransitionLayer, so each
-// makes its own transition; the slide layer is transparent wherever a slide has
-// nothing, and the media shows through. The props are not one thing shown in place of
+// makes its own transition, the slide layer by the slides' and the media layer by the
+// media bin's; the slide layer is transparent wherever a slide has nothing, and the
+// media shows through. The props are not one thing shown in place of
 // another but any number at once, each coming and going by itself (see PropsLayer); and
 // the messages are the same, over them.
 //
@@ -35,13 +36,22 @@ import QtQuick
 Item {
     id: scene
 
-    // Applied to the next change on either layer: a .qsb url, or "" to cut; what the
+    // Applied to the next change on the slide layer: a .qsb url, or "" to cut; what the
     // shader is handed for the transition's options (see TransitionLayer); milliseconds.
     property string shader: ""
     property vector4d options
     property vector4d tint
     property vector2d direction
     property int duration: 0
+    // The same for the media layer: the media bin's own transition (see Main.qml's
+    // mediaTransition), which media played from the bin comes in by. Media a slide
+    // brings with it comes in by the slide's, with the slide (showSlideWithMedia).
+    property string mediaShader: ""
+    property vector4d mediaOptions
+    property vector4d mediaTint
+    property vector2d mediaDirection
+    property int mediaDuration: 0
+    property string mediaTransitionName: ""
     // Whether this scene plays the media itself. One scene does, for all of them: a
     // video is decoded once, and the others are handed its frames (see MediaContent).
     property bool leads: true
@@ -170,8 +180,15 @@ Item {
     function showSlideWithMedia(slide, media, transition, times) {
         // A slide still held for other media has been passed over.
         heldSlide = undefined
-        mediaLayer.show(media)
+        // (By the slide's transition, its own or the slides', and not the media bin's)
+        mediaLayer.show(media, undefined, transition ?? slidesTransition())
         hold(slide, transition, times)
+    }
+
+    // The slides' transition as a layer takes one to make in place of its own (see
+    // TransitionLayer.show): for the media a slide brings with it
+    function slidesTransition() {
+        return { name: transitionName, shader: shader, options: options, tint: tint, direction: direction, duration: duration }
     }
 
     // A slide whose media is the media already there, which is left as it is. If that
@@ -315,12 +332,12 @@ Item {
                         opacity: mediaFade.value
                         visible: opacity > 0
                         name: "media layer"
-                        shaderName: scene.transitionName
-                        shader: scene.shader
-                        options: scene.options
-                        tint: scene.tint
-                        direction: scene.direction
-                        duration: scene.duration
+                        shaderName: scene.mediaTransitionName
+                        shader: scene.mediaShader
+                        options: scene.mediaOptions
+                        tint: scene.mediaTint
+                        direction: scene.mediaDirection
+                        duration: scene.mediaDuration
                         delegate: MediaContent {
                             leads: scene.leads
                             onEnded: (playId) => scene.mediaEnded(playId)

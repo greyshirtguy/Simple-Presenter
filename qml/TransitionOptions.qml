@@ -12,9 +12,11 @@ import QtQuick.Effects
 Popup {
     id: panel
 
-    // The operator window, which has the chosen transition and what is chosen for it
+    // The operator window, which has the chosen transition and what is chosen for it;
+    // the media bin's transition, or the slides'
     required property var win
-    readonly property var transition: win.transition
+    property bool media: false
+    readonly property var transition: media ? win.mediaTransition : win.transition
 
     width: 292
     margins: 6
@@ -65,16 +67,16 @@ Popup {
         TransitionOptionRows {
             width: parent.width
             options: panel.transition.options
-            valueOf: (option) => panel.win.transitionOption(option)
-            choose: (option, value) => panel.win.setTransitionOption(option, value)
+            valueOf: (option) => panel.win.transitionOption(option, panel.media)
+            choose: (option, value) => panel.win.setTransitionOption(option, value, panel.media)
         }
 
         AppButton {
             height: 28
             font.pixelSize: 13
             text: "Reset"
-            enabled: panel.win.transitionChoices[panel.transition.name] !== undefined
-            onClicked: panel.win.resetTransitionOptions()
+            enabled: (panel.media ? panel.win.mediaTransitionChoices : panel.win.transitionChoices)[panel.transition.name] !== undefined
+            onClicked: panel.win.resetTransitionOptions(panel.media)
         }
     }
 }

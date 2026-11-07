@@ -16,7 +16,9 @@ media bin. How it then behaves is one of two things, as in ProPresenter:
   and the next slide that is triggered takes it off, whether or not that slide has
   media of its own.
 
-Either gives way to the next media that is triggered, of either kind.
+Either gives way to the next media that is triggered, of either kind. Media played
+from the bin comes in by the bin's own [transition](transitions.md), chosen at the
+foot of the bin; media a slide brings comes in with the slide, by the slide's.
 
 A click on a slide with **Alt** held shows the slide, and does its actions, without
 the media it brings, as in ProPresenter; while Alt is held the thumbnails are drawn

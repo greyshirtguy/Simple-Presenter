@@ -218,6 +218,19 @@ Window {
     // The shader of `transition`, for the Screen Previews (ScreenPicture), which make the
     // screens' transitions again
     readonly property string transitionShader: transitionCatalogue.shaderUrl(transition)
+    // The media bin's own transition, chosen with the same controls at the bin's foot:
+    // what media played from the bin, or by an action, comes in by on the media layer.
+    // The one above is the slides', for the slide layer. ProPresenter keeps the two apart
+    // as well (its media bin's is at its bottom left), which the maintainer asked for
+    // here (2026-11-08). Media that a slide brings with it comes in with the slide, by
+    // the slide's transition, the two layers changing as one (a GUESS at ProPresenter,
+    // where a slide and its background change together). Kept in the app's settings
+    // beside the slides' one.
+    property int mediaTransitionIndex: 1
+    property var mediaTransitionChoices: ({})
+    readonly property var mediaTransition: transitions[mediaTransitionIndex]
+    readonly property var mediaTransitionUniforms: transitionCatalogue.uniforms(mediaTransition, mediaTransitionChoices[mediaTransition.name])
+    property real mediaTransitionDuration: 0.6
     // The last change of the live slide, and the transition the screens were told to make
     // it by (a slide's own, or null for theirs): what a Screen Preview makes its change by
     // (see ScreenPicture.present). The serial goes up with each.
@@ -1090,7 +1103,8 @@ Window {
     }
 
     function logSettings() {
-        Log.note("settings", "transition " + quoted(transition.name) + " over " + transitionDuration + " s; output window "
+        Log.note("settings", "transition " + quoted(transition.name) + " over " + transitionDuration + " s, the media bin's "
+                 + quoted(mediaTransition.name) + " over " + mediaTransitionDuration + " s; output window "
                  + (outputEnabled ? "on" : "off") + (outputScreen >= 0 ? ", fullscreen on screen " + outputScreen : "")
                  + "; stage window " + (stageEnabled ? "on" : "off") + ", with "
                  + (stageLayout ? "the layout " + quoted(stageLayout.name) : "the plain view") + "; media bin "
@@ -3715,22 +3729,43 @@ Window {
         }
     }
 
-    // Chooses a transition by name. Two have changed their names to the ones ProPresenter
-    // knows them by, and are still found by the old.
+    // Chooses the slides' transition by name, and the media bin's. Two have changed their
+    // names to the ones ProPresenter knows them by, and are still found by the old. (Two
+    // functions of one argument, not one with a flag: the self-test calls the first from
+    // C++, which finds a function by how many arguments it takes.)
     function selectTransition(name) {
+        chooseTransition(name, false)
+    }
+
+    function selectMediaTransition(name) {
+        chooseTransition(name, true)
+    }
+
+    function chooseTransition(name, media) {
         const renamed = { "Cross Warp": "Warp Fade", "Dreamy": "Wave Dissolve" }
         const index = transitions.findIndex(t => t.name === (renamed[name] ?? name))
-        if (index >= 0)
+        if (index < 0)
+            return
+        if (media)
+            mediaTransitionIndex = index
+        else
             transitionIndex = index
     }
 
-    // The menu of transitions: Cut, then the rest under their categories, with the
-    // chosen one ticked.
-    function showTransitionMenu(item) {
+    // The menu of transitions, the slides' or with `media` the media bin's: Cut, then the
+    // rest under their categories, with the chosen one ticked.
+    function showTransitionMenu(item, media = false) {
         const items = []
+        const chosen = media ? mediaTransitionIndex : transitionIndex
+        const choose = index => {
+            if (media)
+                mediaTransitionIndex = index
+            else
+                transitionIndex = index
+        }
         const rowsOf = category => transitions.forEach((t, index) => {
             if (t.category === category)
-                items.push({ label: t.name, current: index === transitionIndex, run: () => transitionIndex = index })
+                items.push({ label: t.name, current: index === chosen, run: () => choose(index) })
         })
         rowsOf("")
         for (const category of transitionCategories) {
@@ -3738,28 +3773,38 @@ Window {
             rowsOf(category)
         }
         // Upwards, as far as the toolbar: the transition's controls are at the bottom of
-        // the slides.
+        // the slides, and the media bin's at the bin's foot.
         menu.showAbove(items, item, toolbar.height)
     }
 
-    // What an option of the chosen transition is set to.
-    function transitionOption(option) {
-        return transitionCatalogue.valueOf(option, transitionChoices[transition.name])
+    // What an option of the chosen transition is set to, the slides' or with `media` the
+    // media bin's.
+    function transitionOption(option, media = false) {
+        const chosen = media ? mediaTransition : transition
+        return transitionCatalogue.valueOf(option, (media ? mediaTransitionChoices : transitionChoices)[chosen.name])
     }
 
     // Sets an option of the chosen transition, for the next change and from then on.
-    function setTransitionOption(option, value) {
-        const choices = Object.assign({}, transitionChoices)
-        choices[transition.name] = Object.assign({}, choices[transition.name])
-        choices[transition.name][option.name] = value
-        transitionChoices = choices
+    function setTransitionOption(option, value, media = false) {
+        const chosen = media ? mediaTransition : transition
+        const choices = Object.assign({}, media ? mediaTransitionChoices : transitionChoices)
+        choices[chosen.name] = Object.assign({}, choices[chosen.name])
+        choices[chosen.name][option.name] = value
+        if (media)
+            mediaTransitionChoices = choices
+        else
+            transitionChoices = choices
     }
 
     // Puts the options of the chosen transition back as the catalogue has them.
-    function resetTransitionOptions() {
-        const choices = Object.assign({}, transitionChoices)
-        delete choices[transition.name]
-        transitionChoices = choices
+    function resetTransitionOptions(media = false) {
+        const chosen = media ? mediaTransition : transition
+        const choices = Object.assign({}, media ? mediaTransitionChoices : transitionChoices)
+        delete choices[chosen.name]
+        if (media)
+            mediaTransitionChoices = choices
+        else
+            transitionChoices = choices
     }
 
     // Puts a slide on the slide layer, and any media its cue triggers on the media layer.
@@ -4618,6 +4663,18 @@ Window {
         const duration = Number(saved("transitionDuration", transitionDuration))
         if (isFinite(duration) && duration >= 0)
             transitionDuration = duration
+        // (The media bin's, the same way)
+        selectMediaTransition(String(saved("mediaTransition", "")))
+        try {
+            const stored = JSON.parse(String(saved("mediaTransitionOptions", "")))
+            if (stored !== null && typeof stored === "object" && !Array.isArray(stored))
+                mediaTransitionChoices = stored
+        } catch (e) {
+            // As above: nothing stored, or not readable
+        }
+        const mediaDuration = Number(saved("mediaTransitionDuration", mediaTransitionDuration))
+        if (isFinite(mediaDuration) && mediaDuration >= 0)
+            mediaTransitionDuration = mediaDuration
         try {
             const stored = JSON.parse(String(saved("groups", "")))
             if (Array.isArray(stored)) {
@@ -4888,6 +4945,13 @@ Window {
     }
     onTransitionChoicesChanged: save("transitionOptions", JSON.stringify(transitionChoices))
     onTransitionDurationChanged: save("transitionDuration", transitionDuration)
+    onMediaTransitionIndexChanged: {
+        save("mediaTransition", transitions[mediaTransitionIndex].name)
+        if (restored)
+            Log.note("transition", "chosen for the media bin: " + transitions[mediaTransitionIndex].name)
+    }
+    onMediaTransitionChoicesChanged: save("mediaTransitionOptions", JSON.stringify(mediaTransitionChoices))
+    onMediaTransitionDurationChanged: save("mediaTransitionDuration", mediaTransitionDuration)
     onLibraryPathChanged: {
         refreshLists()
         saveSelection("library", libraryPath)
@@ -5155,6 +5219,12 @@ Window {
                     direction: win.transitionUniforms.direction
                     duration: Math.round(win.transitionDuration * 1000)
                     transitionName: win.transition.name
+                    mediaShader: transitionCatalogue.shaderUrl(win.mediaTransition)
+                    mediaOptions: win.mediaTransitionUniforms.options
+                    mediaTint: win.mediaTransitionUniforms.tint
+                    mediaDirection: win.mediaTransitionUniforms.direction
+                    mediaDuration: Math.round(win.mediaTransitionDuration * 1000)
+                    mediaTransitionName: win.mediaTransition.name
                     props: win.shownProps
                     propsDuration: Math.round(Props.transitionDuration * 1000)
                     messages: win.shownMessages
@@ -5207,6 +5277,12 @@ Window {
                         direction: win.transitionUniforms.direction
                         duration: Math.round(win.transitionDuration * 1000)
                         transitionName: win.transition.name
+                        mediaShader: transitionCatalogue.shaderUrl(win.mediaTransition)
+                        mediaOptions: win.mediaTransitionUniforms.options
+                        mediaTint: win.mediaTransitionUniforms.tint
+                        mediaDirection: win.mediaTransitionUniforms.direction
+                        mediaDuration: Math.round(win.mediaTransitionDuration * 1000)
+                        mediaTransitionName: win.mediaTransition.name
                         props: win.shownProps
                         propsDuration: Math.round(Props.transitionDuration * 1000)
                         messages: win.shownMessages
@@ -5266,6 +5342,12 @@ Window {
                         direction: win.transitionUniforms.direction
                         duration: Math.round(win.transitionDuration * 1000)
                         transitionName: win.transition.name
+                        mediaShader: transitionCatalogue.shaderUrl(win.mediaTransition)
+                        mediaOptions: win.mediaTransitionUniforms.options
+                        mediaTint: win.mediaTransitionUniforms.tint
+                        mediaDirection: win.mediaTransitionUniforms.direction
+                        mediaDuration: Math.round(win.mediaTransitionDuration * 1000)
+                        mediaTransitionName: win.mediaTransition.name
                         props: win.shownProps
                         propsDuration: Math.round(Props.transitionDuration * 1000)
                         messages: win.shownMessages

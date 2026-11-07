@@ -20,6 +20,13 @@ AuxWindow {
     property alias direction: scene.direction
     property alias duration: scene.duration
     property alias transitionName: scene.transitionName
+    // (The media bin's transition, for the media layer: see OutputScene)
+    property alias mediaShader: scene.mediaShader
+    property alias mediaOptions: scene.mediaOptions
+    property alias mediaTint: scene.mediaTint
+    property alias mediaDirection: scene.mediaDirection
+    property alias mediaDuration: scene.mediaDuration
+    property alias mediaTransitionName: scene.mediaTransitionName
     property alias leads: scene.leads
     property alias slideOn: scene.slideOn
     property alias mediaOn: scene.mediaOn

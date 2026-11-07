@@ -21,6 +21,10 @@ import QtQuick.Controls.Basic
 // copied. The thumbnails come from the thumbnail provider (src/thumbnailprovider.h):
 // each is asked for by a url and arrives when it has been made, so a playlist full of
 // video opens at once and fills in.
+//
+// At the bin's foot is the transition media played from here comes in by, with the same
+// controls as the slides' under the slides (TransitionControls), as ProPresenter's media
+// bin has at its bottom left: the two layers each have their own.
 Rectangle {
     id: bin
 
@@ -113,7 +117,7 @@ Rectangle {
         objectName: "mediaPlaylistList"
         anchors.left: parent.left
         anchors.top: mediaTitle.bottom
-        anchors.bottom: parent.bottom
+        anchors.bottom: binFoot.top
         width: bin.listWidth
         // (Video Inputs first: it is the inputs themselves, and no playlist of the file's)
         model: [{ name: "Video Inputs", path: bin.win.videoInputsNode, parent: "", depth: 0, folder: false, icon: "videoInputs" }]
@@ -170,6 +174,35 @@ Rectangle {
         color: "transparent"
         border.width: 2
         border.color: "#c0ffffff"
+    }
+
+    // A thin foot under the two, with a line over it, as the slides have under them: the
+    // transition media played from here comes in by, at its left
+    Item {
+        id: binFoot
+
+        objectName: "mediaFooter"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 30
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 1
+            color: "#3a3c42"
+        }
+
+        TransitionControls {
+            anchors.left: parent.left
+            anchors.leftMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: 1
+            media: true
+            win: bin.win
+        }
     }
 
     // ---- Video Inputs: the workspace's inputs, in their order, by thumbnail and name.
@@ -319,7 +352,7 @@ Rectangle {
         anchors.left: mediaList.right
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.bottom: parent.bottom
+        anchors.bottom: binFoot.top
         anchors.leftMargin: 10
         anchors.rightMargin: 4
         anchors.topMargin: 6
