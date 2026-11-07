@@ -92,6 +92,8 @@ QtObject {
             // ---- A piece of the audio bin
             () => {
                 transitionDuration = 0
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                mediaTransitionDuration = 0
                 sidePanel.showControlTab = "audio"
                 kept.audioFile = catalog.workspacePath + "/Playlists/Audio"
                 kept.audioHash = testInput.fileHash(kept.audioFile)

@@ -216,7 +216,10 @@ QtObject {
             },
             () => {
                 selectTransition("Dissolve")
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                selectMediaTransition("Dissolve")
                 transitionDuration = 1.2
+                mediaTransitionDuration = 1.2
                 red()
                 kept.tries = 0
                 return 500

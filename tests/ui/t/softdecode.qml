@@ -28,6 +28,8 @@ QtObject {
         steps = [
             () => {
                 transitionDuration = 0
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                mediaTransitionDuration = 0
                 check("the setting that was saved is acted on as the app starts: no hardware video decoder is to be tried", VideoDecoding.softwareOnly
                       && VideoDecoding.inWords === "by the processor only, as the settings ask", VideoDecoding.inWords)
                 check("the log says so, near its start", logged(/  video +video is decoded by the processor only, as the settings ask \(hardware decoding is not tried\)$/).length === 1,

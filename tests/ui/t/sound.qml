@@ -39,6 +39,8 @@ QtObject {
         steps = [
             () => {
                 transitionDuration = 0
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                mediaTransitionDuration = 0
                 const playlist = catalog.mediaPlaylists.find(n => !n.folder)
                 openMediaPlaylist(playlist.path)
                 kept.before = mediaFiles.length
@@ -72,7 +74,9 @@ QtObject {
                 kept.sound = feedOf(player())
                 kept.foregroundPlayer = player()
                 selectTransition("Dissolve")
+                selectMediaTransition("Dissolve")
                 transitionDuration = 2
+                mediaTransitionDuration = 2
                 levels = []
                 sampler.start()
                 const background = mediaFiles.find(m => m.video && !m.missing && m.name !== "i-with-sound.mp4")
@@ -107,6 +111,7 @@ QtObject {
             () => {
                 check("and at full when the dissolve is done", Math.abs(kept.sound.gain - 1) < 0.001 && player() !== null && feedOf(player()) === kept.sound, kept.sound.gain)
                 transitionDuration = 0
+                mediaTransitionDuration = 0
                 clearMedia()
                 return 600
             },

@@ -39,6 +39,8 @@ QtObject {
         steps = [
             () => {
                 transitionDuration = 0
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                mediaTransitionDuration = 0
                 check("with the graphics chip chosen in the settings, the guard does not hold: hardware decoders are tried", VideoDecoding.guarded && !VideoDecoding.guardInForce
                       && !VideoDecoding.softwareOnly && VideoDecoding.overridden && videoDecoding === "hardware", VideoDecoding.inWords)
                 const lines = logged(/  video  /).map(line => line.substring(26))

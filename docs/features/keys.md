@@ -24,7 +24,7 @@
 | Ctrl+V | Show or hide the media bin (unless rows are being pasted, above) |
 | Ctrl+1 / Ctrl+2 | Switch the audience screens / the stage screens on or off |
 | Ctrl+, | The settings, from the editor as well |
-| Esc | Close a menu, or the [Text](text-format.md) popover; then let go of the slides selected |
+| Esc | Close a menu, or the [Text](text-format.md) popover; then let go of the slides selected; then leave the playlist's rows, so that Ctrl+V is the media bin again |
 
 A group's hotkey is set on the settings screen, under Groups, where each group has its
 colour: click the box after the group's name and press the letter or digit. Pressed

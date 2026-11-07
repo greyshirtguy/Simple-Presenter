@@ -47,6 +47,8 @@ QtObject {
         steps = [
             () => {
                 transitionDuration = 0
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                mediaTransitionDuration = 0
                 openLibrary(catalog.libraries[0].path)
                 openEntry(entry("Move Of God"))
                 kept.before = ids()

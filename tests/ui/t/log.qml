@@ -65,7 +65,10 @@ QtObject {
                       all.split("\n").slice(7).find(line => line !== "" && !/^\d\d:\d\d:\d\d\.\d\d\d  [A-Za-z ]{10}  \S/.test(line)))
                 // ---- a slide goes live, with a video and a transition
                 selectTransition("Dissolve")
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                selectMediaTransition("Dissolve")
                 transitionDuration = 0.6
+                mediaTransitionDuration = 0.6
                 goLive(0)
                 return 2500
             },
@@ -79,6 +82,7 @@ QtObject {
                 testInput.say("  " + last("media"))
                 testInput.say("  " + done)
                 selectTransition("Ripple Wave")
+                selectMediaTransition("Ripple Wave")
                 goLive(1)
                 return 1500
             },

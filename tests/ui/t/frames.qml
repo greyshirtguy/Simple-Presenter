@@ -41,6 +41,8 @@ QtObject {
                 kept.index = stillPair(1)
                 check("the song has two slides together with nothing on them that moves, and no shadows", kept.index >= 0, document ? document.slides.length : "none")
                 selectTransition("Cut")
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                selectMediaTransition("Cut")
                 clearMedia()
                 goLive(kept.index)
                 return 800
@@ -132,7 +134,9 @@ QtObject {
                 Timers.stop(Timers.timers[0].id)
                 // A dissolve over the video, the video cleared half way through it
                 selectTransition("Dissolve")
+                selectMediaTransition("Dissolve")
                 transitionDuration = 0.5
+                mediaTransitionDuration = 0.5
                 goLive(kept.index + 1)
                 return 250
             },
@@ -147,13 +151,16 @@ QtObject {
                 check("a dissolve over a video that is cleared half way through it ends when it should all the same, the screen drawing by its own refreshes again",
                       last !== "" && !last.includes("too few") && seconds >= 0.48 && seconds <= 0.58, last.slice(-70))
                 selectTransition("Cut")
+                selectMediaTransition("Cut")
                 goLive(kept.index)
                 return 800
             },
             () => {
                 check("(and nothing playing on the output again)", output.liveVideoSink === null)
                 selectTransition("Dissolve")
+                selectMediaTransition("Dissolve")
                 transitionDuration = 0.5
+                mediaTransitionDuration = 0.5
                 kept.frames = Log.frames(output)
                 goLive(kept.index + 1)
                 return 900
@@ -167,6 +174,7 @@ QtObject {
                 check("and ends when it should, in as many", Number(parts[2]) >= 0.48 && Number(parts[2]) <= 0.56 && Number(parts[1]) >= 25 && Number(parts[1]) <= 34,
                       last.slice(-60))
                 selectTransition("Cut")
+                selectMediaTransition("Cut")
                 const wrong = testInput.readText(Log.path).split("\n").filter(l => /qrc:|TypeError|ReferenceError/.test(l))
                 check("nothing went wrong in the windows' scripts", wrong.length === 0, wrong.join(" | "))
                 return 100

@@ -81,7 +81,10 @@ QtObject {
                 check("which by Automatic is drawn by the app's own clock", inSettings("clockSourceStatus").text.includes("app's own clock"),
                       inSettings("clockSourceStatus").text)
                 selectTransition("Dissolve")
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                selectMediaTransition("Dissolve")
                 transitionDuration = 3
+                mediaTransitionDuration = 3
                 testInput.deckLinkHandedAt(sender())
                 red()
                 return 3400

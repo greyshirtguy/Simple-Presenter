@@ -78,6 +78,8 @@ QtObject {
         steps = [
             () => {
                 transitionDuration = 0
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                mediaTransitionDuration = 0
                 const c = corners()
                 check("(the output, with no delay to begin with: drawn as it always was)", delayItem() !== null && !delayItem().active && blackIn(c), JSON.stringify(c))
                 settingsOpen = true

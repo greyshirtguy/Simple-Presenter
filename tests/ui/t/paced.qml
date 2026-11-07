@@ -74,6 +74,8 @@ QtObject {
                 check("the song has three still slides together, and a group's first slide apart from them", kept.at >= 0 && kept.group >= 0,
                       kept.at + ", " + kept.group)
                 selectTransition("Cut")
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                selectMediaTransition("Cut")
                 clearMedia()
                 goLive(kept.at)
                 return 900

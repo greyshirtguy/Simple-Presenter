@@ -34,6 +34,8 @@ QtObject {
         steps = [
             () => {
                 transitionDuration = 0
+                // (The media bin's transition too, since 0.126: media played from the bin goes by it)
+                mediaTransitionDuration = 0
                 check("on such a computer the guard holds without being asked: no hardware video decoder is to be tried", VideoDecoding.guarded && VideoDecoding.guardInForce
                       && VideoDecoding.softwareOnly && !VideoDecoding.overridden && videoDecoding === "auto", VideoDecoding.inWords)
                 check("it says why in words: the driver, the chip, and what is missing", VideoDecoding.guardReason
