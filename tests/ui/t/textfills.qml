@@ -402,7 +402,7 @@ QtObject {
             () => {
                 const menu = named("fillKind")
                 check("the Shape tab's fill menu says the box's fill, Background Blur, with its saturation, its blur and ProPresenter's note",
-                      menu.choice === 5 && Array.from(menu.model).includes("Background Invert") && named("boxBlurSaturation") !== null
+                      Array.from(menu.model)[menu.choice] === "Background Blur" && Array.from(menu.model).includes("Background Invert") && named("boxBlurSaturation") !== null
                       && named("boxBlurAmount").visible && shown("Blur percentage is shared among all objects on a slide."),
                       Array.from(menu.model).join(", ") + " / " + menu.choice)
                 const slider = named("boxBlurAmount")
@@ -419,7 +419,7 @@ QtObject {
                 check("the Blur slider sets the box's blur", box !== undefined && box.kind === "blur" && Math.abs(box.amount - 0.8) < 0.001,
                       JSON.stringify(box))
                 testInput.grab("editor-shape-blur")
-                named("fillKind").chosen(6)
+                named("fillKind").chosen(Array.from(named("fillKind").model).indexOf("Background Invert"))
                 return 1000
             },
             () => {

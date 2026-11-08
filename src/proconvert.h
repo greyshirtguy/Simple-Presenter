@@ -123,7 +123,10 @@ void writeChords(rv::data::Graphics::Text *text, const QList<chords::Chord> &cho
 //     "screen", with fillScreenId and fillScreenName (the screen, found by id or failing
 //     that by name): ProPresenter keeps it as a link of the element's, beside a fill of
 //     its own that only stands in for it, and those two keys are there only for an
-//     element that has such a link
+//     element that has such a link. A fill that is a picture of the slide that is live
+//     or of the next (ProPresenter's stage layouts' Current Slide and Next Slide) is
+//     kind "slideImage", with fillSlideNext, kept the same way and said only of an
+//     element that has one
 //   shape ("rectangle", "roundedRectangle", "ellipse", "arrow" or "other"), roundness
 //     (of a rounded rectangle: its corners' radius as a part of its shorter side), and
 //     outline (for anything but a rectangle: its points on the unit square, each
@@ -214,15 +217,17 @@ QVariantMap elementMap(const rv::data::Slide::Element &element);
 // keys; these can be changed:
 //   x, y, width, height, opacity, name, locked, hidden
 //   fillOn, fillColor (which also makes the fill a plain colour), fillLinesOnly
-//   fillKind ("color", "gradient", "screen", "blur" or "invert"), fillBlurAmount (a
+//   fillKind ("color", "gradient", "screen", "slideImage", "blur" or "invert"), fillBlurAmount (a
 //     blur's, which is every blur's on the slide, as ProPresenter shares it; and the one a
 //     blur starts with), fillBlurSaturation, fillGradientFrom, fillGradientTo,
 //     fillGradientAngle, fillMediaPath (which makes the fill that file, keeping what
 //     mediasettings::carryOver keeps), fillMediaScale, fillMediaSettings (changes in
 //     mediasettings::apply's terms, all left out if one is a value that cannot be),
-//     fillScreenId and fillScreenName (the screen a Screen Preview is of). Making the
-//     fill a Screen Preview adds the link, and leaves the fill the file has as the
-//     stand-in it is for ProPresenter; making it anything else takes the link away.
+//     fillScreenId and fillScreenName (the screen a Screen Preview is of), fillSlideNext
+//     (whether a slide's picture is of the next slide or of the live one). Making the
+//     fill a Screen Preview, or a slide's picture, adds the link, and leaves the fill
+//     the file has as the stand-in it is for ProPresenter; making it anything else
+//     takes the link away.
 //   roundness, featherOn, featherRadius
 //   strokeOn, strokeColor, strokeWidth
 //   shadowEnabled, shadowColor, shadowAngle, shadowOffset, shadowRadius, and the same

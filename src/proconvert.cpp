@@ -277,7 +277,8 @@ QString otherLinkLabel(const DataLink &link)
 // Whether what a link puts in an element is not words but a picture or a colour, which
 // takes the place of the element's fill: a picture of a slide, say. The fill such an
 // element has in the file is then only a stand-in for it. (A picture of a screen is of
-// the kind too, but is drawn: it is read as a fill of its own, "screen".)
+// the kind too, but is drawn: it is read as a fill of its own, "screen"; and so is a
+// picture of a slide, "slideImage".)
 bool linkIsPicture(const DataLink &link)
 {
     switch (link.PropertyType_case()) {
@@ -781,6 +782,17 @@ QVariantMap toElementMap(const rv::data::Slide::Element &slideElement)
             map.insert("fillEnabled", false);
             map.insert("fillScreenId", QString::fromStdString(link.output_screen().screen_id().string()));
             map.insert("fillScreenName", QString::fromStdString(link.output_screen().screen_name()));
+        } else if (link.has_slide_image()) {
+            // A picture of the slide that is live, or of the one after it: what a stage
+            // layout of ProPresenter's calls Current Slide or Next Slide. As a Screen
+            // Preview is, what the element is filled with (see SlidePicture.qml): the fill
+            // the file has (blue, in the one ProPresenter wrote that this was read from)
+            // only stands in for it, so whether it is drawn at all is the fill's switch.
+            // (Said only of an element that has one, the maps being every element's.)
+            map.insert("fillKind", QStringLiteral("slideImage"));
+            map.insert("fillShown", fill.enable());
+            map.insert("fillEnabled", false);
+            map.insert("fillSlideNext", link.slide_image().source_slide() == DataLink::SLIDE_SOURCE_TYPE_NEXT_SLIDE);
         } else if (!otherLinkLabel(link).isEmpty()) {
             map.insert("linkKind", QStringLiteral("other"));
             map.insert("linkLabel", otherLinkLabel(link));
@@ -1556,6 +1568,31 @@ bool applyChanges(rv::data::Slide *slide, const QString &elementId, const QVaria
             setColor(fill->mutable_color(), Qt::black);
     } else if (changes.contains("fillKind") || changes.contains("fillMediaPath")) {
         removeLinks(slideElement, [](const DataLink &link) { return link.has_output_screen(); });
+    }
+    // A picture of the live or the next slide, as ProPresenter keeps one (see the reading
+    // of it above): the link says which slide, and the fill is switched on, which is what
+    // shows it, with black to stand in for it where it had no fill. Any other fill takes
+    // the link away, and the fill the file had is drawn again. (The current slide is
+    // what ProPresenter's file says for one with none, so a link to the current slide
+    // has no source written.)
+    if (changes.value("fillKind").toString() == QLatin1String("slideImage") || changes.contains("fillSlideNext")) {
+        DataLink *link = nullptr;
+        for (DataLink &candidate : *slideElement->mutable_data_links()) {
+            if (candidate.has_slide_image()) {
+                link = &candidate;
+                break;
+            }
+        }
+        DataLink::SlideImage *image = (link ? link : slideElement->add_data_links())->mutable_slide_image();
+        if (changes.contains("fillSlideNext"))
+            image->set_source_slide(changes.value("fillSlideNext").toBool() ? DataLink::SLIDE_SOURCE_TYPE_NEXT_SLIDE
+                                                                            : DataLink::SLIDE_SOURCE_TYPE_CURRENT_SLIDE);
+        rv::data::Graphics::Fill *fill = element->mutable_fill();
+        fill->set_enable(true);
+        if (fill->FillType_case() == rv::data::Graphics::Fill::FILLTYPE_NOT_SET)
+            setColor(fill->mutable_color(), Qt::black);
+    } else if (changes.contains("fillKind") || changes.contains("fillMediaPath") || changes.contains("fillScreenId")) {
+        removeLinks(slideElement, [](const DataLink &link) { return link.has_slide_image(); });
     }
     // What the Media Inspector sets of the fill's media, by the keys mediasettings has
     // (A value it cannot have changes nothing of the media; the other keys still do.)

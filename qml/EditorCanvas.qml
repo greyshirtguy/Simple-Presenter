@@ -123,6 +123,12 @@ Item {
         return "Screen Preview: " + (screen ? screen.name : element.fillScreenName + " (not here)")
     }
 
+    // And of a picture of a slide: which, the live one or the next. (Not drawn in the
+    // editor either: see SlidePicture.)
+    function slideImageCaption(element) {
+        return element.fillSlideNext === true ? "Slide Image: Next Slide" : "Slide Image: Current Slide"
+    }
+
     // And of a video input: which, by name (it is drawn here live, but an input with no
     // device, or not sending, is nothing to see)
     function inputCaption(element) {
@@ -331,7 +337,8 @@ Item {
     // text box.)
     function typable(element) {
         return !element.hidden && !element.locked && element.linkKind === "none"
-            && (!bridge.isEmpty(element.text) || (element.fillKind !== "media" && element.fillKind !== "screen" && element.fillKind !== "input"))
+            && (!bridge.isEmpty(element.text) || (element.fillKind !== "media" && element.fillKind !== "screen" && element.fillKind !== "input"
+                                                  && element.fillKind !== "slideImage"))
     }
 
     // The text box in front at a point of the canvas, among those that can be typed in
@@ -1022,7 +1029,8 @@ Item {
         }
     }
 
-    // An element whose text is linked to something, or whose fill is a Screen Preview:
+    // An element whose text is linked to something, or whose fill is a Screen Preview, a
+    // picture of a slide or a video input:
     // a yellow outline, and in small print at its foot what it is linked to. It goes
     // with the element as that is dragged, and stays when the element is picked,
     // inside the frame that shows that.
@@ -1038,6 +1046,7 @@ Item {
                                                                                                     : modelData
             readonly property string caption: modelData.linkKind !== "none" ? canvas.linkCaption(modelData)
                                             : modelData.fillKind === "screen" ? canvas.screenCaption(modelData)
+                                            : modelData.fillKind === "slideImage" ? canvas.slideImageCaption(modelData)
                                             : modelData.fillKind === "input" ? canvas.inputCaption(modelData) : ""
 
             objectName: "linkMark"
@@ -1045,7 +1054,8 @@ Item {
             y: canvas.originY + box.y * canvas.u
             width: box.width * canvas.u
             height: box.height * canvas.u
-            visible: !modelData.hidden && (modelData.linkKind !== "none" || modelData.fillKind === "screen" || modelData.fillKind === "input")
+            visible: !modelData.hidden && (modelData.linkKind !== "none" || modelData.fillKind === "screen" || modelData.fillKind === "input"
+                                           || modelData.fillKind === "slideImage")
             rotation: canvas.dragTurn !== null && modelData.id === canvas.selectedId ? canvas.dragTurn : modelData.rotation
             color: "transparent"
             border.width: 1.5

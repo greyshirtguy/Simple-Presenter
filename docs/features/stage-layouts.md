@@ -68,13 +68,36 @@ Settings → Windows, when a change there is a cut and nothing in them moves; an
 preview itself changes by its screen's transitions, unless **The preview's transitions**
 is switched off there (on, it brought the output's slides and transitions four or five
 thousandths of a second later, on the laptop this is made on); its slides have shadows
-only where the shape is a quarter of the screen's height or more; a picture's own slides
-have no pictures in them, so that a screen with a picture of itself shows it once and not
-without end; a screen the link names that the workspace does not have shows nothing;
+only where the shape is a quarter of the screen's height or more; a picture of a screen
+shows the pictures that screen shows, one level down (a picture of a stage screen whose
+layout has a Screen Preview or a picture of a slide has them in it), but never a picture
+of a screen it is already inside, and no deeper than that, so that a screen with a
+picture of itself shows it once, with the other screens' pictures in it, and not without
+end; a screen the link names that the workspace does not have shows nothing;
 and the thumbnails show nothing for it, nor does the editor, where the shape has the fill
 ProPresenter keeps beside the link (black, in its own) and a yellow mark that says which
 screen. ProPresenter's stage editor also adds a Screen Preview with its `+`; here a shape
 is added and its fill made one.
+
+## Pictures of the slides
+
+A shape on a stage layout can be filled with a **Slide Image**: a still picture of the
+slide that is live, or of the one after it, which is what ProPresenter's stage layouts
+call Current Slide and Next Slide. It is the slide as its thumbnail shows it, the media
+its cue brings under it (a video by its thumbnail: the picture is a still, and does not
+play), fitted into the shape whole, on black, and it changes as the slide that is live
+changes. It is chosen in the editor's Fill menu, with Current Slide or Next Slide under
+it. ProPresenter's own stage layouts come with some, which are drawn as they are; in
+its file it is the shape's fill, which only stands in for the picture, with a link
+beside it that says which slide, as a Screen Preview is kept.
+
+Guesses at ProPresenter, which this was not watched against: that the picture is of the
+slide as its presentation has it, in no theme a look gives a screen; that it has the
+media its own cue brings, and not whatever is on the media layer (the second slide of a
+song, which brings none, has none, as its thumbnail has none); that it is black when
+there is no such slide (the slide layer cleared, the last slide live); where Slide
+Image is in the Fill menu, and its name; and that the thumbnails and the editor show
+the stand-in, the editor with a yellow mark that says which slide.
 
 Along the bottom of the tab is the **stage message**: a box to type in what the people
 on the stage are to be told, and a button that shows it and hides it. Enter in the box
@@ -99,7 +122,7 @@ a given name (and nothing at all of a slide that has no element of that name, wh
 how ProPresenter has it and is made use of), and with a song's chords over them where a
 box has those switched on; a slide's notes; timers; the clock; the time left of a
 video; the stage message; and boxes that show only while a timer is running, or has
-run out; and Screen Previews (above). What they have that is not shown yet (pictures of
-the slide that is live or of the next) is left empty on the stage, and in the editor is
-marked with what it is; the links themselves are kept, so the layouts still work in
+run out; Screen Previews; and pictures of the live and the next slide (above). What
+they have that is not shown yet is left empty on the stage, and in the editor is marked
+with what it is; the links themselves are kept, so the layouts still work in
 ProPresenter.

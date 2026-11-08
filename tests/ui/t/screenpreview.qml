@@ -9,12 +9,12 @@ import "lib.js" as Lib
 // slide brought in by its transition, a box that scrolls), and in the operator window's preview of the stage, unless
 // Screen Previews that move is switched off, when a change there is a cut and the words stand still; the preview of
 // the output making the output's transition, unless The preview's transitions is switched off; the same in what the
-// operator sees of the stage; a picture of the stage screen itself, which has no picture inside it; in the editor, the fill chosen in
+// operator sees of the stage; a picture of the stage screen itself, with its pictures of the other screens inside it and none of itself; in the editor, the fill chosen in
 // the Fill menu, the screen chosen, what is in the file afterwards with the rest of the element as it was, and the
 // file byte for byte as it was once another fill is chosen; and such a slide on the output, whose picture of the
-// output has no picture inside it, while a thumbnail of it draws none; and, where NDI's library is here, a stage
-// screen sent over NDI with the picture in what goes out, before the stage is switched off and after it is switched on
-// again. What is looked at is what is drawn.
+// output has the stage's picture inside it and none of itself, while a thumbnail of it draws none; and, where NDI's
+// library is here, a stage screen sent over NDI with the picture in what goes out, before the stage is switched off and
+// after it is switched on again. What is looked at is what is drawn.
 QtObject {
     id: t
 
@@ -354,9 +354,14 @@ QtObject {
             () => {
                 const pictures = stagePictures()
                 const own = pictures.find(p => p.screen !== null && p.screen.id === Screens.stage[0].id)
-                check("a stage screen with a picture of itself has the picture, and no picture inside that",
-                      own !== undefined && pictures.length === Array.from(kept.own.slide.elements).filter(e => e.fillKind === "screen").length
-                      && Lib.findAll(own, isPicture).length === 0, pictures.length + " " + (own ? Lib.findAll(own, isPicture).length : "none"))
+                // (Those of the layout's own Screen Previews: the pictures inside a picture are drawn too, one level down)
+                const top = pictures.filter(p => p.chain.length === 0)
+                const inside = own !== undefined ? Lib.findAll(own, isPicture) : []
+                check("a stage screen with a picture of itself has the picture, and inside that its pictures of the other screens but none of itself",
+                      own !== undefined && top.length === Array.from(kept.own.slide.elements).filter(e => e.fillKind === "screen").length
+                      && inside.length === top.length - 1 && inside.every(p => p.screen === null || p.screen.id !== Screens.stage[0].id)
+                      && inside.every(p => Lib.findAll(p, isPicture).length === 0),
+                      top.length + " " + inside.map(p => p.screen ? p.screen.name : "none").join(", "))
                 check("its picture is of the layout the screen has", own !== undefined
                       && Lib.find(own, item => item.slide !== undefined && item.elements !== undefined && item.visible && item.slide !== null
                                   && item.slide.elements.map(e => e.id).join() === Array.from(kept.own.slide.elements).map(e => e.id).join()) !== null)
@@ -447,17 +452,22 @@ QtObject {
                 const onOutput = Lib.findAll(output.contentItem, isPicture)
                 const drawn = Lib.findAll(output.contentItem, item => item.source !== undefined && item.pictures !== undefined && item.boxFilled !== undefined
                                           && item.source !== null && item.source.id === kept.element.id)
-                check("on the output the slide has its picture of the output, and the ellipse its of the stage, with no picture inside them",
-                      onOutput.length === 2 && onOutput.some(p => p.screen !== null && p.screen.name === Screens.audience[0].name)
-                      && onOutput.some(p => p.screen !== null && p.screen.id === Screens.stage[0].id),
+                // (One level down, the picture of the output shows what the output shows: the ellipse's picture of the
+                // stage, and no picture of the output itself; the stage's picture, of its plain view, has none)
+                const top = onOutput.filter(p => p.chain.length === 0)
+                const self = top.find(p => p.screen !== null && p.screen.name === Screens.audience[0].name)
+                const inSelf = self !== undefined ? Lib.findAll(self, isPicture) : []
+                check("on the output the slide has its picture of the output, and the ellipse its of the stage; the picture of the output has the stage's in it, and none of itself",
+                      top.length === 2 && self !== undefined && top.some(p => p.screen !== null && p.screen.id === Screens.stage[0].id)
+                      && onOutput.length === 3 && inSelf.length === 1 && inSelf[0].screen !== null && inSelf[0].screen.id === Screens.stage[0].id,
                       onOutput.length + " " + JSON.stringify(drawn.map(d => [d.source.fillKind, d.boxFilled, d.pictures !== null, d.plain, d.visible, d.source.fillShown]))
                       + " live " + (liveSlide ? liveSlide.elements.filter(e => e.id === kept.element.id).map(e => e.fillKind).join() : "none")
                       + " index " + kept.index + " held " + (output.heldSlide !== undefined) + " on output: "
                       + JSON.stringify(Lib.findAll(output.contentItem, item => item.source !== undefined && item.pictures !== undefined && item.boxFilled !== undefined && item.source !== null)
                                        .map(d => [d.source.id.substring(0, 4), d.source.fillKind, d.visible])) + " want " + kept.element.id.substring(0, 4))
                 const preview = Lib.find(win.contentItem, item => isPicture(item) && item.namePrefix === "preview")
-                check("the operator's preview of the output shows them as the output does", Lib.findAll(preview, isPicture).length === 2,
-                      Lib.findAll(preview, isPicture).length)
+                check("the operator's preview of the output shows them as the output does", Lib.findAll(preview, isPicture).length === 3
+                      && Lib.findAll(preview, isPicture).filter(p => p.chain.length === 0).length === 2, Lib.findAll(preview, isPicture).length)
                 // The ellipse on the output: the stage's picture in the middle, and the red behind it at its box's corners
                 const ellipse = Lib.find(output.contentItem, item => item.source !== undefined && item.boxFilled !== undefined && item.source !== null
                                          && item.source.id === kept.ellipse.id && item.visible)

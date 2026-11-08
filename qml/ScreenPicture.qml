@@ -42,15 +42,24 @@ import SimplePresenterApp
 // screen does; of a stage screen, the stage layout it has. The screen is fitted in,
 // whole, on black where it shows nothing, and the picture is empty around it.
 //
-// A picture's own slides do not have pictures of their own unless `inner` says so:
-// a screen whose slide has a picture of itself would otherwise have a picture inside a
-// picture inside a picture, without end. So the pictures stop at one: the operator's
-// preview, which stands for a screen, shows the pictures the screen shows (`inner`),
-// and a picture on a screen shows its screen without any. (A GUESS at ProPresenter,
-// whose screens are drawn in another way, and which may well show the picture inside
-// itself, once or more.) Where it moves (`moving`), its slides are told all the same that
-// they are on show, by `onShow` in place of the operator window: what moves on a screen
-// moves in them, and a Screen Preview in them draws nothing (see SlideElement).
+// Pictures inside a picture. The operator's preview, which stands for a screen, shows
+// the pictures the screen shows (`inner`). A picture on a screen, or of a stage layout in
+// the preview, shows the pictures its own screen shows too, one level down: a stage
+// screen that shows a picture of another stage screen shows that one's Screen Previews
+// and pictures of the slides inside it, as that screen does (the maintainer, 2026-11-08:
+// a Triple Preview layout's picture of the Rear Projector, whose layout has a picture of
+// the output and of the next slide, had them missing). But never a picture of a screen
+// already being drawn above it (`chain`, the screens this one is drawn inside, and its
+// own), and no more than two deep: a screen whose slide has a picture of itself would
+// otherwise have a picture inside a picture inside a picture, without end, and every
+// level is the screen drawn again. So a screen with a picture of itself shows it once,
+// and inside that the pictures of the other screens it shows, and stops. (A GUESS at
+// ProPresenter, whose screens are drawn in another way, and which may well show the
+// picture inside itself more than once.) Where it moves (`moving`), its slides are told
+// all the same that they are on show, by `onShow` in place of the operator window: what
+// moves on a screen moves in them, and pictures in them are drawn by those rules (see
+// SlideElement). A picture of a slide (SlidePicture) has nothing inside it to repeat, and
+// is drawn at any depth.
 Item {
     id: picture
 
@@ -70,6 +79,10 @@ Item {
     // How many milliseconds apart the frames of a playing video are borrowed: 0 for
     // every one of them
     property int videoInterval: 0
+    // The screens this picture is drawn inside, by their ids: none for one in a slide of a
+    // screen's own (or of the operator's preview); the screen above it, for one inside a
+    // picture of that screen (see the top)
+    property var chain: []
     // What the parts are called, for the tests to find them by: the operator's preview
     // gives its own ("preview" makes previewSlide, previewVideo and the rest). A picture
     // of a screen has none, there being any number of them.
@@ -94,8 +107,9 @@ Item {
                                                                                       : ({ slide: true, media: true, props: true, messages: true, theme: "" })
     readonly property var mask: screen !== null && !stage ? win.maskSlide(look.mask) : null
     // The slides of the picture, with pictures of their own or only told that they are on
-    // show (see the top)
-    readonly property var onShow: ({ inPicture: true })
+    // show (see the top): `onShow` says that they are in a picture, carries the operator
+    // window that a picture inside them asks what to show, and the screens drawn so far
+    readonly property var onShow: ({ inPicture: true, win: win, chain: chain.concat([screen !== null ? screen.id : screenId]) })
     readonly property var pictures: inner ? win : moving ? onShow : null
     // Whether the picture is on a screen, and not in the operator window (see the top).
     // (Set as the picture is put in a window. Not called onScreen, which QML takes for a

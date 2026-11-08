@@ -231,6 +231,7 @@ qt_add_qml_module(SimplePresenter
         qml/QuickEdit.qml
         qml/Slide.qml
         qml/SlideElement.qml
+        qml/SlidePicture.qml
         qml/MediaContent.qml
         qml/MediaEffects.qml
         qml/MediaInspector.qml

@@ -80,7 +80,9 @@ choose between three ways of working. **Slides** is everything described here.
   be cut off at its edges, or stretched to it (and turned, flipped, cropped and given
   effects in its [Media Inspector](media.md#the-media-inspector), behind **Inspector…**), or a
   [Screen Preview](stage-layouts.md#screen-preview) of
-  one of the workspace's screens, chosen under it, one of the workspace's
+  one of the workspace's screens, chosen under it, a **Slide Image**, a still picture of
+  the [slide that is live or of the next](stage-layouts.md#pictures-of-the-slides), chosen
+  under it, one of the workspace's
   [video inputs](video-inputs.md#as-the-fill-of-a-shape), live, chosen and scaled under it,
   or a blur or an invert of what is behind it, **Background Blur** and **Background
   Invert**, with the controls the Text tab has for them (see [Text

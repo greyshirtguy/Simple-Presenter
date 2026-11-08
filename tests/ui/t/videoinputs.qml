@@ -390,8 +390,8 @@ QtObject {
                 return 400
             },
             () => {
-                check("the Fill menu has Video Input", Array.from(named("fillKind").model).indexOf("Video Input") === 4, Array.from(named("fillKind").model).join(", "))
-                named("fillKind").chosen(4)
+                check("the Fill menu has Video Input", Array.from(named("fillKind").model).indexOf("Video Input") >= 0, Array.from(named("fillKind").model).join(", "))
+                named("fillKind").chosen(Array.from(named("fillKind").model).indexOf("Video Input"))
                 return 1500
             },
             () => {
@@ -427,7 +427,7 @@ QtObject {
                 const e = onDisk()
                 check("all three undone, the file is byte for byte as it was", kept.undone.every(x => x === "") && e.fillKind === "color"
                       && testInput.fileHash(kept.entry.file) === kept.hash, JSON.stringify(kept.undone))
-                named("fillKind").chosen(4)
+                named("fillKind").chosen(Array.from(named("fillKind").model).indexOf("Video Input"))
                 return 600
             },
             () => {

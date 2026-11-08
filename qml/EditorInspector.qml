@@ -526,14 +526,18 @@ Rectangle {
 
             // What it is filled with: a colour, a gradient from one colour to another, a
             // picture, a Screen Preview, which is what one of the workspace's screens is
-            // showing (see ScreenPicture), one of the workspace's video inputs, live
-            // (see VideoInputs), or a blur or an invert of what is behind the box
-            // (TextFills), as ProPresenter's fill menu has them. Choosing a kind turns the
-            // fill on. A Screen Preview starts as the first audience screen, a video input
-            // as the first input, a blur at the amount of one already on the slide.
-            // (Where Video Input, Background Blur and Background Invert are in the menu
-            // is A GUESS at ProPresenter's; the last two are its Text tab's names, and have
-            // its Text tab's controls, as the maintainer says ProPresenter's Shape tab has.)
+            // showing (see ScreenPicture), a picture of the slide that is live or of the
+            // next (SlidePicture: ProPresenter's stage layouts' Current Slide and Next
+            // Slide), one of the workspace's video inputs, live (see VideoInputs), or a
+            // blur or an invert of what is behind the box (TextFills), as ProPresenter's
+            // fill menu has them. Choosing a kind turns the fill on. A Screen Preview
+            // starts as the first audience screen, a slide's picture as the live slide's, a
+            // video input as the first input, a blur at the amount of one already on the
+            // slide. (Where Slide Image, Video Input, Background Blur and Background Invert
+            // are in the menu, and the first's name, are GUESSES at ProPresenter's, whose
+            // stage editor adds a slide's picture as a thing of its own; the last two are
+            // its Text tab's names, and have its Text tab's controls, as the maintainer
+            // says ProPresenter's Shape tab has.)
             CheckLine {
                 id: fillLine
 
@@ -546,21 +550,25 @@ Rectangle {
                 Choice {
                     objectName: "fillKind"
                     width: shapeTab.width - 78
-                    model: ["Colour", "Gradient", "Media", "Screen Preview", "Video Input", "Background Blur", "Background Invert"]
+                    model: ["Colour", "Gradient", "Media", "Screen Preview", "Slide Image", "Video Input", "Background Blur", "Background Invert"]
                     choice: fillLine.kind === "gradient" ? 1 : fillLine.kind === "media" ? 2 : fillLine.kind === "screen" ? 3
-                          : fillLine.kind === "input" ? 4 : fillLine.kind === "blur" ? 5 : fillLine.kind === "invert" ? 6 : 0
+                          : fillLine.kind === "slideImage" ? 4 : fillLine.kind === "input" ? 5 : fillLine.kind === "blur" ? 6
+                          : fillLine.kind === "invert" ? 7 : 0
                     onChosen: (index) => {
-                        if (index === 5) {
+                        if (index === 6) {
                             if (fillLine.kind !== "blur")
                                 inspector.setProperties({ fillKind: "blur", fillBlurAmount: inspector.slideBlur(), fillOn: true }, false)
-                        } else if (index === 6) {
+                        } else if (index === 7) {
                             if (fillLine.kind !== "invert")
                                 inspector.setProperties({ fillKind: "invert", fillOn: true }, false)
                         } else if (index === 2) {
                             inspector.chooseMedia()
-                        } else if (index === 4) {
+                        } else if (index === 5) {
                             if (fillLine.kind !== "input")
                                 inspector.setProperties({ fillKind: "input", fillInputIndex: 0, fillOn: true }, false)
+                        } else if (index === 4) {
+                            if (fillLine.kind !== "slideImage")
+                                inspector.setProperties({ fillKind: "slideImage", fillSlideNext: false, fillOn: true }, false)
                         } else if (index === 3) {
                             if (fillLine.kind !== "screen") {
                                 const first = Screens.audience[0] ?? Screens.screens[0]
@@ -577,7 +585,7 @@ Rectangle {
             Line {
                 caption: "Colour"
                 visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen" && fillLine.kind !== "input"
-                         && fillLine.kind !== "blur" && fillLine.kind !== "invert"
+                         && fillLine.kind !== "blur" && fillLine.kind !== "invert" && fillLine.kind !== "slideImage"
 
                 // Picking a colour turns the fill on, and makes it a plain colour.
                 ColorButton {
@@ -757,6 +765,23 @@ Rectangle {
                 }
             }
 
+            // Which slide a slide's picture is of: the one that is live, or the next
+            Line {
+                caption: "Slide"
+                visible: fillLine.kind === "slideImage"
+
+                Choice {
+                    objectName: "fillSlide"
+                    width: shapeTab.width - 78
+                    model: ["Current Slide", "Next Slide"]
+                    choice: inspector.element && inspector.element.fillSlideNext === true ? 1 : 0
+                    onChosen: (index) => {
+                        if ((index === 1) !== (inspector.element.fillSlideNext === true))
+                            inspector.setProperties({ fillSlideNext: index === 1 }, false)
+                    }
+                }
+            }
+
             // Which screen a Screen Preview is of: any of the workspace's, audience or
             // stage, by name. One the link names that this workspace does not have is
             // shown as the link names it, and nothing is drawn for it.
@@ -791,6 +816,7 @@ Rectangle {
             AppCheck {
                 width: parent.width
                 visible: fillLine.kind !== "gradient" && fillLine.kind !== "media" && fillLine.kind !== "screen" && fillLine.kind !== "input"
+                         && fillLine.kind !== "slideImage"
                 text: "Only behind the lines of text"
                 checked: inspector.element ? inspector.element.fillLinesOnly : false
                 onToggled: (checked) => inspector.setProperties({ fillLinesOnly: checked }, false)
