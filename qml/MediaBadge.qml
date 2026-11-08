@@ -4,7 +4,9 @@ import QtQuick
 // behind the other, with the one that the media plays on drawn solid and the other in
 // outline. A background (which stays from slide to slide, and loops) has the layer behind
 // solid; a foreground (which plays once and gives way to the next slide) has the one in
-// front. See workspace::MediaBehaviour in src/workspacefiles.h. Amber when the media file
+// front. The one in front is at the top left and the one behind at the bottom right, as
+// ProPresenter draws its icon (the maintainer, 2026-11-08: it had been the other way
+// about). See workspace::MediaBehaviour in src/workspacefiles.h. Amber when the media file
 // cannot be found.
 Rectangle {
     id: badge
@@ -21,10 +23,10 @@ Rectangle {
     radius: 4 * size
     color: "#c8000000"
 
-    // The layer behind
+    // The layer behind, at the bottom right
     Rectangle {
-        x: 4 * badge.size
-        y: 4 * badge.size
+        x: 9 * badge.size
+        y: 9 * badge.size
         width: 13 * badge.size
         height: 9 * badge.size
         radius: 1.5 * badge.size
@@ -33,10 +35,10 @@ Rectangle {
         border.color: badge.faint
     }
 
-    // The layer in front, which hides what it covers of the one behind
+    // The layer in front, at the top left, which hides what it covers of the one behind
     Rectangle {
-        x: 9 * badge.size
-        y: 9 * badge.size
+        x: 4 * badge.size
+        y: 4 * badge.size
         width: 13 * badge.size
         height: 9 * badge.size
         radius: 1.5 * badge.size

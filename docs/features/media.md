@@ -30,7 +30,9 @@ leaving the slide layer as it is.
 Which of the two it is belongs to the place the media is used, so a slide's media and
 the same file in the media bin are set separately. A right click on the slide, or on
 the file in the bin, sets it, and the icon on the thumbnail shows which it is: two
-layers, the one behind solid for a background, the one in front for a foreground.
+layers, the one in front at the top left and the one behind at the bottom right, as
+ProPresenter draws them, the one behind solid for a background and the one in front
+for a foreground.
 
 **How a video plays on from its end** is a setting of its own, as it is in
 ProPresenter: it **stops** on its last frame, or **loops** for good, or loops for a
