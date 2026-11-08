@@ -4,7 +4,8 @@ import "lib.js" as Lib
 
 // The media bin's own transition: chosen at the bin's foot with the same controls as the slides' under the slides, kept
 // in the settings apart from the slides', and what all media comes in by on the media layer, media a slide brings with
-// it included, which comes in with the slide; the foot drawn.
+// it included, which comes in with the slide; the foot drawn, the controls under the thumbnails on a faint purple, the
+// slides' on a faint orange; and, with the bin hidden, the media's beside the slides'.
 QtObject {
     id: t
 
@@ -15,6 +16,20 @@ QtObject {
 
     function pixel(x, y) {
         return String(testInput.windowPixel(x, y)).toLowerCase()
+    }
+
+    // The colour drawn just inside a tint's left edge, half way down, as { r, g, b }
+    function tintHue(tint) {
+        if (tint === null)
+            return { r: 0, g: 0, b: 0 }
+        const at = tint.mapToItem(null, 2, tint.height / 2)
+        const c = pixel(at.x, at.y)
+        return { r: parseInt(c.substring(1, 3), 16), g: parseInt(c.substring(3, 5), 16), b: parseInt(c.substring(5, 7), 16) }
+    }
+
+    // The one of a name that is shown (the media bin, hidden, keeps its own)
+    function shown(name) {
+        return Lib.findAll(win.contentItem, item => item.objectName === name && item.visible)[0] ?? null
     }
 
     function topOf(item) {
@@ -56,9 +71,17 @@ QtObject {
                 const foot = named("mediaFooter"), bin = foot.parent, grid = named("mediaGrid"), button = named("mediaTransitionButton")
                 check("the media bin has a foot, at its bottom, which the thumbnails stop at", foot.visible && foot.height === 30 && bottomOf(foot) === bottomOf(bin)
                       && bottomOf(grid) <= topOf(foot), foot.height + " " + bottomOf(grid) + " " + topOf(foot) + " " + bottomOf(foot))
-                check("with the bin's transition at its left, named", button !== null && button.visible && Lib.find(button, item => item.text === "Fade") !== null
-                      && button.mapToItem(null, 0, 0).x < bin.mapToItem(null, 0, 0).x + 30 && topOf(button) > topOf(foot) && bottomOf(button) < bottomOf(foot),
-                      button ? button.mapToItem(null, 0, 0).x + "," + topOf(button) : "none")
+                // (Under the thumbnails at their left, as the slides' is under the slides: the maintainer, 2026-11-08)
+                const gridLeft = grid.mapToItem(null, 0, 0).x
+                check("with the media transition under the thumbnails, at their left, named", button !== null && button.visible && Lib.find(button, item => item.text === "Fade") !== null
+                      && button.mapToItem(null, 0, 0).x >= gridLeft && button.mapToItem(null, 0, 0).x < gridLeft + 40 && topOf(button) > topOf(foot) && bottomOf(button) < bottomOf(foot),
+                      button ? button.mapToItem(null, 0, 0).x + " from " + gridLeft + "," + topOf(button) : "none")
+                // A faint purple behind the media's, and a faint orange behind the slides', drawn: told apart side by side
+                kept.mediaTint = tintHue(named("mediaTransitionTint"))
+                kept.slideTint = tintHue(named("transitionTint"))
+                check("drawn on a faint purple, where the slides' is on a faint orange", kept.mediaTint.b > kept.mediaTint.r + 6 && kept.mediaTint.r > kept.mediaTint.g
+                      && kept.slideTint.r > kept.slideTint.b + 15 && kept.slideTint.r > kept.slideTint.g + 6,
+                      JSON.stringify([kept.mediaTint, kept.slideTint]))
                 const line = foot.mapToItem(null, foot.width / 2, 0)
                 check("drawn: the line over the foot, and the button", pixel(line.x, line.y + 0.5).endsWith("3a3c42")
                       && pixel(button.mapToItem(null, 4, button.height / 2).x, button.mapToItem(null, 4, button.height / 2).y).endsWith("3a3c42"),
@@ -113,6 +136,27 @@ QtObject {
                 check("set to Cut, the next picture cuts in: no transition is made", liveMedia !== null && liveMedia.path !== kept.media.path
                       && began("media layer").length === kept.mediaLines, began("media layer").length - kept.mediaLines)
                 check("the log said what the bin's was changed to", logged(/transition +chosen for the media bin: Cut/).length === 1)
+                // ---- The media bin hidden: the media's controls beside the slides'
+                mediaBinVisible = false
+                return 500
+            },
+            () => {
+                const slides = named("transitionButton"), media = shown("mediaTransitionButton")
+                check("with the media bin hidden, the media transition is beside the slides', in the bar under the slides, named", media !== null && media.visible
+                      && Lib.find(media, item => item.text === "Cut") !== null && Math.abs(topOf(media) - topOf(slides)) < 1
+                      && media.mapToItem(null, 0, 0).x > slides.mapToItem(null, slides.width, 0).x,
+                      media ? media.mapToItem(null, 0, 0).x + " after " + slides.mapToItem(null, slides.width, 0).x : "none")
+                const mediaTint = tintHue(shown("mediaTransitionTint")), slideTint = tintHue(named("transitionTint"))
+                check("the two on their tints, side by side", mediaTint.b > mediaTint.r + 6 && slideTint.r > slideTint.b + 15, JSON.stringify([mediaTint, slideTint]))
+                testInput.grab("2-side-by-side")
+                mediaBinVisible = true
+                return 500
+            },
+            () => {
+                check("shown again, the bin has them back, and the bar under the slides has the slides' alone",
+                      named("mediaTransitionButton") !== null && named("mediaTransitionButton").visible
+                      && named("mediaTransitionButton").mapToItem(null, 0, 0).x >= named("mediaGrid").mapToItem(null, 0, 0).x
+                      && Lib.findAll(win.contentItem, item => item.objectName === "mediaTransitionButton").length === 1)
                 check("nothing went wrong on the way", logged(/PROBLEM|WARNING|ERROR/).filter(l => !l.includes("qt.qpa.theme")).length === 0,
                       logged(/PROBLEM|WARNING|ERROR/).join(" | "))
             }

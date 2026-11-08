@@ -17,7 +17,7 @@ media bin. How it then behaves is one of two things, as in ProPresenter:
   media of its own.
 
 Either gives way to the next media that is triggered, of either kind. All media comes
-in by the media [transition](transitions.md), chosen at the foot of the bin: played
+in by the media [transition](transitions.md), chosen under the bin's thumbnails: played
 from the bin, by an action, or brought by a slide, which comes in with it.
 
 A click on a slide with **Alt** held shows the slide, and does its actions, without

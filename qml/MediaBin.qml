@@ -177,7 +177,9 @@ Rectangle {
     }
 
     // A thin foot under the two, with a line over it, as the slides have under them: the
-    // transition media played from here comes in by, at its left
+    // media transition, which all media comes in by, under the thumbnails at their left, as
+    // the slides' is under the slides (the maintainer, 2026-11-08: it had been under the
+    // list of playlists)
     Item {
         id: binFoot
 
@@ -196,8 +198,9 @@ Rectangle {
         }
 
         TransitionControls {
-            anchors.left: parent.left
-            anchors.leftMargin: 16
+            // (Under the thumbnails: the grid is the foot's sibling, which the foot's own
+            // children cannot be anchored to, and both start at the bin's left)
+            x: mediaGrid.x + 6
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: 1
             media: true

@@ -5,11 +5,14 @@ import QtQuick
 // adjusted about it, and its length as a slider and as a number of seconds.
 //
 // It is at the left of the thin bar under the slides, as the thumbnail size buttons are
-// at its right, for the slides' transition; and again at the foot of the media bin, for
-// the media bin's own (`media`), as ProPresenter's media bin has at its bottom left. It
-// is drawn at four fifths of the size its parts are made at, which keeps the bar thin;
-// what opens from it (the menu, the panel of what can be adjusted) opens upwards, at
-// full size.
+// at its right, for the slides' transition; and for the media's (`media`), under the
+// media bin's thumbnails, at the left of the bin's foot, or, while the media bin is not
+// shown (hidden, or in Simple View), beside the slides' one in the bar under the slides.
+// It is drawn at four fifths of the size its parts are made at, which keeps the bar
+// thin; what opens from it (the menu, the panel of what can be adjusted) opens upwards,
+// at full size. Behind it is a faint tint of the colour the app gives what it is for,
+// orange for the slides (the libraries') and purple for the media (the media bin's), so
+// that the two side by side are told apart at a glance (the maintainer, 2026-11-08).
 Item {
     id: controls
 
@@ -32,6 +35,17 @@ Item {
 
     width: panel.width * shrink
     height: panel.height * shrink
+
+    // The tint, a little round the controls
+    Rectangle {
+        objectName: controls.media ? "mediaTransitionTint" : "transitionTint"
+        readonly property color hue: controls.media ? controls.win.mediaBinColor : controls.win.librariesColor
+
+        anchors.fill: parent
+        anchors.margins: -4
+        radius: 6
+        color: Qt.rgba(hue.r, hue.g, hue.b, 0.16)
+    }
 
     Item {
         id: panel

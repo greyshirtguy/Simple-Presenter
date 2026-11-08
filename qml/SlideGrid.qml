@@ -1133,11 +1133,31 @@ Item {
             win: slides.win
         }
 
+        // The media transition, beside the slides' one, while the media bin, where it is
+        // otherwise, is not shown: hidden (Ctrl+V), or in Simple View. Made only then.
+        Loader {
+            id: mediaControls
+
+            anchors.left: transitionControls.right
+            anchors.leftMargin: 18
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: 1
+            active: !slides.win.mediaBinVisible || slides.win.simple
+            visible: active
+
+            sourceComponent: TransitionControls {
+                media: true
+                win: slides.win
+            }
+        }
+
         // Bible mode's ← Verse and Verse →: the passage grown by the verse before it or
         // after it (BiblePanel's step). Midway between the transition and the size of the
         // thumbnails, where the maintainer asked for them (2026-10-15).
         Loader {
-            x: transitionControls.x + transitionControls.width + (zoomButtons.x - transitionControls.x - transitionControls.width - width) / 2
+            readonly property Item before: mediaControls.active ? mediaControls : transitionControls
+
+            x: before.x + before.width + (zoomButtons.x - before.x - before.width - width) / 2
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: 1
             active: slides.win.bibleMode

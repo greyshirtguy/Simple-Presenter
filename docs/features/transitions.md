@@ -4,14 +4,16 @@
 
 The transition the slides change by is chosen at the left of the thin bar under the
 slides (the buttons for the size of the thumbnails are at its right); the slider beside
-it is how long it takes. The media bin has a transition of its own, chosen with the
-same controls at the foot of the bin, as ProPresenter's media bin has at its bottom
-left: all media comes in by that one, played from the bin, by an action, or brought by
-a slide, so that a background can cut in while the slides dissolve, or the other way
-about. A slide and the media it brings begin their changes together, each by its own.
-The menu has them by category, as ProPresenter does: Dissolves, Wipes,
-Movements, Objects, Color and Blurs, and then More, for the ones ProPresenter does not
-have.
+it is how long it takes. The media has a transition of its own, chosen with the same
+controls in the bar under the media bin's thumbnails: all media comes in by that one,
+played from the bin, by an action, or brought by a slide, so that a background can cut
+in while the slides dissolve, or the other way about. A slide and the media it brings
+begin their changes together, each by its own. While the media bin is not shown
+(hidden, or in Simple View), the media's controls are beside the slides', in the bar
+under the slides. Behind the slides' is a faint orange, and behind the media's a faint
+purple, the colours of the libraries and of the media bin, to tell them apart. The menu
+has them by category, as ProPresenter does: Dissolves, Wipes, Movements, Objects, Color
+and Blurs, and then More, for the ones ProPresenter does not have.
 
 Some transitions can be adjusted: the direction a wipe or a push travels, the colour of
 a burn, the size of the squares. For those, the button with the sliders on it, beside
