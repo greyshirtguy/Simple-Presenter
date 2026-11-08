@@ -11,8 +11,10 @@ AuxWindow {
 
     signal mediaEnded(int playId)
     signal markerReached(int playId, var marker, string layer)
-    // The markers a playing goes by now (see MediaContent.markersOf)
+    // The markers a playing goes by now (see MediaContent.markersOf), and how loud it is
+    // (MediaContent.volumeOf)
     property var markersOf: null
+    property var volumeOf: null
 
     property alias shader: scene.shader
     property alias options: scene.options
@@ -101,6 +103,7 @@ AuxWindow {
         onMediaEnded: (playId) => win.mediaEnded(playId)
         onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
         markersOf: win.markersOf
+        volumeOf: win.volumeOf
         frameInterval: Screens.refreshIntervalOf(win.screen ? win.screen.name : "")
         drawnBy: "the refreshes of the display it is on"
     }

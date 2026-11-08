@@ -42,6 +42,9 @@ These are not ProPresenter's.
 - **How a slide's video plays on, at a glance.** A slide with a video has an icon for
   whether it stops at its end, loops, or loops for a count or a time. A right click on
   the icon changes it.
+- **A background video's sound.** A background is silent here. A slide with a
+  background video has a speaker icon, struck through while it is muted; a click on it
+  has the background heard, and another mutes it again, at once if it is playing.
 - **Playing a slide's media by itself.** The Media caption in a slide's menu plays the
   slide's media and leaves the slide layer as it is.
 - **Dragging the clear buttons.** A clear button dropped on a slide or a macro gives it
@@ -99,4 +102,5 @@ is longer, and not even it is the whole of it.
 - The app's own settings in `~/.config/SimplePresenter/`.
 - A copy of each presentation as it was before it was first edited, and Bibles that were
   imported, in `~/.local/share/SimplePresenter/SimplePresenter/`.
-- The disable dates, in the workspace's folder, in `SimplePresenter/Disable Dates.json`.
+- The disable dates, in the workspace's folder, in `SimplePresenter/Disable Dates.json`;
+  and the slides whose background video is heard, in `SimplePresenter/Background Sound.json`.

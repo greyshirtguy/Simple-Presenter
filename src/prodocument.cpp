@@ -1,5 +1,6 @@
 #include "prodocument.h"
 
+#include "backgroundsound.h"
 #include "builds.h"
 #include "ccli.h"
 #include "chords.h"
@@ -32,7 +33,8 @@ namespace {
 
 // The media of a media action, with how it is to be played. Empty if the file cannot be
 // found.
-QVariantMap toMedia(const rv::data::Action &action, workspace::FileFinder *finder)
+// `soundPlayed`: that a background is played with its sound (backgroundsound.h)
+QVariantMap toMedia(const rv::data::Action &action, workspace::FileFinder *finder, bool soundPlayed)
 {
     const rv::data::Media &media = action.media().element();
     const QString path = finder->find(media.url());
@@ -47,7 +49,7 @@ QVariantMap toMedia(const rv::data::Action &action, workspace::FileFinder *finde
     // What its Media Inspector sets, for media set to anything (src/mediasettings.h)
     if (mediasettings::isSet(media))
         map.insert("settings", mediasettings::describe(media));
-    workspace::mediaBehaviour(action).describe(&map);
+    workspace::mediaBehaviour(action, soundPlayed).describe(&map);
     // Its playback markers, for media that has any (src/playbackmarkers.h)
     const QVariantList markers = playbackmarkers::describe(action, actions::describe);
     if (!markers.isEmpty())
@@ -211,9 +213,13 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
     // One finder for the whole presentation, so that its media is only looked for by
     // name, if it comes to that, with one pass over the Media folder.
     workspace::FileFinder mediaFinder(workspace, QStringLiteral("Media"));
-    const auto slidesForCue = [&mediaFinder](const rv::data::Cue &cue) {
+    const QString presentationId = QString::fromStdString(presentation.uuid().string());
+    const auto slidesForCue = [&mediaFinder, &presentationId](const rv::data::Cue &cue) {
         QVariantList slides;
         const QString id = QString::fromStdString(cue.uuid().string());
+        // Whether its background, if it brings one, is played with its sound, this app's
+        // own (see backgroundsound.h): a lookup in a set, for every cue
+        const bool soundPlayed = backgroundsound::played(presentationId, id);
         // The cue's media action, if it has one: its file's name, how it plays, and
         // the file if found. And the actions it has besides.
         QString name;
@@ -239,8 +245,8 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
             } else if (isVisualMedia(action) && name.isEmpty()) {
                 name = workspace::fileNameOf(action.media().element().url());
                 video = action.media().element().has_video();
-                behaviour = workspace::mediaBehaviour(action);
-                media = toMedia(action, &mediaFinder);
+                behaviour = workspace::mediaBehaviour(action, soundPlayed);
+                media = toMedia(action, &mediaFinder, soundPlayed);
             } else if (actions::listed(action)) {
                 others.append(actions::describe(action));
             }
@@ -256,6 +262,10 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
                 first.insert("mediaPlayback", behaviour.playback);
                 first.insert("mediaLoopCount", behaviour.loopCount);
                 first.insert("mediaLoopSeconds", behaviour.loopSeconds);
+                // A background video's sound played, for its icon to say (only where it
+                // is: a background's is muted, and a foreground's is always played)
+                if (video && !behaviour.foreground && soundPlayed)
+                    first.insert("mediaSound", true);
                 if (!media.isEmpty())
                     first.insert("media", media);
             }

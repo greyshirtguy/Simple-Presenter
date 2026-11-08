@@ -68,6 +68,11 @@ Item {
     // are the show's for what is live (they may have been moved since it started: see
     // Show.setLiveMarkers); or null, for its own alone
     property var markersOf: null
+    // How loud a playing of a video is: (playId, its own) => the volume now, which is its
+    // own unless another has been put in for it while it played (a background's sound
+    // played, or muted again, from its slide: see Main's liveVolumeOf); or null, for its
+    // own alone
+    property var volumeOf: null
     // Playback has reached one of the video's playback markers (`marker` as
     // playbackmarkers::describe has it), for its actions to be run (Show.runMarker); said
     // by the scene that plays it, with the number of its playing, as `ended` is.
@@ -141,8 +146,10 @@ Item {
             // For the log: what the file is called, and when it was asked for
             readonly property string name: root.content?.name ?? ""
             readonly property double askedAt: Date.now()
-            // How loud its sound is to be, 0 being not at all
-            readonly property real volume: Math.max(0, Math.min(1, Number(root.content?.volume ?? 0)))
+            // How loud its sound is to be, 0 being not at all: its own, or what has been put
+            // in for it since it started (see volumeOf, and the Loader of its sound below).
+            readonly property real volume: Math.max(0, Math.min(1, Number(root.volumeOf ? root.volumeOf(root.content?.playId ?? 0, root.content?.volume ?? 0)
+                                                                                     : root.content?.volume ?? 0)))
             // The part of it that plays, if it is trimmed (see mediasettings.h): from the
             // in point, in milliseconds, to the out point, which is its end then; -1 for
             // the end of the file. A trimmed video is taken round by hand, from its out
@@ -286,11 +293,29 @@ Item {
                 }
             }
 
-            // Only a video that is to be heard has anything to be heard through.
+            // Only a video that is to be heard has anything to be heard through. One that
+            // comes to be heard while it plays (a background's sound turned on) has it made
+            // then; and once made it is kept for the rest of the playing, at no gain while
+            // the sound is muted again, rather than let go and made again. A player handed
+            // a second buffer output while the first is still being let go of is left by
+            // Qt pointing at one that has gone, and the app crashed when the video was
+            // taken off (the media test, 2026-11-08, when a feed was let go and made again
+            // in one turn of the event loop).
             Loader {
                 id: sound
 
-                active: movie.volume > 0
+                property bool made: false
+
+                active: movie.volume > 0 || made
+                onLoaded: {
+                    made = true
+                    // Made while the video plays: Qt's player starts on the sound of its file
+                    // only when it is opened or sent somewhere, and given somewhere for its
+                    // sound to go part way through it sends none until then; so it is sent to
+                    // where it is, which has it take the sound up from there.
+                    if (movie.started && mediaPlayer.playbackState === MediaPlayer.PlayingState)
+                        mediaPlayer.setPosition(mediaPlayer.position)
+                }
 
                 sourceComponent: AudioFeed {
                     objectName: "mediaSound"
@@ -344,7 +369,8 @@ Item {
                     // what there is to go on when a video is silent that should not be
                     const tracks = mediaPlayer.audioTracks.length
                     const heard = tracks === 0 ? "no sound in the file"
-                                : movie.volume <= 0 ? "its sound not played"
+                                : movie.volume <= 0 ? (root.content?.foreground === false ? "its sound muted, as a background's is unless it is turned on"
+                                                                                           : "its sound not played")
                                 : "its sound played" + (movie.volume < 1 ? " at " + Math.round(movie.volume * 100) + "%" : "")
                                   + " through " + (AudioMixer.deviceName || "no sound device")
                     Log.note("media", "video \"" + movie.name + "\": first picture after " + Math.round(Date.now() - movie.askedAt) + " ms; "

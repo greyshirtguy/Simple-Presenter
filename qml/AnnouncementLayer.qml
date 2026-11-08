@@ -43,8 +43,10 @@ Item {
 
     // A playback marker of the video under its slide has been reached
     signal markerReached(int playId, var marker)
-    // The markers a playing goes by now (see MediaContent.markersOf)
+    // The markers a playing goes by now (see MediaContent.markersOf), and how loud it is
+    // (MediaContent.volumeOf)
     property var markersOf: null
+    property var volumeOf: null
 
     function showSlide(slide) {
         heldSlide = undefined
@@ -91,6 +93,7 @@ Item {
             leads: announcements.leads
             onMarkerReached: (playId, marker) => announcements.markerReached(playId, marker)
             markersOf: announcements.markersOf
+            volumeOf: announcements.volumeOf
         }
         onWaitingChanged: {
             if (!waiting && announcements.heldSlide !== undefined)

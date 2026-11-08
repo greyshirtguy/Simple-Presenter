@@ -326,6 +326,10 @@ public:
     // The markers kept at `place` have been changed: the layers playing that media go by
     // `markers` from now (see show::State::setMarkers). Returns the layers changed.
     Q_INVOKABLE QStringList setLiveMarkers(const QVariantMap &place, const QVariantList &markers);
+    // The volume of the media the slide at `place` brings has been changed: the layers
+    // playing that media (or the same `file`, brought by another slide) are played at
+    // `volume` from now (see show::State::setVolume). Returns the layers changed.
+    Q_INVOKABLE QStringList setLiveVolume(const QVariantMap &place, const QString &file, double volume);
 
     // Says which saved look the live look came from, without making anything live: what
     // is known from the workspace's file when it is opened (see show::State::adoptLook).

@@ -42,13 +42,19 @@ arrow going round for loop, with the count or the time after it. Media dropped o
 slide that had none starts out as ProPresenter would have it, a background looping
 and a foreground stopping.
 
-Each of the two icons is its own thing to right-click, and its menu changes what it
-shows, with the way it is now ticked: Background or Foreground for the one; Stop,
-Loop, Loop for Play Count or Loop for Time for the other, the last two leading to a
-few counts and times to pick from. Changing the one leaves the other as it is. A
-plain click on an icon is a click on the slide, as anywhere else on it. (This is the
-app's own shortcut. In ProPresenter these are set in the Media Inspector, which is
-here too: see below.)
+A slide with a background video has a third icon under those: a speaker, struck
+through while the background is muted, which a background is (see Sound, below), and
+sending out its sound while it is heard.
+
+Each of the icons is its own thing to right-click, and its menu changes what it
+shows, with the way it is now ticked: Background or Foreground for the first; Stop,
+Loop, Loop for Play Count or Loop for Time for the second, the last two leading to a
+few counts and times to pick from; Muted or Played for the speaker. Changing one
+leaves the others as they are. A plain click on the first two is a click on the
+slide, as anywhere else on it; a plain click on the speaker turns the background's
+sound on, or off again, and leaves the slide as it is. (This is the app's own
+shortcut. In ProPresenter the first two are set in the Media Inspector, which is here
+too: see below.)
 
 In the files this is what ProPresenter keeps: the layer a media action is on, and how
 its video plays on. Media set up there behaves here as it was set there.
@@ -58,10 +64,18 @@ on to the device chosen for sound in the settings (see [Audio](audio.md)), each 
 channels where its Audio tab says, at the volume ProPresenter has for it (full, unless
 it was turned down there).
 A background video is silent, whatever sound its file has: it is there to be looked at
-behind the words. The sound follows the picture through a transition, fading in or
-out with a dissolve and starting or stopping at once with a cut. There is nowhere yet
-to set this for one piece of media (see the TODO list); until there is, making a video
-a foreground or a background is what gives it its sound or takes it away.
+behind the words. Unless its slide has the background's sound turned on, with the
+speaker icon on the thumbnail (above): then it is heard as a foreground is, and stays
+a background, playing on under the slides that follow. Turned on or off while the
+background is playing, from that slide or from another slide with the same file, it
+is heard, or stops being heard, at once. This is the app's own: that a background is
+silent is this app's rule, and ProPresenter's files have no place to say that one is
+to be heard, so it is kept beside the presentations, in the workspace's folder, in
+`SimplePresenter/Background Sound.json`, by the presentation and the slide; a slide is
+in it only while its background is heard. (Media played from the bin has no speaker:
+making it a foreground is what gives it its sound there.) The sound follows the
+picture through a transition, fading in or out with a dissolve and starting or
+stopping at once with a cut.
 
 **Bringing media in.** Media gets onto a slide by being dragged there, out of the media
 bin or, as files, straight out of the file manager. Where it is dropped settles what it
@@ -73,10 +87,11 @@ becomes, whichever of the two it came from:
   still the foreground that was: it keeps the old one's layer, and what of its settings
   still makes sense for another file, as the Media Inspector's Replace does (how it is
   fitted, turned and flipped, its effects, and for a video in place of a video how it
-  plays on from its end, how loud it is and where its sound goes). Not its crop, its
-  trim or its thumbnail's moment, which were the old file's. Either way the slide's
-  label becomes the file's name, in place of whatever it said. (Both the maintainer's
-  choices; whether ProPresenter does either has not been looked at.)
+  plays on from its end, how loud it is, where its sound goes, and a background's
+  sound on or off). Not its crop, its trim or its thumbnail's moment, which were the
+  old file's. Either way the slide's label becomes the file's name, in place of
+  whatever it said. (Both the maintainer's choices; whether ProPresenter does either
+  has not been looked at.)
 - **Between two slides** (or before the first, or after the last), it gets a slide of
   its own there, with nothing on it, that triggers it as a foreground. That is how a
   video takes its turn in the run of a presentation, and it is what ProPresenter makes

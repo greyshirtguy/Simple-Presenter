@@ -1662,17 +1662,23 @@ Window {
     // On a slide that triggers no media it is a background: something to go behind the
     // slide's words. On a slide that does, it takes the place of what was there and
     // plays as that did, its layer and its settings (how it plays on from its end, how
-    // loud, how it is fitted, its effects), so that this week's video dropped on last
-    // week's is still the foreground that was (ProDocument::setCueMedia). Either way the
-    // slide is labelled with the file's name, in place of the label it had. (Media
-    // dropped between slides gets a slide of its own, as a foreground: see
-    // insertMediaSlides().)
+    // loud, how it is fitted, its effects, and a background's sound on or off, which is
+    // kept by the slide), so that this week's video dropped on last week's is still the
+    // foreground that was (ProDocument::setCueMedia). Either way the slide is labelled
+    // with the file's name, in place of the label it had. (Media dropped between slides
+    // gets a slide of its own, as a foreground: see insertMediaSlides().)
     function assignMedia(index, path) {
         const slide = document.slides[index]
         const error = path !== "" ? catalog.setSlideMedia(document.path, slide.id, path, false)
                                   : catalog.removeSlideMedia(document.path, slide.id)
-        if (report(error))
-            reloadDocument()
+        if (!report(error))
+            return
+        // A slide with no media has no background to be heard: what was kept for it goes
+        // (leave nothing unneeded), whether or not it was a background when it went
+        if (path === "" && BackgroundSound.played(document.uuid ?? "", slide.id)
+            && report(BackgroundSound.set(document.uuid ?? "", document.path, document.name, slide.id, false)))
+            Log.note("edit", "slide " + (index + 1) + " of " + quoted(document.name) + " has no background to be heard any more, its media taken off")
+        reloadDocument()
     }
 
     // Gives each of these media files a slide of its own in the presentation being
@@ -1706,6 +1712,50 @@ Window {
             { label: "Background", current: !slide.mediaForeground, run: () => setSlideMediaForeground(index, false) },
             { label: "Foreground", current: slide.mediaForeground, run: () => setSlideMediaForeground(index, true) },
             { label: "Inspector", disabled: !slide.media, run: () => inspectSlideMedia(index) }
+        ], item, 0, item.height + 2)
+    }
+
+    // A slide's background video played with its sound, or muted again, which is what a
+    // background is (this app's own, the maintainer's ask of 2026-11-08: see
+    // src/backgroundsoundfile.h). Kept beside the presentations, by the presentation's
+    // uuid and the slide's; the video stays a background. Heard, or not, at once where it
+    // is playing from this slide, or from another slide that brings the same file (see
+    // show::State::setVolume), as well as whenever it is next shown.
+    function setBackgroundSound(index, on) {
+        const slide = document.slides[index]
+        if (!report(BackgroundSound.set(document.uuid ?? "", document.path, document.name, slide.id, on)))
+            return
+        Log.note("edit", "the background video of slide " + (index + 1) + " of " + quoted(document.name)
+                 + (on ? " played with its sound" : " muted"))
+        reloadDocument()
+        const again = document ? document.slides.find(s => s.id === slide.id) : undefined
+        if (!again || !again.media)
+            return
+        const volume = again.media.volume ?? 0
+        const layers = Show.setLiveVolume({ kind: "slide", path: document.path, slideId: slide.id }, again.media.path, volume)
+        // The playings of the layers that changed, by their numbers; only what is playing
+        // now is kept
+        const volumes = {}
+        for (const [layer, played] of [["media", lastPlayed], ["announcements", lastAnnouncementPlayed]]) {
+            if (played === null)
+                continue
+            if (layers.includes(layer))
+                volumes[played.playId] = volume
+            else if (liveVolumes[played.playId] !== undefined)
+                volumes[played.playId] = liveVolumes[played.playId]
+        }
+        liveVolumes = volumes
+    }
+
+    // The menu of the icon that says whether a slide's background video is heard: the way
+    // it is now ticked, and the other changes it (a plain click on the icon does the same)
+    function showBackgroundSoundMenu(index, item) {
+        const slide = document.slides[index]
+        const heard = slide.mediaSound === true
+        menu.show([
+            { header: "Background Sound" },
+            { label: "Muted", current: !heard, run: () => setBackgroundSound(index, false) },
+            { label: "Played", current: heard, run: () => setBackgroundSound(index, true) }
         ], item, 0, item.height + 2)
     }
 
@@ -4481,6 +4531,19 @@ Window {
         return own
     }
 
+    // How loud a playing of a video is (see MediaContent.volumeOf): the volume put in for
+    // it while it played, a background's sound having been played or muted from its slide
+    // (setBackgroundSound), or else the volume it started with. Kept by the number of the
+    // playing, and not read from the show's live media: while one piece of media takes
+    // the place of another, the show has the new one before lastPlayed does, and the one
+    // going out would be given the new one's volume for that moment, and lose its sound
+    // half way through its transition (the sound test found it).
+    property var liveVolumes: ({})
+    function liveVolumeOf(playId, own) {
+        const set = liveVolumes[playId]
+        return set !== undefined ? set : own
+    }
+
     // The markers kept at `place` (see Catalog.addMarker) have been changed: whatever is
     // playing that media goes by them as they now are, from the file (Show.setLiveMarkers,
     // and the audio layer for the music). With `lists`, which the transport's changes ask
@@ -4628,6 +4691,9 @@ Window {
         // The slides to be disabled at a date (see src/disabledates.h): those whose date
         // came while the workspace was not open are disabled now
         report(DisableDates.open(path))
+        // The slides whose background is played with its sound (src/backgroundsound.h):
+        // before any presentation is read, since reading one asks it
+        report(BackgroundSound.open(path))
         // And the video inputs (see src/videoinputs.h): ProPresenter's list, with this
         // computer's devices for them
         const inputs = VideoInputs.open(path)
@@ -5282,6 +5348,7 @@ Window {
                     onMediaEnded: (playId) => win.mediaEnded(playId)
                     onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
                     markersOf: win.liveMarkersOf
+                    volumeOf: win.liveVolumeOf
                     shader: transitionCatalogue.shaderUrl(win.transition)
                     options: win.transitionUniforms.options
                     tint: win.transitionUniforms.tint
@@ -5340,6 +5407,7 @@ Window {
                         onMediaEnded: (playId) => win.mediaEnded(playId)
                         onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
                         markersOf: win.liveMarkersOf
+                        volumeOf: win.liveVolumeOf
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint
@@ -5405,6 +5473,7 @@ Window {
                         onMediaEnded: (playId) => win.mediaEnded(playId)
                         onMarkerReached: (playId, marker, layer) => win.markerReached(playId, marker, layer)
                         markersOf: win.liveMarkersOf
+                        volumeOf: win.liveVolumeOf
                         shader: transitionCatalogue.shaderUrl(win.transition)
                         options: win.transitionUniforms.options
                         tint: win.transitionUniforms.tint

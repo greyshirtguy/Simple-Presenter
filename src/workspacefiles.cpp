@@ -263,7 +263,7 @@ void MediaBehaviour::describe(QVariantMap *media) const
         media->insert("sound", sound);
 }
 
-MediaBehaviour mediaBehaviour(const rv::data::Action &action)
+MediaBehaviour mediaBehaviour(const rv::data::Action &action, bool soundPlayed)
 {
     using Transport = rv::data::Media::TransportProperties;
     MediaBehaviour behaviour;
@@ -280,7 +280,7 @@ MediaBehaviour mediaBehaviour(const rv::data::Action &action)
         // A video that says nothing about its sound has it at full.
         const rv::data::Media::VideoTypeProperties &video = action.media().element().video();
         const double stored = video.has_audio() ? video.audio().volume() : 1;
-        behaviour.volume = behaviour.foreground ? qBound(0.0, stored, 1.0) : 0;
+        behaviour.volume = behaviour.foreground || soundPlayed ? qBound(0.0, stored, 1.0) : 0;
         behaviour.sound = audiorouting::soundOf(action.media().element());
     }
     return behaviour;

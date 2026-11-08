@@ -60,8 +60,9 @@ the top of the [README](../README.md).
       [The Media Inspector](features/media.md#the-media-inspector)), with the file, the thumbnail, the
       fitting, turning, flipping and cropping, the way a video plays on, its trim and
       ProPresenter's effects. Still to come: how
-      loud (for now a rule: a background video is silent, a foreground one has its
-      sound), its alignment, delay and play rate, a transition of its own, effect
+      loud (for now a rule: a background video is silent unless its slide's speaker
+      turns its sound on, a foreground one has its sound), its alignment, delay and
+      play rate, a transition of its own, effect
       presets, the two effects drawn from what is behind; and the inspector for
       several pieces of media at once.
 - [ ] **Show controls**: the timers, the props, the stage layouts and the macros are

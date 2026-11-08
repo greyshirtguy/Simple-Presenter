@@ -3718,6 +3718,7 @@ def after_bible(workspace, test_dir):
 TESTS = {
     "media": test("Demo"),
     "mediatransition": test("Demo", env={"SP_TEST_REMEMBER": "1"}),
+    "backgroundsound": test("Demo"),
     "transport": test("Demo"),
     "timers": test("Demo"),
     "link": test("ProPresenter MR"),

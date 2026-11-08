@@ -618,39 +618,76 @@ Item {
 
                             // and, for a video, how it plays on from its end: it stops, or
                             // goes round, for good or a number of times or for a while.
+                            // And under that, for a background video, whether it is heard: a
+                            // speaker struck through while it is muted, which a background is
+                            // unless its sound is turned on (this app's own, the maintainer's
+                            // ask of 2026-11-08: see src/backgroundsoundfile.h), and sending
+                            // out its sound while it is heard. (In the Loader the video's
+                            // icon is in, so that a slide without a video is made with
+                            // nothing more for it.)
                             Loader {
                                 active: cell.modelData.mediaName !== "" && cell.modelData.mediaVideo
                                 visible: active
 
-                                sourceComponent: ActionIcon {
-                                    id: playbackIcon
+                                sourceComponent: Column {
+                                    spacing: 3
 
-                                    readonly property string words: slides.win.playbackWords(cell.modelData.mediaPlayback,
-                                                                                             cell.modelData.mediaLoopCount,
-                                                                                             cell.modelData.mediaLoopSeconds)
+                                    ActionIcon {
+                                        id: playbackIcon
 
-                                    objectName: "playbackBadge"
-                                    width: words === "" ? 18 : 21 + playbackLabel.implicitWidth
-                                    strength: slides.win.actionIconOpacity
+                                        readonly property string words: slides.win.playbackWords(cell.modelData.mediaPlayback,
+                                                                                                 cell.modelData.mediaLoopCount,
+                                                                                                 cell.modelData.mediaLoopSeconds)
 
-                                    function open() {
-                                        slides.win.showMediaPlaybackMenu(cell.index, playbackIcon)
+                                        objectName: "playbackBadge"
+                                        width: words === "" ? 18 : 21 + playbackLabel.implicitWidth
+                                        strength: slides.win.actionIconOpacity
+
+                                        function open() {
+                                            slides.win.showMediaPlaybackMenu(cell.index, playbackIcon)
+                                        }
+
+                                        ActionGlyph {
+                                            x: 3
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            kind: cell.modelData.mediaPlayback === 0 ? "stop" : "loop"
+                                        }
+
+                                        Text {
+                                            id: playbackLabel
+
+                                            x: 17
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            color: "#e3e5e9"
+                                            font.pixelSize: 10
+                                            text: playbackIcon.words
+                                        }
                                     }
 
-                                    ActionGlyph {
-                                        x: 3
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        kind: cell.modelData.mediaPlayback === 0 ? "stop" : "loop"
-                                    }
+                                    ActionIcon {
+                                        id: soundIcon
 
-                                    Text {
-                                        id: playbackLabel
+                                        readonly property bool heard: cell.modelData.mediaSound === true
 
-                                        x: 17
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: "#e3e5e9"
-                                        font.pixelSize: 10
-                                        text: playbackIcon.words
+                                        objectName: "soundBadge"
+                                        visible: !cell.modelData.mediaForeground
+                                        strength: slides.win.actionIconOpacity
+
+                                        // A plain click on this one turns the sound on or off,
+                                        // as the maintainer asked, where a plain click on the
+                                        // others is a click on the slide (see cellMouse)
+                                        function press() {
+                                            slides.win.setBackgroundSound(cell.index, !heard)
+                                        }
+
+                                        function open() {
+                                            slides.win.showBackgroundSoundMenu(cell.index, soundIcon)
+                                        }
+
+                                        SpeakerGlyph {
+                                            anchors.centerIn: parent
+                                            muted: !soundIcon.heard
+                                        }
                                     }
                                 }
                             }
@@ -855,15 +892,38 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
+                // The icon in the corner under the pointer, if there is one. (An icon may
+                // be inside something that holds two of them, or more.)
+                function iconAt(x, y) {
+                    let hit = icons
+                    let icon = null
+                    while (hit && !icon) {
+                        const at = mapToItem(hit, x, y)
+                        hit = hit.childAt(at.x, at.y)
+                        const inner = hit ? (hit.item ?? hit) : null
+                        if (inner && inner.open)
+                            icon = inner
+                    }
+                    return icon
+                }
+
                 onClicked: (mouse) => {
                     if (mouse.button === Qt.LeftButton) {
                         // The keyboard comes back to the show, from whatever box of the
                         // window was being typed in.
                         slides.win.takeFocus()
+                        // A plain click on an icon that does something of its own when
+                        // clicked (a background's sound: see soundIcon) does that, and
+                        // does not take the slide live. Only the corner is looked in, and
+                        // only for a click with no key held.
+                        const corner = mapToItem(icons, mouse.x, mouse.y)
+                        const icon = mouse.modifiers === Qt.NoModifier && icons.contains(corner) ? iconAt(mouse.x, mouse.y) : null
+                        if (icon && icon.press)
+                            icon.press()
                         // With Ctrl held the slide is selected, or let go of; with Shift,
                         // every slide from the last one selected; neither takes it live
                         // (see SlideSelection)
-                        if (mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))
+                        else if (mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))
                             slides.win.selectSlide(cell.index, (mouse.modifiers & Qt.ShiftModifier) !== 0)
                         // With Alt held, the slide without the media it brings
                         else
@@ -873,16 +933,7 @@ Item {
                         // icon, which has a menu of its own; anywhere else it is for
                         // the slide. (A click with the other button is always the
                         // slide's: the icons are not in the way of showing it.)
-                        // (An icon may be inside something that holds two of them.)
-                        let hit = icons
-                        let icon = null
-                        while (hit && !icon) {
-                            const at = mapToItem(hit, mouse.x, mouse.y)
-                            hit = hit.childAt(at.x, at.y)
-                            const inner = hit ? (hit.item ?? hit) : null
-                            if (inner && inner.open)
-                                icon = inner
-                        }
+                        const icon = iconAt(mouse.x, mouse.y)
                         if (icon)
                             icon.open()
                         else

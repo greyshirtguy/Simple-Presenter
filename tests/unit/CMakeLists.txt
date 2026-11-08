@@ -411,6 +411,15 @@ target_include_directories(tst_disabledatefile PRIVATE ${PROJECT_SOURCE_DIR}/src
 target_link_libraries(tst_disabledatefile PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME disabledatefile COMMAND tst_disabledatefile)
 
+qt_add_executable(tst_backgroundsoundfile
+    tst_backgroundsoundfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/backgroundsoundfile.h
+    ${PROJECT_SOURCE_DIR}/src/backgroundsoundfile.cpp
+)
+target_include_directories(tst_backgroundsoundfile PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_backgroundsoundfile PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME backgroundsoundfile COMMAND tst_backgroundsoundfile)
+
 qt_add_executable(tst_framepacing
     tst_framepacing.cpp
     ${PROJECT_SOURCE_DIR}/src/framepacing.h

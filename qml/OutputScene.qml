@@ -86,8 +86,10 @@ Item {
     // A playback marker of the video on the media layer ("media") or on the announcements
     // layer ("announcements") has been reached (see MediaContent.markerReached)
     signal markerReached(int playId, var marker, string layer)
-    // The markers a playing goes by now (see MediaContent.markersOf)
+    // The markers a playing goes by now (see MediaContent.markersOf), and how loud it is
+    // (MediaContent.volumeOf)
     property var markersOf: null
+    property var volumeOf: null
     // The props that are on, the first at the bottom: [{ id, slide }]; and how long one
     // takes to come or go, in milliseconds
     property alias props: propsLayer.props
@@ -343,6 +345,7 @@ Item {
                             onEnded: (playId) => scene.mediaEnded(playId)
                             onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "media")
                             markersOf: scene.markersOf
+                            volumeOf: scene.volumeOf
                         }
                         // The media layer has stopped waiting, to make its change or because it was
                         // given something else to show: either way a slide held for it goes now.
@@ -456,6 +459,7 @@ Item {
                     leads: scene.leads
                     onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "announcements")
                     markersOf: scene.markersOf
+                    volumeOf: scene.volumeOf
                     pictures: scene.pictures
                     backdrop: underLayers
                     transitionName: scene.transitionName

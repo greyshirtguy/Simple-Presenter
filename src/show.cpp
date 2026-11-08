@@ -597,6 +597,16 @@ QStringList Show::setLiveMarkers(const QVariantMap &place, const QVariantList &m
     return changed;
 }
 
+QStringList Show::setLiveVolume(const QVariantMap &place, const QString &file, double volume)
+{
+    QStringList changed;
+    change([&] {
+        changed = m_state.setVolume(place, file, volume);
+        return show::Effects();
+    });
+    return changed;
+}
+
 void Show::runMarker(const QVariantMap &marker, const QString &media)
 {
     change([&] { return m_state.runMarker(marker, media, m_workspace); });

@@ -127,10 +127,10 @@ QString writeMessage(const QString &path, const google::protobuf::MessageLite &m
 //
 // This is the one place that says how a piece of media is to be played, and it is all
 // that what plays it goes by (MediaContent.qml is handed these values and asks nothing
-// else). There is nowhere in the app yet to set such things for one piece of media, as
-// ProPresenter's inspector does. When there is, what it shows is this, what it changes
-// is the fields of the file that this is read from, and a thing that for now is settled
-// by a rule (`volume` is) becomes a thing read from the file like the rest.
+// else). The Media Inspector sets such things for one piece of media, as ProPresenter's
+// does: what it changes is the fields of the file that this is read from. One thing is
+// still partly settled by a rule, `volume`, which a background has none of unless its
+// slide says otherwise.
 struct MediaBehaviour
 {
     bool foreground = false;
@@ -139,11 +139,12 @@ struct MediaBehaviour
     // Whether triggering it starts it again even when it is what is already playing
     bool retriggers = false;
     // How loud a video's sound is played, from 0, which is silent, to 1, which is as
-    // loud as the file has it. The rule for now: a background is silent, whatever
-    // sound its file may have, since a background is there to be looked at behind the
-    // words; a foreground is played with its sound, at the volume the file gives it
-    // (ProPresenter's own setting for the video, which is full unless it was turned
-    // down there).
+    // loud as the file has it. The rule: a background is silent, whatever sound its
+    // file may have, since a background is there to be looked at behind the words,
+    // unless its slide has its sound played (this app's own, kept beside the
+    // presentations: see backgroundsoundfile.h); a foreground is played with its sound.
+    // Either is heard at the volume the file gives it (ProPresenter's own setting for
+    // the video, which is full unless it was turned down there).
     double volume = 0;
     // How a video plays on from its end, as ProPresenter's files have it: 0 it stops,
     // 1 it goes round for good, 2 it plays `loopCount` times and stops, 3 it goes
@@ -161,7 +162,8 @@ struct MediaBehaviour
     // empty.
     void describe(QVariantMap *media) const;
 };
-MediaBehaviour mediaBehaviour(const rv::data::Action &action);
+// `soundPlayed`: that a background is played with its sound all the same (see `volume`)
+MediaBehaviour mediaBehaviour(const rv::data::Action &action, bool soundPlayed = false);
 
 // Makes a media action a background or a foreground, as ProPresenter sets one up: a
 // background video loops and a foreground one plays once.

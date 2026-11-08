@@ -1416,6 +1416,52 @@ private slots:
         QVERIFY(show.music.value("play").toInt() > 0);
     }
 
+    // A background's sound played (or muted again) from a slide is heard at once where that
+    // background is playing: from that slide, or from another slide that is the same file,
+    // left playing as backgrounds are; not media played from a bin, nor another file
+    void aBackgroundsSoundTurnedOnIsHeardWhereItPlays()
+    {
+        State show;
+        const Workspace w = workspace();
+        Presentation song = plainSong();
+        song.slides[0] = slide("s0", video("waves.mp4"));
+        song.slides[1] = slide("s1", video("waves.mp4"));
+        show.goLive(song.cue(0), false, w);
+        show.goLive(song.cue(1), false, w);
+        const QVariantMap first {{"kind", "slide"}, {"path", "/library/song.pro"}, {"slideId", "s0"}};
+        const QVariantMap second {{"kind", "slide"}, {"path", "/library/song.pro"}, {"slideId", "s1"}};
+        QCOMPARE(show.placeOf("media"), first);
+        // Another slide's, of another file, and a place that is not a slide's, change nothing
+        QVERIFY(show.setVolume(second, "/media/other.mp4", 1).isEmpty());
+        QVERIFY(show.setVolume({{"kind", "mediaRow"}, {"item", "row-1"}}, "/media/waves.mp4", 1).isEmpty());
+        QVERIFY(!show.media.contains("volume"));
+        // The slide that brought it, or another that brings the same file
+        QCOMPARE(show.setVolume(first, "/media/waves.mp4", 0.8), QStringList {"media"});
+        QCOMPARE(show.media.value("volume").toDouble(), 0.8);
+        QCOMPARE(show.setVolume(second, "/media/waves.mp4", 0), QStringList {"media"});
+        QCOMPARE(show.media.value("volume").toDouble(), 0.0);
+        QCOMPARE(show.media.value("name").toString(), QStringLiteral("waves.mp4"));
+        // The same file played from the media bin is the bin's (played afresh: triggered
+        // while the slide's is playing, it would be left to play as the slide's)
+        show.clearMedia();
+        QVariantMap row = video("waves.mp4");
+        row.insert("id", "row-7");
+        show.showMedia(row, "bin");
+        QCOMPARE(show.placeOf("media"), (QVariantMap {{"kind", "mediaRow"}, {"item", "row-7"}}));
+        QVERIFY(show.setVolume(first, "/media/waves.mp4", 1).isEmpty());
+        // The announcements' media, by its slide
+        Presentation foyer = notices();
+        foyer.file = "/library/notices.pro";
+        foyer.slides[0] = slide("n0", video("loop.mp4"));
+        show.goLive(foyer.cue(0), false, w);
+        QCOMPARE(show.setVolume({{"kind", "slide"}, {"path", "/library/notices.pro"}, {"slideId", "n0"}}, "/media/loop.mp4", 1),
+                 QStringList {"announcements"});
+        QCOMPARE(show.announcementMedia.value("volume").toDouble(), 1.0);
+        // Nothing playing, nothing changed
+        show.clearAll();
+        QVERIFY(show.setVolume(first, "/media/waves.mp4", 1).isEmpty());
+    }
+
     // A slide's communication actions are handed out to be sent, in their order with
     // its other actions; one of a kind not sent here is only said in the log
     void communicationActionsAreHandedOut()

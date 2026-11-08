@@ -86,6 +86,8 @@ qt_add_executable(SimplePresenter
     src/textscroller.h
     src/disabledatefile.cpp
     src/disabledatefile.h
+    src/backgroundsoundfile.cpp
+    src/backgroundsoundfile.h
     src/audioprobe.cpp
     src/audioprobe.h
     src/playlistfile.cpp
@@ -249,6 +251,7 @@ qt_add_qml_module(SimplePresenter
         qml/SearchPanel.qml
         qml/SettingsScreen.qml
         qml/SimpleViewToggle.qml
+        qml/SpeakerGlyph.qml
         qml/SlideNotes.qml
         qml/ShowControl.qml
         qml/Sidebar.qml
@@ -371,6 +374,8 @@ qt_add_qml_module(SimplePresenter
         src/textscrolling.h
         src/disabledates.cpp
         src/disabledates.h
+        src/backgroundsound.cpp
+        src/backgroundsound.h
         src/guide.cpp
         src/guide.h
         src/pptxdeck.h

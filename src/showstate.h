@@ -463,6 +463,14 @@ public:
     // has them, so that the transport draws them where they are and what plays the media
     // runs them there. Returns the layers changed: none if nothing playing is kept there.
     QStringList setMarkers(const QVariantMap &place, const QVariantList &markers);
+    // The volume of the media a slide brings (by its place, { kind "slide", path, slideId })
+    // has been changed: a background's sound played or muted again (backgroundsound.h).
+    // Each layer playing that media is played at `volume` from now, so that the change is
+    // heard at once: one whose media that slide brought, and one whose media another slide
+    // brought that is the same file (`file`), which is what a background left playing from
+    // slide to slide is. (Media played from a bin is not a slide's, and is left as it is.)
+    // Returns the layers changed: none if nothing playing is that media.
+    QStringList setVolume(const QVariantMap &place, const QString &file, double volume);
 
     // Gives a stage screen a layout ("" for the plain view).
     void setStageLayout(const QString &screenId, const QString &layoutId);

@@ -1206,6 +1206,26 @@ QVariantMap State::placeOf(const QString &layer) const
     return {};
 }
 
+QStringList State::setVolume(const QVariantMap &place, const QString &file, double volume)
+{
+    QStringList changed;
+    if (place.value("kind").toString() != QLatin1String("slide"))
+        return changed;
+    const auto playing = [&](const QVariantMap &mediaPlace, const QVariantMap &media) {
+        return mediaPlace == place
+            || (mediaPlace.value("kind").toString() == QLatin1String("slide") && !file.isEmpty() && media.value("path").toString() == file);
+    };
+    if (hasMedia && playing(mediaPlace, media)) {
+        media.insert("volume", volume);
+        changed << QStringLiteral("media");
+    }
+    if (announcementHasMedia && playing(announcementMediaPlace, announcementMedia)) {
+        announcementMedia.insert("volume", volume);
+        changed << QStringLiteral("announcements");
+    }
+    return changed;
+}
+
 QStringList State::setMarkers(const QVariantMap &place, const QVariantList &markers)
 {
     QStringList changed;
