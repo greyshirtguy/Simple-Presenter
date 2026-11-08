@@ -134,11 +134,20 @@ public:
     Q_INVOKABLE QString movePlaylistItem(const QString &item, const QString &target, bool after);
     // Moves a playlist or folder "before" or "after" another, or "onto" (into) a folder.
     Q_INVOKABLE QString movePlaylistNode(const QString &id, const QString &target, const QString &where);
+    // What importing an exported playlist would replace, for asking first:
+    // { presentations, playlists, error }, the names of the archive's presentations that
+    // the library (or "Imported", for "") has already, and of its playlists that the
+    // playlists have one of the same name as (PlaylistImport::presentationsHere,
+    // PlaylistFile::playlistsHere).
+    Q_INVOKABLE QVariantMap describePlaylistImport(const QUrl &archive, const QString &library) const;
     // Imports an exported playlist (.proplaylist): its presentations go into the folder
     // `library`, its media under Media, and its playlists inside the folder `parent` or
-    // at the top level for "". Nothing already on disk is overwritten. The copying runs
-    // in the background; importFinished reports the outcome.
-    Q_INVOKABLE void importPlaylist(const QUrl &archive, const QString &library, const QString &parent);
+    // at the top level for "". With `replace`, a presentation already in the library is
+    // replaced by the archive's (the old kept among the editor's backups), and a playlist
+    // of the same name by the archive's; otherwise neither is, and the playlist is added
+    // beside it. Media already there is never overwritten. The copying runs in the
+    // background; importFinished reports the outcome.
+    Q_INVOKABLE void importPlaylist(const QUrl &archive, const QString &library, const QString &parent, bool replace = false);
     // Makes a new library: a folder of that name under the workspace's Libraries, which
     // is all a library is. Returns { path, error }.
     Q_INVOKABLE QVariantMap createLibrary(const QString &name);

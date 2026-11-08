@@ -977,8 +977,26 @@ QString PlaylistFile::moveNode(const QString &root, Kind kind, const QString &id
     return write(root, kind, document);
 }
 
+namespace {
+
+// The first playlist (not a folder) of that name under `node`, depth first, or none
+rv::data::Playlist *playlistNamed(rv::data::Playlist *node, const std::string &name)
+{
+    if (!node->has_playlists())
+        return nullptr;
+    for (rv::data::Playlist &child : *node->mutable_playlists()->mutable_playlists()) {
+        if (!child.has_playlists() && child.name() == name)
+            return &child;
+        if (rv::data::Playlist *found = playlistNamed(&child, name))
+            return found;
+    }
+    return nullptr;
+}
+
+} // namespace
+
 QString PlaylistFile::importPlaylists(const QString &root, const QByteArray &data, const QString &library,
-                                      const QString &parentId, QString *id)
+                                      const QString &parentId, bool replace, QString *id)
 {
     const Kind kind = Presentations;
     rv::data::PlaylistDocument imported;
@@ -995,13 +1013,34 @@ QString PlaylistFile::importPlaylists(const QString &root, const QByteArray &dat
         parent = top;
 
     for (const rv::data::Playlist &source : imported.root_node().playlists().playlists()) {
-        rv::data::Playlist *node = parent->mutable_playlists()->add_playlists();
+        // In place of one of the same name, keeping its id, where asked; otherwise added
+        rv::data::Playlist *existing = replace && !source.has_playlists() ? playlistNamed(top, source.name()) : nullptr;
+        rv::data::Playlist *node = existing ? existing : parent->mutable_playlists()->add_playlists();
+        const rv::data::UUID kept = existing ? existing->uuid() : rv::data::UUID();
         *node = source;
         adopt(node, library, root);
+        if (existing)
+            *node->mutable_uuid() = kept;
         if (id->isEmpty())
             *id = QString::fromStdString(node->uuid().string());
     }
     return write(root, kind, document);
+}
+
+QStringList PlaylistFile::playlistsHere(const QString &root, const QByteArray &data)
+{
+    QStringList here;
+    rv::data::PlaylistDocument imported;
+    rv::data::PlaylistDocument document;
+    if (!imported.ParseFromArray(data.constData(), int(data.size())) || !imported.root_node().has_playlists()
+        || !readForChange(root, Presentations, &document, true).isEmpty())
+        return here;
+    rv::data::Playlist *top = rootNode(&document, Presentations);
+    for (const rv::data::Playlist &source : imported.root_node().playlists().playlists()) {
+        if (!source.has_playlists() && playlistNamed(top, source.name()))
+            here << QString::fromStdString(source.name());
+    }
+    return here;
 }
 
 namespace {

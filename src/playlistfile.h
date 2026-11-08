@@ -137,10 +137,16 @@ struct PlaylistFile
                              const QString &underId, QStringList *ids);
     // Adds the playlists of an exported playlist document (the `data` of a .proplaylist
     // archive) inside the folder `parentId`, or at the top level for "". Their
-    // presentations are taken to be in the folder `library`. Sets *id to the first
-    // playlist added.
+    // presentations are taken to be in the folder `library`. Each comes with ids of its
+    // own. With `replace`, one of the same name as a playlist here (the first found, a
+    // folder's included) takes that one's place instead: its rows in place of that one's,
+    // where that one is, keeping that one's id, so that what names it still does. Sets
+    // *id to the first playlist added or replaced.
     static QString importPlaylists(const QString &root, const QByteArray &data, const QString &library,
-                                   const QString &parentId, QString *id);
+                                   const QString &parentId, bool replace, QString *id);
+    // The names of an exported playlist document's playlists that the playlists have one
+    // of the same name as: what replacing would replace
+    static QStringList playlistsHere(const QString &root, const QByteArray &data);
 
     // Media only:
 

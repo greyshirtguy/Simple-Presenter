@@ -665,13 +665,24 @@ QString Catalog::movePlaylistNode(const QString &id, const QString &target, cons
     return afterChange(PlaylistFile::moveNode(m_root, PlaylistFile::Presentations, id, target, where));
 }
 
-void Catalog::importPlaylist(const QUrl &archive, const QString &library, const QString &parent)
+QVariantMap Catalog::describePlaylistImport(const QUrl &archive, const QString &library) const
+{
+    const QString destination = library.isEmpty() ? QDir(m_librariesDirectory).absoluteFilePath("Imported") : library;
+    QString error;
+    QByteArray data;
+    const QStringList presentations = PlaylistImport::presentationsHere(archive.toLocalFile(), destination, &data, &error);
+    return {{"presentations", presentations}, {"playlists", error.isEmpty() ? PlaylistFile::playlistsHere(m_root, data) : QStringList()},
+            {"error", error}};
+}
+
+void Catalog::importPlaylist(const QUrl &archive, const QString &library, const QString &parent, bool replace)
 {
     if (m_importing)
         return;
     m_importing = true;
     emit importingChanged();
-    SessionLog::write("import", QStringLiteral("started: ") + archive.toLocalFile());
+    SessionLog::write("import", QStringLiteral("started: ") + archive.toLocalFile()
+                                    + (replace ? QStringLiteral(", replacing what is here already") : QString()));
 
     // With no library to put the presentations in, they get one of their own.
     const QString destination = library.isEmpty() ? QDir(m_librariesDirectory).absoluteFilePath("Imported") : library;
@@ -680,14 +691,14 @@ void Catalog::importPlaylist(const QUrl &archive, const QString &library, const 
 
     // Copying can be hundreds of megabytes of media, so it happens off the main thread
     // and the output keeps running. The playlists file is only touched back here.
-    QThread *worker = QThread::create([this, path, root, destination, parent] {
+    QThread *worker = QThread::create([this, path, root, destination, parent, replace] {
         QString error;
-        const PlaylistImport unpacked = PlaylistImport::unpack(path, root, destination, &error);
-        QMetaObject::invokeMethod(this, [this, unpacked, error, root, destination, parent] {
+        const PlaylistImport unpacked = PlaylistImport::unpack(path, root, destination, replace, &error);
+        QMetaObject::invokeMethod(this, [this, unpacked, error, root, destination, parent, replace] {
             QString failure = error;
             QString playlist;
             if (failure.isEmpty())
-                failure = PlaylistFile::importPlaylists(root, unpacked.playlistData, destination, parent, &playlist);
+                failure = PlaylistFile::importPlaylists(root, unpacked.playlistData, destination, parent, replace, &playlist);
             m_importing = false;
             emit importingChanged();
             rescan();

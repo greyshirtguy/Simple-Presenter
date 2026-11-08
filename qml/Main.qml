@@ -3052,8 +3052,54 @@ Window {
         menu.show([
             { label: "Add Folder", run: () => newPlaylistNode(true, newNodeParent()) },
             { label: "Add Playlist", run: () => newPlaylistNode(false, newNodeParent()) },
-            { label: "Import Playlist…", run: () => importDialog.open() }
+            { label: "Import Playlist…", run: () => {
+                importAnchor = item
+                importDialog.open()
+            } }
         ], item)
+    }
+
+    // An exported playlist chosen to import. Imported at once where nothing in it is here
+    // already. Where some of its presentations are in the library already, or a playlist
+    // here has its playlist's name, the person is asked first, at the + it was chosen from:
+    // the archive's can take their place, the presentations' old files kept among the
+    // editor's backups, or what is here is kept as it is and the playlist added beside it
+    // (the maintainer, 2026-11-08: an import had left the older presentations as they were,
+    // and they would rather be offered to overwrite them). Media already there is kept
+    // either way. (A GUESS at ProPresenter's own question here, which was not watched.)
+    property Item importAnchor: null
+    function askPlaylistImport(archive) {
+        const parent = newNodeParent()
+        const library = libraryPath
+        const here = catalog.describePlaylistImport(archive, library)
+        if (!report(here.error))
+            return
+        const importing = (replace) => {
+            Log.note("import", replace ? "the archive's to replace what is here" : "what is here kept")
+            catalog.importPlaylist(archive, library, parent, replace)
+        }
+        if (here.presentations.length === 0 && here.playlists.length === 0) {
+            catalog.importPlaylist(archive, library, parent, false)
+            return
+        }
+        const names = (list) => (list.length <= 4 ? list : list.slice(0, 3)).map(name => "“" + name + "”").join(", ")
+                                + (list.length > 4 ? " and " + (list.length - 3) + " more" : "")
+        const parts = []
+        if (here.presentations.length > 0)
+            parts.push(counted(here.presentations.length, "presentation", "presentations") + " the library has already ("
+                       + names(here.presentations) + ")")
+        if (here.playlists.length > 0)
+            parts.push((here.playlists.length === 1 ? "a playlist with the name of one here (" : "playlists with the names of some here (")
+                       + names(here.playlists) + ")")
+        Log.note("import", "asked whether to replace: " + parts.join("; "))
+        menu.show([
+            { header: "Import Playlist" },
+            { note: "It has " + parts.join(", and ") + ". The archive's can take their place, the old presentations kept among the "
+                    + "editor's backups; or what is here can be kept as it is, and the playlist added beside it." },
+            { label: "Replace Them", run: () => importing(true) },
+            { label: "Keep What Is Here", run: () => importing(false) },
+            { label: "Cancel", run: () => Log.note("import", "not done") }
+        ], importAnchor ?? toolbar)
     }
 
     // Adds an empty playlist, or with `folder` an empty playlist folder, inside the
@@ -5290,7 +5336,7 @@ Window {
 
         title: "Import Playlist"
         nameFilters: ["ProPresenter playlists (*.proplaylist)", "All files (*)"]
-        onAccepted: win.catalog.importPlaylist(selectedFile, win.libraryPath, win.newNodeParent())
+        onAccepted: win.askPlaylistImport(selectedFile)
     }
 
     // Files are added to the media playlist being browsed, where they are on disk.

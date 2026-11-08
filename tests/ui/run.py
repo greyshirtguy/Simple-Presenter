@@ -843,6 +843,23 @@ def prepare_chords(workspace, test_dir):
         out.write(PLAIN_SONG)
 
 
+def prepare_playlistimport(workspace, test_dir):
+    """An exported playlist (.proplaylist) for the test to import, in the workspace's folder, made of the copy's own files:
+    its playlists file as the archive's playlist (so every playlist in it has the name of one here), "Abandoned.pro" with
+    the words of "Fresh Wind.pro" in it (a presentation the library has, that the archive has otherwise), and "Brand New
+    Song.pro" (one it has not). The bytes each should end up as are kept beside it, for the test to compare."""
+    import zipfile
+    library = os.path.join(workspace, "Libraries", "Demo")
+    with open(os.path.join(library, "Fresh Wind.pro"), "rb") as source:
+        other = source.read()
+    with open(os.path.join(workspace, "Playlists", "Library"), "rb") as source:
+        playlists = source.read()
+    with zipfile.ZipFile(os.path.join(workspace, "Exported.proplaylist"), "w") as archive:
+        archive.writestr("data", playlists)
+        archive.writestr("Abandoned.pro", other)
+        archive.writestr("Brand New Song.pro", other)
+
+
 def prepare_lyrics(workspace, test_dir):
     """A lyrics file as SongSelect gives one out, in the workspace's folder, for the test to import."""
     with open(os.path.join(workspace, "Morning Song-lyrics.txt"), "w", encoding="utf-8") as out:
@@ -3721,6 +3738,7 @@ TESTS = {
     "backgroundsound": test("Demo"),
     "slideimage": test("Act", timeout=240),
     "gridscroll": test("Demo", env={"SP_TEST_REMEMBER": "1"}),
+    "playlistimport": test("Demo", prepare=prepare_playlistimport),
     "transport": test("Demo"),
     "timers": test("Demo"),
     "link": test("ProPresenter MR"),

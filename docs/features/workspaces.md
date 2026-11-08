@@ -40,7 +40,14 @@ one that mirrors the folders under `Media`: a playlist for each folder of media.
 
 An exported playlist is imported from the "+" beside Playlists. Its presentations go
 into the library last browsed and its media under `Media`, keeping the folders it had
-below ProPresenter's own `Media` folder; files already there are left as they are.
+below ProPresenter's own `Media` folder. Where some of its presentations are in the
+library already, or a playlist here has its playlist's name, it asks first: **Replace
+Them** puts the archive's presentations in place of the library's (each old file kept
+first among the editor's backups, in the app's data folder) and its playlist in place of
+the one of that name, where that one is; **Keep What Is Here** leaves them as they are
+and adds the playlist beside the old one. Media files already there are always left as
+they are, a file of the same name being taken for the same file. (A guess at what
+ProPresenter asks here.)
 The "+" beside Libraries makes a new presentation in the library that is open, makes a
 new library, which is a folder, brings a song in from a ChordPro file
 ([Chords](chords.md)), and brings a song's words in from SongSelect (below).
