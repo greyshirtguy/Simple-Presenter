@@ -159,7 +159,7 @@ QtObject {
                 clearSlide()
                 check("a slide cleared by hand is not marked", cleared && !clearedByCue && !slideCell(kept.slide + 1).live)
                 testInput.key(Qt.Key_Right)
-                check("and the arrow key brings that one back", liveIndex === kept.slide + 1 && !cleared)
+                check("and the arrow key goes on to the slide after it", liveIndex === kept.slide + 2 && !cleared, liveIndex)
                 const lines = testInput.readText(Log.path).split("\n")
                 check("the log says the slide was cleared by its own action", lines.some(l => l.includes("the slide, by its own action")))
                 sidePanel.showControlTab = "macros"

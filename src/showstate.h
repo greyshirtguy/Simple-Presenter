@@ -309,9 +309,9 @@ public:
     // that it went live by the going on above and not by anyone's hand.
     Effects goLive(const Cue &cue, bool withoutMedia, const Workspace &workspace, bool byTimer = false);
     // Where a step of `delta` slides takes the show, for whoever is looking at the
-    // presentation `key` of `playlistId`: from a cleared output, back to the slide it
-    // was at (unless that slide cleared itself, which it would only do again); from
-    // another presentation, to its first slide.
+    // presentation `key` of `playlistId`: from the slide it is at, whether that is on
+    // show or has been cleared (Next after a clear is the next slide, not the cleared
+    // one again); from another presentation, to its first slide.
     // With `announcements`, the same for the announcements: from where they are.
     // A disabled slide is passed over, by the places in `disabled` of that presentation,
     // which has `count` slides (the maintainer's choice, 2026-10-22: Next and Previous,

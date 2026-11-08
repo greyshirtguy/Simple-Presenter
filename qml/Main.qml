@@ -4378,9 +4378,9 @@ Window {
     }
 
     // Moves the live slide within the presentation being viewed. From a cleared output
-    // it brings the current slide back (unless that slide is one that clears itself,
-    // which would only clear itself again); from another presentation it starts at
-    // the top.
+    // it goes on from the slide that was cleared, to the one after it or before it,
+    // as from one on show (show::State::stepTarget); from another presentation it
+    // starts at the top.
     //
     // Next on a slide on show that has an On Click build still to run runs that build
     // instead (see show::State::stepBuild).

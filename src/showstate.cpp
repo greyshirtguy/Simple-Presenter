@@ -459,10 +459,12 @@ int State::stepTarget(const QString &key, const QString &playlistId, int delta, 
     // From another presentation, its first slide that is not disabled
     if (!here)
         return enabledFrom(0, 1, count, disabled);
-    const bool back = announcements ? announcement.cleared && !announcement.clearedByCue : cleared && !clearedByCue;
+    // From a cleared layer the step is taken from the slide it was at, as from one on
+    // show: Next is the slide after the one cleared, not that one again (the maintainer's
+    // ask of 2026-11-08, after running services; it had brought the cleared slide back
+    // until then). Previous is the one before it, which is a GUESS at ProPresenter, which
+    // keeps the cleared slide marked and steps on from it.
     const int from = announcements ? announcement.index : index;
-    if (back)
-        return from;
     const int target = from + delta;
     if (target < 0 || (count >= 0 && target >= count))
         return target;

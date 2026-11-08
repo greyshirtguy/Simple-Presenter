@@ -259,8 +259,8 @@ QtObject {
                 return 800
             },
             () => {
-                check("a step from where they were cleared brings back the notice they were at", Show.announcementIndex === 1 && Show.announcementLive
-                      && both(atNotice, "#00ff00") && both(atPlain, "#00ffff"), drawn())
+                check("a step from where they were cleared goes on to the notice after the one they were at", Show.announcementIndex === 2 && Show.announcementLive
+                      && both(atNotice, "#0000ff"), drawn())
                 click(centre(slideCell(2)))
                 return 1500
             },

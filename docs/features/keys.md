@@ -4,7 +4,7 @@
 
 | Key | Action |
 |---|---|
-| Right, Space / Left | Next / previous slide |
+| Right, Space / Left | Next / previous slide; after the slide is cleared, the one after / before the slide cleared |
 | Down / Up | Next / previous presentation |
 | F1 | Clear the first [clear group](clear-groups.md), which to begin with is Clear All |
 | F2 / F3 / F4 / F5 / F6 | Clear the slide layer / media layer / props / audio / messages |

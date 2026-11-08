@@ -102,7 +102,7 @@ Item {
                 testInput.key(Qt.Key_F2)
                 smokeCheck("F2 clears the slide", cleared && liveSlide === null)
                 testInput.key(Qt.Key_Space)
-                smokeCheck("Space brings it back", !cleared && liveIndex === 1)
+                smokeCheck("Space goes on to the slide after the one cleared", !cleared && liveIndex === 2)
                 key = documentKey
                 testInput.key(Qt.Key_Down)
                 smokeCheck("Down opens the next presentation", documentKey !== key && !viewingLive)

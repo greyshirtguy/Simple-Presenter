@@ -522,7 +522,10 @@ private slots:
         QCOMPARE(show.stepTarget("song.pro", "sunday", 1), 0);
     }
 
-    void steppingFromAClearedOutputBringsTheSlideBack()
+    // Next after a clear is the slide after the one cleared, and Previous the one before
+    // it, as from a slide on show (the maintainer's ask of 2026-11-08: it had brought
+    // the cleared slide back)
+    void steppingFromAClearedOutputGoesOnFromTheClearedSlide()
     {
         State show;
         const Presentation song = plainSong();
@@ -531,8 +534,16 @@ private slots:
         QVERIFY(show.cleared);
         QVERIFY(!show.clearedByCue);
         QVERIFY(!show.cueLive());
-        QCOMPARE(show.stepTarget("song.pro", "", 1), 2);
-        QCOMPARE(show.stepTarget("song.pro", "", -1), 2);
+        QCOMPARE(show.stepTarget("song.pro", "", 1), 3);
+        QCOMPARE(show.stepTarget("song.pro", "", -1), 1);
+        // Past either end is nowhere, as it is from a slide on show
+        show.goLive(song.cue(0), false, workspace());
+        show.clearSlide();
+        QCOMPARE(show.stepTarget("song.pro", "", -1), -1);
+        // A disabled slide after it is passed over, as Next always passes one
+        show.goLive(song.cue(1), false, workspace());
+        show.clearSlide();
+        QCOMPARE(show.stepTarget("song.pro", "", 1, false, {2}, int(song.slides.size())), 3);
     }
 
     // A slide with On Click builds: Next runs them, one at a time, and then goes on; a
@@ -569,11 +580,11 @@ private slots:
         // Triggered again, it starts again
         show.goLive(song.cue(1), false, workspace());
         QCOMPARE(show.buildStep, 0);
-        // Cleared, it is not stepped, and Next brings it back
+        // Cleared, it is not stepped, and Next goes on to the slide after it
         show.clearSlide();
         QVERIFY(show.stepBuild("song.pro", "", -1, &ran).isEmpty());
         QVERIFY(!ran);
-        QCOMPARE(show.stepTarget("song.pro", "", 1), 1);
+        QCOMPARE(show.stepTarget("song.pro", "", 1), 2);
         // A slide without builds never is
         show.goLive(song.cue(2), false, workspace());
         QVERIFY(show.stepBuild("song.pro", "", -1, &ran).isEmpty());
@@ -759,9 +770,10 @@ private slots:
         QCOMPARE(show.stepTarget("notices.pro", "", -1, true), -1);
         // Another presentation looked at as announcements starts at its top.
         QCOMPARE(show.stepTarget("other.pro", "", 1, true), 0);
-        // Cleared, a step brings back the slide they were at.
+        // Cleared, a step goes on from the slide they were at, as the show's own does.
         show.clearAnnouncements();
-        QCOMPARE(show.stepTarget("notices.pro", "", 1, true), 0);
+        QCOMPARE(show.stepTarget("notices.pro", "", 1, true), 1);
+        QCOMPARE(show.stepTarget("notices.pro", "", -1, true), -1);
         // And the show's own steps go from the show's own slide throughout.
         QCOMPARE(show.stepTarget("song.pro", "", 1), 3);
         QCOMPARE(show.stepTarget("notices.pro", "", 1), 0);
