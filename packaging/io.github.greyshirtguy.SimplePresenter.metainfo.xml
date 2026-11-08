@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.129" date="2026-11-09">
+      <description>
+        <p>
+          Importing a playlist offers to replace what is here; media a slide brings comes in
+          by the media transition, whose controls are under the media bin's thumbnails; keys
+          for the thumbnails' size; and how long the slides' grid takes to move, and its easing.
+        </p>
+      </description>
+    </release>
     <release version="0.128" date="2026-11-08">
       <description>
         <p>

@@ -6,6 +6,23 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.129](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.129) · 2026-11-09
+
+- Importing an exported playlist asks first where some of its presentations are in the
+  library already, or a playlist here has its playlist's name: **Replace Them** (the old
+  presentations kept among the editor's backups, each playlist put in place of the one of
+  its name) or **Keep What Is Here**, as it always did
+  ([Workspaces](docs/features/workspaces.md)).
+- Media a slide brings comes in by the media transition, as media played from the bin
+  does, and no longer by the slide's.
+- The media transition's controls are under the media bin's thumbnails, and beside the
+  slides' while the bin is hidden or in Simple View; the slides' are on a faint orange
+  and the media's on a faint purple ([Transitions](docs/features/transitions.md)).
+- **Ctrl+=** and **Ctrl+-** make the thumbnails under the pointer larger and smaller,
+  the media bin's or the slides'.
+- Settings → Slides has how long the slides' grid takes to move to the live slide, and
+  whether it eases in and out of the move (on unless switched off).
+
 ## [0.128](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.128) · 2026-11-08
 
 - A shape can be filled with a still picture of the slide that is live, or of the one
