@@ -167,6 +167,17 @@ Item {
 
     }
 
+    // Says when the pointer is over this pane, for Ctrl+= and Ctrl+- to make its thumbnails
+    // larger or smaller (see Main's thumbnailsUnderPointer)
+    HoverHandler {
+        onHoveredChanged: {
+            if (hovered)
+                slides.win.thumbnailsUnderPointer = "slides"
+            else if (slides.win.thumbnailsUnderPointer === "slides")
+                slides.win.thumbnailsUnderPointer = ""
+        }
+    }
+
     // A selected slide's ring, where the live slide's is (made only for a selected slide
     // that is not live). The blue is a GUESS at ProPresenter's, which marks its selected
     // slides with the system's colour for a selection.

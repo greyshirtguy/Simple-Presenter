@@ -23,6 +23,7 @@
 | Ctrl+C / Ctrl+V | Copy the selected rows of a playlist / paste them under the row selected, while the rows are what was last clicked; a click on a slide, or Esc, and Ctrl+V is the media bin again |
 | Ctrl+V | Show or hide the media bin (unless rows are being pasted, above) |
 | Ctrl+1 / Ctrl+2 | Switch the audience screens / the stage screens on or off |
+| Ctrl+= / Ctrl+- | Make the thumbnails larger / smaller: the media bin's where the pointer is over the bin, the slides' otherwise |
 | Ctrl+, | The settings, from the editor as well |
 | Esc | Close a menu, or the [Text](text-format.md) popover; then let go of the slides selected; then leave the playlist's rows, so that Ctrl+V is the media bin again |
 

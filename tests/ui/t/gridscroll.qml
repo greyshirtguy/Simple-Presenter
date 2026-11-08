@@ -7,7 +7,8 @@ import "lib.js" as Lib
 // bottom row in view brings the row under it into view, the grid moving there smoothly, frame by frame, a moment after
 // the change; one in a row above moves nothing. Just in Time, chosen on the settings screen and kept in the settings: the
 // grid stays put while the live slide is in view, and moves, smoothly, to bring one in that is not. How long it takes and
-// whether it eases in and out of the move (on, unless switched off) are settings there too, kept in the settings.
+// whether it eases in and out of the move (on, unless switched off) are settings there too, kept in the settings. And
+// Ctrl+- and Ctrl+= make the thumbnails the pointer is over smaller and larger, the slides' or the media bin's.
 QtObject {
     id: t
 
@@ -73,6 +74,48 @@ QtObject {
                 return 600
             },
             () => {
+                // ---- Ctrl+- and Ctrl+=, for the thumbnails the pointer is over
+                const grid = view().mapToItem(null, view().width / 2, view().height / 2)
+                testInput.mouse(1, grid.x, grid.y)
+                kept.slideWidth = thumbnailWidth
+                kept.mediaWidth = mediaThumbnailWidth
+                return 200
+            },
+            () => {
+                check("(the pointer over the slides)", thumbnailsUnderPointer === "slides", thumbnailsUnderPointer)
+                testInput.key(Qt.Key_Minus, Qt.ControlModifier)
+                return 300
+            },
+            () => {
+                check("Ctrl+- over the slides makes their thumbnails smaller, and the media's as they were", thumbnailWidth < kept.slideWidth
+                      && mediaThumbnailWidth === kept.mediaWidth, kept.slideWidth + " -> " + thumbnailWidth)
+                kept.smaller = thumbnailWidth
+                testInput.key(Qt.Key_Equal, Qt.ControlModifier)
+                return 300
+            },
+            () => {
+                // (By the − and + buttons' steps, which need not come back to the size it had: see zoomThumbnails)
+                check("and Ctrl+= larger again", thumbnailWidth > kept.smaller, kept.smaller + " -> " + thumbnailWidth)
+                kept.slideWidth = thumbnailWidth
+                const bin = named("mediaGrid")
+                const over = bin.mapToItem(null, bin.width / 2, bin.height / 2)
+                testInput.mouse(1, over.x, over.y)
+                return 200
+            },
+            () => {
+                check("(the pointer over the media bin)", thumbnailsUnderPointer === "media", thumbnailsUnderPointer)
+                testInput.key(Qt.Key_Minus, Qt.ControlModifier)
+                return 300
+            },
+            () => {
+                check("over the media bin, Ctrl+- makes the media's smaller, and the slides' as they were", mediaThumbnailWidth < kept.mediaWidth
+                      && thumbnailWidth === kept.slideWidth, kept.mediaWidth + " -> " + mediaThumbnailWidth)
+                kept.smaller = mediaThumbnailWidth
+                testInput.key(Qt.Key_Equal, Qt.ControlModifier)
+                return 300
+            },
+            () => {
+                check("and Ctrl+= larger again", mediaThumbnailWidth > kept.smaller, kept.smaller + " -> " + mediaThumbnailWidth)
                 view().positionViewAtBeginning()
                 kept.columns = view().columns
                 return 300

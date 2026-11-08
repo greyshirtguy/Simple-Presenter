@@ -176,6 +176,17 @@ Rectangle {
         border.color: "#c0ffffff"
     }
 
+    // Says when the pointer is over this pane, for Ctrl+= and Ctrl+- to make its thumbnails
+    // larger or smaller (see Main's thumbnailsUnderPointer)
+    HoverHandler {
+        onHoveredChanged: {
+            if (hovered)
+                bin.win.thumbnailsUnderPointer = "media"
+            else if (bin.win.thumbnailsUnderPointer === "media")
+                bin.win.thumbnailsUnderPointer = ""
+        }
+    }
+
     // A thin foot under the two, with a line over it, as the slides have under them: the
     // media transition, which all media comes in by, under the thumbnails at their left, as
     // the slides' is under the slides (the maintainer, 2026-11-08: it had been under the

@@ -98,6 +98,7 @@ is longer, and not even it is the whole of it.
 | Ctrl+Alt+C | The Calendar |
 | Ctrl+V | Show or hide the media bin (unless rows are being pasted, above) |
 | Ctrl+1 / Ctrl+2 | The audience screens / the stage screens on or off |
+| Ctrl+= / Ctrl+- | Make the thumbnails larger / smaller: the media bin's where the pointer is over the bin, the slides' otherwise |
 | Ctrl+, | The settings |
 
 ## Where things are kept

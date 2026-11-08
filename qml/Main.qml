@@ -660,6 +660,10 @@ Window {
     // view with it, or "justInTime", bringing the live slide in only once it is out of
     // view. Set on the settings screen, Slides; the app's own, kept in its settings.
     property string slideScroll: "early"
+    // Which thumbnails the pointer is over, for Ctrl+= and Ctrl+- to make larger or smaller:
+    // "slides", "media", or "" for neither (set by the two grids as the pointer comes and
+    // goes)
+    property string thumbnailsUnderPointer: ""
     // How long the grid takes to move there, in seconds, and whether it eases in and out of
     // the move (a gentle start and stop) or moves at one speed throughout: set on the same
     // page, the app's own, kept in its settings (the maintainer's ask of 2026-11-08)
@@ -6117,6 +6121,17 @@ Window {
             }
             if (event.modifiers & Qt.ControlModifier) {
                 switch (event.key) {
+                case Qt.Key_Equal:
+                case Qt.Key_Plus:
+                case Qt.Key_Minus:
+                    // The thumbnails made larger or smaller, as the − and + buttons do: the
+                    // media bin's where the pointer is over them, the slides' otherwise (the
+                    // maintainer's ask of 2026-11-08). Ctrl+= is Ctrl++ without Shift.
+                    if (win.thumbnailsUnderPointer === "media" && win.mediaBinVisible)
+                        win.zoomMediaThumbnails(event.key === Qt.Key_Minus ? -1 : 1)
+                    else
+                        win.zoomThumbnails(event.key === Qt.Key_Minus ? -1 : 1)
+                    break
                 case Qt.Key_C:
                     // The rows selected in the playlist, while the rows are what was last
                     // clicked (see copiedRows); otherwise nothing is copied here
