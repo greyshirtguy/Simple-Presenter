@@ -39,8 +39,8 @@ ProPresenter: it **stops** on its last frame, or **loops** for good, or loops fo
 **play count**, or loops for a **length of time**, after which it stops where it is. A
 slide with a video has a second icon for this under the first: a square for stop, an
 arrow going round for loop, with the count or the time after it. Media dropped on a
-slide starts out as ProPresenter would have it, a background looping and a foreground
-stopping.
+slide that had none starts out as ProPresenter would have it, a background looping
+and a foreground stopping.
 
 Each of the two icons is its own thing to right-click, and its menu changes what it
 shows, with the way it is now ticked: Background or Foreground for the one; Stop,
@@ -70,7 +70,13 @@ becomes, whichever of the two it came from:
 - **On a slide**, it is the media that slide triggers, as a background: something to go
   behind the slide's words. If the slide already triggers media, the new file takes its
   place and plays as the old one did, so this week's video dropped on last week's is
-  still the foreground that was.
+  still the foreground that was: it keeps the old one's layer, and what of its settings
+  still makes sense for another file, as the Media Inspector's Replace does (how it is
+  fitted, turned and flipped, its effects, and for a video in place of a video how it
+  plays on from its end, how loud it is and where its sound goes). Not its crop, its
+  trim or its thumbnail's moment, which were the old file's. Either way the slide's
+  label becomes the file's name, in place of whatever it said. (Both the maintainer's
+  choices; whether ProPresenter does either has not been looked at.)
 - **Between two slides** (or before the first, or after the last), it gets a slide of
   its own there, with nothing on it, that triggers it as a foreground. That is how a
   video takes its turn in the run of a presentation, and it is what ProPresenter makes

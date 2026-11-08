@@ -549,19 +549,40 @@ QString ProDocument::setCueMedia(const QString &path, const QString &cueId, cons
             break;
         }
     }
-    if (!action) {
+    rv::data::Media made = workspace::mediaElement(mediaPath, workspace);
+    if (action) {
+        // New media in place of old takes on how the old was played, whatever a slide
+        // that had none would have made of it (the maintainer's ask of 2026-11-08, so
+        // that this week's video dropped on last week's foreground is a foreground with
+        // its sound, as that was): the layer, which is the action's and stays as it is,
+        // and the transition and effects the action has; and of the old media's own
+        // settings, what still makes sense for another file, which is what the Media
+        // Inspector's Replace keeps (mediasettings::carryOver: how it is fitted, turned
+        // and flipped, its effects, and for a video after a video how it plays on from
+        // its end and how loud it is and where its sound goes). A video in place of a
+        // still has no way of playing on to take, and plays as its layer has one play.
+        const bool afterVideo = action->media().element().has_video();
+        mediasettings::carryOver(action->media().element(), &made);
+        *action->mutable_media()->mutable_element() = std::move(made);
+        if (!afterVideo)
+            workspace::setMediaForeground(action, action->media().layer_type() == rv::data::Action::LAYER_TYPE_FOREGROUND);
+    } else {
         action = cue->add_actions();
         action->mutable_uuid()->set_string(newUuid());
         action->set_isenabled(true);
         action->set_type(rv::data::Action::ACTION_TYPE_MEDIA);
         action->mutable_media()->set_layer_type(rv::data::Action::LAYER_TYPE_BACKGROUND);
         action->mutable_media()->mutable_audio();
+        *action->mutable_media()->mutable_element() = std::move(made);
+        workspace::setMediaForeground(action, foreground);
     }
     // It described the old file's length.
     action->clear_duration();
 
-    *action->mutable_media()->mutable_element() = workspace::mediaElement(mediaPath, workspace);
-    workspace::setMediaForeground(action, foreground);
+    // The slide's label is the file's name, in place of whatever it was (the maintainer's
+    // ask of 2026-11-08, "even overwriting existing label"), with the colour it had. A cue with no slide to show, only media, has no label to change: its
+    // file's name is what it is listed by already (see the reading of a cue above).
+    labelfile::set(cue, {QFileInfo(mediaPath).fileName(), labelfile::of(*cue).color});
 
     return writePresentation(path, presentation);
 }

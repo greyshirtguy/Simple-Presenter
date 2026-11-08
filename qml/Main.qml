@@ -1661,13 +1661,15 @@ Window {
     // How the file is to play is settled by where it lands, not by where it came from.
     // On a slide that triggers no media it is a background: something to go behind the
     // slide's words. On a slide that does, it takes the place of what was there and
-    // plays as that did, so that this week's video dropped on last week's is still the
-    // foreground that was. (Media dropped between slides gets a slide of its own, as a
-    // foreground: see insertMediaSlides().)
+    // plays as that did, its layer and its settings (how it plays on from its end, how
+    // loud, how it is fitted, its effects), so that this week's video dropped on last
+    // week's is still the foreground that was (ProDocument::setCueMedia). Either way the
+    // slide is labelled with the file's name, in place of the label it had. (Media
+    // dropped between slides gets a slide of its own, as a foreground: see
+    // insertMediaSlides().)
     function assignMedia(index, path) {
         const slide = document.slides[index]
-        const error = path !== "" ? catalog.setSlideMedia(document.path, slide.id, path,
-                                                          slide.mediaName !== "" && slide.mediaForeground)
+        const error = path !== "" ? catalog.setSlideMedia(document.path, slide.id, path, false)
                                   : catalog.removeSlideMedia(document.path, slide.id)
         if (report(error))
             reloadDocument()

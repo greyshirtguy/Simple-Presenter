@@ -144,9 +144,12 @@ struct ProDocument
     static QString insertArrangementGroup(const QString &path, const QString &id, const QString &groupId, int landing);
     static QString moveArrangementGroup(const QString &path, const QString &id, int from, int landing);
     static QString removeArrangementGroup(const QString &path, const QString &id, int place);
-    // Makes the cue with this id trigger the given image or video file as its media, as
-    // a background or a foreground (see workspace::MediaBehaviour), replacing the media
-    // it triggered before if any, and writes the file back. The media is recorded
+    // Makes the cue with this id trigger the given image or video file as its media, and
+    // gives its slide the file's name as its label, and writes the file back. A cue that
+    // triggered no media triggers it as a background or a foreground, as `foreground`
+    // says (see workspace::MediaBehaviour); one that did has the new file in place of the
+    // old, played as the old was (its layer, and its settings that still make sense for
+    // another file, as mediasettings::carryOver keeps them). The media is recorded
     // relative to `workspace` as well as by its path, if it is inside. Returns an error
     // message, empty on success.
     static QString setCueMedia(const QString &path, const QString &cueId, const QString &mediaPath, bool foreground,

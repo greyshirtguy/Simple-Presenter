@@ -280,8 +280,9 @@ public:
     Q_INVOKABLE QString insertArrangementGroup(const QString &path, const QString &id, const QString &groupId, int landing);
     Q_INVOKABLE QString moveArrangementGroup(const QString &path, const QString &id, int from, int landing);
     Q_INVOKABLE QString removeArrangementGroup(const QString &path, const QString &id, int place);
-    // Makes a slide (by its `id`) trigger the given media file, as a background or a
-    // foreground, replacing any media it triggered before, and saves the presentation
+    // Makes a slide (by its `id`) trigger the given media file, labelled with the file's
+    // name: as a background or a foreground for a slide that had no media, and played as
+    // the old was for one that had (ProDocument::setCueMedia). Saves the presentation
     // file. Returns an error message, empty on success.
     Q_INVOKABLE QString setSlideMedia(const QString &path, const QString &slideId, const QString &mediaPath,
                                       bool foreground);
