@@ -6,6 +6,23 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.127](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.127) · 2026-11-08
+
+- A slide with a background video has a speaker icon under its other two, struck
+  through while the background is muted, which a background is here. A plain click on
+  it has the background heard, and another mutes it again, at once if it is playing; it
+  stays a background. This is the app's own, kept in the workspace's folder in
+  `SimplePresenter/Background Sound.json` ([Media](docs/features/media.md)).
+- Media dropped on a slide labels the slide with the file's name, in place of the label
+  it had; and dropped on a slide that has media, it plays as that did: its layer, how it
+  plays on from its end, how loud, how it is fitted and its effects.
+- Next (Space, Right, the API's next) after the slide is cleared is the slide after the
+  one cleared, not the cleared one again; Previous is the one before it.
+- The icon that says whether media is a background or a foreground is drawn as
+  ProPresenter draws it: the foreground's layer at the top left, the background's at the
+  bottom right.
+- A slide that goes live in the bottom row in view brings the next row into view.
+
 ## [0.126](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.126) · 2026-11-08
 
 - The media bin has a [transition](docs/features/transitions.md) of its own, chosen with

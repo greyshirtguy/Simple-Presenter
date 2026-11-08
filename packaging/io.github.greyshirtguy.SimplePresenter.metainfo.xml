@@ -39,6 +39,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.127" date="2026-11-08">
+      <description>
+        <p>
+          A slide's background video has a speaker that turns its sound on and off; media
+          dropped on a slide labels it and plays as what it replaces; Next after a clear is
+          the next slide; the media icon is drawn as ProPresenter draws it; and a live slide
+          in the bottom row brings the next row into view.
+        </p>
+      </description>
+    </release>
     <release version="0.126" date="2026-11-08">
       <description>
         <p>
