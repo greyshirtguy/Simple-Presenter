@@ -45,7 +45,12 @@ at a time: the first audience screen to begin with, or whichever is picked from 
 name under it, which lists the audience screens and then the stage screens, as
 ProPresenter's picker under its preview does. What is picked is kept for the workspace;
 a screen that is no longer there gives way to the first audience screen again. A stage
-screen is previewed with its layout, Screen Previews and all, so a stage screen that is
+screen is previewed as the stage screen itself draws it, with nothing left out for
+speed: its layout, with the shadows and faded edges of its boxes, a timer's hundredths
+at every beat, a video input in a shape at every frame, its pictures of the slides and
+its Screen Previews. (A preview of an audience screen leaves the shadows out, and
+takes a playing video's frames a tenth of a second apart: drawn beside the output, the
+rest of it would cost the output's own frames.) So a stage screen that is
 sent to **Nothing**, with a layout of shapes filled with Screen Previews of other
 screens, is a way to look at several screens at once. (Until 0.103 there were two
 previews, of the first audience screen and of the first stage screen.)

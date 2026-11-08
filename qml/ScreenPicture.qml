@@ -447,7 +447,13 @@ Item {
             }
         }
 
-        // ---- A stage screen: its layout, or with none the plain view
+        // ---- A stage screen: its layout, or with none the plain view. In the operator's
+        // preview (`inner`), drawn as the stage screen draws it, with nothing left out for
+        // speed: its words' shadows and faded edges, a timer's hundredths at every beat,
+        // a video input in a shape at every frame (see SlideElement), and its pictures of
+        // the slides. The maintainer, 2026-11-08: "for stage display previews - we need to
+        // see all live". (The preview of an audience screen keeps its choices for speed:
+        // drawn in the operator window beside the output, it cost the output's frames.)
         Loader {
             anchors.fill: frame
             active: picture.stage
@@ -456,7 +462,7 @@ Item {
                 layout: picture.win.stageSlideOf(picture.screen.id)
                 currentText: picture.win.stageCurrentText
                 nextText: picture.win.stageNextText
-                effects: picture.effects
+                effects: picture.effects || picture.inner
                 pictures: picture.pictures
             }
         }

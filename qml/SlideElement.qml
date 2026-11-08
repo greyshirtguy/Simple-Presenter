@@ -365,7 +365,10 @@ Item {
                 made.index = Qt.binding(() => element.source.fillInputIndex ?? 0)
                 made.fitting = Qt.binding(() => element.source.fillMediaScale ?? 0)
                 made.still = Qt.binding(() => element.pictures === null && !element.standIns)
-                made.interval = Qt.binding(() => element.pictures !== null && element.Window.window === element.pictures || element.standIns ? 100 : 0)
+                // (Every frame in what the operator window shows of a stage screen, which is
+                // drawn as the stage draws it, effects and all: see ScreenPicture)
+                made.interval = Qt.binding(() => (element.pictures !== null && element.Window.window === element.pictures && !element.effects)
+                                                 || element.standIns ? 100 : 0)
                 made.layer.effect = picture.layer.effect
                 made.layer.enabled = Qt.binding(() => rich.cut)
                 inputPicture = made
