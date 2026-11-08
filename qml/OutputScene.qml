@@ -43,9 +43,9 @@ Item {
     property vector4d tint
     property vector2d direction
     property int duration: 0
-    // The same for the media layer: the media bin's own transition (see Main.qml's
-    // mediaTransition), which media played from the bin comes in by. Media a slide
-    // brings with it comes in by the slide's, with the slide (showSlideWithMedia).
+    // The same for the media layer: the media transition (see Main.qml's mediaTransition,
+    // chosen under the media bin), which all media comes in by: played from the bin, by an
+    // action, or brought by a slide, which comes in with it (showSlideWithMedia).
     property string mediaShader: ""
     property vector4d mediaOptions
     property vector4d mediaTint
@@ -177,20 +177,16 @@ Item {
 
     // A slide and the media its cue triggers, which are to change as one. Media takes a
     // moment to have a picture to show (see MediaContent); while the media layer waits
-    // for it the slide waits as well, and the two layers then make their change in the
-    // same frame.
+    // for it the slide waits as well, and the two layers then begin their change in the
+    // same frame: the slide by its transition, the media by the media transition. (The
+    // maintainer, 2026-11-08: the media transition is for media brought by a slide's cue
+    // too; until then such media came in by the slide's, which was a GUESS at
+    // ProPresenter.)
     function showSlideWithMedia(slide, media, transition, times) {
         // A slide still held for other media has been passed over.
         heldSlide = undefined
-        // (By the slide's transition, its own or the slides', and not the media bin's)
-        mediaLayer.show(media, undefined, transition ?? slidesTransition())
+        mediaLayer.show(media)
         hold(slide, transition, times)
-    }
-
-    // The slides' transition as a layer takes one to make in place of its own (see
-    // TransitionLayer.show): for the media a slide brings with it
-    function slidesTransition() {
-        return { name: transitionName, shader: shader, options: options, tint: tint, direction: direction, duration: duration }
     }
 
     // A slide whose media is the media already there, which is left as it is. If that

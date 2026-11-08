@@ -3,8 +3,8 @@ import SimplePresenterApp
 import "lib.js" as Lib
 
 // The media bin's own transition: chosen at the bin's foot with the same controls as the slides' under the slides, kept
-// in the settings apart from the slides', and what media played from the bin comes in by on the media layer, while media
-// a slide brings with it comes in with the slide, by the slide's transition; the foot drawn.
+// in the settings apart from the slides', and what all media comes in by on the media layer, media a slide brings with
+// it included, which comes in with the slide; the foot drawn.
 QtObject {
     id: t
 
@@ -74,18 +74,20 @@ QtObject {
                 return 900
             },
             () => {
-                check("a slide's media comes in with the slide, by the slide's transition and not the bin's", liveIndex === 0 && liveMedia !== null
-                      && began("media layer").length === kept.mediaLines + 1 && lastOf("media layer") === lastOf("slide layer") && lastOf("media layer") !== "Fade",
+                // (The maintainer, 2026-11-08: the media transition is for a slide's media too; it had been the slide's)
+                check("a slide's media comes in with the slide, by the media transition, the slide by the slides'", liveIndex === 0 && liveMedia !== null
+                      && began("media layer").length === kept.mediaLines + 1 && lastOf("media layer") === "Fade" && lastOf("slide layer") === "Dissolve",
                       lastOf("slide layer") + " / " + lastOf("media layer"))
                 // A picture from the bin: by the bin's
                 const cell = binCell(m => !m.video)
                 check("(a picture in the bin)", cell !== null)
+                kept.fades = logged(/transition +media layer: Fade over 0.20 s/).length
                 click(centre(cell))
                 return 900
             },
             () => {
                 check("media played from the bin comes in by the bin's transition", liveMedia !== null && !liveMedia.video && lastOf("media layer") === "Fade"
-                      && logged(/transition +media layer: Fade over 0.20 s/).length === 1, lastOf("media layer"))
+                      && logged(/transition +media layer: Fade over 0.20 s/).length === kept.fades + 1, lastOf("media layer"))
                 check("and the slide layer was left alone", liveIndex === 0 && lastOf("slide layer") !== "Fade")
                 // The bin's menu, from its foot
                 click(centre(named("mediaTransitionButton")))
