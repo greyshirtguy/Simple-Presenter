@@ -130,20 +130,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.128: Pictures of the slides on a stage layout, a stage preview drawn in full, and a grid that glides.** A shape can be filled with a still picture of the live or the next slide, ProPresenter's Current Slide and Next Slide ([Stage layouts](docs/features/stage-layouts.md#pictures-of-the-slides)), and a picture of a screen shows the pictures that screen shows; the operator's preview of a stage screen is drawn as the stage draws it; and the slides' grid moves smoothly to follow the live slide, early or just in time (Settings → Slides).
 - **0.127: A background's sound turned on from its slide, and fine tuning from running services.** A slide's background video has a speaker, struck through while it is muted, which a click turns on and off ([Media](docs/features/media.md)); media dropped on a slide labels the slide with the file's name, and in place of media plays as that did; Next after a clear is the slide after the one cleared; the media icon is drawn as ProPresenter draws it; and a live slide in the bottom row brings the next row into view.
 - **0.126: The media bin's own transition, rows copied and pasted, and an action for every selected slide.** The media bin has a [transition](docs/features/transitions.md) of its own at its foot, with the same controls as the slides', so that media from the bin can cut in while the slides dissolve; rows of a [playlist](docs/features/workspaces.md#rows-of-a-playlist) are copied with Ctrl+C and pasted with Ctrl+V under the row selected, into any playlist; and a slide's menu adds an action to every slide selected, when the slide clicked is among them.
 - **0.125: Rows of a playlist selected together, a meter for each channel, and songs from SongSelect.** Ctrl+click and Shift+click select rows of a [playlist](docs/features/workspaces.md#rows-of-a-playlist), Delete takes them out, and the search adds under the row selected; a [meter](docs/features/audio.md) beside the preview for each of the app's channels, laid out as ProPresenter's; a song's words brought in from [SongSelect](docs/features/workspaces.md#a-songs-words-from-songselect)'s lyrics file or the clipboard, with the lines on a slide, a theme, the library and a playlist asked; a timer set up over the [API](docs/features/api.md), as Companion's Timer Set does.
 - **0.124: A timer's text over a video changes with the video's frames.** A running timer or clock on a slide over a playing video no longer draws frames of the output's own, and nor do the fades of a look's layers, of props and of messages; the network [API](docs/features/api.md) keeps no more of one client than it should; a playlist bundle that inflates past what it says is found out before it fills the memory.
-- **0.123: How long the ~ key is held for Simple View is a setting.** Settings → Simple View, from 0.56 s to begin with (it was 0.7 s) down to 0, at which a press switches the view.
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.127_amd64.deb` from the
+`simplepresenter_0.128_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.127_amd64.deb
+sudo apt install ./simplepresenter_0.128_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

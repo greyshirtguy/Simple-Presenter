@@ -6,6 +6,21 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.128](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.128) · 2026-11-08
+
+- A shape can be filled with a still picture of the slide that is live, or of the one
+  after it: ProPresenter's stage layouts' Current Slide and Next Slide, which were left
+  empty, are drawn, and the editor's Fill menu has **Slide Image**
+  ([Stage layouts](docs/features/stage-layouts.md#pictures-of-the-slides)).
+- A picture of a screen shows the pictures that screen shows, one level down, never of a
+  screen it is already inside: a stage screen's picture of another stage screen has that
+  one's Screen Previews and pictures of the slides in it.
+- The operator's preview of a stage screen is drawn as the stage draws it: shadows,
+  faded edges, a timer's hundredths, a video input at every frame.
+- The slides' grid moves smoothly to follow the live slide, a moment after the change;
+  Settings → Slides has when: **Early** (the row after a live slide in the bottom row
+  brought into view) or **Just in Time**.
+
 ## [0.127](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.127) · 2026-11-08
 
 - A slide with a background video has a speaker icon under its other two, struck

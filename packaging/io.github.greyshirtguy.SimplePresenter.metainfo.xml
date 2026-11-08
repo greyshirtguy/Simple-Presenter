@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.128" date="2026-11-08">
+      <description>
+        <p>
+          Pictures of the live and the next slide on stage layouts, pictures of screens inside
+          pictures of screens, a stage preview drawn in full, and a slides' grid that moves
+          smoothly, early or just in time.
+        </p>
+      </description>
+    </release>
     <release version="0.127" date="2026-11-08">
       <description>
         <p>
