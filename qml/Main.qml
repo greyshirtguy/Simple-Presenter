@@ -655,6 +655,11 @@ Window {
     // media): from 0.05, nearly gone, to 1. Set on the settings screen. This is the
     // app's own, and is kept in its settings.
     property real actionIconOpacity: 0.8
+    // When the slides' grid moves to follow the slide that goes live (see the grid's
+    // revealLive): "early", bringing the row under a live slide in the bottom row into
+    // view with it, or "justInTime", bringing the live slide in only once it is out of
+    // view. Set on the settings screen, Slides; the app's own, kept in its settings.
+    property string slideScroll: "early"
     // Pane sizes, changed by dragging the dividers between them
     property real sidebarWidth: 260
     // How wide the media bin's list of playlists is. It starts as wide as the lists
@@ -4822,6 +4827,9 @@ Window {
         const iconOpacity = Number(saved("actionIconOpacity", actionIconOpacity))
         if (isFinite(iconOpacity))
             actionIconOpacity = Math.max(0.05, Math.min(1, iconOpacity))
+        const scrolling = String(saved("slideScroll", slideScroll))
+        if (scrolling === "early" || scrolling === "justInTime")
+            slideScroll = scrolling
 
         const tab = String(saved("showControlTab", "timers"))
         if (["timers", "props", "macros", "stage", "audio"].includes(tab))
@@ -4994,6 +5002,11 @@ Window {
             groupsChanged()
     }
     onActionIconOpacityChanged: save("actionIconOpacity", actionIconOpacity)
+    onSlideScrollChanged: {
+        save("slideScroll", slideScroll)
+        if (restored)
+            Log.note("settings", "the slides' grid follows the live slide " + (slideScroll === "early" ? "early" : "just in time"))
+    }
     onSimpleKeepsSidePanelChanged: save("simpleKeepsSidePanel", simpleKeepsSidePanel)
     onSimpleViewHoldChanged: {
         save("simpleViewHold", simpleViewHold)
@@ -6845,6 +6858,8 @@ Window {
         otherHotkeys: win.otherHotkeys
         actionIconOpacity: win.actionIconOpacity
         onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))
+        slideScroll: win.slideScroll
+        onSlideScrollEdited: (mode) => win.slideScroll = mode
         useX11: win.useX11
         onUseX11Edited: (useX11) => win.useX11 = useX11
         movingPreviews: win.movingPreviews

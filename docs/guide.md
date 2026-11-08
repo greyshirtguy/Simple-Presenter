@@ -51,6 +51,10 @@ These are not ProPresenter's.
   the action that clears that layer, or that clear group.
 - **How solid the icons on the slides are** is a setting (Settings → Slides), from
   nearly gone to solid.
+- **When the slides follow the live one** is a setting there too: **Early**, where a
+  slide that goes live in the bottom row in view brings the next row into view, or
+  **Just in Time**, where the slides move only once the live one is out of view. Either
+  way they move smoothly, just after the change.
 - **The meters beside the preview**: how many of the app's channels have one, from two
   to sixteen, and how solid they are, are settings (Settings → Audio).
 - **A slide disabled at a date.** Disable On… in a slide's menu sets a day and a time for

@@ -247,12 +247,13 @@ QtObject {
                       kept.bottom + " of " + kept.count + ", " + kept.columns + " a row")
                 kept.top = view.contentY
                 goLive(0)
-                return 300
+                return 800
             },
             () => {
                 check("a slide going live in the top row leaves the grid where it was", named("slideGrid").contentY === kept.top)
                 goLive(kept.bottom)
-                return 400
+                // (The grid moves a moment after the change, smoothly over a quarter of a second: see gridscroll)
+                return 900
             },
             () => {
                 check("a slide going live in the bottom row in view brings the row under it into view, and stays in view itself",

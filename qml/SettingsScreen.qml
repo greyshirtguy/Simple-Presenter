@@ -42,6 +42,8 @@ Rectangle {
     property string otherHotkeys: ""
     // How solid the icons on the slides are: see Main.qml
     property real actionIconOpacity: 0.8
+    // When the slides' grid follows the live slide: "early" or "justInTime" (see Main)
+    property string slideScroll: "early"
     // How many of the app's channels have a meter beside the preview, and how solid the
     // meters are: see Main.qml
     property int audioMeters: 2
@@ -74,6 +76,7 @@ Rectangle {
     // Settings → Copyright's Edit Template: the editor on the copyright display's template
     signal copyrightTemplateWanted()
     signal actionIconOpacityEdited(real opacity)
+    signal slideScrollEdited(string mode)
     signal useX11Edited(bool useX11)
     signal movingPreviewsEdited(bool on)
     signal movingPreviewEdited(bool on)
@@ -158,6 +161,70 @@ Rectangle {
             anchors.fill: parent
             hoverEnabled: true
             onClicked: screen.videoDecodingEdited(choice.mode)
+        }
+    }
+
+    // One of the ways the slides' grid follows the live slide, as a choice of the kind the
+    // video decoding has: a round button, its name, and what it does
+    component ScrollChoice: Item {
+        id: way
+
+        property string mode
+        property string title
+        property string detail
+        readonly property bool chosen: screen.slideScroll === mode
+
+        objectName: "slideScroll:" + mode
+        width: parent ? parent.width : 0
+        height: Math.max(22, wayWords.height)
+
+        Rectangle {
+            y: 2
+            width: 18
+            height: 18
+            radius: 9
+            color: "#15161a"
+            border.width: 1.5
+            border.color: way.chosen ? "#ff8a1f" : wayMouse.containsMouse ? "#8b8f98" : "#5c5f66"
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: 10
+                height: 10
+                radius: 5
+                visible: way.chosen
+                color: "#ff8a1f"
+            }
+        }
+
+        Column {
+            id: wayWords
+
+            x: 30
+            width: parent.width - 30
+            spacing: 2
+
+            Text {
+                color: "#e6e6e6"
+                font.pixelSize: 15
+                text: way.title
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: way.detail
+            }
+        }
+
+        MouseArea {
+            id: wayMouse
+
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: screen.slideScrollEdited(way.mode)
         }
     }
 
@@ -538,7 +605,8 @@ Rectangle {
             }
         }
 
-        // Slides: how the thumbnails of slides look
+        // Slides: how the thumbnails of slides look, and when the grid of them follows the
+        // slide that goes live
         Column {
             anchors.left: sectionList.right
             anchors.right: parent.right
@@ -635,6 +703,35 @@ Rectangle {
                         }
                     }
                 }
+            }
+
+            Text {
+                topPadding: 10
+                color: "#8d9097"
+                font.pixelSize: 11
+                font.bold: true
+                text: "THE SLIDES FOLLOW THE ONE THAT GOES LIVE"
+            }
+
+            ScrollChoice {
+                mode: "early"
+                title: "Early"
+                detail: "When the slide that goes live is in the bottom row of those in view, the slides move up a row, so that "
+                      + "the row after it is seen before it is reached."
+            }
+
+            ScrollChoice {
+                mode: "justInTime"
+                title: "Just in Time"
+                detail: "The slides move only when the one that goes live is out of view, to bring it in."
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: "Either way they move smoothly, a moment after the slide goes live, once its transition is done."
             }
         }
 

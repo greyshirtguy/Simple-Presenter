@@ -3719,6 +3719,7 @@ TESTS = {
     "media": test("Demo"),
     "mediatransition": test("Demo", env={"SP_TEST_REMEMBER": "1"}),
     "backgroundsound": test("Demo"),
+    "gridscroll": test("Demo", env={"SP_TEST_REMEMBER": "1"}),
     "transport": test("Demo"),
     "timers": test("Demo"),
     "link": test("ProPresenter MR"),
