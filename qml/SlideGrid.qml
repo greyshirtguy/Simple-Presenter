@@ -28,7 +28,7 @@ Item {
     required property var win
     // What the operator window needs of the grid itself: where it is scrolled to, how
     // wide it is and how many columns it has (for stepping the thumbnail size), and
-    // bringing a slide into view.
+    // bringing a slide into view (and a live one with the row under it, revealLive).
     property alias contentY: grid.contentY
     readonly property int columns: grid.columns
     readonly property real gridWidth: grid.width
@@ -39,6 +39,43 @@ Item {
 
     function positionViewAtIndex(index, mode) {
         grid.positionViewAtIndex(index, mode)
+    }
+
+    // Brings the slide at `index`, which has just gone live, into view, and the row under
+    // it as well where there is one: so that a slide that goes live in the bottom row in
+    // view has the grid moved up a row, and the slides to come are seen before they are
+    // reached (the maintainer's ask of 2026-11-08). The live slide at once, as it always
+    // was; the row under it a little later (rowUnder), once the change is on the screens
+    // and its transition done: a row brought into view has its thumbnails made, each a
+    // slide drawn afresh, and done in the click that work held the change up (the
+    // benchmark, 2026-11-08: a click on the Shapes 1.3 ms more work, the first frame of a
+    // transition later and its longest wait between frames longer, all three rounds).
+    // (Contain moves the grid only as far as it must, and not at all for what is in view
+    // already: so the grid seldom has to move at a change now, the row having come in
+    // already.)
+    function revealLive(index) {
+        if (index < 0 || index >= grid.count)
+            return
+        grid.positionViewAtIndex(index, GridView.Contain)
+        rowUnder.index = index
+        rowUnder.restart()
+    }
+
+    // The row under the live slide, brought into view after the change (see revealLive):
+    // and the live slide after it, so that in a grid too short for two rows it is the live
+    // slide that is seen
+    Timer {
+        id: rowUnder
+
+        property int index: -1
+
+        interval: Math.min(3000, Math.round(slides.win.transitionDuration * 1000) + 150)
+        onTriggered: {
+            if (index < 0 || index >= grid.count)
+                return
+            grid.positionViewAtIndex(Math.min(index + grid.columns, grid.count - 1), GridView.Contain)
+            grid.positionViewAtIndex(index, GridView.Contain)
+        }
     }
 
     // A selected slide's ring, where the live slide's is (made only for a selected slide

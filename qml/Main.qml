@@ -1363,7 +1363,7 @@ Window {
             Show.renamed(was, made.path)
             liveDocument = document
             Show.follow(Object.assign(cueAt(document, made.path, "", made.live), { destination: "" }))
-            grid.positionViewAtIndex(made.live, GridView.Contain)
+            grid.revealLive(made.live)
         } else {
             grid.positionViewAtBeginning()
         }
@@ -4231,7 +4231,7 @@ Window {
         // (The Bible's slides are no row of a playlist being browsed: stepping on from
         // their last goes nowhere.)
         goLiveIn(document, documentKey, viewedPlaylistId, index, withoutMedia)
-        grid.positionViewAtIndex(index, GridView.Contain)
+        grid.revealLive(index)
     }
 
     // The same for a slide of any presentation, open here or not (as catalog.open
@@ -5648,7 +5648,7 @@ Window {
                 return
             Show.goLive(announcements ? win.announcementCue(presentation, index) : win.liveCue(presentation, index), false, true)
             if (announcements ? win.viewingAnnouncements : win.viewingLive)
-                grid.positionViewAtIndex(index, GridView.Contain)
+                grid.revealLive(index)
         }
 
         function onAnnouncementsCleared() {
