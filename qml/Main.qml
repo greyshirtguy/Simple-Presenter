@@ -660,6 +660,11 @@ Window {
     // view with it, or "justInTime", bringing the live slide in only once it is out of
     // view. Set on the settings screen, Slides; the app's own, kept in its settings.
     property string slideScroll: "early"
+    // How long the grid takes to move there, in seconds, and whether it eases in and out of
+    // the move (a gentle start and stop) or moves at one speed throughout: set on the same
+    // page, the app's own, kept in its settings (the maintainer's ask of 2026-11-08)
+    property real slideScrollDuration: 0.4
+    property bool slideScrollEased: true
     // Pane sizes, changed by dragging the dividers between them
     property real sidebarWidth: 260
     // How wide the media bin's list of playlists is. It starts as wide as the lists
@@ -4830,6 +4835,10 @@ Window {
         const scrolling = String(saved("slideScroll", slideScroll))
         if (scrolling === "early" || scrolling === "justInTime")
             slideScroll = scrolling
+        const scrollTime = Number(saved("slideScrollDuration", slideScrollDuration))
+        if (isFinite(scrollTime))
+            slideScrollDuration = Math.max(0.1, Math.min(1.5, scrollTime))
+        slideScrollEased = String(saved("slideScrollEased", slideScrollEased)) !== "false"
 
         const tab = String(saved("showControlTab", "timers"))
         if (["timers", "props", "macros", "stage", "audio"].includes(tab))
@@ -5002,6 +5011,8 @@ Window {
             groupsChanged()
     }
     onActionIconOpacityChanged: save("actionIconOpacity", actionIconOpacity)
+    onSlideScrollDurationChanged: save("slideScrollDuration", slideScrollDuration)
+    onSlideScrollEasedChanged: save("slideScrollEased", slideScrollEased)
     onSlideScrollChanged: {
         save("slideScroll", slideScroll)
         if (restored)
@@ -6860,6 +6871,10 @@ Window {
         onActionIconOpacityEdited: (opacity) => win.actionIconOpacity = Math.max(0.05, Math.min(1, opacity))
         slideScroll: win.slideScroll
         onSlideScrollEdited: (mode) => win.slideScroll = mode
+        slideScrollDuration: win.slideScrollDuration
+        onSlideScrollDurationEdited: (seconds) => win.slideScrollDuration = Math.max(0.1, Math.min(1.5, seconds))
+        slideScrollEased: win.slideScrollEased
+        onSlideScrollEasedEdited: (on) => win.slideScrollEased = on
         useX11: win.useX11
         onUseX11Edited: (useX11) => win.useX11 = useX11
         movingPreviews: win.movingPreviews

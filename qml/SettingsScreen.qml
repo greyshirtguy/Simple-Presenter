@@ -44,6 +44,9 @@ Rectangle {
     property real actionIconOpacity: 0.8
     // When the slides' grid follows the live slide: "early" or "justInTime" (see Main)
     property string slideScroll: "early"
+    // How long it takes to move, in seconds, and whether it eases in and out (see Main)
+    property real slideScrollDuration: 0.4
+    property bool slideScrollEased: true
     // How many of the app's channels have a meter beside the preview, and how solid the
     // meters are: see Main.qml
     property int audioMeters: 2
@@ -77,6 +80,8 @@ Rectangle {
     signal copyrightTemplateWanted()
     signal actionIconOpacityEdited(real opacity)
     signal slideScrollEdited(string mode)
+    signal slideScrollDurationEdited(real seconds)
+    signal slideScrollEasedEdited(bool on)
     signal useX11Edited(bool useX11)
     signal movingPreviewsEdited(bool on)
     signal movingPreviewEdited(bool on)
@@ -732,6 +737,43 @@ Rectangle {
                 color: "#9a9da3"
                 font.pixelSize: 13
                 text: "Either way they move smoothly, a moment after the slide goes live, once its transition is done."
+            }
+
+            Row {
+                spacing: 12
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 14
+                    text: "How long they take"
+                }
+
+                AppSlider {
+                    objectName: "slideScrollDuration"
+                    width: 260
+                    anchors.verticalCenter: parent.verticalCenter
+                    from: 0.1
+                    to: 1.5
+                    stepSize: 0.05
+                    value: screen.slideScrollDuration
+                    onMoved: screen.slideScrollDurationEdited(Math.round(value * 100) / 100)
+                }
+
+                Text {
+                    width: 54
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "#e6e6e6"
+                    font.pixelSize: 14
+                    text: screen.slideScrollDuration.toFixed(2) + " s"
+                }
+            }
+
+            AppCheck {
+                objectName: "slideScrollEased"
+                text: "Ease in and out: start and stop gently, rather than at one speed throughout"
+                checked: screen.slideScrollEased
+                onToggled: (checked) => screen.slideScrollEasedEdited(checked)
             }
         }
 

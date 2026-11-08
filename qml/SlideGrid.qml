@@ -90,9 +90,11 @@ Item {
         }
     }
 
-    // A scroll of the grid to where it is to be, smoothly: eased out over a quarter of a
-    // second, moved on at each frame of the operator window by a FrameClock, as anything
-    // that moves is here, and not by an animation of Qt's (see src/frameclock.h). The
+    // A scroll of the grid to where it is to be, smoothly: over the time the settings give
+    // it (Settings → Slides, Main's slideScrollDuration), easing in and out of the move or
+    // at one speed throughout as they say (slideScrollEased), moved on at each frame of the
+    // operator window by a FrameClock, as anything that moves is here, and not by an
+    // animation of Qt's (see src/frameclock.h). The
     // rows that come into view have their thumbnails made as they come, a row at a time,
     // rather than all in one frame. A scroll by hand (a drag, a flick, the wheel) stops
     // it where it is. One of more than three screens is made at once, there being
@@ -106,7 +108,7 @@ Item {
         // Where it last put the grid: the grid somewhere else has been scrolled by hand
         // (the wheel moves it without dragging or flicking it)
         property real put: 0
-        readonly property int duration: 250
+        readonly property int duration: Math.round(Math.max(0.1, slides.win.slideScrollDuration) * 1000)
 
         function go(target) {
             const distance = Math.abs(target - grid.contentY)
@@ -133,7 +135,9 @@ Item {
                 return
             }
             const t = Math.min(1, Math.max(0, (now - startedAt) / duration))
-            put = from + (to - from) * (1 - Math.pow(1 - t, 3))
+            // Eased in and out (a cubic: slow at each end, quickest in the middle), or straight
+            const eased = !slides.win.slideScrollEased ? t : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+            put = from + (to - from) * eased
             grid.contentY = put
             if (t >= 1)
                 stop()
