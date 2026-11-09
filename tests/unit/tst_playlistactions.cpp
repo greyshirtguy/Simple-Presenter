@@ -66,6 +66,8 @@ private slots:
         QVERIFY(!map.value("selects").toBool());
         QVERIFY(!map.value("retrigger").toBool());
         QCOMPARE(map.value("title").toString(), "Play the audio playlist “Royalty Free”");
+        // (A row of a menu has the playlist's name, and no more)
+        QCOMPARE(map.value("label").toString(), "Royalty Free");
     }
 
     void readsAllAMediaBinsCanHave()
@@ -77,6 +79,7 @@ private slots:
         QVERIFY(map.value("selects").toBool());
         QVERIFY(map.value("retrigger").toBool());
         QCOMPARE(map.value("title").toString(), "Play the media playlist “Loops”, again if it is playing");
+        QCOMPARE(map.value("label").toString(), "Loops");
     }
 
     void anotherKindWithAPlaylistInItIsNotOne()

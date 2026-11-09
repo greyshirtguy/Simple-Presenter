@@ -33,6 +33,12 @@ QString quoted(const QString &name)
     return name.isEmpty() ? QStringLiteral("(unnamed)") : QStringLiteral("“%1”").arg(name);
 }
 
+// A name as a row of a menu has it (an action's label): as it is, without the quotes
+QString named(const QString &name)
+{
+    return name.isEmpty() ? QStringLiteral("(unnamed)") : name;
+}
+
 void identify(Identification *identification, const QString &id, const QString &name)
 {
     if (id.isEmpty())
@@ -103,6 +109,9 @@ void describeTimer(const Action::TimerType &timer, QVariantMap *map)
     map->insert("title", QStringLiteral("%1 the timer %2%3").arg(QLatin1String(action >= 0 && action <= 5 ? verbs[action] : "Do something to"),
                                                                quoted(name), timer.has_timer_configuration() ? QStringLiteral(", set anew")
                                                                                                              : QString()));
+    // (The way after the name, in the words of the timer panel's buttons)
+    static const char *const ways[] = {"Start", "Stop", "Reset", "Reset and Start", "Stop and Reset", "Add Time"};
+    map->insert("label", QStringLiteral("%1 (%2)").arg(named(name), QLatin1String(action >= 0 && action <= 5 ? ways[action] : "Other")));
 }
 
 void buildTimer(const QVariantMap &wanted, Action::TimerType *timer)
@@ -221,10 +230,12 @@ QVariantMap describe(const rv::data::Action &action)
             map.insert("announcements", true);
         map.insert("picture", clearPicture(action.clear()));
         map.insert("title", layerWords(action.clear(), &done));
+        map.insert("label", map.value("title"));
         map.insert("done", done);
     } else if (action.has_stage()) {
         QVariantList assignments;
         QStringList layouts;
+        QStringList names;
         for (const rv::data::Stage::ScreenAssignment &assignment : action.stage().stage_screen_assignments()) {
             const QString layout = text(assignment.layout().parameter_name());
             assignments.append(QVariantMap {
@@ -233,13 +244,16 @@ QVariantMap describe(const rv::data::Action &action)
                 {"layoutId", text(assignment.layout().parameter_uuid().string())},
                 {"layoutName", layout},
             });
-            if (!layout.isEmpty())
+            if (!layout.isEmpty()) {
                 layouts.append(quoted(layout));
+                names.append(layout);
+            }
         }
         map.insert("kind", QStringLiteral("stage"));
         map.insert("assignments", assignments);
         map.insert("title", layouts.isEmpty() ? QStringLiteral("Stage: no change")
                                               : QStringLiteral("Give the stage the layout %1").arg(layouts.join(QStringLiteral(", "))));
+        map.insert("label", names.isEmpty() ? QStringLiteral("No change") : names.join(QStringLiteral(", ")));
     } else if (action.has_prop()) {
         const Identification &prop = action.prop().identification();
         map.insert("kind", QStringLiteral("prop"));
@@ -250,12 +264,14 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("clear", action.prop().has_clear());
         map.insert("title", QStringLiteral("%1 the prop %2").arg(action.prop().has_clear() ? QStringLiteral("Clear") : QStringLiteral("Show"),
                                                                quoted(text(prop.parameter_name()))));
+        map.insert("label", named(text(prop.parameter_name())) + (action.prop().has_clear() ? QStringLiteral(" (Clear)") : QString()));
     } else if (action.has_audience_look()) {
         const Identification &look = action.audience_look().identification();
         map.insert("kind", QStringLiteral("look"));
         map.insert("lookId", text(look.parameter_uuid().string()));
         map.insert("lookName", text(look.parameter_name()));
         map.insert("title", QStringLiteral("Go over to the look %1").arg(quoted(text(look.parameter_name()))));
+        map.insert("label", named(text(look.parameter_name())));
     } else if (action.has_macro()) {
         const Identification &macro = action.macro().identification();
         map.insert("kind", QStringLiteral("macro"));
@@ -264,6 +280,7 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("collectionId", text(macro.parent_collection().parameter_uuid().string()));
         map.insert("collectionName", text(macro.parent_collection().parameter_name()));
         map.insert("title", QStringLiteral("Run the macro %1").arg(quoted(text(macro.parameter_name()))));
+        map.insert("label", named(text(macro.parameter_name())));
     } else if (audiocue::isAudio(action)) {
         // A piece of audio: what a row of the audio bin is, by itself. What it is to
         // play is found on this computer as a row's is; and it is called what the
@@ -293,6 +310,7 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("effect", behaviour.effect);
         map.insert("title", QStringLiteral("Play the %1 %2%3").arg(behaviour.effect ? QStringLiteral("sound effect") : QStringLiteral("music"), quoted(name),
                                                                     behaviour.playback == QLatin1String("loop") ? QStringLiteral(", looping") : QString()));
+        map.insert("label", named(name));
     } else if (action.has_clear_group()) {
         // (Which layers that is, is the group's to say when the action is run: see
         // show::State. Its picture here is the plain one of clearing.)
@@ -302,6 +320,7 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("groupName", text(group.parameter_name()));
         map.insert("picture", QStringLiteral("Clear"));
         map.insert("title", QStringLiteral("Clear the group %1").arg(quoted(text(group.parameter_name()))));
+        map.insert("label", named(text(group.parameter_name())));
     } else if (action.has_communication()) {
         // Something to tell a device: a MIDI note, a Custom Control to a Ross switcher,
         // or an HTTP request (see communications.h)
@@ -323,6 +342,7 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("values", values);
         map.insert("picture", QStringLiteral("Message"));
         map.insert("title", QStringLiteral("Show the message %1").arg(quoted(text(message.parameter_name()))));
+        map.insert("label", named(text(message.parameter_name())));
     } else if (videoinputfile::isAction(action)) {
         // A video input, put on the video input layer, by its place in the workspace's
         // list of them (see videoinputfile.h). Its name is the list's to say, which this
@@ -332,6 +352,7 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("inputIndex", index);
         map.insert("picture", QStringLiteral("VideoInput"));
         map.insert("title", QStringLiteral("Show video input %1").arg(index + 1));
+        map.insert("label", QStringLiteral("Video Input %1").arg(index + 1));
     } else if (playlistactions::isPlaylist(action)) {
         // A playlist of the media bin or of the audio bin, to be played from its start
         // (see playlistactions.h)
@@ -367,10 +388,12 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("kind", QStringLiteral("media"));
         map.insert("media", media);
         map.insert("title", QStringLiteral("Show the %1 %2").arg(element.has_video() ? QStringLiteral("video") : QStringLiteral("picture"), quoted(name)));
+        map.insert("label", named(name));
     } else {
         const QString about = subject(action);
         map.insert("kind", QStringLiteral("other"));
         map.insert("title", typeWords(action.type()) + (about.isEmpty() ? QString() : QStringLiteral(": ") + about));
+        map.insert("label", about.isEmpty() ? typeWords(action.type()) : about);
         map.insert("done", false);
     }
     return map;

@@ -357,6 +357,7 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("title", QStringLiteral("Send MIDI note %1 %2 (%3), velocity %4, channel %5%6")
                                 .arg(on ? QStringLiteral("on") : QStringLiteral("off")).arg(midi.note()).arg(noteName(int(midi.note())))
                                 .arg(midi.intensity()).arg(std::max(1u, midi.channel())).arg(through));
+        map.insert("label", QStringLiteral("MIDI note %1 %2 (%3)").arg(on ? QStringLiteral("on") : QStringLiteral("off")).arg(midi.note()).arg(noteName(int(midi.note()))));
     } else if (isHttp(communication)) {
         const auto value = [&communication](const char *name) {
             const Communication::Command *command = commandNamed(communication, QLatin1String(name));
@@ -373,11 +374,13 @@ QVariantMap describe(const rv::data::Action &action)
         map.insert("body", value("Body"));
         map.insert("headers", headers);
         map.insert("title", QStringLiteral("Send an HTTP %1 to %2%3").arg(value("Method"), value("Path").isEmpty() ? QStringLiteral("/") : value("Path"), through));
+        map.insert("label", QStringLiteral("HTTP %1 %2").arg(value("Method"), value("Path").isEmpty() ? QStringLiteral("/") : value("Path")));
     } else if (communication.has_global_cache_command() || communication.has_gvg100_command() || communication.has_sony_bvs_command()) {
         const QString name = text(action.name());
         map.insert("command", QStringLiteral("other"));
         map.insert("done", false);
         map.insert("title", (name.isEmpty() ? QStringLiteral("A command") : name) + through);
+        map.insert("label", name.isEmpty() ? QStringLiteral("A command") : name);
     } else {
         // A command of words, which a RossTalk device is sent as they are: the Custom
         // Control, or another of RossTalk's that ProPresenter made
@@ -391,6 +394,7 @@ QVariantMap describe(const rv::data::Action &action)
         if (control)
             map.insert("value", text(control->value()));
         map.insert("title", (name.isEmpty() ? QStringLiteral("Send") : name) + QStringLiteral(" ") + quoted(commandText(communication)) + through);
+        map.insert("label", !name.isEmpty() ? name : !commandText(communication).isEmpty() ? commandText(communication) : QStringLiteral("Send"));
     }
     return map;
 }

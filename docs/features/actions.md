@@ -46,7 +46,9 @@ which leads to the kinds above: Clear, Clear Group, Prop, Macro, Audience Look, 
 Playlist, Video Input, Audio Playlist and Message to lists to pick from (a prop by its collection,
 then Trigger or Clear; a macro by its collection; a playlist in its folders), Timer,
 Stage and Communication to a small panel to fill in. Under it is **Remove Action**,
-which lists the actions the slide has. A right click on an action's icon says what the
+which lists the actions the slide has, each by its name beside its icon (a macro's name,
+a look's, a playlist's), and a timer's with what it does to the timer after it, as
+"Countdown (Start)". A right click on an action's icon says what the
 action is and offers to change it, for a timer, a stage or a message action, or to
 remove it; for one that plays audio it has Stop or Loop, and Music or Sound Effect; for
 one that plays a playlist, Always Retrigger; for a video input, the inputs to change to.

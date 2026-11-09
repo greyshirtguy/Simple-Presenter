@@ -36,9 +36,9 @@ bool isPlaylist(const rv::data::Action &action);
 
 // What such an action is, as a map for the rest of the app (see actions.h):
 //   { kind: "mediaPlaylist" or "audioPlaylist", playlistId, playlistName, itemId,
-//     itemName, selects, retrigger, title }
-// `title` says it in words, as every action's map does. An action of neither kind is
-// an empty map.
+//     itemName, selects, retrigger, title, label }
+// `title` says it in words and `label` is the playlist's name, as every action's map
+// has them. An action of neither kind is an empty map.
 QVariantMap describe(const rv::data::Action &action);
 
 // Makes `action` the one `wanted` describes, as describe() puts it: kind, playlistId,

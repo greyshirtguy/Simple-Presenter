@@ -14,7 +14,7 @@ lines beside it: its name, and under that a small icon for each of its actions, 
 their order, so that what it does can be seen at a glance. A click on a macro runs it.
 
 Everything else is in its menu, on a right click: Run; **Add Action** (as for a
-slide); **Remove Action**, which lists its actions; a row for each action that has
+slide); **Remove Action**, which lists its actions by name; a row for each action that has
 anything to change (a timer action, a stage action), leading to Edit and Remove;
 Rename; Colour; Duplicate; Move to another collection; and Remove. The `+` over the
 list adds a macro or a collection. One of the clear buttons dragged onto a macro

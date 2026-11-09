@@ -110,7 +110,7 @@ Item {
             { label: "Run", run: () => run(row.id) },
             { label: "Add Action", items: () => win.addActionItems(target) },
             { label: "Remove Action", disabled: row.actions.length === 0, items: [{ header: "Remove Action" }].concat(
-                row.actions.map(action => ({ label: action.title, glyph: action.kind, picture: action.picture, run: () => remove(action) }))) }
+                row.actions.map(action => ({ label: win.actionLabel(action), glyph: action.kind, picture: action.picture, run: () => remove(action) }))) }
         ]
         // Each action that has something to change, by itself: in its panel, or (a
         // playlist's Always Retrigger) there and then
@@ -119,7 +119,7 @@ Item {
         if (changeables.length > 0) {
             items.push({ header: "Actions" })
             for (const action of changeables) {
-                items.push({ label: action.title, glyph: action.kind, picture: action.picture, items: [
+                items.push({ label: win.actionLabel(action), glyph: action.kind, picture: action.picture, items: [
                     playlist(action) ? win.retriggerItem(target, action) : { label: "Edit…", run: () => change(row, action) },
                     { label: "Remove", danger: true, run: () => remove(action) }
                 ] })

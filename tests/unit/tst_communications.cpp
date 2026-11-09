@@ -254,6 +254,8 @@ private slots:
         QCOMPARE(map.value("intensity").toInt(), 2);
         QVERIFY(map.value("done").toBool());
         QVERIFY(map.value("title").toString().contains("F#-2"));
+        // (A row of a menu: what it sends, without the device it goes to)
+        QCOMPARE(map.value("label").toString(), QStringLiteral("MIDI note on 6 (F#-2)"));
         rv::data::Action made;
         made.mutable_uuid()->set_string("2C9A9B91-1FA8-407E-901E-92EAAA499FD1");
         QCOMPARE(communications::build(map, &made), QString());

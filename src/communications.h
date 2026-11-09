@@ -131,7 +131,8 @@ Request httpRequest(const Connection &connection, const QVariantMap &action, QSt
 // "customControl" (with value, and format and description as the file has them),
 // "http" (with method, path, body, headers), or "other" for a command of a device this
 // app does not have (Global Cache, GVG 100, Sony BVS, or words of another device's).
-// `title` says what it sends; `done` whether this app sends it.
+// `title` says what it sends, `label` the same in short for a row of a menu (its name,
+// where it has one, and not the device's); `done` whether this app sends it.
 QVariantMap describe(const rv::data::Action &action);
 
 // Makes an action the communication action the map says (as describe() gives one, of

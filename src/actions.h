@@ -27,7 +27,15 @@
 //   id, kind ("timer", "clear", "clearGroup", "stage", "prop", "look", "macro",
 //   "audio", "media", "mediaPlaylist", "audioPlaylist", "message", "communication" or
 //   "other"),
-//   title (a few words saying what it does),
+//   title (a few words saying what it does: "Run the macro “Opening”", for the log and
+//   the line at the top of the action's own menu),
+//   label (what it is called, for a row of a menu, which has the action's picture
+//   beside it: "Opening", and no more, as the maintainer asked on 2026-11-09 ("the name
+//   and the icon are enough"). Where the same name can be done more than one way, the
+//   way is said after it, so that two actions on one slide do not read the same:
+//   "Countdown (Start)", "Logo (Clear)". A clear has no name, and is its title.
+//   A video input's is the operator window's to say, as its title is: see
+//   Main.actionLabel),
 //   done (whether this app runs it), and picture:
 //   which of ProPresenter's own pictures stands for it, by name (see iconprovider.h),
 //   where that is more than its kind says. An action that clears the media has the

@@ -2162,6 +2162,19 @@ Window {
                  collectionName: collection.id === "" ? "" : collection.name }
     }
 
+    // What an action is called in a row of a menu, beside its picture: its name and no more
+    // (its label: see src/actions.h), where its title says what it does in a sentence ("the
+    // name and the icon are enough", the maintainer, 2026-11-09). A video input is called
+    // what the workspace calls it, as the action's own menu has it.
+    function actionLabel(action) {
+        if (action.kind === "videoInput") {
+            const input = VideoInputs.inputs.find(input => input.index === action.inputIndex)
+            if (input)
+                return input.name
+        }
+        return action.label ?? action.title ?? action.kind
+    }
+
     // The menu of an action that is there: what it is, and changing it or taking it away.
     function showActionMenu(target, action, item, x, y) {
         const items = [{ note: action.title + (action.done ? "" : ". This kind of action is kept in the file, and is not done here.") }]
@@ -2759,7 +2772,7 @@ Window {
         ]
         if (marker.actions.length > 0)
             items.push({ label: "Remove Action", items: [{ header: "Remove Action" }].concat(marker.actions.map(action => ({
-                label: action.title ?? action.kind, glyph: action.kind, picture: action.picture ?? "", run: () => removeAction(target, action) }))) })
+                label: actionLabel(action), glyph: action.kind, picture: action.picture ?? "", run: () => removeAction(target, action) }))) })
         items.push({ divider: true })
         items.push({ label: "Duplicate", run: () => changed(catalog.duplicateMarker(place, marker.id).error, "duplicated") })
         items.push({ label: "Move to Playhead", run: () => changed(catalog.changeMarker(place, marker.id, { time: playhead }), "moved to " + playhead.toFixed(2) + " s") })
@@ -3320,7 +3333,7 @@ Window {
             // What else the slide does when it is shown: see src/actions.h
             { label: several ? "Add Action to " + several.length + " Slides" : "Add Action", items: () => addActionItems(target) },
             { label: "Remove Action", disabled: slide.actions.length === 0, items: [{ header: "Remove Action" }].concat(
-                slide.actions.map(action => ({ label: action.title, glyph: action.kind, picture: action.picture,
+                slide.actions.map(action => ({ label: actionLabel(action), glyph: action.kind, picture: action.picture,
                                                run: () => removeAction(target, action) }))) },
             // When it goes on to the next slide by itself: see editGoToNext
             { label: "Go To Next Timer…", current: slide.goToNext !== undefined, run: () => editGoToNext(index) },

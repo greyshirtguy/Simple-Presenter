@@ -42,6 +42,8 @@ QVariantMap describe(const Action &action)
         {"retrigger", playlist.always_retrigger()},
         {"title", QStringLiteral("Play the %1 playlist %2%3").arg(media ? QStringLiteral("media") : QStringLiteral("audio"), quoted(name),
                                                                   playlist.always_retrigger() ? QStringLiteral(", again if it is playing") : QString())},
+        // (For a row of a menu: see actions.h)
+        {"label", name.isEmpty() ? QStringLiteral("(unnamed)") : name},
     };
 }
 

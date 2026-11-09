@@ -44,6 +44,9 @@ QtObject {
                 check("a macro is its actions, each said in words, and whether it is one done here", singing.actions.map(a => a.kind + (a.done ? "" : "-")).join(" ") === "stage look clear clear clear"
                       && singing.actions[0].title === "Give the stage the layout “Singing”" && singing.actions[3].title === "Clear the props"
                       && singing.actions[1].title === "Go over to the look “Lyrics L3rd”", singing.actions.map(a => a.title).join(" | "))
+                // (For the rows of a menu, beside its picture: the maintainer, 2026-11-09, "the name and the icon are enough")
+                check("and called by its name alone in a menu", singing.actions[0].label === "Singing" && singing.actions[1].label === "Lyrics L3rd"
+                      && singing.actions[3].label === "Clear the props", singing.actions.map(a => a.label).join(" | "))
                 check("ProPresenter's stage screens are known by name", Screens.stage.length === 2 && stageScreen().id === "E3A36D8C-E70D-45D8-A127-E7DAC6577CDC", JSON.stringify(StageLayouts.screens))
                 openLibrary(catalog.libraries[0].path)
                 openEntry(entry("All Hail King Jesus"))
@@ -259,8 +262,11 @@ QtObject {
                 return 300
             },
             () => {
-                const titles = document.slides[kept.target].actions.map(a => a.title)
-                check("the slide's menu lists its actions to remove", labels() === "[Remove Action], " + titles.join(", "), labels())
+                const actions = document.slides[kept.target].actions
+                const labelOf = kind => actions.find(a => a.kind === kind).label
+                check("the slide's menu lists its actions to remove, each by its name, with the way a timer is set after it",
+                      labels() === "[Remove Action], " + actions.map(a => a.label).join(", ") && labelOf("prop") === kept.prop.name
+                      && labelOf("timer").startsWith(kept.timer.name + " (") && !/Run the|Show the|Give the|the timer/.test(labels()), labels())
                 testInput.key(Qt.Key_Escape)
                 check("Esc shuts the menus", !menu.opened)
                 // ---- the macros tab

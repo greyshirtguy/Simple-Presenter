@@ -193,8 +193,8 @@ QtObject {
                 const stage = kept.macro.actions.find(a => a.kind === "stage")
                 kept.stage = stage
                 check("its menu has everything: its actions to add, to remove, and each that can be changed; and the macro's own",
-                      labels() === "Run, Add Action, Remove Action, [Actions], " + stage.title + ", [Macro], Rename, Colour, Duplicate, Remove…", labels())
-                click(menuRow(stage.title))
+                      labels() === "Run, Add Action, Remove Action, [Actions], " + stage.label + ", [Macro], Rename, Colour, Duplicate, Remove…", labels())
+                click(menuRow(stage.label))
                 return 300
             },
             () => {
@@ -245,7 +245,7 @@ QtObject {
             },
             () => {
                 const now = Macros.find(kept.macro.id).actions
-                check("Remove Action lists them all", labels() === "[Remove Action], " + now.map(a => a.title).join(", "), labels())
+                check("Remove Action lists them all, by name", labels() === "[Remove Action], " + now.map(a => a.label).join(", "), labels())
                 click(menuRow("Clear the slide"))
                 return 500
             },
