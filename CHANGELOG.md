@@ -6,6 +6,17 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.131](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.131) · 2026-11-09
+
+- Coming back to the presentation that is live, after looking at another, puts the
+  slides' grid where its live slide is in view, at once, as the setting for following it
+  would have it; it went to the top. The same with the slide cleared, since stepping goes
+  on from it.
+- The menus that list actions (Remove Action on a slide, a marker or a macro, and a
+  macro's own rows of them) call each by its name beside its icon, where they said what
+  it does in a sentence: a timer's with what it does to the timer after its name, a
+  prop's that is cleared with "(Clear)" ([Actions](docs/features/actions.md)).
+
 ## [0.130](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.130) · 2026-11-09
 
 - The slides' grid starts to move to the live slide as the slide changes, where it waited
