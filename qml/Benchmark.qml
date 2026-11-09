@@ -180,6 +180,21 @@ QtObject {
         pause.restart()
     }
 
+    // The slides' transition chosen, and the media's made the same. Media a slide brings
+    // comes in by the media transition (see OutputScene's showSlideWithMedia), which until
+    // 0.129 was the slide's own; the runs here are timed as they were then, a slide and its
+    // media changing by one transition, rather than by the media transition's default (a
+    // dissolve over 0.6 s) under slides that cut in, which would time a dissolve where a cut
+    // was meant, and make the baseline's lines for those slides no longer the same thing
+    function bothTransitions(name, seconds) {
+        selectTransition(name)
+        selectMediaTransition(name)
+        if (seconds !== undefined) {
+            transitionDuration = seconds
+            mediaTransitionDuration = seconds
+        }
+    }
+
     function median(values) {
         const sorted = values.slice().sort((a, b) => a - b)
         return sorted.length === 0 ? 0 : sorted[Math.floor(sorted.length / 2)]
@@ -445,7 +460,7 @@ QtObject {
         // ---- Showing slides, with the output on and filling its screen
         const outputOn = () => {
             output.setFullScreen(true)
-            selectTransition("Cut")
+            bothTransitions("Cut")
             after(1200)
         }
         jobs.push(outputOn)
@@ -456,8 +471,7 @@ QtObject {
         showing("Pictures", "show again", 18)
 
         jobs.push(() => {
-            transitionIndex = 1
-            transitionDuration = 0.5
+            bothTransitions("Dissolve", 0.5)
             next()
         })
         for (const name of names)
@@ -465,7 +479,8 @@ QtObject {
 
         // ---- The editor
         jobs.push(() => {
-            selectTransition("Cut")
+            // (Both: the video further on is brought by its slide, and came in by a cut)
+            bothTransitions("Cut")
             openEntry(presentation("Shapes"))
             after(500)
         })
