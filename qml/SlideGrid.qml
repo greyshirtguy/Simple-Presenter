@@ -82,9 +82,40 @@ Item {
     }
 
     // The slide revealLive last brought into view, for telling a step from a jump (none in
-    // a presentation just opened or read again), and when
+    // a presentation just opened or read again, but the one showOpened put in view), and
+    // when
     property int lastLive: -1
     property double lastLiveAt: 0
+
+    // Where the grid is put for a presentation just opened: at its beginning; or, where the
+    // show is at a slide of it (`live`, on the screens or on the announcements, cleared or
+    // not: see Main.showAtViewed; -1 for none), where revealLive would have brought that
+    // slide from there, so that coming back to the presentation that is live shows its live
+    // slide (the maintainer's ask of 2026-11-09: "coming back to an ACTIVE presentation -
+    // should scroll to show the active slide").
+    //
+    // Put there at once, and not scrolled: the grid has only just been filled, and a move
+    // down from its top would be through rows nobody had seen, each of them to be made on
+    // the way. The rows at its top have been made by then all the same: the GridView, given
+    // its model, goes to its beginning and makes the rows in view there at once. With the
+    // live slide at the end of a presentation of the Demo's, in the scripted tests, that
+    // made opening it 73 ms to the frame, against 45 with the live slide at its top. (A
+    // margin of less than nothing at the GridView's end while the model was set, for it to
+    // make none of those, was tried, and was slower still, 101 ms: it seems to make every
+    // row from the top down to where it is put, when it has none in view to go on from.)
+    // A GUESS that ProPresenter shows the live slide; not looked at there.
+    function showOpened(live) {
+        scroller.stop()
+        grid.positionViewAtBeginning()
+        if (live < 0 || live >= grid.count)
+            return
+        let y = grid.contentY
+        if (slides.win.slideScroll !== "justInTime")
+            y = slides.containing(Math.min(live + grid.columns, grid.count - 1), y)
+        grid.contentY = slides.containing(live, y)
+        // (So that Next from it is a step, which takes the time set, and not a jump)
+        lastLive = live
+    }
 
     // Where the grid is to be scrolled to, from `y`, for the cell at `index` to be wholly
     // in view: as far as it must go and no further, as positionViewAtIndex's Contain has

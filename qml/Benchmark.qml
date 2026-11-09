@@ -208,6 +208,15 @@ QtObject {
         return documents.find(d => d.name === name)
     }
 
+    // The slides' grid put at its beginning, for a run of slides shown from the first, as
+    // every run has had it: a presentation that is live is opened where its live slide is
+    // (see SlideGrid.showOpened), and the runs through Words for the stage preview open it
+    // live, at its last slide shown, so that the first slide of them would otherwise be a
+    // jump back up the grid, which the runs did not have before.
+    function fromTheTop() {
+        grid.positionViewAtBeginning()
+    }
+
     // Opens each presentation, and times it to the slides all being drawn.
     function opening(name, label) {
         jobs.push(() => timed(false, 200, () => openEntry(presentation(name)), (w) => {
@@ -247,6 +256,7 @@ QtObject {
         })
         jobs.push(() => {
             openEntry(presentation(name))
+            fromTheTop()
             after(500)
         })
         jobs.push(() => {
@@ -280,6 +290,7 @@ QtObject {
         })
         jobs.push(() => {
             openEntry(presentation(name))
+            fromTheTop()
             after(500)
         })
         jobs.push(() => one())

@@ -322,6 +322,16 @@ Window {
     readonly property int activeSlideIndex: viewingLive && cueLive ? liveIndex
                                           : viewingAnnouncements && Show.announcementLive ? Show.announcementIndex : -1
 
+    // The slide of the presentation being viewed that the show is at, on the screens or
+    // on the announcements: its place, or -1. Whether or not it is on them now: a slide
+    // whose layer has been cleared is still the one stepping goes on from. Where the grid
+    // is put when the presentation is opened (see SlideGrid.showOpened).
+    function showAtViewed() {
+        if (viewingLive)
+            return liveIndex
+        return viewingAnnouncements ? Show.announcementIndex : -1
+    }
+
     // The places of the selected slides in the presentation being shown (a slide shown
     // twice, in an arrangement, is selected in both places)
     function selectedPlaces() {
@@ -907,7 +917,8 @@ Window {
         if (playlistId !== "")
             selectRowAlone(entry.path)
         document = load(entry)
-        grid.positionViewAtBeginning()
+        // (At its beginning, or with its live slide in view: see SlideGrid.showOpened)
+        grid.showOpened(showAtViewed())
         Log.note("open", quoted(document.name) + (document.arrangement !== "" ? " [" + document.arrangement + "]" : "") + ", "
                  + counted(document.slides.length, "slide", "slides") + ", from " + browsing())
         if (document.error !== "")
@@ -1317,6 +1328,7 @@ Window {
         if (bibleKey !== "") {
             documentKey = bibleKey
             document = catalog.open(bibleKey)
+            grid.showOpened(showAtViewed())
         } else {
             documentKey = ""
             document = null

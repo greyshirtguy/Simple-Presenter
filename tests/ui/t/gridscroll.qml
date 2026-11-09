@@ -10,8 +10,8 @@ import "lib.js" as Lib
 // is in view, and moves, smoothly, to bring one in that is not. How long a step takes and whether it eases in and out of
 // the move (on, unless switched off) are settings there too, kept in the settings; a jump to a slide out of view takes a
 // tenth of a second whatever is set, by a click's way and by the API's; and Next held down has the grid keep up with the
-// slides while it is held. And Ctrl+- and Ctrl+= make the thumbnails the pointer is over smaller and larger, the slides'
-// or the media bin's.
+// slides while it is held. Coming back to the presentation that is live puts the grid where its live slide is in view, at
+// once. And Ctrl+- and Ctrl+= make the thumbnails the pointer is over smaller and larger, the slides' or the media bin's.
 QtObject {
     id: t
 
@@ -353,7 +353,49 @@ QtObject {
                       && samples.every((y, i) => i === 0 || y >= samples[i - 1] - 0.01), "standing for " + longest + " samples at most: "
                       + samples.map(y => Math.round(y)).join(" "))
                 check("let go, the live slide and the row under it in view", inView(liveIndex) && inView(Math.min(liveIndex + kept.columns, document.slides.length - 1)))
+                // ---- Another presentation clicked, and the one that is live clicked again: the grid is put where its live
+                // slide is in view (the maintainer, 2026-11-09: "coming back to an ACTIVE presentation - should scroll to show
+                // the active slide")
+                kept.live = liveIndex
+                kept.other = documents.find(d => d.kind === "presentation" && d.name !== "Move Of God" && openable(d))
+                openEntry(kept.other)
+                kept.inOpen = view().contentY
+                return 300
+            },
+            () => {
+                check("another presentation opens at its beginning", kept.inOpen === view().originY && view().contentY === view().originY,
+                      kept.other.name + ": " + view().contentY)
+                watch()
+                openEntry(entry("Move Of God"))
+                kept.inOpen = view().contentY
+                return 400
+            },
+            () => {
+                sampler.stop()
+                const under = Math.min(kept.live + kept.columns, document.slides.length - 1)
+                check("(a live slide out of view from the beginning of its presentation)", shownOf(kept.live, view().originY) === 0, kept.live)
+                check("coming back to the presentation that is live, its live slide is in view, and the row under it", liveIndex === kept.live
+                      && inView(kept.live) && inView(under), kept.live + " at " + view().contentY)
+                check("put there in the opening itself, and not scrolled to", Math.abs(kept.inOpen - view().contentY) < 0.01
+                      && samples.every(y => Math.abs(y - kept.inOpen) < 0.01), kept.inOpen + ": " + samples.map(y => Math.round(y)).join(" "))
+                const cell = view().itemAtIndex(kept.live)
+                const ring = cell.mapToItem(null, cell.width / 2, 2.5)
+                check("and its orange ring is drawn there", String(testInput.windowPixel(ring.x, ring.y)) === "#ff8a1f", String(testInput.windowPixel(ring.x, ring.y)))
+                testInput.grab("3-come-back")
+                // ---- The same with the slide cleared: it is still the one stepping goes on from
                 clearAll()
+                openEntry(kept.other)
+                return 300
+            },
+            () => {
+                openEntry(entry("Move Of God"))
+                return 300
+            },
+            () => {
+                check("with its slide cleared, the slide the show is at is put in view all the same", cleared && liveIndex === kept.live && inView(kept.live),
+                      liveIndex + ", cleared " + cleared)
+                openEntry(kept.other)
+                check("a presentation that is not live is at its beginning still", view().contentY === view().originY, view().contentY)
                 return 300
             },
             () => {

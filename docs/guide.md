@@ -58,7 +58,8 @@ These are not ProPresenter's.
   move unless that is switched off: a step to the next slide or the one before takes as
   long as is set there, and a jump to a slide out of view (by a hotkey, a typed number or
   the network) a tenth of a second. Next held down, they keep up with the slides as they
-  go.
+  go. And coming back to the presentation that is live, after looking at another, puts
+  its live slide in view at once, as the setting would have brought it there.
 - **The meters beside the preview**: how many of the app's channels have one, from two
   to sixteen, and how solid they are, are settings (Settings → Audio).
 - **A slide disabled at a date.** Disable On… in a slide's menu sets a day and a time for
