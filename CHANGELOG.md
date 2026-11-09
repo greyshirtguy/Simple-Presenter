@@ -6,6 +6,17 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.130](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.130) · 2026-11-09
+
+- The slides' grid starts to move to the live slide as the slide changes, where it waited
+  for the slide's transition and 150 ms more.
+- With Next held down, the grid keeps up with the slides as they go, where it did not
+  move until the key was let go.
+- A jump to a slide out of view (a hotkey, a typed number, the API) takes a tenth of a
+  second, whatever is set for a step.
+- A slide triggered through the [API](docs/features/api.md) in the presentation being
+  viewed moves the grid to it, as a click does.
+
 ## [0.129](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.129) · 2026-11-09
 
 - Importing an exported playlist asks first where some of its presentations are in the
