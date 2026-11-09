@@ -58,7 +58,9 @@ ProPresenter's other form of the API, over TCP/IP, nor its server-sent events.
   that has one, a slide's number can differ from ProPresenter's.
 - A presentation triggered from a library or a playlist goes live without the window
   opening it, as a GUESS at what ProPresenter does (its "focus" paths are for that);
-  stepping through the playlist open in the window opens each item there.
+  stepping through the playlist open in the window opens each item there. A slide
+  triggered in the presentation open in the window has the window's slides follow it,
+  as they follow one taken live there.
 - Next and previous do what the arrow keys do here, which stay in the presentation.
 - The JSON's keys come in alphabetical order, and a whole number has no ".0".
 

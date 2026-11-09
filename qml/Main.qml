@@ -4343,7 +4343,6 @@ Window {
         // (The Bible's slides are no row of a playlist being browsed: stepping on from
         // their last goes nowhere.)
         goLiveIn(document, documentKey, viewedPlaylistId, index, withoutMedia)
-        grid.revealLive(index)
     }
 
     // The same for a slide of any presentation, open here or not (as catalog.open
@@ -4363,6 +4362,11 @@ Window {
             liveFresh = null
         }
         Show.goLive(cueAt(presentation, key, playlist, index), withoutMedia === true)
+        // The grid follows a slide of the presentation it is showing, however the slide
+        // went live: a click, a key, or the API (which in 0.129 and before left the grid
+        // where it was)
+        if (presentation.destination === "announcements" ? viewingAnnouncements : viewingLive)
+            grid.revealLive(index)
     }
 
     function alreadyPlaying(media) {

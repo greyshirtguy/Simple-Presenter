@@ -252,7 +252,7 @@ QtObject {
             () => {
                 check("a slide going live in the top row leaves the grid where it was", named("slideGrid").contentY === kept.top)
                 goLive(kept.bottom)
-                // (The grid moves a moment after the change, smoothly over a quarter of a second: see gridscroll)
+                // (The grid moves as the slide changes, smoothly over the time set: see gridscroll)
                 return 900
             },
             () => {

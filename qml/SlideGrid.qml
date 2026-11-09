@@ -46,18 +46,45 @@ Item {
     // that a slide that goes live in the bottom row in view has the grid moved up a row
     // and the slides to come are seen before they are reached (the maintainer's ask of
     // 2026-11-08, the default); or "justInTime", the live slide only, once it is out of
-    // view, as the grid always had it before. Either way smoothly (`scroller`), and a
-    // moment after the change, once it is on the screens and its transition done
-    // (rowUnder): a row brought into view has its thumbnails made, each a slide drawn
-    // afresh, and done in the click that held the change up (the benchmark, 2026-11-08:
-    // a click on the Shapes 1.3 ms more work, the first frame of a transition later and
-    // its longest wait between frames longer, all three rounds).
+    // view, as the grid always had it before. The row under first and the slide after it,
+    // so that in a grid too short for two rows it is the live slide that is seen.
+    //
+    // Smoothly (`scroller`), and at once: the move starts in the next frame, as the
+    // change's own does, and not after the change's transition, as in 0.129 (the
+    // maintainer, 2026-11-09: "it should start instantly upon triggering a slide"). In the
+    // click itself nothing is laid out: where the grid is to go is worked out from its rows
+    // (containing), so the click's work is what it was (the benchmark, 2026-11-08: bringing
+    // the slide into view by positionViewAtIndex in the click was 1.3 ms more work in a
+    // click on the Shapes). The rows the move brings are made in the frames after, as it
+    // goes, while the change's transition runs: what that costs is measured by the
+    // benchmark's lines for slides shown one after another as fast as the output shows them.
+    //
+    // A jump, to a slide out of view that is not the one beside the slide live before (a
+    // group's hotkey, a typed number, the API), is brought in a tenth of a second, whatever
+    // the setting ("almost instant", the maintainer, 2026-11-09). A step, by Next or
+    // Previous, takes the time set.
     function revealLive(index) {
         if (index < 0 || index >= grid.count)
             return
-        rowUnder.index = index
-        rowUnder.restart()
+        // (From where the grid is going, if it is on its way: where it is now is behind that)
+        const at = scroller.moving() ? scroller.to : grid.contentY
+        const stepped = Math.abs(index - lastLive) === 1
+        const jump = Math.abs(index - lastLive) > 1 && Math.abs(slides.containing(index, at) - at) > 0.5
+        // How long a row of slides takes to come, at the pace of this step and the last
+        const now = clock.now()
+        const rowEvery = stepped ? (now - lastLiveAt) * grid.columns : 0
+        lastLive = index
+        lastLiveAt = now
+        let y = at
+        if (slides.win.slideScroll !== "justInTime")
+            y = slides.containing(Math.min(index + grid.columns, grid.count - 1), y)
+        scroller.go(slides.containing(index, y), jump, rowEvery)
     }
+
+    // The slide revealLive last brought into view, for telling a step from a jump (none in
+    // a presentation just opened or read again), and when
+    property int lastLive: -1
+    property double lastLiveAt: 0
 
     // Where the grid is to be scrolled to, from `y`, for the cell at `index` to be wholly
     // in view: as far as it must go and no further, as positionViewAtIndex's Contain has
@@ -71,25 +98,6 @@ Item {
         return Math.max(grid.originY, Math.min(y, grid.originY + Math.max(0, grid.contentHeight - grid.height)))
     }
 
-    // The live slide, and in the early way the row under it, brought into view after the
-    // change (see revealLive): the row under first and the slide after it, so that in a
-    // grid too short for two rows it is the live slide that is seen
-    Timer {
-        id: rowUnder
-
-        property int index: -1
-
-        interval: Math.min(3000, Math.round(slides.win.transitionDuration * 1000) + 150)
-        onTriggered: {
-            if (index < 0 || index >= grid.count)
-                return
-            let y = grid.contentY
-            if (slides.win.slideScroll !== "justInTime")
-                y = slides.containing(Math.min(index + grid.columns, grid.count - 1), y)
-            scroller.go(slides.containing(index, y))
-        }
-    }
-
     // A scroll of the grid to where it is to be, smoothly: over the time the settings give
     // it (Settings → Slides, Main's slideScrollDuration), easing in and out of the move or
     // at one speed throughout as they say (slideScrollEased), moved on at each frame of the
@@ -99,19 +107,81 @@ Item {
     // rather than all in one frame. A scroll by hand (a drag, a flick, the wheel) stops
     // it where it is. One of more than three screens is made at once, there being
     // nothing on the way worth passing through, and every row of it to be made.
+    //
+    // A new place given while it is still moving to the last (Next held down and its key
+    // repeating, a slide live every 30 ms or so and a row every few of them) is gone on to
+    // from where the grid is and at the speed it is going, so that the grid keeps moving
+    // and does not stop and start again at each row. Eased, that is a cubic from that speed
+    // to rest at the new place. And in no longer than half as much again as the time since
+    // the last place was given (but three frames at least), the time set or not, so that it
+    // keeps up with them: a simulation of a key held down (four or six slides a row, at 30
+    // and 40 ms a slide, 0.4 and 0.8 s set) had the grid go at the rows' own speed, its
+    // speed from frame to frame changing by a pixel or so, and the live slide, once the
+    // grid was under way, never more than about a quarter of it below the view. Each move
+    // taking the time set, the grid fell further behind at every row; and gone on to from
+    // where it had last been put, and not from where the move had it at the moment the
+    // place was given, it slowed for a frame at every row. A move from standing still, too,
+    // takes no longer than half as much again as a row of the slides takes to come, at the
+    // pace of the step that brought it and the one before: at the 0.4 s set, a key held
+    // down had the live slide all but out of view for three frames at the start, while the
+    // grid was easing into its first move and the slides were already a row on.
     Item {
         id: scroller
 
         property real from: 0
         property real to: 0
         property double startedAt: 0
+        // How long this move takes, in milliseconds, and the speed it set off at, in pixels
+        // a millisecond: 0 for one from standing still, which is eased in as well as out
+        property double span: 0
+        property double speed: 0
+        // When the last place to go to was given
+        property double aimedAt: 0
         // Where it last put the grid: the grid somewhere else has been scrolled by hand
         // (the wheel moves it without dragging or flicking it)
         property real put: 0
         readonly property int duration: Math.round(Math.max(0.1, slides.win.slideScrollDuration) * 1000)
+        // How long a jump takes (see revealLive)
+        readonly property int jumpDuration: 100
 
-        function go(target) {
-            const distance = Math.abs(target - grid.contentY)
+        // Whether it is moving the grid, and the grid has not been scrolled by hand since
+        function moving() {
+            return clock.running && !grid.dragging && !grid.flicking && Math.abs(grid.contentY - put) <= 1
+        }
+
+        // Where the move has the grid at `now`, and how fast it is going there then
+        function placeAt(now) {
+            const t = Math.min(1, Math.max(0, (now - startedAt) / span))
+            const d = to - from
+            if (!slides.win.slideScrollEased)
+                return from + d * t
+            // Eased in and out (a cubic: slow at each end, quickest in the middle) from
+            // standing still; from a speed, the cubic that sets off at it and comes to rest
+            if (speed === 0)
+                return from + d * (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+            return from + (t * t * t - 2 * t * t + t) * span * speed + (3 * t * t - 2 * t * t * t) * d
+        }
+
+        function speedAt(now) {
+            const t = Math.min(1, Math.max(0, (now - startedAt) / span))
+            const d = to - from
+            if (!slides.win.slideScrollEased)
+                return d / span
+            if (speed === 0)
+                return d / span * (t < 0.5 ? 12 * t * t : 3 * Math.pow(-2 * t + 2, 2))
+            return ((3 * t * t - 4 * t + 1) * span * speed + (6 * t - 6 * t * t) * d) / span
+        }
+
+        // To `target`: quickly, for a jump; at the pace of slides coming a row every `rowEvery`
+        // milliseconds, if that is quicker than the time set (0 for no pace)
+        function go(target, quick, rowEvery) {
+            const now = clock.now()
+            const going = moving()
+            // (On its way there already: a slide live in the same row)
+            if (going && Math.abs(target - to) < 0.5)
+                return
+            const here = going ? placeAt(now) : grid.contentY
+            const distance = Math.abs(target - here)
             if (distance < 0.5) {
                 stop()
                 return
@@ -121,10 +191,27 @@ Item {
                 grid.contentY = target
                 return
             }
-            from = grid.contentY
-            put = from
+            let length = quick ? Math.min(duration, jumpDuration) : duration
+            if (rowEvery > 0)
+                length = Math.min(length, Math.max(50, 1.5 * rowEvery))
+            let setOff = 0
+            if (going) {
+                length = Math.min(length, Math.max(50, 1.5 * (now - aimedAt)))
+                if (slides.win.slideScrollEased) {
+                    setOff = speedAt(now)
+                    // (Never past the place and back: the cubic from a speed to rest does not
+                    // turn if it is given no longer than three times the distance at that speed)
+                    if (setOff * (target - here) > 0)
+                        length = Math.min(length, 3 * distance / Math.abs(setOff))
+                }
+            }
+            from = here
             to = target
-            startedAt = clock.now()
+            startedAt = now
+            aimedAt = now
+            span = Math.max(1, length)
+            speed = setOff
+            put = grid.contentY
             clock.running = true
             backstop.restart()
         }
@@ -134,12 +221,9 @@ Item {
                 stop()
                 return
             }
-            const t = Math.min(1, Math.max(0, (now - startedAt) / duration))
-            // Eased in and out (a cubic: slow at each end, quickest in the middle), or straight
-            const eased = !slides.win.slideScrollEased ? t : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-            put = from + (to - from) * eased
+            put = placeAt(now)
             grid.contentY = put
-            if (t >= 1)
+            if (now - startedAt >= span)
                 stop()
         }
 
@@ -513,6 +597,7 @@ Item {
         // thumbnails to be built, and no more: each is a slide drawn afresh.
         cacheBuffer: Math.max(0, cellHeight)
         model: slides.win.document ? slides.win.document.slides : []
+        onModelChanged: slides.lastLive = -1
 
         ScrollBar.vertical: ScrollBar {}
 
