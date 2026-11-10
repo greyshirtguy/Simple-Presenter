@@ -59,7 +59,7 @@ QtObject {
             },
             () => {
                 check("the + beside Libraries offers a lyrics file and the clipboard, after the ChordPro file",
-                      labels() === "New Presentation…, New Library, Import ChordPro File…, Import Lyrics File…, Import Lyrics from Clipboard", labels())
+                      labels() === "New Presentation…, New Library, Import ChordPro File…, Import Lyrics File…, Import Lyrics from Clipboard, Import PowerPoint…", labels())
                 menu.close()
                 importLyricsPanel.showFile(file)
                 return 400

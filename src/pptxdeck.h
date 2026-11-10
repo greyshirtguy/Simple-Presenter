@@ -13,7 +13,10 @@
 #include <variant>
 
 // What goes on the slides of a PowerPoint file made from a presentation (Export to
-// PowerPoint), said without PowerPoint's XML and without ProPresenter's protobufs.
+// PowerPoint), said without PowerPoint's XML and without ProPresenter's protobufs; and
+// what is on the slides of a PowerPoint file read in (Import PowerPoint): pptxread turns
+// a .pptx into a Deck, and pptxmake turns a Deck into a presentation, so the two
+// directions meet in the middle and each half can be tried on its own.
 //
 // This, and the rest of the export (pptximport.h, pptxwriter.h), is a port of the
 // maintainer's own ProToPPTX (github.com/greyshirtguy/ProToPPTX, MIT), a Mac app that
@@ -333,10 +336,18 @@ struct Slide
     // What fills the slide from behind: the media ProPresenter would have on its
     // background layer while this slide is up
     std::optional<BackgroundMedia> background;
+    // A gradient over the whole slide behind everything (a PowerPoint slide's
+    // background can be one; a ProPresenter slide's cannot, so the writer never sees it
+    // and the importer of PowerPoint files, pptxread.h, is where it comes from)
+    std::optional<Gradient> backgroundGradient;
     // What is drawn on the slide, back to front
     QList<Item> items;
     // The speaker notes, as plain text
     QString notes;
+    // A slide PowerPoint would skip in its slide show (Hide Slide). Read from a
+    // PowerPoint file (pptxread.h); never set by the export, which leaves disabled
+    // slides out instead (Options::skipDisabledSlides)
+    bool hidden = false;
 };
 
 struct Section

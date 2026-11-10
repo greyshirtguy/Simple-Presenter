@@ -9,12 +9,15 @@
 #include "pptxfixtures.h"
 #include "pptxfonts.h"
 #include "pptximport.h"
+#include "pptxread.h"
 #include "pptxrtf.h"
+#include "pptxxml.h"
 #include "pptxwriter.h"
 #include "pptxzip.h"
 #include "zipreader.h"
 
 #include <QBuffer>
+#include <QDebug>
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
@@ -114,6 +117,94 @@ QHash<QString, QByteArray> partsOf(const QString &path)
             parts.insert(entry.name, bytes);
     }
     return parts;
+}
+
+
+// A PowerPoint file as PowerPoint writes one, made up for reading back (pptxread.h): a
+// master with its text styles and two placeholders, a layout that moves the title, a theme,
+// and three slides. The first has a coloured background, the title and body placeholders
+// (the body with bullets, one run bold and in a darkened theme colour), a rounded box
+// styled by the theme with its own red line and centred words in the theme's light colour,
+// and a cropped picture, with speaker notes; the second is hidden, has the picture as its
+// background and a green rectangle inside a group that halves its children; the third has
+// an empty placeholder (which shows nothing) and a text box with no insets, bottom-aligned,
+// at a line and a half, with capitals, an underline, a line break and a superscript.
+QString madePowerPointFile(const QTemporaryDir &folder)
+{
+    const QString path = folder.filePath("Made.pptx");
+    const QString ns = QString::fromUtf8(R"X(xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main")X");
+    const QString relsNs = QString::fromUtf8(R"X(xmlns="http://schemas.openxmlformats.org/package/2006/relationships")X");
+    const QString relType = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const auto rel = [&](const QString &id, const QString &type, const QString &target) {
+        return QString::fromUtf8(R"X(<Relationship Id="%1" Type="%2%3" Target="%4"/>)X").arg(id, relType, type, target);
+    };
+    const auto rels = [&](const QString &inner) { return QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><Relationships %1>%2</Relationships>)X").arg(relsNs, inner); };
+    const auto sp = [](const QString &name, const QString &nvPr, const QString &spPr, const QString &style, const QString &txBody) {
+        return QString::fromUtf8(R"X(<p:sp><p:nvSpPr><p:cNvPr id="2" name="%1"/><p:cNvSpPr/>%2</p:nvSpPr><p:spPr>%3</p:spPr>%4%5</p:sp>)X")
+            .arg(name, nvPr.isEmpty() ? QStringLiteral("<p:nvPr/>") : QStringLiteral("<p:nvPr>%1</p:nvPr>").arg(nvPr), spPr, style, txBody);
+    };
+    const auto xfrm = [](qint64 x, qint64 y, qint64 cx, qint64 cy) {
+        return QString::fromUtf8(R"X(<a:xfrm><a:off x="%1" y="%2"/><a:ext cx="%3" cy="%4"/></a:xfrm>)X").arg(x).arg(y).arg(cx).arg(cy);
+    };
+    const QString rect = QString::fromUtf8(R"X(<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>)X");
+
+    QHash<QString, QByteArray> parts;
+    parts.insert("[Content_Types].xml", QByteArray(R"X(<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/></Types>)X"));
+    parts.insert("_rels/.rels", rels(rel("rId1", "officeDocument", "ppt/presentation.xml")).toUtf8());
+    parts.insert("ppt/presentation.xml", QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><p:presentation %1 xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst><p:sldId id="256" r:id="rId2"/><p:sldId id="257" r:id="rId3"/><p:sldId id="258" r:id="rId4"/></p:sldIdLst><p:sldSz cx="12192000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/><p:defaultTextStyle><a:lvl1pPr algn="l"><a:defRPr sz="1800"/></a:lvl1pPr></p:defaultTextStyle><p:extLst><p:ext uri="{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"><p14:sectionLst><p14:section name="Opening" id="{A}"><p14:sldIdLst><p14:sldId id="256"/><p14:sldId id="257"/></p14:sldIdLst></p14:section><p14:section name="Close" id="{B}"><p14:sldIdLst><p14:sldId id="258"/></p14:sldIdLst></p14:section></p14:sectionLst></p:ext></p:extLst></p:presentation>)X").arg(ns).toUtf8());
+    parts.insert("ppt/_rels/presentation.xml.rels", rels(rel("rId1", "slideMaster", "slideMasters/slideMaster1.xml") + rel("rId2", "slide", "slides/slide1.xml")
+                                                           + rel("rId3", "slide", "slides/slide2.xml") + rel("rId4", "slide", "slides/slide3.xml")).toUtf8());
+    parts.insert("ppt/slideMasters/slideMaster1.xml", QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><p:sldMaster %1><p:cSld><p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>%2%3</p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:txStyles><p:titleStyle><a:lvl1pPr algn="l"><a:defRPr sz="4400" kern="1200"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mj-lt"/></a:defRPr></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr marL="228600" indent="-228600" algn="l"><a:buFont typeface="Arial"/><a:buChar char="&#8226;"/><a:defRPr sz="2800"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mn-lt"/></a:defRPr></a:lvl1pPr><a:lvl2pPr marL="685800" indent="-228600" algn="l"><a:buFont typeface="Arial"/><a:buChar char="&#8211;"/><a:defRPr sz="2400"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mn-lt"/></a:defRPr></a:lvl2pPr></p:bodyStyle><p:otherStyle><a:lvl1pPr><a:defRPr sz="1800"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mn-lt"/></a:defRPr></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>)X")
+                                                      .arg(ns, sp("Title Placeholder 1", R"X(<p:ph type="title"/>)X", xfrm(838200, 365125, 10515600, 1325563) + rect, QString(),
+                                                              R"X(<p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>Click to edit</a:t></a:r></a:p></p:txBody>)X"),
+                                                           sp("Text Placeholder 2", R"X(<p:ph type="body" idx="1"/>)X", xfrm(838200, 1825625, 10515600, 4351338) + rect, QString(),
+                                                              R"X(<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>Click to edit</a:t></a:r></a:p></p:txBody>)X")).toUtf8());
+    parts.insert("ppt/slideMasters/_rels/slideMaster1.xml.rels", rels(rel("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml") + rel("rId2", "theme", "../theme/theme1.xml")).toUtf8());
+    parts.insert("ppt/slideLayouts/slideLayout1.xml", QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><p:sldLayout %1 type="obj"><p:cSld name="Title and Content"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>%2%3</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>)X")
+                                                      .arg(ns, sp("Title 1", R"X(<p:ph type="title"/>)X", xfrm(914400, 457200, 10363200, 1143000), QString(),
+                                                              R"X(<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>Click to edit</a:t></a:r></a:p></p:txBody>)X"),
+                                                           sp("Content Placeholder 2", R"X(<p:ph idx="1"/>)X", QString(), QString(),
+                                                              R"X(<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>Click to edit</a:t></a:r></a:p></p:txBody>)X")).toUtf8());
+    parts.insert("ppt/slideLayouts/_rels/slideLayout1.xml.rels", rels(rel("rId1", "slideMaster", "../slideMasters/slideMaster1.xml")).toUtf8());
+    parts.insert("ppt/theme/theme1.xml", QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office"><a:themeElements><a:clrScheme name="Office"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri Light"/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/></a:minorFont></a:fontScheme><a:fmtScheme name="Office"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:gradFill><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"><a:lumMod val="110000"/></a:schemeClr></a:gs><a:gs pos="100000"><a:schemeClr val="phClr"><a:lumMod val="105000"/></a:schemeClr></a:gs></a:gsLst><a:lin ang="5400000"/></a:gradFill><a:gradFill><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"/></a:gs></a:gsLst></a:gradFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:gradFill><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"/></a:gs></a:gsLst></a:gradFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>)X").toUtf8());
+
+    const QString boxStyle = QString::fromUtf8(R"X(<p:style><a:lnRef idx="2"><a:schemeClr val="accent1"><a:shade val="50000"/></a:schemeClr></a:lnRef><a:fillRef idx="1"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></p:style>)X");
+    parts.insert("ppt/slides/slide1.xml", QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><p:sld %1><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="112233"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>%2%3%4%5</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>)X")
+                                              .arg(ns,
+                                                   sp("Title 1", R"X(<p:ph type="title"/>)X", QString(), QString(),
+                                                      R"X(<p:txBody><a:bodyPr><a:normAutofit fontScale="90000"/></a:bodyPr><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" dirty="0"/><a:t>Welcome</a:t></a:r></a:p></p:txBody>)X"),
+                                                   sp("Content Placeholder 2", R"X(<p:ph idx="1"/>)X", QString(), QString(),
+                                                      R"X(<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" b="1" dirty="0"><a:solidFill><a:schemeClr val="accent1"><a:lumMod val="75000"/></a:schemeClr></a:solidFill></a:rPr><a:t>First point</a:t></a:r></a:p><a:p><a:pPr lvl="1"/><a:r><a:rPr lang="en-US" dirty="0"/><a:t>Sub point</a:t></a:r></a:p></p:txBody>)X"),
+                                                   sp("Box 3", QString(), xfrm(6096000, 3429000, 3048000, 1524000) + R"X(<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 20000"/></a:avLst></a:prstGeom><a:ln w="38100"><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill></a:ln>)X", boxStyle,
+                                                      R"X(<p:txBody><a:bodyPr rtlCol="0" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-US" sz="2000"/><a:t>Box</a:t></a:r></a:p></p:txBody>)X"),
+                                                   QString::fromUtf8(R"X(<p:pic><p:nvPicPr><p:cNvPr id="5" name="Picture 4"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId2"/><a:srcRect l="10000" r="10000" b="20000"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>%1%2</p:spPr></p:pic>)X").arg(xfrm(9144000, 457200, 2286000, 1143000), rect)).toUtf8());
+    parts.insert("ppt/slides/_rels/slide1.xml.rels", rels(rel("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml") + rel("rId2", "image", "../media/image1.png")
+                                                          + rel("rId3", "notesSlide", "../notesSlides/notesSlide1.xml")).toUtf8());
+    parts.insert("ppt/notesSlides/notesSlide1.xml", QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><p:notes %1><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>%2%3</p:spTree></p:cSld></p:notes>)X")
+                                                   .arg(ns, sp("Slide Image Placeholder 1", R"X(<p:ph type="sldImg"/>)X", QString(), QString(), QString()),
+                                                        sp("Notes Placeholder 2", R"X(<p:ph type="body" idx="1"/>)X", QString(), QString(),
+                                                           R"X(<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>Speaker notes here</a:t></a:r></a:p></p:txBody>)X")).toUtf8());
+    parts.insert("ppt/slides/slide2.xml", QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><p:sld %1 show="0"><p:cSld><p:bg><p:bgPr><a:blipFill dpi="0" rotWithShape="1"><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:grpSp><p:nvGrpSpPr><p:cNvPr id="4" name="Group 3"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="1524000" y="1524000"/><a:ext cx="3048000" cy="1524000"/><a:chOff x="0" y="0"/><a:chExt cx="6096000" cy="3048000"/></a:xfrm></p:grpSpPr>%2</p:grpSp></p:spTree></p:cSld></p:sld>)X")
+                                              .arg(ns, sp("Inner", QString(), xfrm(1524000, 0, 3048000, 1524000) + rect + R"X(<a:solidFill><a:srgbClr val="00FF00"/></a:solidFill>)X", QString(),
+                                                          R"X(<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US"/><a:t>Inner</a:t></a:r></a:p></p:txBody>)X")).toUtf8());
+    parts.insert("ppt/slides/_rels/slide2.xml.rels", rels(rel("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml") + rel("rId2", "image", "../media/image1.png")).toUtf8());
+    parts.insert("ppt/slides/slide3.xml", QString::fromUtf8(R"X(<?xml version="1.0" encoding="UTF-8"?><p:sld %1><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>%2%3</p:spTree></p:cSld></p:sld>)X")
+                                              .arg(ns, sp("Content Placeholder 2", R"X(<p:ph idx="1"/>)X", QString(), QString(), R"X(<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody>)X"),
+                                                   QString::fromUtf8(R"X(<p:sp><p:nvSpPr><p:cNvPr id="3" name="TextBox 2"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr>%1%2</p:spPr><p:txBody><a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" anchor="b"/><a:lstStyle/><a:p><a:pPr><a:lnSpc><a:spcPct val="150000"/></a:lnSpc><a:spcBef><a:spcPts val="600"/></a:spcBef></a:pPr><a:r><a:rPr lang="en-US" sz="2400" u="sng" cap="all"/><a:t>Loud</a:t></a:r><a:br><a:rPr lang="en-US" sz="2400"/></a:br><a:r><a:rPr lang="en-US" sz="2400" baseline="30000"/><a:t>Soft</a:t></a:r><a:endParaRPr lang="en-US" sz="2400"/></a:p></p:txBody></p:sp>)X").arg(xfrm(1000000, 1000000, 4000000, 2000000), rect)).toUtf8());
+    parts.insert("ppt/slides/_rels/slide3.xml.rels", rels(rel("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml")).toUtf8());
+    parts.insert("ppt/media/image1.png", png(QSize(40, 20), Qt::green));
+
+    PptxZipWriter zip;
+    QString error;
+    if (!zip.open(path, &error))
+        return {};
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+        if (!zip.add(it.key(), it.value(), it.key().endsWith(".png") ? PptxZipWriter::Store : PptxZipWriter::Deflate, &error))
+            return {};
+    }
+    if (!zip.finish(&error))
+        return {};
+    return path;
 }
 
 RunStyle style(double size, const QColor &colour)
@@ -674,6 +765,226 @@ cue_groups { group { uuid { string: "G" } name: "Verse" } cue_identifiers { stri
         QFile after(path);
         QVERIFY(after.open(QIODevice::ReadOnly));
         QCOMPARE(after.readAll(), QByteArray("what was there"));
+    }
+
+    // ---- Import PowerPoint: the reader (pptxread.h)
+
+    void aPowerPointFileIsReadIntoADeck()
+    {
+        QTemporaryDir folder;
+        const QString path = madePowerPointFile(folder);
+        QVERIFY(!path.isEmpty());
+        const double u = 1080.0 / 6858000; // units an EMU
+        ReadResult read = readDeck(path);
+        QVERIFY2(read.error.isEmpty(), qPrintable(read.error));
+        const Deck &deck = read.deck;
+        QCOMPARE(deck.title, "Made");
+        QCOMPARE(deck.size, QSizeF(1920, 1080));
+        QCOMPARE(deck.slides.size(), 3);
+        QCOMPARE(deck.sections.size(), 2);
+        QCOMPARE(deck.sections.at(0).name, "Opening");
+        QCOMPARE(deck.sections.at(0).firstSlide, 0);
+        QCOMPARE(deck.sections.at(1).name, "Close");
+        QCOMPARE(deck.sections.at(1).firstSlide, 2);
+        QVERIFY(!deck.slides.at(0).hidden);
+        QVERIFY(deck.slides.at(1).hidden);
+
+        // The first slide: its own colour behind, four things on it, its notes
+        const Slide &first = deck.slides.at(0);
+        QVERIFY(first.backgroundColor.has_value());
+        QCOMPARE(first.backgroundColor->name(), "#112233");
+        QVERIFY(!first.background.has_value());
+        QCOMPARE(first.notes, "Speaker notes here");
+        QCOMPARE(first.items.size(), 4);
+
+        // The title: its frame from the layout's placeholder (the master's is moved there),
+        // its size from the master's title style, shrunk as PowerPoint shrank it; the
+        // theme's major font; the theme's dark text colour
+        const Shape *title = std::get_if<Shape>(&first.items.at(0));
+        QVERIFY(title && title->text);
+        QCOMPARE(title->name, "Title 1");
+        QCOMPARE(title->frame, QRectF(914400 * u, 457200 * u, 10363200 * u, 1143000 * u));
+        QCOMPARE(title->text->plainText(), "Welcome");
+        QCOMPARE(title->text->autofit, TextBody::Shrink);
+        const RunStyle &titleStyle = title->text->paragraphs.at(0).runs.at(0).style;
+        QVERIFY2(qAbs(titleStyle.size - 44 * 2 * 0.9) < 0.01, qPrintable(QString::number(titleStyle.size)));
+        QCOMPARE(titleStyle.fontFamily, "Calibri Light");
+        QCOMPARE(std::get<QColor>(titleStyle.fill).name(), "#000000");
+        QCOMPARE(title->text->paragraphs.at(0).alignment, Paragraph::Left);
+        QVERIFY(!title->text->paragraphs.at(0).bullet.has_value());
+        // (PowerPoint's insets where nothing says: a tenth of an inch, a twentieth)
+        QCOMPARE(title->text->insets, QMarginsF(91440 * u, 45720 * u, 91440 * u, 45720 * u));
+        QCOMPARE(title->text->verticalAlignment, TextBody::Middle);
+
+        // The body: the master's frame (the layout's placeholder has none of its own), the
+        // master's bullets at each level, a run bold and in the darkened theme colour
+        const Shape *body = std::get_if<Shape>(&first.items.at(1));
+        QVERIFY(body && body->text);
+        QCOMPARE(body->frame, QRectF(838200 * u, 1825625 * u, 10515600 * u, 4351338 * u));
+        QCOMPARE(body->text->paragraphs.size(), 2);
+        const Paragraph &point = body->text->paragraphs.at(0);
+        QVERIFY(point.bullet.has_value());
+        QCOMPARE(point.bullet->character, QString(QChar(0x2022)));
+        QCOMPARE(point.runs.at(0).text, "First point");
+        QVERIFY(point.runs.at(0).style.bold);
+        QCOMPARE(point.runs.at(0).style.size, 56.0);
+        QCOMPARE(point.runs.at(0).style.fontFamily, "Calibri");
+        QColor accent(0x44, 0x72, 0xc4);
+        float h = 0, s = 0, l = 0;
+        accent.getHslF(&h, &s, &l);
+        accent.setHslF(h, s, l * 0.75f);
+        QCOMPARE(std::get<QColor>(point.runs.at(0).style.fill).name(), accent.name());
+        QCOMPARE(point.leftIndent, 228600 * u);
+        const Paragraph &sub = body->text->paragraphs.at(1);
+        QCOMPARE(sub.bullet->character, QString(QChar(0x2013)));
+        QCOMPARE(sub.runs.at(0).style.size, 48.0);
+        QVERIFY(!sub.runs.at(0).style.bold);
+
+        // The box: rounded by a fifth, filled by the theme's style in its own colour, its
+        // own red line over the style's, centred words in the style's light colour
+        const Shape *box = std::get_if<Shape>(&first.items.at(2));
+        QVERIFY(box && box->text);
+        QCOMPARE(box->geometry, Shape::RoundedRectangle);
+        QCOMPARE(box->cornerFraction, 0.2);
+        QCOMPARE(box->frame, QRectF(960, 540, 480, 240));
+        QVERIFY(box->fill.has_value());
+        QCOMPARE(std::get<QColor>(*box->fill).name(), "#4472c4");
+        QVERIFY(box->line.has_value());
+        QCOMPARE(box->line->color.name(), "#ff0000");
+        QCOMPARE(box->line->width, 6.0);
+        QCOMPARE(box->text->plainText(), "Box");
+        QCOMPARE(box->text->paragraphs.at(0).alignment, Paragraph::Center);
+        QCOMPARE(box->text->paragraphs.at(0).runs.at(0).style.size, 40.0);
+        QCOMPARE(std::get<QColor>(box->text->paragraphs.at(0).runs.at(0).style.fill).name(), "#ffffff");
+        QCOMPARE(box->text->paragraphs.at(0).runs.at(0).style.fontFamily, "Calibri");
+
+        // The picture: cropped, placed, its file taken out
+        const Picture *picture = std::get_if<Picture>(&first.items.at(3));
+        QVERIFY(picture);
+        QCOMPARE(picture->name, "Picture 4");
+        QCOMPARE(picture->frame, QRectF(1440, 72, 360, 180));
+        QCOMPARE(picture->crop, QMarginsF(0.1, 0, 0.1, 0.2));
+        QCOMPARE(picture->media.fileName, "image1.png");
+        QVERIFY(QFile::exists(picture->media.path));
+        QCOMPARE(picture->media.naturalSize, QSizeF(40, 20));
+        QCOMPARE(QImage(picture->media.path).pixelColor(5, 5).name(), "#00ff00");
+
+        // The second slide: the picture behind it, and the grouped rectangle halved and
+        // moved with its group
+        const Slide &second = deck.slides.at(1);
+        QVERIFY(second.background.has_value());
+        QCOMPARE(second.background->media.fileName, "image1.png");
+        QCOMPARE(second.background->media.path, picture->media.path);
+        QCOMPARE(second.items.size(), 1);
+        const Shape *inner = std::get_if<Shape>(&second.items.at(0));
+        QVERIFY(inner);
+        QCOMPARE(inner->frame, QRectF(360, 240, 240, 120));
+        QCOMPARE(std::get<QColor>(*inner->fill).name(), "#00ff00");
+
+        // The third: the empty placeholder shows nothing; the text box with no insets,
+        // bottom-aligned, at a line and a half (as a multiple of the font's own line
+        // height), with space before, capitals, an underline, a break and a superscript
+        const Slide &third = deck.slides.at(2);
+        QVERIFY(!third.backgroundColor.has_value() || third.backgroundColor->name() == "#ffffff");
+        QCOMPARE(third.items.size(), 1);
+        const Shape *textBox = std::get_if<Shape>(&third.items.at(0));
+        QVERIFY(textBox && textBox->text);
+        QVERIFY(!textBox->fill.has_value());
+        QCOMPARE(textBox->text->insets, QMarginsF(0, 0, 0, 0));
+        QCOMPARE(textBox->text->verticalAlignment, TextBody::Bottom);
+        const Paragraph &loud = textBox->text->paragraphs.at(0);
+        QVERIFY(loud.lineSpacing.has_value());
+        QCOMPARE(loud.lineSpacing->kind, Paragraph::LineSpacing::Multiple);
+        QVERIFY2(loud.lineSpacing->value > 1.3 && loud.lineSpacing->value < 1.9, qPrintable(QString::number(loud.lineSpacing->value)));
+        QCOMPARE(loud.spaceBefore, 12.0);
+        QCOMPARE(loud.runs.size(), 2);
+        QCOMPARE(loud.runs.at(0).text, QStringLiteral("Loud") + QChar(0x2028));
+        QCOMPARE(loud.runs.at(0).style.capitalization, RunStyle::AllCaps);
+        QVERIFY(loud.runs.at(0).style.underline);
+        QCOMPARE(loud.runs.at(0).style.size, 48.0);
+        QCOMPARE(loud.runs.at(1).text, "Soft");
+        QCOMPARE(loud.runs.at(1).style.superscript, 1);
+
+        // The master's background, white, where a slide has none of its own
+        QVERIFY(third.backgroundColor.has_value());
+        QCOMPARE(third.backgroundColor->name(), "#ffffff");
+
+        // A glance says what the file holds without reading the slides
+        const Glance glance = glanceAt(path);
+        QVERIFY(glance.error.isEmpty());
+        QCOMPARE(glance.name, "Made");
+        QCOMPARE(glance.slides, 3);
+        QCOMPARE(glance.size, QSizeF(1920, 1080));
+    }
+
+    void aFileThatIsNotPowerPointIsRefused()
+    {
+        QTemporaryDir folder;
+        const QString path = folder.filePath("Not.pptx");
+        PptxZipWriter zip;
+        QString error;
+        QVERIFY(zip.open(path, &error));
+        QVERIFY(zip.add("hello.txt", "hello", PptxZipWriter::Store, &error));
+        QVERIFY(zip.finish(&error));
+        const ReadResult read = readDeck(path);
+        QVERIFY(read.error.contains("not a PowerPoint file"));
+        QVERIFY(glanceAt(path).error.contains("not a PowerPoint file"));
+        QVERIFY(!readDeck(folder.filePath("missing.pptx")).error.isEmpty());
+    }
+
+    void aDeckWrittenComesBackWhenRead()
+    {
+        // The export's own file read back: the round trip, slide for slide
+        QTemporaryDir folder;
+        {
+            QFile back(folder.filePath("Back.png"));
+            QVERIFY(back.open(QIODevice::WriteOnly));
+            back.write(png(QSize(192, 108), Qt::red));
+        }
+        const rv::data::Presentation presentation = madePresentation();
+        ImportContext context;
+        context.findMedia = [&folder](const rv::data::URL &url) {
+            const QString path = folder.filePath(QFileInfo(QUrl(QString::fromStdString(url.absolute_string())).path()).fileName());
+            return QFile::exists(path) ? path : QString();
+        };
+        Options options;
+        const ImportResult imported = importPresentation(presentation, "Fallback", QString(), options, context);
+        QCOMPARE(imported.deck.slides.size(), 2);
+        const QString path = folder.filePath("Round.pptx");
+        NoteCollector notes;
+        QString error;
+        QVERIFY2(writeDeck(imported.deck, path, options, &notes, &error), qPrintable(error));
+
+        const ReadResult read = readDeck(path);
+        QVERIFY2(read.error.isEmpty(), qPrintable(read.error));
+        QCOMPARE(read.deck.slides.size(), 2);
+        QCOMPARE(read.deck.size, imported.deck.size);
+        QCOMPARE(read.deck.sections.size(), 2);
+        QCOMPARE(read.deck.sections.at(1).name, "Chorus");
+        QCOMPARE(read.deck.sections.at(1).firstSlide, 1);
+        // The picture behind the first slide, as the slide's background, comes back as media
+        QVERIFY(read.deck.slides.at(0).background.has_value());
+        QVERIFY(QFile::exists(read.deck.slides.at(0).background->media.path));
+        QCOMPARE(QImage(read.deck.slides.at(0).background->media.path).size(), QSize(192, 108));
+        // The words, where they were, at their size
+        const Shape *before = std::get_if<Shape>(&imported.deck.slides.at(0).items.at(0));
+        const Shape *after = nullptr;
+        for (const Item &item : read.deck.slides.at(0).items) {
+            if (const Shape *shape = std::get_if<Shape>(&item)) {
+                if (shape->text && shape->text->plainText() == "Words one")
+                    after = shape;
+            }
+        }
+        QVERIFY(before && before->text);
+        QVERIFY2(after, "the words were not read back");
+        QVERIFY2(qAbs(after->frame.x() - before->frame.x()) < 1 && qAbs(after->frame.y() - before->frame.y()) < 1
+                     && qAbs(after->frame.width() - before->frame.width()) < 1 && qAbs(after->frame.height() - before->frame.height()) < 1,
+                 qPrintable(QStringLiteral("%1 against %2").arg(QDebug::toString(after->frame), QDebug::toString(before->frame))));
+        QVERIFY(qAbs(after->text->paragraphs.at(0).runs.at(0).style.size - 72) < 0.5);
+        QCOMPARE(after->text->paragraphs.at(0).alignment, before->text->paragraphs.at(0).alignment);
+        // (The only note there can be is of a font not installed here: the fixture's Helvetica)
+        for (const Note &note : read.notes)
+            QCOMPARE(note.kind, Note::MissingFont);
     }
 
     void valuesOutOfRangeAreFound()

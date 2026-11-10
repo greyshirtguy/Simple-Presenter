@@ -213,6 +213,7 @@ qt_add_qml_module(SimplePresenter
         qml/EditorBuilds.qml
         qml/ExportPowerPoint.qml
         qml/ImportLyrics.qml
+        qml/ImportPowerPoint.qml
         qml/ImportSong.qml
         qml/LooksPanel.qml
         qml/MacroGlyph.qml
@@ -395,6 +396,14 @@ qt_add_qml_module(SimplePresenter
         src/pptximport.cpp
         src/pptxexport.h
         src/pptxexport.cpp
+        src/pptxxml.h
+        src/pptxxml.cpp
+        src/pptxread.h
+        src/pptxread.cpp
+        src/pptxmake.h
+        src/pptxmake.cpp
+        src/powerpointimport.h
+        src/powerpointimport.cpp
         src/textfills.h
         src/textfills.cpp
         src/labelfile.h

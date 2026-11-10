@@ -527,6 +527,10 @@ qt_add_executable(tst_pptx
     ${PROJECT_SOURCE_DIR}/src/pptxwriter.cpp
     ${PROJECT_SOURCE_DIR}/src/pptximport.h
     ${PROJECT_SOURCE_DIR}/src/pptximport.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptxxml.h
+    ${PROJECT_SOURCE_DIR}/src/pptxxml.cpp
+    ${PROJECT_SOURCE_DIR}/src/pptxread.h
+    ${PROJECT_SOURCE_DIR}/src/pptxread.cpp
     ${PROJECT_SOURCE_DIR}/src/zipreader.h
     ${PROJECT_SOURCE_DIR}/src/zipreader.cpp
     ${PROJECT_SOURCE_DIR}/src/textlayout.h

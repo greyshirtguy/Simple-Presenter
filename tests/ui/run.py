@@ -860,6 +860,151 @@ def prepare_playlistimport(workspace, test_dir):
         archive.writestr("Brand New Song.pro", other)
 
 
+def prepare_pptximport(workspace, test_dir):
+    """A PowerPoint file as PowerPoint writes one, in the workspace's folder, for the test to import (Deck.pptx): three
+    16:9 slides on one layout and master with a theme. The first has a blue background colour, the title placeholder
+    ("Welcome to the Service", white) and a body placeholder of two bulleted points, and speaker notes; the second has a
+    green picture as its background, a red picture on it and a text box; the third is hidden. Two sections, "Opening"
+    (the first two) and "Close".
+
+    The import writes the pictures under the workspace's Media. In a copy of a fixture that folder is a LINK to the real
+    media folder of the workspace the fixture was made from (see prepare_audio): so the link is taken away first, the
+    link alone, and an empty folder put in its place, which the fixture's presentations then cannot find their media
+    in, which this test does not mind."""
+    import zipfile
+    media = os.path.join(workspace, "Media")
+    if os.path.islink(media):
+        os.unlink(media)
+    if not os.path.exists(media):
+        os.mkdir(media)
+    ns = ('xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+          'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+          'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"')
+    rel_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/"
+
+    def rels(*pairs):
+        inner = "".join('<Relationship Id="%s" Type="%s%s" Target="%s"/>' % (rid, rel_type, kind, target) for rid, kind, target in pairs)
+        return '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">%s</Relationships>' % inner
+
+    def xfrm(x, y, cx, cy):
+        return '<a:xfrm><a:off x="%d" y="%d"/><a:ext cx="%d" cy="%d"/></a:xfrm>' % (x, y, cx, cy)
+
+    rect = '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+    tree_start = '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>'
+
+    def sp(name, ph, sp_pr, tx_body):
+        nv = "<p:nvPr>%s</p:nvPr>" % ph if ph else "<p:nvPr/>"
+        return '<p:sp><p:nvSpPr><p:cNvPr id="2" name="%s"/><p:cNvSpPr/>%s</p:nvSpPr><p:spPr>%s</p:spPr>%s</p:sp>' % (name, nv, sp_pr, tx_body)
+
+    def words(text, rpr='<a:rPr lang="en-US"/>', ppr=""):
+        return "<a:p>%s<a:r>%s<a:t>%s</a:t></a:r></a:p>" % (ppr, rpr, text)
+
+    white = '<a:rPr lang="en-US"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr>'
+    master = ('<?xml version="1.0" encoding="UTF-8"?><p:sldMaster %s><p:cSld><p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg>'
+              '<p:spTree>%s%s%s</p:spTree></p:cSld>'
+              '<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>'
+              '<p:txStyles><p:titleStyle><a:lvl1pPr algn="l"><a:defRPr sz="4400"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mj-lt"/></a:defRPr></a:lvl1pPr></p:titleStyle>'
+              '<p:bodyStyle><a:lvl1pPr marL="228600" indent="-228600" algn="l"><a:buChar char="&#8226;"/><a:defRPr sz="2800"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mn-lt"/></a:defRPr></a:lvl1pPr></p:bodyStyle>'
+              '<p:otherStyle><a:lvl1pPr><a:defRPr sz="1800"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill><a:latin typeface="+mn-lt"/></a:defRPr></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>'
+              % (ns, tree_start,
+                 sp("Title Placeholder 1", '<p:ph type="title"/>', xfrm(838200, 365125, 10515600, 1325563) + rect,
+                    '<p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/>%s</p:txBody>' % words("Click to edit")),
+                 sp("Text Placeholder 2", '<p:ph type="body" idx="1"/>', xfrm(838200, 1825625, 10515600, 4351338) + rect,
+                    '<p:txBody><a:bodyPr/><a:lstStyle/>%s</p:txBody>' % words("Click to edit"))))
+    layout = ('<?xml version="1.0" encoding="UTF-8"?><p:sldLayout %s type="obj"><p:cSld name="Title and Content"><p:spTree>%s%s%s</p:spTree></p:cSld>'
+              '<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>'
+              % (ns, tree_start,
+                 sp("Title 1", '<p:ph type="title"/>', "", '<p:txBody><a:bodyPr/><a:lstStyle/>%s</p:txBody>' % words("Click to edit")),
+                 sp("Content Placeholder 2", '<p:ph idx="1"/>', "", '<p:txBody><a:bodyPr/><a:lstStyle/>%s</p:txBody>' % words("Click to edit"))))
+    theme = ('<?xml version="1.0" encoding="UTF-8"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office"><a:themeElements>'
+             '<a:clrScheme name="Office"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>'
+             '<a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2>'
+             '<a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6>'
+             '<a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme>'
+             '<a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri Light"/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/></a:minorFont></a:fontScheme>'
+             '<a:fmtScheme name="Office"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>'
+             '<a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst>'
+             '<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>'
+             '<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme>'
+             '</a:themeElements></a:theme>')
+    slide1 = ('<?xml version="1.0" encoding="UTF-8"?><p:sld %s><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="204060"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>'
+              '<p:spTree>%s%s%s</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>'
+              % (ns, tree_start,
+                 sp("Title 1", '<p:ph type="title"/>', "", '<p:txBody><a:bodyPr/><a:lstStyle/>%s</p:txBody>' % words("Welcome to the Service", white)),
+                 sp("Content Placeholder 2", '<p:ph idx="1"/>', "",
+                    '<p:txBody><a:bodyPr/><a:lstStyle/>%s%s</p:txBody>' % (words("Songs of praise", white), words("A reading", white)))))
+    slide2 = ('<?xml version="1.0" encoding="UTF-8"?><p:sld %s><p:cSld><p:bg><p:bgPr><a:blipFill dpi="0" rotWithShape="1"><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>'
+              '<p:spTree>%s%s'
+              '<p:pic><p:nvPicPr><p:cNvPr id="5" name="Picture 4"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId3"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>%s%s</p:spPr></p:pic>'
+              '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>'
+              % (ns, tree_start,
+                 sp("TextBox 2", "", xfrm(457200, 457200, 4572000, 914400) + rect,
+                    '<p:txBody><a:bodyPr wrap="square"/><a:lstStyle/>%s</p:txBody>' % words("Picture behind", '<a:rPr lang="en-US" sz="2800"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr>')),
+                 xfrm(7620000, 1143000, 3048000, 3048000), rect))
+    slide3 = ('<?xml version="1.0" encoding="UTF-8"?><p:sld %s show="0"><p:cSld><p:spTree>%s%s</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>'
+              % (ns, tree_start, sp("Title 1", '<p:ph type="title"/>', "", '<p:txBody><a:bodyPr/><a:lstStyle/>%s</p:txBody>' % words("Hidden slide"))))
+    notes1 = ('<?xml version="1.0" encoding="UTF-8"?><p:notes %s><p:cSld><p:spTree>%s%s</p:spTree></p:cSld></p:notes>'
+              % (ns, tree_start, sp("Notes Placeholder 2", '<p:ph type="body" idx="1"/>', "", '<p:txBody><a:bodyPr/><a:lstStyle/>%s</p:txBody>' % words("Speaker notes here"))))
+    presentation = ('<?xml version="1.0" encoding="UTF-8"?><p:presentation %s xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main">'
+                    '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>'
+                    '<p:sldIdLst><p:sldId id="256" r:id="rId2"/><p:sldId id="257" r:id="rId3"/><p:sldId id="258" r:id="rId4"/></p:sldIdLst>'
+                    '<p:sldSz cx="12192000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/>'
+                    '<p:extLst><p:ext uri="{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"><p14:sectionLst>'
+                    '<p14:section name="Opening" id="{A}"><p14:sldIdLst><p14:sldId id="256"/><p14:sldId id="257"/></p14:sldIdLst></p14:section>'
+                    '<p14:section name="Close" id="{B}"><p14:sldIdLst><p14:sldId id="258"/></p14:sldIdLst></p14:section>'
+                    '</p14:sectionLst></p:ext></p:extLst></p:presentation>' % ns)
+    parts = {
+        "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/></Types>',
+        "_rels/.rels": rels(("rId1", "officeDocument", "ppt/presentation.xml")),
+        "ppt/presentation.xml": presentation,
+        "ppt/_rels/presentation.xml.rels": rels(("rId1", "slideMaster", "slideMasters/slideMaster1.xml"), ("rId2", "slide", "slides/slide1.xml"),
+                                                ("rId3", "slide", "slides/slide2.xml"), ("rId4", "slide", "slides/slide3.xml")),
+        "ppt/slideMasters/slideMaster1.xml": master,
+        "ppt/slideMasters/_rels/slideMaster1.xml.rels": rels(("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml"), ("rId2", "theme", "../theme/theme1.xml")),
+        "ppt/slideLayouts/slideLayout1.xml": layout,
+        "ppt/slideLayouts/_rels/slideLayout1.xml.rels": rels(("rId1", "slideMaster", "../slideMasters/slideMaster1.xml")),
+        "ppt/theme/theme1.xml": theme,
+        "ppt/slides/slide1.xml": slide1,
+        "ppt/slides/_rels/slide1.xml.rels": rels(("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml"), ("rId2", "notesSlide", "../notesSlides/notesSlide1.xml")),
+        "ppt/notesSlides/notesSlide1.xml": notes1,
+        "ppt/slides/slide2.xml": slide2,
+        "ppt/slides/_rels/slide2.xml.rels": rels(("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml"), ("rId2", "image", "../media/image1.png"),
+                                                 ("rId3", "image", "../media/image2.png")),
+        "ppt/slides/slide3.xml": slide3,
+        "ppt/slides/_rels/slide3.xml.rels": rels(("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml")),
+    }
+    with zipfile.ZipFile(os.path.join(workspace, "Deck.pptx"), "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, text in parts.items():
+            archive.writestr(name, text.encode("utf-8"))
+        archive.writestr("ppt/media/image1.png", tiny_png((0, 255, 0), 64, 36))
+        archive.writestr("ppt/media/image2.png", tiny_png((255, 0, 0), 32))
+
+
+def after_pptximport(workspace, test_dir):
+    """The presentation the import made (pptximport), as a file: a cue a slide, the sections as groups, the hidden slide
+    disabled, the second slide's background picture as its background media under Media/Imported, the words in the
+    text, and the notes."""
+    path = os.path.join(workspace, "Libraries", "Demo", "Deck.pro")
+    if not os.path.exists(path):
+        return ["  FAILED  the import left no Deck.pro in the Demo library"]
+    with open(path, "rb") as source:
+        deck = protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+    groups = re.findall(r"^cue_groups \{\n  group \{\n(?:    .*\n)*?    name: \"([^\"]*)\"", deck, re.M)
+    # (The text form prints the file's own names: isEnabled; and a background's layer, being the first choice, is not written)
+    enabled_cues = len(re.findall(r"^  isEnabled: true$", deck, re.M))
+    return [said(deck.count("\ncues {\n") == 3, "a cue a slide: three", deck.count("\ncues {\n")),
+            said(groups == ["Opening", "Close"], "the sections as groups, by name", groups),
+            said(enabled_cues == 2, "two cues enabled, the hidden slide's not", enabled_cues),
+            said('path: "Media/Imported/Deck/image1.png"' in deck and "LAYER_TYPE_FOREGROUND" not in deck,
+                 "the background picture is the cue's background media, in the workspace's Media/Imported folder"),
+            said('path: "Media/Imported/Deck/image2.png"' in deck, "the picture on the slide is an element filled with its file there"),
+            said("draws_background_color: true" in deck, "the first slide draws its background colour"),
+            said("Welcome to the Service" in deck and "Songs of praise" in deck, "the words are in the slides' text"),
+            said("Speaker notes here" in deck, "the speaker notes are the slide's notes"),
+            said(os.path.isfile(os.path.join(workspace, "Media", "Imported", "Deck", "image1.png"))
+                 and os.path.isfile(os.path.join(workspace, "Media", "Imported", "Deck", "image2.png")), "both pictures were written there")]
+
+
 def prepare_lyrics(workspace, test_dir):
     """A lyrics file as SongSelect gives one out, in the workspace's folder, for the test to import."""
     with open(os.path.join(workspace, "Morning Song-lyrics.txt"), "w", encoding="utf-8") as out:
@@ -3739,6 +3884,7 @@ TESTS = {
     "slideimage": test("Act", timeout=240),
     "gridscroll": test("Demo", env={"SP_TEST_REMEMBER": "1"}),
     "playlistimport": test("Demo", prepare=prepare_playlistimport),
+    "pptximport": test("Demo", env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_pptximport, after=after_pptximport),
     "transport": test("Demo"),
     "timers": test("Demo"),
     "link": test("ProPresenter MR"),

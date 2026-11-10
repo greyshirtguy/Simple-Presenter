@@ -2892,7 +2892,9 @@ Window {
             { label: "Import ChordPro File…", disabled: libraryPath === "", run: () => songDialog.open() },
             // (The panel has a picker for the library, so these need only a library to exist)
             { label: "Import Lyrics File…", disabled: catalog.libraries.length === 0, run: () => lyricsDialog.open() },
-            { label: "Import Lyrics from Clipboard", disabled: catalog.libraries.length === 0, run: () => importLyricsFromClipboard() }
+            { label: "Import Lyrics from Clipboard", disabled: catalog.libraries.length === 0, run: () => importLyricsFromClipboard() },
+            // A PowerPoint file as a presentation of its own (see ImportPowerPoint.qml)
+            { label: "Import PowerPoint…", disabled: catalog.libraries.length === 0, run: () => powerPointDialog.open() }
         ], item)
     }
 
@@ -3810,6 +3812,37 @@ Window {
             liveFresh = document
         if (viewingAnnouncements)
             announcementFresh = document
+    }
+
+    // A PowerPoint file has come in as a presentation (ImportPowerPoint.qml,
+    // PowerPointImport, which wrote its file on a thread of its own): the lists are told at
+    // once, it is added to the playlist chosen, and it is opened in its library, as a song
+    // that came in is.
+    function importedPowerPoint(made, library, playlist, file) {
+        saveSelection("importLibrary", library)
+        saveSelection("importPlaylist", playlist)
+        catalog.rescan()
+        let where = ""
+        if (playlist !== "") {
+            // (The presentation is made all the same: the playlist can be given it by hand)
+            const node = catalog.playlists.find(node => node.path === playlist)
+            const error = catalog.addToPlaylist(playlist, made.path)
+            if (error !== "")
+                report(error)
+            else
+                where = ", and added to the playlist " + quoted(node ? node.name : playlist)
+        }
+        if (playlistId !== "" || libraryPath !== library)
+            documentFilter = ""
+        selectedNode = ""
+        playlistId = ""
+        libraryPath = library
+        clearRowSelection()
+        refreshLists()
+        openDocument(made.path)
+        Search.read(catalog.librariesDirectory)
+        Log.note("import", "The PowerPoint file " + quoted(file.replace(/^.*\//, "")) + " came in as " + quoted(made.name) + " in the library "
+                 + quoted(library.replace(/^.*\//, "")) + ", " + counted(made.slides, "slide", "slides") + where)
     }
 
     // ---- The Media Inspector (qml/MediaInspector.qml), for a slide's media, a row of the
@@ -5358,6 +5391,14 @@ Window {
         title: "Import Lyrics File"
         nameFilters: ["Text files (*.txt)", "All files (*)"]
         onAccepted: importLyricsPanel.showFile(decodeURIComponent(String(selectedFile).replace(/^file:\/\//, "")))
+    }
+
+    FileDialog {
+        id: powerPointDialog
+
+        title: "Import PowerPoint"
+        nameFilters: ["PowerPoint (*.pptx)", "All files (*)"]
+        onAccepted: importPowerPointPanel.showFile(decodeURIComponent(String(selectedFile).replace(/^file:\/\//, "")))
     }
 
     FileDialog {
@@ -6923,6 +6964,17 @@ Window {
     // A song's words from SongSelect, and how they are to come in
     ImportLyrics {
         id: importLyricsPanel
+
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        z: 20
+        win: win
+        onClosed: win.takeFocus()
+    }
+
+    // A PowerPoint file, and how it is to come in (see PowerPointImport)
+    ImportPowerPoint {
+        id: importPowerPointPanel
 
         anchors.fill: parent
         anchors.topMargin: toolbar.height

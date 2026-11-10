@@ -148,6 +148,11 @@ public:
     // beside it. Media already there is never overwritten. The copying runs in the
     // background; importFinished reports the outcome.
     Q_INVOKABLE void importPlaylist(const QUrl &archive, const QString &library, const QString &parent, bool replace = false);
+    // Reads the libraries and the playlists again at once: for a presentation whose file
+    // was just written by something other than the catalog (a PowerPoint file brought in
+    // on a thread of its own, PowerPointImport), without waiting for the folder's watcher
+    // to get round to it.
+    Q_INVOKABLE void rescan();
     // Makes a new library: a folder of that name under the workspace's Libraries, which
     // is all a library is. Returns { path, error }.
     Q_INVOKABLE QVariantMap createLibrary(const QString &name);
@@ -358,7 +363,6 @@ signals:
     void importFinished(const QString &error, const QString &summary, const QString &playlist);
 
 private:
-    void rescan();
     QVariantList listDocuments(const QString &library) const;
     QString afterChange(const QString &error);
     // Changes the media action of a marker's `place` (see addMarker) by `change`
