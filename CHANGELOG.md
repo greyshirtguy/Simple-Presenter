@@ -6,6 +6,20 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.132](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.132) · 2026-11-10
+
+- A PowerPoint file (`.pptx`) comes in as a presentation of the workspace, from
+  Import PowerPoint… under the `+` beside Libraries: slide for slide, its words as
+  text boxes that can be edited, with what a placeholder takes from its layout, its
+  master and the theme, and its lines falling where PowerPoint's do; its shapes with
+  their fills, lines and shadows; its pictures cropped as they were placed, and its
+  videos; its slide backgrounds as the slides' background media, or left out by the
+  panel's switch; its speaker notes, its sections as groups and its hidden slides as
+  disabled ones. Pictures and videos go under the workspace's Media/Imported. What
+  cannot come over (tables, charts, SmartArt, transitions and animations) is listed
+  at the end, by slide, with the fonts not installed here
+  ([Import PowerPoint](docs/features/import-powerpoint.md)).
+
 ## [0.131](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.131) · 2026-11-09
 
 - Coming back to the presentation that is live, after looking at another, puts the
