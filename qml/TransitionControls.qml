@@ -120,6 +120,7 @@ Item {
                 stepSize: 0.05
                 marks: [1, 2]
                 minorMarks: [0.5, 1.5, 2.5]
+                seeThrough: true
                 fineWithShift: true
                 enabled: !controls.cut
                 value: Math.min(controls.duration, to)

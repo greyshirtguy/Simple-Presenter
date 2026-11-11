@@ -109,16 +109,24 @@ QtObject {
                 const slider = Lib.find(foot, item => item.toString().startsWith("AppSlider"))
                 check("the slider marks 1 and 2 s, and the halves less", slider !== null && JSON.stringify(slider.marks) === "[1,2]"
                       && JSON.stringify(slider.minorMarks) === "[0.5,1.5,2.5]", slider ? JSON.stringify([slider.marks, slider.minorMarks]) : "none")
-                // (The middle of the mark at 1 s, under the track, where the handle's middle is at 1 s; and the bar beside it)
+                // (The middle of the mark at 1 s, across the middle of the track, where the handle's middle is at 1 s; and the
+                // bar beside it. Since 2026-11-12: they were under the track)
                 const extent = slider.availableWidth - slider.handle.width
                 const markX = slider.leftPadding + (1 - slider.from) / (slider.to - slider.from) * extent + slider.handle.width / 2
-                const markY = slider.topPadding + (slider.availableHeight - 4) / 2 + 4 + 2 + 3.5
+                const markY = slider.topPadding + slider.availableHeight / 2
                 const onMark = rgbAt(slider.mapToItem(null, markX, markY)), beside = rgbAt(slider.mapToItem(null, markX + 6, markY))
                 check("drawn: the mark at 1 s is lighter than the bar beside it", onMark.r > beside.r + 25 && onMark.g > beside.g + 25, JSON.stringify([onMark, beside]))
                 // (A minor mark too, at 1.5 s: drawn at four fifths, a line too thin was once dropped by the renderer)
                 const minorX = slider.leftPadding + (1.5 - slider.from) / (slider.to - slider.from) * extent + slider.handle.width / 2
-                const onMinor = rgbAt(slider.mapToItem(null, minorX, slider.topPadding + (slider.availableHeight - 4) / 2 + 4 + 2 + 2))
-                check("and the lesser mark at 1.5 s is drawn too", onMinor.r > beside.r + 15 && onMinor.g > beside.g + 15, JSON.stringify([onMinor, beside]))
+                const onMinor = rgbAt(slider.mapToItem(null, minorX, markY))
+                check("and the lesser mark at 1.5 s is drawn too, fainter", onMinor.r > beside.r + 15 && onMinor.g > beside.g + 15 && onMinor.r < onMark.r,
+                      JSON.stringify([onMinor, onMark, beside]))
+                // The handle is see-through (the maintainer, 2026-11-12): over the panel above the track, its middle is
+                // neither the panel nor the solid grey a handle is elsewhere
+                const knob = slider.handle
+                const inKnob = rgbAt(knob.mapToItem(null, knob.width / 2, knob.height / 2 - 5)), outside = rgbAt(knob.mapToItem(null, knob.width + 8, knob.height / 2 - 5))
+                check("the handle is see-through: the panel shows through it, lightened", slider.seeThrough === true && knob.color.a < 0.6
+                      && inKnob.r > outside.r + 20 && inKnob.r < 200, JSON.stringify([inKnob, outside]))
                 mediaTransitionDuration = 1
                 const handle = slider.mapToItem(null, markX, slider.topPadding + slider.availableHeight / 2)
                 // (20 pixels of the window, as units of the slider, which is drawn at four fifths)

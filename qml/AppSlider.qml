@@ -4,9 +4,12 @@ import QtQuick.Controls.Basic
 // Slider in the app's dark style. Never takes keyboard focus, so the arrow keys keep
 // driving the slides.
 //
-// Two things for a slider that is slid by eye to a round value, as the transitions'
-// seconds are (the maintainer, 2026-11-11): marks under the track at given values, the
-// major ones taller; and, for a slider that opts in with `fineWithShift`, a tenth of the
+// Three things for a slider that is slid by eye to a round value, as the transitions'
+// seconds are (the maintainer, 2026-11-11): marks across the track at given values, the
+// major ones taller; a handle that is see-through (`seeThrough`), so that the marks and
+// the track show through it as it is slid onto them (the maintainer, 2026-11-12, who had
+// the marks under the track until then, and asked for them in the middle of it and
+// fainter); and, for a slider that opts in with `fineWithShift`, a tenth of the
 // pointer's movement while Shift is held, to land on a value between the marks (not
 // discoverable, by their choice). Such a slider takes its pointer presses itself, as the
 // control would take them: a press on the track moves the handle there, and a drag
@@ -15,9 +18,11 @@ import QtQuick.Controls.Basic
 Slider {
     id: control
 
-    // Values marked under the track, the major ones taller
+    // Values marked across the track, the major ones taller
     property var marks: []
     property var minorMarks: []
+    // Whether the handle is see-through (see the top)
+    property bool seeThrough: false
     // Whether Shift held while dragging makes the drag fine (see the top)
     property bool fineWithShift: false
     // Whether the pointer has it, either way
@@ -38,14 +43,19 @@ Slider {
         radius: 2
         color: "#3a3c42"
 
+        // The part of the track up to the value. Under a see-through handle it ends at the
+        // handle's middle, where its end is seen; under one that is not, it ends where it
+        // always has, out of sight under the handle.
         Rectangle {
-            width: control.visualPosition * parent.width
+            width: control.seeThrough ? control.visualPosition * (control.availableWidth - control.handle.width) + control.handle.width / 2
+                                      : control.visualPosition * parent.width
             height: parent.height
             radius: 2
             color: control.enabled ? "#ff8a1f" : "#50535a"
         }
 
-        // The marks, each under where the handle's middle is at its value. (Wider than a
+        // The marks, each across the track where the handle's middle is at its value, light
+        // and faint over the track and over the part up to the value alike. (Wider than a
         // unit: the transitions' slider is drawn at four fifths, and a line thinner than a
         // pixel there can be dropped by the renderer, as a minor mark was.)
         Repeater {
@@ -58,10 +68,10 @@ Slider {
                 readonly property bool major: index < control.marks.length
 
                 x: (modelData - control.from) / (control.to - control.from) * (control.availableWidth - control.handle.width) + control.handle.width / 2 - width / 2
-                y: parent.height + 2
-                width: major ? 2.5 : 1.5
-                height: major ? 7 : 4
-                color: major ? "#9a9da3" : "#6c6f75"
+                y: (parent.height - height) / 2
+                width: major ? 2 : 1.5
+                height: major ? 10 : 6
+                color: major ? Qt.rgba(1, 1, 1, 0.32) : Qt.rgba(1, 1, 1, 0.2)
             }
         }
     }
@@ -72,7 +82,12 @@ Slider {
         implicitWidth: 16
         implicitHeight: 16
         radius: 8
-        color: !control.enabled ? "#6c6f75" : control.held ? "white" : "#e6e6e6"
+        // (See-through: a faint fill, a little more while it is held, and a ring that keeps
+        // its edge)
+        color: control.seeThrough ? (!control.enabled ? Qt.rgba(0.42, 0.44, 0.46, 0.35) : control.held ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(0.9, 0.9, 0.9, 0.35))
+                                  : !control.enabled ? "#6c6f75" : control.held ? "white" : "#e6e6e6"
+        border.width: control.seeThrough ? 1.5 : 0
+        border.color: !control.enabled ? Qt.rgba(0.42, 0.44, 0.46, 0.8) : Qt.rgba(0.9, 0.9, 0.9, 0.85)
     }
 
     // The pointer, for a slider with `fineWithShift` (see the top)
