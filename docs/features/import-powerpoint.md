@@ -18,6 +18,13 @@ it has got and a **Stop**; at the end the panel says what was made and lists wha
 not be carried over, on which slides. The presentation is opened in its library, and the
 log says what came in.
 
+A `.pptx` dragged in from the file manager and dropped on a library in the list, or on a
+playlist, comes in at once, with nothing asked, as a drop in ProPresenter does: into that
+library, or into the library the last import went into and added to that playlist, with
+the switch for the backgrounds as it was last set. The panel comes up all the same, to
+show how far it has got and then what came of it; several files dropped together come in
+one after another, and it says what came of each.
+
 ## What comes over
 
 - **Each slide**, in the file's order, as a cue with a slide of 1920 by 1080. A deck of
@@ -95,3 +102,6 @@ Marked as such in the code (`src/pptxread.cpp`, `src/pptxmake.cpp`), where they 
 - That a presentation made here opens in ProPresenter. Every part of it is written by the
   functions the editor writes with, and none made from a PowerPoint file has been opened
   in ProPresenter yet.
+- That a file dropped on a playlist goes into the library the last import went into, and
+  that a drop asks nothing first: ProPresenter takes a PowerPoint file dropped on a
+  playlist or a library, and what it does then has not been looked at.

@@ -1867,4 +1867,9 @@ Glance glanceAt(const QString &path)
     return reader.glance();
 }
 
+bool isPowerPointFile(const QString &path)
+{
+    return QFileInfo(path).suffix().compare(QLatin1String("pptx"), Qt::CaseInsensitive) == 0;
+}
+
 } // namespace pptx

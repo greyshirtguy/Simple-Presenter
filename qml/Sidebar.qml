@@ -143,13 +143,22 @@ Rectangle {
                     selectedPath: sidebar.win.selectedNode === "" ? sidebar.win.libraryPath : ""
                     livePath: sidebar.win.cueLive && sidebar.win.liveDocument && sidebar.win.livePlaylistId === ""
                               ? sidebar.win.liveDocument.path.substring(0, sidebar.win.liveDocument.path.lastIndexOf("/")) : ""
+                    // A PowerPoint file from another application, dropped on a library,
+                    // comes in as a presentation of it (Main's dropPowerPoint)
+                    dropKeys: ["text/uri-list"]
+                    dropZone: (entry, source, urls) => source === null && sidebar.win.powerPointAmong(urls).length > 0 ? "onto" : ""
                     onPicked: (entry) => sidebar.win.openLibrary(entry.path)
                     onRenamed: (entry, name) => sidebar.win.renameLibrary(entry.path, name)
                     onEditingEnded: sidebar.win.takeFocus()
+                    onDropped: (entry, source, where, drop) => {
+                        if (source === null)
+                            sidebar.win.dropPowerPoint(drop, entry.path, "")
+                    }
                 }
 
                 // Playlists and the folders they are kept in, in ProPresenter's
-                // own playlists file. Drop a presentation on a playlist to add it.
+                // own playlists file. Drop a presentation on a playlist to add it, or a
+                // PowerPoint file from another application, to bring it in as one.
                 Item {
                     width: parent.width
                     height: playlistsTitle.height
@@ -207,10 +216,13 @@ Rectangle {
                     selectedPath: sidebar.win.selectedNode
                     livePath: sidebar.win.cueLive ? sidebar.win.livePlaylistId : ""
                     dragProxy: sidebar.playlistDrag
-                    dropKeys: ["presentation", "playlist"]
+                    dropKeys: ["presentation", "playlist", "text/uri-list"]
                     // A presentation goes onto a playlist. A playlist or folder
-                    // goes between the others, or onto a folder to go inside it.
-                    dropZone: (node, source) => source === sidebar.presentationDrag ? (node.folder ? "" : "onto")
+                    // goes between the others, or onto a folder to go inside it. A
+                    // PowerPoint file from another application goes onto a playlist, to
+                    // come in as a presentation added to it (Main's dropPowerPoint).
+                    dropZone: (node, source, urls) => source === null ? (!node.folder && sidebar.win.powerPointAmong(urls).length > 0 ? "onto" : "")
+                                              : source === sidebar.presentationDrag ? (node.folder ? "" : "onto")
                                               : node.folder ? "both" : "between"
                     onPicked: (entry) => {
                         if (entry.folder)
@@ -221,8 +233,10 @@ Rectangle {
                     onMenuRequested: (entry, item) => sidebar.win.showPlaylistMenu(entry, item)
                     onRenamed: (entry, name) => sidebar.win.report(sidebar.win.catalog.renamePlaylist(entry.path, name))
                     onEditingEnded: sidebar.win.takeFocus()
-                    onDropped: (node, source, where) => {
-                        if (source === sidebar.playlistDrag)
+                    onDropped: (node, source, where, drop) => {
+                        if (source === null)
+                            sidebar.win.dropPowerPoint(drop, "", node.path)
+                        else if (source === sidebar.playlistDrag)
                             sidebar.win.report(sidebar.win.catalog.movePlaylistNode(source.entry.path, node.path, where))
                         else if (sidebar.win.openable(source.entry))
                             sidebar.win.addToPlaylist(node.path, source.entry.file)

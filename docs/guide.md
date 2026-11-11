@@ -69,8 +69,9 @@ These are not ProPresenter's.
 - **Export to PowerPoint.** A right click on a presentation: a PowerPoint file of it,
   slide for slide as it is shown, its words as text that can be edited, its media behind
   them, its notes as speaker notes. What could not be carried over is listed at the end.
-- **Import PowerPoint.** The + beside Libraries: a PowerPoint file brought in as a
-  presentation, its words as text boxes that can be edited, its pictures as pictures, its
+- **Import PowerPoint.** The + beside Libraries, or a `.pptx` dropped on a library or a
+  playlist: a PowerPoint file brought in as a presentation, its words as text boxes that
+  can be edited, its pictures as pictures, its
   slide backgrounds as the slides' background media (or left out, by the panel's switch),
   its notes as slide notes and its sections as groups. What could not be carried over
   (tables, charts, SmartArt, animations) is listed at the end.

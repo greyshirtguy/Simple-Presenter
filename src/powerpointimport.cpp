@@ -59,6 +59,17 @@ QVariantMap PowerPointImport::describe(const QString &file) const
     };
 }
 
+QStringList PowerPointImport::filesAmong(const QList<QUrl> &files) const
+{
+    QStringList paths;
+    for (const QUrl &file : files) {
+        const QString path = file.toLocalFile();
+        if (pptx::isPowerPointFile(path) && QFileInfo(path).isFile())
+            paths << path;
+    }
+    return paths;
+}
+
 void PowerPointImport::setProgress(double progress)
 {
     if (qFuzzyCompare(progress + 1, m_progress + 1))

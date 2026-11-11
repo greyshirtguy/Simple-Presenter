@@ -76,4 +76,10 @@ struct Glance
 };
 Glance glanceAt(const QString &path);
 
+// Whether a file is a PowerPoint file by its name: .pptx, in any case of letters. For
+// files dragged in from another application, which can be anything; whether the file is
+// there is for the caller. The old .ppt format is not read (it is not a zip, and opening
+// it says that it is not a PowerPoint file), so it is not one here.
+bool isPowerPointFile(const QString &path);
+
 } // namespace pptx

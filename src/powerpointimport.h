@@ -1,7 +1,9 @@
 #pragma once
 
 #include <QObject>
+#include <QStringList>
 #include <QThreadPool>
+#include <QUrl>
 #include <QVariantMap>
 #include <QtQml/qqmlregistration.h>
 
@@ -46,6 +48,10 @@ public:
     // (width and height in slide units, 1920 x 1080 for a 16:9 deck). Reads the file's
     // list of slides only, which is quick.
     Q_INVOKABLE QVariantMap describe(const QString &file) const;
+    // The PowerPoint files among `files` (addresses, as a drag from another application
+    // gives them), as paths: by name (.pptx), and being files that are there. For the
+    // lists a file can be dropped on, which ask as the pointer moves over them.
+    Q_INVOKABLE QStringList filesAmong(const QList<QUrl> &files) const;
     // Starts importing `file` (a path, or a file: address) into the library folder
     // `library` of `workspace`. False if an import is going on already.
     Q_INVOKABLE bool start(const QString &file, const QString &workspace, const QString &library);

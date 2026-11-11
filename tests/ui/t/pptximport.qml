@@ -7,13 +7,25 @@ import "lib.js" as Lib
 // playlist, the import on its thread, and what it made: a presentation of three slides in the library, opened, with the
 // sections as groups, the hidden slide disabled, the words in text boxes, the notes, the background colour and the
 // background picture on the output where they should be and the picture on its slide where it was, and the pictures
-// under the workspace's Media/Imported. The file the import made is looked at as a file in run.py (after_pptximport).
+// under the workspace's Media/Imported; and the same file dropped from another application on a library, and two of
+// it on a playlist, which come in at once (the maintainer, 2026-11-11). The file the import made is looked at as a
+// file in run.py (after_pptximport).
 QtObject {
     id: t
 
 //COMMON
     function panel() {
         return importPowerPointPanel
+    }
+
+    // The row of a list showing the entry for which `test` holds
+    function row(listName, test) {
+        const list = named(listName)
+        const index = list.model.findIndex(test)
+        if (index < 0)
+            return null
+        list.positionViewAtIndex(index, ListView.Contain)
+        return list.itemAtIndex(index)
     }
 
     // A point of the output, by slide coordinates (the output is a floating window with its own title bar)
@@ -162,6 +174,61 @@ QtObject {
                 const refused = panel().showFile("@WORKSPACES@/Demo/Libraries/Demo/" + documents[0].name + ".pro")
                 check("a file that is not a PowerPoint file is refused, and the panel does not open", refused === false && !panel().visible)
                 clearAll()
+                return 300
+            },
+            () => {
+                // ---- Dropped from another application on a library (the maintainer, 2026-11-11), as ProPresenter takes it:
+                // brought in at once, nothing asked
+                kept.before = documents.length
+                kept.pro = "@WORKSPACES@/Demo/Libraries/Demo/" + documents[0].name + ".pro"
+                const at = centre(row("libraryList", l => l.path === kept.library.path))
+                check("a PowerPoint file dragged over a library may be dropped on it, to be copied", testInput.fileDrag(0, at.x, at.y, [kept.file]) === "copy")
+                testInput.fileDrag(2, 0, 0)
+                check("a file that is not one may not", testInput.fileDrag(0, at.x, at.y, [kept.pro]) === "refused")
+                testInput.fileDrag(2, 0, 0)
+                testInput.fileDrag(0, at.x, at.y, [kept.file])
+                const dropped = testInput.fileDrag(1, at.x, at.y, [kept.file])
+                check("dropped, the import starts at once into that library, no playlist, nothing asked", dropped === "copy" && panel().visible
+                      && (panel().stage === "importing" || panel().stage === "done") && panel().library === kept.library.path && panel().playlist === "",
+                      dropped + " " + panel().stage + " " + panel().library + " " + panel().playlist)
+                return 3000
+            },
+            () => {
+                const made = panel().result
+                check("and is done: a third presentation, opened", panel().stage === "done" && made !== null && made.ok === true && made.name === "Deck 3"
+                      && documents.length === kept.before + 1 && document.name === "Deck 3", JSON.stringify(made) + " " + documents.length)
+                check("said, as the one from the dialog was", named("importPowerPointResult").text.startsWith("3 slides made, as “Deck 3” in the library “Demo”."),
+                      named("importPowerPointResult").text)
+                check("the log says what was dropped where", logged(/drop +1 PowerPoint file dragged in from another application and dropped on the library "Demo"/).length === 1)
+                click(centre(named("importPowerPointDone")))
+                return 300
+            },
+            () => {
+                // ---- Two at once on a playlist, with a file that is not one among them: one after the other, into the
+                // library the last went into, both added to the playlist
+                kept.before = documents.length
+                kept.inPlaylist = catalog.playlistItems(kept.playlist.path).length
+                const at = centre(row("playlistList", p => p.path === kept.playlist.path))
+                testInput.fileDrag(0, at.x, at.y, [kept.file, kept.file, kept.pro])
+                const dropped = testInput.fileDrag(1, at.x, at.y, [kept.file, kept.file, kept.pro])
+                check("dropped on a playlist, the import starts, into the library the last went into, saying 1 of 2", dropped === "copy"
+                      && panel().visible && panel().stage === "importing" && panel().playlist === kept.playlist.path && panel().library === kept.library.path
+                      && named("importPowerPointFound").text.includes("“Deck.pptx” (1 of 2): 3 slides"),
+                      dropped + " " + panel().stage + " " + panel().playlist + " | " + named("importPowerPointFound").text)
+                return 5000
+            },
+            () => {
+                const results = panel().results
+                check("both done, one after the other: two more presentations, both added to the playlist", panel().stage === "done" && results.length === 2
+                      && results.every(r => r.made.ok) && results[0].made.name === "Deck 4" && results[1].made.name === "Deck 5"
+                      && documents.length === kept.before + 2 && catalog.playlistItems(kept.playlist.path).length === kept.inPlaylist + 2,
+                      JSON.stringify(results.map(r => r.made.name)) + " " + documents.length)
+                const said = named("importPowerPointResult").text
+                check("said file by file, and how many were made", said.includes("“Deck.pptx”: 3 slides made, as “Deck 4”") && said.includes("“Deck.pptx”: 3 slides made, as “Deck 5”")
+                      && said.endsWith("2 of 2 made in the library “Demo”, and added to the playlist."), said)
+                check("the notes name the file they are of", Lib.findAll(named("importPowerPointPanel"), i => i.objectName === "importPowerPointNote").every(n => n.text.startsWith("• “Deck.pptx”: ")))
+                check("the log says two were dropped, and the other left out", logged(/drop +2 PowerPoint files dragged in from another application and dropped on the playlist "[^"]+"; 1 left out, not being a PowerPoint file/).length === 1)
+                click(centre(named("importPowerPointDone")))
                 return 300
             },
             () => {

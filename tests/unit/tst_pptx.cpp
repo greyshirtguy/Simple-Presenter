@@ -1004,6 +1004,16 @@ cue_groups { group { uuid { string: "G" } name: "Verse" } cue_identifiers { stri
         QCOMPARE(notes.all().at(0).slidesText(), "slides 2, 5 and 9");
         QCOMPARE(notes.all().at(1).slidesText(), "");
     }
+
+    // (For files dragged in from another application: the name says, the caller looks)
+    void aPowerPointFileIsKnownByItsName()
+    {
+        QVERIFY(pptx::isPowerPointFile(QStringLiteral("/somewhere/Deck.pptx")));
+        QVERIFY(pptx::isPowerPointFile(QStringLiteral("DECK.PPTX")));
+        QVERIFY(!pptx::isPowerPointFile(QStringLiteral("Deck.ppt")));
+        QVERIFY(!pptx::isPowerPointFile(QStringLiteral("Deck.pptx.bak")));
+        QVERIFY(!pptx::isPowerPointFile(QStringLiteral("pptx")));
+    }
 };
 
 // Text is measured with Qt's fonts, which want an application with a platform: the

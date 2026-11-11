@@ -625,6 +625,9 @@ Window {
     // which of them are media (see draggedMedia())
     property string draggedFiles: ""
     property var draggedFilesMedia: []
+    // The same for PowerPoint files (see powerPointAmong())
+    property string draggedPowerPointFiles: ""
+    property var draggedPowerPoint: []
     // [{ name, color, key }], edited on the settings screen. `key` is the group's
     // hotkey, a capital letter or a digit, and is left out or "" for none.
     //
@@ -3812,6 +3815,48 @@ Window {
             liveFresh = document
         if (viewingAnnouncements)
             announcementFresh = document
+    }
+
+    // The PowerPoint files among what is being dragged over the window from another
+    // application, as paths: for the libraries and the playlists, which ask with every
+    // move of the pointer, so the answer is kept for as long as the drag is the same files,
+    // as draggedMedia() keeps its own. A drag with none is refused, and the log says so.
+    function powerPointAmong(urls) {
+        const files = urls.join("\n")
+        if (files !== draggedPowerPointFiles) {
+            draggedPowerPointFiles = files
+            draggedPowerPoint = PowerPointImport.filesAmong(urls)
+            if (draggedPowerPoint.length === 0) {
+                Log.note("drop", urls.length === 0
+                         ? "a drag from another application came over the libraries or the playlists with no files in it: refused"
+                         : counted(urls.length, "file", "files") + " dragged in from another application over the libraries or the playlists, none a PowerPoint file (.pptx, as a file that is here): refused; "
+                           + urls.slice(0, 8).map(url => String(url)).join(", ") + (urls.length > 8 ? ", …" : ""))
+            }
+        }
+        return draggedPowerPoint
+    }
+
+    // PowerPoint files dropped on a library (`library`, the playlist "") or on a playlist
+    // (`playlist`, the library ""): brought in at once, one after another, into that
+    // library, or, for a playlist, into the library the last import went into (the library
+    // open, or the first, if none has yet), and added to that playlist, by the import
+    // panel (ImportPowerPoint.qml), which shows how far it has got and what came of each.
+    // The switch for the backgrounds is as it was last set. ProPresenter takes a PowerPoint
+    // file dropped on a playlist or a library (its support article says so); whether it
+    // asks anything first, and which library a drop on a playlist goes into, have not been
+    // looked at: A GUESS. The other application is told the files were taken, as a copy.
+    function dropPowerPoint(drop, library, playlist) {
+        const files = powerPointAmong(drop.urls)
+        if (files.length === 0)
+            return
+        drop.accept(Qt.CopyAction)
+        draggedPowerPointFiles = ""
+        const left = drop.urls.length - files.length
+        const node = library !== "" ? catalog.libraries.find(l => l.path === library) : catalog.playlists.find(p => p.path === playlist)
+        Log.note("drop", counted(files.length, "PowerPoint file", "PowerPoint files") + " dragged in from another application and dropped on the "
+                 + (library !== "" ? "library " : "playlist ") + quoted(node ? node.name : "?")
+                 + (left > 0 ? "; " + left + " left out, not being " + (left === 1 ? "a PowerPoint file" : "PowerPoint files") : ""))
+        importPowerPointPanel.showFiles(files, library, playlist, true)
     }
 
     // A PowerPoint file has come in as a presentation (ImportPowerPoint.qml,
