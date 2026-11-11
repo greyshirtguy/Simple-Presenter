@@ -6,6 +6,28 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.135](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.135) · 2026-11-11
+
+- A look and a layer changing together. With a look live that kept the slides from a
+  screen (a stream), a slide whose action went over to a look that gave them back showed
+  the slide before it there, dissolving away, and for a moment even with a cut. A layer
+  the look gives back to a screen now comes back with what is being put on it, which
+  comes in from nothing by its own transition; and a layer the look takes from a screen
+  by a fade goes with what it had, a slide or an announcement that changes in that
+  moment being kept from that screen until the layer has gone
+  ([Looks](docs/features/looks.md)).
+- **Edit Action**, in a slide's menu between Add Action and Remove Action, in a playback
+  marker's, and for each action in a macro's: an action that is there is changed for
+  another of its kind, picked from a list with the one it is ticked. A macro, a look, a
+  prop (and whether it is put on or taken off), what a clear clears, a clear group, a
+  video input, and a stage layout for each stage screen. The menu of an action's own
+  icon has the same ([Actions](docs/features/actions.md)).
+- An action changed where it is keeps whether ProPresenter had it enabled (it was
+  enabled by any change); and a clear changed from the announcements to a layer no
+  longer names the announcements.
+- A look that also changes a screen's theme has the slide that came with it shown there
+  once, in the theme, where it was shown twice.
+
 ## [0.134](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.134) · 2026-11-11
 
 - A PowerPoint file (`.pptx`) dragged in from the file manager and dropped on a library in

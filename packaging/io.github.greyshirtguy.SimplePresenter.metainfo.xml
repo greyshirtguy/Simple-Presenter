@@ -39,6 +39,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.135" date="2026-11-11">
+      <description>
+        <p>
+          A layer a look gives back to a screen as a slide changes it shows the new slide alone,
+          and an action can be changed for another of its kind from a menu.
+        </p>
+      </description>
+    </release>
     <release version="0.134" date="2026-11-11">
       <description>
         <p>

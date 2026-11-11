@@ -131,20 +131,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.135: A look that comes with a slide, and Edit Action.** A slide or a macro that goes over to a look and changes a layer in the same moment: a layer the look gives back to a screen comes back with what is being put on it, and the slide before is not seen there ([Looks](docs/features/looks.md)); and an action that is there is changed for another of its kind from a menu, Edit Action: another macro, look, prop, stage layout or thing to clear ([Actions](docs/features/actions.md)).
 - **0.134: PowerPoint dropped in, and a marked duration slider.** A `.pptx` dropped on a library or a playlist comes in at once as a presentation, several one after another ([Import PowerPoint](docs/features/import-powerpoint.md)); and the sliders for how long the slides' and the media's transitions take are marked at each second and at the halves, and move a tenth as far as the pointer while Shift is held ([Transitions](docs/features/transitions.md)).
 - **0.133: The media bin's size buttons in its bar.** The − and + that make the media bin's thumbnails smaller and larger are in the bar under the thumbnails, at its right, as the slides' are under the slides, where they had floated over the thumbnails' corner; and that bar is as tall as the slides' ([Media](docs/features/media.md)).
 - **0.132: Import PowerPoint.** A PowerPoint file (`.pptx`) comes in as a presentation, slide for slide: its words as text boxes that can be edited, with what a placeholder takes from its layout, its master and the theme; its shapes, pictures and videos; its slide backgrounds as the slides' background media, or left out by the panel's switch; its notes, its sections as groups and its hidden slides as disabled ones. The `+` beside Libraries has it, and what could not come over is listed at the end, by slide ([Import PowerPoint](docs/features/import-powerpoint.md)).
 - **0.131: Back at the live slide, and actions by their names.** Coming back to the presentation that is live, after looking at another, puts its live slide in view at once; and the menus that list a slide's or a macro's actions (Remove Action among them) call each by its name beside its icon, a macro's, a look's, a playlist's, where they said what it does in a sentence ([Actions](docs/features/actions.md)).
-- **0.130: A grid of slides that keeps up.** The slides' grid starts to move as the slide changes, and not after its transition; with Next held down it keeps up with the slides as they go; and a jump to a slide out of view, by a hotkey, a typed number or the [API](docs/features/api.md), takes a tenth of a second (Settings → Slides has how long a step takes).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.134_amd64.deb` from the
+`simplepresenter_0.135_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.134_amd64.deb
+sudo apt install ./simplepresenter_0.135_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes
