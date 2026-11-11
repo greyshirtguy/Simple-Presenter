@@ -110,15 +110,20 @@ Item {
                 onClicked: options.opened ? options.close() : options.open()
             }
 
+            // The seconds marked, and the halves, to slide to by eye; a tenth as fast with
+            // Shift held, for a value between (the maintainer, 2026-11-11)
             AppSlider {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 100
                 from: 0
                 to: 3
                 stepSize: 0.05
+                marks: [1, 2]
+                minorMarks: [0.5, 1.5, 2.5]
+                fineWithShift: true
                 enabled: !controls.cut
                 value: Math.min(controls.duration, to)
-                onMoved: controls.setDuration(Math.round(value * 100) / 100)
+                onDragged: (seconds) => controls.setDuration(Math.round(seconds * 100) / 100)
             }
 
             // Seconds; accepts any value from 0 up, beyond the slider's range.

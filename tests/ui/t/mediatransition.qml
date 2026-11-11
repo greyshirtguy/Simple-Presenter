@@ -28,6 +28,12 @@ QtObject {
         return { r: parseInt(c.substring(1, 3), 16), g: parseInt(c.substring(3, 5), 16), b: parseInt(c.substring(5, 7), 16) }
     }
 
+    // The colour drawn at a point of the window, as { r, g, b }
+    function rgbAt(p) {
+        const c = pixel(p.x, p.y)
+        return { r: parseInt(c.substring(1, 3), 16), g: parseInt(c.substring(3, 5), 16), b: parseInt(c.substring(5, 7), 16) }
+    }
+
     // The one of a name that is shown (the media bin, hidden, keeps its own)
     function shown(name) {
         return Lib.findAll(win.contentItem, item => item.objectName === name && item.visible)[0] ?? null
@@ -98,6 +104,38 @@ QtObject {
                       && pixel(button.mapToItem(null, 4, button.height / 2).x, button.mapToItem(null, 4, button.height / 2).y).endsWith("3a3c42"),
                       pixel(line.x, line.y + 0.5) + " " + pixel(button.mapToItem(null, 4, button.height / 2).x, button.mapToItem(null, 4, button.height / 2).y))
                 check("the slides' controls are the slides' still", named("transitionButton") !== null && Lib.find(named("transitionButton"), item => item.text === "Dissolve") !== null)
+                // ---- The duration slider: marks at the seconds and the halves, and a drag a tenth as fast with Shift held
+                // (the maintainer, 2026-11-11)
+                const slider = Lib.find(foot, item => item.toString().startsWith("AppSlider"))
+                check("the slider marks 1 and 2 s, and the halves less", slider !== null && JSON.stringify(slider.marks) === "[1,2]"
+                      && JSON.stringify(slider.minorMarks) === "[0.5,1.5,2.5]", slider ? JSON.stringify([slider.marks, slider.minorMarks]) : "none")
+                // (The middle of the mark at 1 s, under the track, where the handle's middle is at 1 s; and the bar beside it)
+                const extent = slider.availableWidth - slider.handle.width
+                const markX = slider.leftPadding + (1 - slider.from) / (slider.to - slider.from) * extent + slider.handle.width / 2
+                const markY = slider.topPadding + (slider.availableHeight - 4) / 2 + 4 + 2 + 3.5
+                const onMark = rgbAt(slider.mapToItem(null, markX, markY)), beside = rgbAt(slider.mapToItem(null, markX + 6, markY))
+                check("drawn: the mark at 1 s is lighter than the bar beside it", onMark.r > beside.r + 25 && onMark.g > beside.g + 25, JSON.stringify([onMark, beside]))
+                // (A minor mark too, at 1.5 s: drawn at four fifths, a line too thin was once dropped by the renderer)
+                const minorX = slider.leftPadding + (1.5 - slider.from) / (slider.to - slider.from) * extent + slider.handle.width / 2
+                const onMinor = rgbAt(slider.mapToItem(null, minorX, slider.topPadding + (slider.availableHeight - 4) / 2 + 4 + 2 + 2))
+                check("and the lesser mark at 1.5 s is drawn too", onMinor.r > beside.r + 15 && onMinor.g > beside.g + 15, JSON.stringify([onMinor, beside]))
+                mediaTransitionDuration = 1
+                const handle = slider.mapToItem(null, markX, slider.topPadding + slider.availableHeight / 2)
+                // (20 pixels of the window, as units of the slider, which is drawn at four fifths)
+                const units = slider.mapFromItem(null, handle.x + 20, handle.y).x - slider.mapFromItem(null, handle.x, handle.y).x
+                testInput.mouse(0, handle.x, handle.y, Qt.ShiftModifier)
+                for (let i = 1; i <= 10; ++i)
+                    testInput.mouse(1, handle.x + 2 * i, handle.y, Qt.ShiftModifier)
+                testInput.mouse(2, handle.x + 20, handle.y, Qt.ShiftModifier)
+                const fine = 1 + units / extent * (slider.to - slider.from) * 0.1
+                check("with Shift held, a drag of 20 pixels from 1 s moves the duration a tenth as far as the pointer", Math.abs(mediaTransitionDuration - fine) < 0.015,
+                      mediaTransitionDuration + " against " + fine.toFixed(3))
+                const after = slider.mapToItem(null, slider.handle.x + slider.handle.width / 2, slider.topPadding + slider.availableHeight / 2)
+                drag(after, Qt.point(after.x + 20, after.y))
+                const plain = fine + units / extent * (slider.to - slider.from)
+                check("without Shift the same drag moves it the whole way", Math.abs(mediaTransitionDuration - plain) < 0.03, mediaTransitionDuration + " against " + plain.toFixed(3))
+                check("the slider follows the duration, its handle where the value is", Math.abs(slider.value - mediaTransitionDuration) < 0.001, slider.value)
+                mediaTransitionDuration = 0.2
                 openEntry(entry("Move Of God"))
                 return 600
             },

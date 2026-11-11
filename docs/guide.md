@@ -109,6 +109,7 @@ is longer, and not even it is the whole of it.
 | Ctrl+V | Show or hide the media bin (unless rows are being pasted, above) |
 | Ctrl+1 / Ctrl+2 | The audience screens / the stage screens on or off |
 | Ctrl+= / Ctrl+- | Make the thumbnails larger / smaller: the media bin's where the pointer is over the bin, the slides' otherwise |
+| Shift, held while a transition's duration slider is dragged | The slider moves a tenth as far as the pointer, for a value between its marks |
 | Ctrl+, | The settings |
 
 ## Where things are kept
