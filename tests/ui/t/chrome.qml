@@ -195,7 +195,7 @@ QtObject {
                       && c.mapToItem(null, 0, 0).x < grid.x + 30 && c.mapToItem(null, 0, 0).x >= grid.x, c ? c.mapToItem(null, 0, 0).x + "," + topOf(c) : "none")
                 const zoom = Lib.find(footer, item => item.canShrink !== undefined)
                 const minus = Lib.find(zoom, item => item.available !== undefined)
-                check("and the thumbnail size buttons at its right, neither of them see-through", zoom !== null && zoom.solid && minus.opacity === 1 && c.opacity === 1
+                check("and the thumbnail size buttons at its right, neither of them see-through", zoom !== null && minus.opacity === 1 && c.opacity === 1
                       && topOf(zoom) > topOf(footer) && bottomOf(zoom) < bottomOf(footer) && zoom.mapToItem(null, zoom.width, 0).x > grid.x + grid.width - 30, zoom ? minus.opacity : "none")
                 const panel = Lib.find(c, item => item.scale === 0.8)
                 check("at four fifths of their size", panel !== null && near(c.width, panel.width * 0.8) && near(c.height, 28 * 0.8), c.width + "x" + c.height)

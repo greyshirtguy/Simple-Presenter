@@ -18,7 +18,10 @@ media bin. How it then behaves is one of two things, as in ProPresenter:
 
 Either gives way to the next media that is triggered, of either kind. All media comes
 in by the media [transition](transitions.md), chosen under the bin's thumbnails: played
-from the bin, by an action, or brought by a slide, which comes in with it.
+from the bin, by an action, or brought by a slide, which comes in with it. The bar under
+the thumbnails has that at its left and, at its right, the − and + that make the
+thumbnails smaller and larger (Ctrl+= and Ctrl+- with the pointer over the bin do the
+same), as the bar under the slides has the slides'.
 
 A click on a slide with **Alt** held shows the slide, and does its actions, without
 the media it brings, as in ProPresenter; while Alt is held the thumbnails are drawn

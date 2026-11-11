@@ -1324,7 +1324,6 @@ Item {
             anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: 1
-            solid: true
             size: 22
             visible: slides.win.document !== null && slides.win.document.slides.length > 0
             canShrink: slides.win.thumbnailWidth > slides.win.smallestThumbnail

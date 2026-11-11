@@ -24,7 +24,8 @@ import QtQuick.Controls.Basic
 //
 // At the bin's foot is the transition media played from here comes in by, with the same
 // controls as the slides' under the slides (TransitionControls), as ProPresenter's media
-// bin has at its bottom left: the two layers each have their own.
+// bin has at its bottom left: the two layers each have their own. The size of the
+// thumbnails is at the foot's right, as under the slides.
 Rectangle {
     id: bin
 
@@ -187,10 +188,13 @@ Rectangle {
         }
     }
 
-    // A thin foot under the two, with a line over it, as the slides have under them: the
-    // media transition, which all media comes in by, under the thumbnails at their left, as
-    // the slides' is under the slides (the maintainer, 2026-11-08: it had been under the
-    // list of playlists)
+    // A thin foot under the two, with a line over it, as tall as the slides' footer and laid
+    // out as that is: the media transition, which all media comes in by, under the
+    // thumbnails at their left, as the slides' is under the slides (the maintainer,
+    // 2026-11-08: it had been under the list of playlists), and the size of the thumbnails
+    // at its right (the maintainer, 2026-11-11: the size buttons had floated over the
+    // thumbnails' corner, and the foot was thinner than the slides', so that the controls
+    // read as floating over the thumbnails too; now it is the bar the slides have)
     Item {
         id: binFoot
 
@@ -198,7 +202,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: 30
+        height: 34
 
         Rectangle {
             anchors.left: parent.left
@@ -216,6 +220,20 @@ Rectangle {
             anchors.verticalCenterOffset: 1
             media: true
             win: bin.win
+        }
+
+        // Thumbnail size, at the right, as under the slides
+        ZoomButtons {
+            anchors.right: parent.right
+            anchors.rightMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: 1
+            size: 22
+            visible: bin.win.mediaFiles.length > 0
+            canShrink: bin.win.mediaThumbnailWidth > bin.win.smallestMediaThumbnail
+            canGrow: bin.win.mediaThumbnailWidth < bin.win.largestMediaThumbnail && mediaGrid.columns > 1
+            onShrink: bin.win.zoomMediaThumbnails(-1)
+            onGrow: bin.win.zoomMediaThumbnails(1)
         }
     }
 
@@ -585,18 +603,5 @@ Rectangle {
         visible: bin.win.mediaFiles.length === 0 && mediaGrid.visible
         text: bin.win.mediaPlaylistId !== "" ? "This media playlist is empty. Add media to it from the + above, or drag files in."
             : "No media playlists yet. Add one from the + beside Media bin."
-    }
-
-    // Thumbnail size, over the bottom right corner of the media
-    ZoomButtons {
-        anchors.right: mediaGrid.right
-        anchors.bottom: mediaGrid.bottom
-        anchors.rightMargin: 22
-        anchors.bottomMargin: 10
-        visible: bin.win.mediaFiles.length > 0
-        canShrink: bin.win.mediaThumbnailWidth > bin.win.smallestMediaThumbnail
-        canGrow: bin.win.mediaThumbnailWidth < bin.win.largestMediaThumbnail && mediaGrid.columns > 1
-        onShrink: bin.win.zoomMediaThumbnails(-1)
-        onGrow: bin.win.zoomMediaThumbnails(1)
     }
 }

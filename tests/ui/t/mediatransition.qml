@@ -4,8 +4,9 @@ import "lib.js" as Lib
 
 // The media bin's own transition: chosen at the bin's foot with the same controls as the slides' under the slides, kept
 // in the settings apart from the slides', and what all media comes in by on the media layer, media a slide brings with
-// it included, which comes in with the slide; the foot drawn, the controls under the thumbnails on a faint purple, the
-// slides' on a faint orange; and, with the bin hidden, the media's beside the slides'.
+// it included, which comes in with the slide; the foot drawn, as tall as the slides' footer, the controls under the
+// thumbnails on a faint purple, the slides' on a faint orange, and the size buttons at the foot's right; and, with the
+// bin hidden, the media's beside the slides'.
 QtObject {
     id: t
 
@@ -69,13 +70,23 @@ QtObject {
                 check("and kept apart in the settings", String(settings.value("transition", "")) !== "Fade" && String(settings.value("mediaTransition")) === "Fade"
                       && Number(settings.value("mediaTransitionDuration")) === 0.2, settings.value("mediaTransition") + " " + settings.value("mediaTransitionDuration"))
                 const foot = named("mediaFooter"), bin = foot.parent, grid = named("mediaGrid"), button = named("mediaTransitionButton")
-                check("the media bin has a foot, at its bottom, which the thumbnails stop at", foot.visible && foot.height === 30 && bottomOf(foot) === bottomOf(bin)
+                check("the media bin has a foot, at its bottom, as tall as the slides' footer, which the thumbnails stop at", foot.visible && foot.height === 34
+                      && foot.height === named("gridFooter").height && bottomOf(foot) === bottomOf(bin)
                       && bottomOf(grid) <= topOf(foot), foot.height + " " + bottomOf(grid) + " " + topOf(foot) + " " + bottomOf(foot))
                 // (Under the thumbnails at their left, as the slides' is under the slides: the maintainer, 2026-11-08)
                 const gridLeft = grid.mapToItem(null, 0, 0).x
                 check("with the media transition under the thumbnails, at their left, named", button !== null && button.visible && Lib.find(button, item => item.text === "Fade") !== null
                       && button.mapToItem(null, 0, 0).x >= gridLeft && button.mapToItem(null, 0, 0).x < gridLeft + 40 && topOf(button) > topOf(foot) && bottomOf(button) < bottomOf(foot),
                       button ? button.mapToItem(null, 0, 0).x + " from " + gridLeft + "," + topOf(button) : "none")
+                // The size of the thumbnails at the foot's right, in the foot, and drawn (the maintainer, 2026-11-11: the
+                // buttons had floated over the thumbnails' corner)
+                const sizes = Lib.find(foot, item => item.toString().startsWith("ZoomButtons"))
+                const fromRight = sizes === null ? -1 : bin.mapToItem(null, bin.width, 0).x - sizes.mapToItem(null, sizes.width, 0).x
+                check("and the size buttons in the foot at its right, not over the thumbnails", sizes !== null && sizes.visible && topOf(sizes) > topOf(foot)
+                      && bottomOf(sizes) < bottomOf(foot) && Math.abs(fromRight - 16) < 0.5,
+                      sizes ? topOf(sizes) + "-" + bottomOf(sizes) + " in " + topOf(foot) + "-" + bottomOf(foot) + ", " + fromRight + " from the right" : "none")
+                const minus = sizes === null ? null : sizes.mapToItem(null, 3, sizes.height / 2)
+                check("drawn: the − button, solid", minus !== null && pixel(minus.x, minus.y).endsWith("3a3c42"), minus ? pixel(minus.x, minus.y) : "none")
                 // A faint purple behind the media's, and a faint orange behind the slides', drawn: told apart side by side
                 kept.mediaTint = tintHue(named("mediaTransitionTint"))
                 kept.slideTint = tintHue(named("transitionTint"))

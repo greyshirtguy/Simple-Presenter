@@ -1567,7 +1567,6 @@ FocusScope {
             anchors.right: parent.right
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            solid: true
             size: 24
             canShrink: sheet.canZoomOut
             canGrow: sheet.canZoomIn
