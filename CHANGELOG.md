@@ -6,6 +6,18 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.134](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.134) · 2026-11-11
+
+- A PowerPoint file (`.pptx`) dragged in from the file manager and dropped on a library in
+  the list, or on a playlist, comes in at once as a presentation, with nothing asked: into
+  that library, or into the library the last import went into and added to that playlist.
+  Several dropped together come in one after another, and the panel says what came of
+  each ([Import PowerPoint](docs/features/import-powerpoint.md)).
+- The sliders for how long the slides' and the media's transitions take are marked at
+  each second and, less, at the halves, to slide to by eye; and with Shift held while
+  dragging they move a tenth as far as the pointer, for a value between the marks
+  ([Transitions](docs/features/transitions.md)).
+
 ## [0.133](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.133) · 2026-11-11
 
 - The − and + that make the media bin's thumbnails smaller and larger are in the bar

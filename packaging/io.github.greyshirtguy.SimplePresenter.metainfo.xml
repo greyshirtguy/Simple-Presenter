@@ -39,6 +39,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.134" date="2026-11-11">
+      <description>
+        <p>
+          A PowerPoint file dropped on a library or a playlist comes in as a presentation, and
+          the transitions' duration sliders are marked at the seconds.
+        </p>
+      </description>
+    </release>
     <release version="0.133" date="2026-11-11">
       <description>
         <p>
