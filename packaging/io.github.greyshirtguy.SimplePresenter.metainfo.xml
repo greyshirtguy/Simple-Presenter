@@ -39,6 +39,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.133" date="2026-11-11">
+      <description>
+        <p>
+          The buttons that size the media bin's thumbnails are in the bar under them, as the
+          slides' are.
+        </p>
+      </description>
+    </release>
     <release version="0.132" date="2026-11-10">
       <description>
         <p>

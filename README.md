@@ -131,20 +131,20 @@ there are no timelines here yet and no capture, nor video in from a DeckLink car
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.133: The media bin's size buttons in its bar.** The − and + that make the media bin's thumbnails smaller and larger are in the bar under the thumbnails, at its right, as the slides' are under the slides, where they had floated over the thumbnails' corner; and that bar is as tall as the slides' ([Media](docs/features/media.md)).
 - **0.132: Import PowerPoint.** A PowerPoint file (`.pptx`) comes in as a presentation, slide for slide: its words as text boxes that can be edited, with what a placeholder takes from its layout, its master and the theme; its shapes, pictures and videos; its slide backgrounds as the slides' background media, or left out by the panel's switch; its notes, its sections as groups and its hidden slides as disabled ones. The `+` beside Libraries has it, and what could not come over is listed at the end, by slide ([Import PowerPoint](docs/features/import-powerpoint.md)).
 - **0.131: Back at the live slide, and actions by their names.** Coming back to the presentation that is live, after looking at another, puts its live slide in view at once; and the menus that list a slide's or a macro's actions (Remove Action among them) call each by its name beside its icon, a macro's, a look's, a playlist's, where they said what it does in a sentence ([Actions](docs/features/actions.md)).
 - **0.130: A grid of slides that keeps up.** The slides' grid starts to move as the slide changes, and not after its transition; with Next held down it keeps up with the slides as they go; and a jump to a slide out of view, by a hotkey, a typed number or the [API](docs/features/api.md), takes a tenth of a second (Settings → Slides has how long a step takes).
 - **0.129: Importing offers to replace, one transition for all media, and keys for the thumbnails' size.** Importing an exported playlist asks whether its presentations and playlists are to take the place of the ones already here ([Workspaces](docs/features/workspaces.md)); media a slide brings comes in by the media transition, whose controls are now under the media bin's thumbnails, on a faint purple beside the slides' orange ([Transitions](docs/features/transitions.md)); Ctrl+= and Ctrl+- resize the thumbnails under the pointer; and Settings → Slides has how long the slides' grid takes to move and whether it eases in and out.
-- **0.128: Pictures of the slides on a stage layout, a stage preview drawn in full, and a grid that glides.** A shape can be filled with a still picture of the live or the next slide, ProPresenter's Current Slide and Next Slide ([Stage layouts](docs/features/stage-layouts.md#pictures-of-the-slides)), and a picture of a screen shows the pictures that screen shows; the operator's preview of a stage screen is drawn as the stage draws it; and the slides' grid moves smoothly to follow the live slide, early or just in time (Settings → Slides).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.132_amd64.deb` from the
+`simplepresenter_0.133_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.132_amd64.deb
+sudo apt install ./simplepresenter_0.133_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes

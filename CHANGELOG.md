@@ -6,6 +6,13 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.133](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.133) · 2026-11-11
+
+- The − and + that make the media bin's thumbnails smaller and larger are in the bar
+  under the thumbnails, at its right, beside the media transition at its left, as the
+  slides' are in the bar under the slides; they had floated over the thumbnails' bottom
+  corner. That bar is now as tall as the slides' ([Media](docs/features/media.md)).
+
 ## [0.132](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.132) · 2026-11-10
 
 - A PowerPoint file (`.pptx`) comes in as a presentation of the workspace, from
