@@ -480,7 +480,7 @@ QtObject {
                 return 400
             },
             () => {
-                check("its right-click menu on the transport is the Media Inspector's", /^\[Marker at 9\.[0-9]+ s\], Rename, Color, Add Action, Remove Action, --, Duplicate, Move to Playhead, Delete$/.test(labels()),
+                check("its right-click menu on the transport is the Media Inspector's", /^\[Marker at 9\.[0-9]+ s\], Rename, Color, Add Action, Edit Action, Remove Action, --, Duplicate, Move to Playhead, Delete$/.test(labels()),
                       labels())
                 click(menuRow("Rename"))
                 return 400

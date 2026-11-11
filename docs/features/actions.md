@@ -45,13 +45,22 @@ the icons for its hotkey and its media. A right click on a slide offers **Add Ac
 which leads to the kinds above: Clear, Clear Group, Prop, Macro, Audience Look, Media
 Playlist, Video Input, Audio Playlist and Message to lists to pick from (a prop by its collection,
 then Trigger or Clear; a macro by its collection; a playlist in its folders), Timer,
-Stage and Communication to a small panel to fill in. Under it is **Remove Action**,
-which lists the actions the slide has, each by its name beside its icon (a macro's name,
-a look's, a playlist's), and a timer's with what it does to the timer after it, as
-"Countdown (Start)". A right click on an action's icon says what the
-action is and offers to change it, for a timer, a stage or a message action, or to
-remove it; for one that plays audio it has Stop or Loop, and Music or Sound Effect; for
-one that plays a playlist, Always Retrigger; for a video input, the inputs to change to.
+Stage and Communication to a small panel to fill in. Under it is **Edit Action**, which
+lists the actions the slide has, each by its name beside its icon (a macro's name, a
+look's, a playlist's), and a timer's with what it does to the timer after it, as
+"Countdown (Start)". Each leads to what it can be changed to. An action that is one of a
+list leads to the others of its kind, the one it is ticked: a macro to the macros, by
+their collections; a look to the looks; a prop to the props, with whether it is put on
+or taken off (Trigger or Clear); a clear to what can be cleared; a clear group to the
+groups; a video input to the inputs; and a stage action to the stage layouts, for each
+stage screen where there are several, with No Change for a screen it leaves alone.
+Picking another changes the action where it is, and whatever else it holds in the file
+is kept. A timer, a communication or a message action opens its panel; one that plays a
+playlist has Always Retrigger, and one that plays audio Stop or Loop, and Music or Sound
+Effect. (ProPresenter has Edit Action in the same place; what each of its actions then
+opens has not been looked at, and the lists are what the maintainer asked for.) Then
+**Remove Action**, which lists them again, to take one off. A right click on an action's
+icon says what the action is, and has the same ways to change it and Remove.
 
 A row of a menu that leads to a menu of its own has an arrowhead at its right, and its
 menu opens beside it when the pointer rests on the row (or on a click). The menu it

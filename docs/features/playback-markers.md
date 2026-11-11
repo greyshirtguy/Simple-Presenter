@@ -27,6 +27,7 @@ the icons of its actions. A piece of audio has this tab and no other.
     for any colour, picked with the system's colour picker;
   - **Add Action**: the kinds of action a slide can have (see [Actions](actions.md)),
     as Add Action has them for a slide;
+  - **Edit Action**: one of its actions changed, as a slide's is;
   - **Remove Action**: one of its actions taken off;
   - **Duplicate**: another at the same time, with the same actions;
   - **Move to Playhead**: to where the player is, for fine timing;

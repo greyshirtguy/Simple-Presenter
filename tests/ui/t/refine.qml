@@ -192,13 +192,17 @@ QtObject {
             () => {
                 const stage = kept.macro.actions.find(a => a.kind === "stage")
                 kept.stage = stage
+                // (Each that can be changed: the stage layout, the look and the clears, each for another of its kind)
+                const changed = kept.macro.actions.filter(a => actionEditItems({ macro: kept.macro.id }, a, true).length > 0)
                 check("its menu has everything: its actions to add, to remove, and each that can be changed; and the macro's own",
-                      labels() === "Run, Add Action, Remove Action, [Actions], " + stage.label + ", [Macro], Rename, Colour, Duplicate, Remove…", labels())
+                      changed.some(a => a.kind === "look") && changed.some(a => a.kind === "clear")
+                      && labels() === "Run, Add Action, Remove Action, [Actions], " + changed.map(a => actionLabel(a)).join(", ") + ", [Macro], Rename, Colour, Duplicate, Remove…", labels())
                 click(menuRow(stage.label))
                 return 300
             },
             () => {
-                check("an action that can be changed leads to Edit and Remove", labels() === "Edit…, Remove", labels())
+                check("a stage action leads to the stage screens, for a layout to be picked for each, and to Edit and Remove",
+                      labels() === "[Stage], " + Screens.stage.map(screen => screen.name).join(", ") + ", Edit…, Remove", labels())
                 testInput.grab("3-macro-menu")
                 click(menuRow("Edit…"))
                 return 400
@@ -246,7 +250,9 @@ QtObject {
             () => {
                 const now = Macros.find(kept.macro.id).actions
                 check("Remove Action lists them all, by name", labels() === "[Remove Action], " + now.map(a => a.label).join(", "), labels())
-                click(menuRow("Clear the slide"))
+                // (The row of the menu opened last: the macro's own menu, which is still there, has the action too)
+                const rows = Lib.findAll(menu.contentItem, item => item.modelData !== undefined && item.modelData !== null && item.modelData.label === "Clear the slide")
+                click(centre(rows[rows.length - 1]))
                 return 500
             },
             () => {

@@ -2178,34 +2178,133 @@ Window {
         return action.label ?? action.title ?? action.kind
     }
 
-    // The menu of an action that is there: what it is, and changing it or taking it away.
-    function showActionMenu(target, action, item, x, y) {
-        const items = [{ note: action.title + (action.done ? "" : ". This kind of action is kept in the file, and is not done here.") }]
+    // The one of `list` that an action names: by its id, or failing that by its name, as
+    // the show finds what an action is of (see findLook and the like in src/showstate.h)
+    function namedBy(list, id, name) {
+        return list.find(each => each.id === id) ?? list.find(each => each.name === name)
+    }
+
+    // What an action that is there can be changed to, for the kinds that are one of a
+    // list: another of its kind, as the rows of a menu, the one it is now ticked. The
+    // maintainer, 2026-11-11: "editing a macro gives a popup sub menu to browse all macros
+    // to select a different one. Same with Looks, props, stage and clear actions - edit
+    // just means showing a sub menu to choose a different item of same type". Picking one
+    // writes the action again in its place, with the rest of what it holds as it was
+    // (commitAction with its id: see actions::build). { label, rows }, or null for a kind
+    // that is not one of a list.
+    function actionChoices(target, action) {
+        const change = changed => commitAction(target, changed, action.id)
+        if (action.kind === "clear") {
+            const row = (label, layer, picture, announcements) => ({
+                label: label, glyph: "clear", picture: picture,
+                current: (action.announcements === true) === announcements && (announcements || action.layer === layer),
+                run: () => change(announcements ? { kind: "clear", layer: 0, announcements: true } : { kind: "clear", layer: layer }) })
+            return { label: "Clear", rows: [row("Everything", 0, "Clear", false), row("The Slide", 5, "ClearPresentation", false),
+                                           row("The Media", 2, "ClearMedia", false), row("The Props", 4, "ClearProps", false),
+                                           row("The Messages", 7, "ClearMessages", false), row("The Announcements", 0, "ClearAnnouncements", true),
+                                           row("The Video Input", 3, "ClearVideoInput", false)] }
+        }
+        if (action.kind === "clearGroup") {
+            const now = namedBy(ClearGroups.groups, action.groupId, action.groupName)
+            return { label: "Clear Group", rows: ClearGroups.groups.map(group => ({
+                label: group.name, current: now !== undefined && group.id === now.id, run: () => change(clearGroupAction(group.id, group.name)) })) }
+        }
+        if (action.kind === "look") {
+            const now = namedBy(Looks.looks, action.lookId, action.lookName)
+            return { label: "Audience Look", rows: Looks.looks.map(look => ({
+                label: look.name, current: now !== undefined && look.id === now.id, run: () => change({ kind: "look", lookId: look.id, lookName: look.name }) })) }
+        }
+        if (action.kind === "macro") {
+            // (Not the macro itself, for an action of a macro.)
+            const collections = Macros.collections.map(collection => Object.assign({}, collection, {
+                macros: collection.macros.filter(macro => macro.id !== target.macro) })).filter(collection => collection.macros.length > 0)
+            const now = namedBy(collections.reduce((all, collection) => all.concat(collection.macros), []), action.macroId, action.macroName)
+            return { label: "Macro", rows: collections.map(collection => ({
+                label: collection.name, items: [{ header: collection.name }].concat(collection.macros.map(macro => ({
+                    label: macro.name, current: now !== undefined && macro.id === now.id, run: () => change(macroAction(macro, collection)) }))) })) }
+        }
+        if (action.kind === "prop") {
+            // (Put on or taken off, as it was: that is changed by its own two rows)
+            const collections = Props.collections.filter(collection => collection.props.length > 0)
+            const now = namedBy(collections.reduce((all, collection) => all.concat(collection.props), []), action.propId, action.propName)
+            return { label: "Prop", rows: collections.map(collection => ({
+                label: collection.name, items: [{ header: collection.name }].concat(collection.props.map(prop => ({
+                    label: prop.name, current: now !== undefined && prop.id === now.id,
+                    run: () => change({ kind: "prop", propId: prop.id, propName: prop.name, collectionId: collection.id,
+                                        collectionName: collection.id === "" ? "" : collection.name, clear: action.clear === true }) }))) })) }
+        }
+        // A video input: which of the workspace's it is, by its place
+        if (action.kind === "videoInput") {
+            return { label: "Video Input", rows: VideoInputs.inputs.map(input => ({
+                label: input.name, current: input.index === action.inputIndex, run: () => change({ kind: "videoInput", inputIndex: input.index }) })) }
+        }
+        // A stage action: the layout it gives a stage screen, or none, which leaves that
+        // screen as it is; with several stage screens, each has its own row of them. (Its
+        // panel does the same, all the screens at once.)
+        if (action.kind === "stage" && Screens.stage.length > 0 && StageLayouts.layouts.length > 0) {
+            const given = Show.stageLayoutsOf(action)
+            const layoutOf = screen => given[screen.id] ? StageLayouts.layouts.find(layout => layout.id === given[screen.id].id) ?? null : null
+            const pick = (screen, layout) => {
+                const chosen = {}
+                for (const each of Screens.stage)
+                    chosen[each.id] = each.id === screen.id ? layout : layoutOf(each)
+                change({ kind: "stage", assignments: Show.stageAssignmentsFor(action, chosen) })
+            }
+            const layoutsFor = screen => [{ label: "No Change", current: layoutOf(screen) === null, run: () => pick(screen, null) }].concat(
+                StageLayouts.layouts.map(layout => ({ label: layout.name, current: layoutOf(screen) !== null && layoutOf(screen).id === layout.id,
+                                                       run: () => pick(screen, layout) })))
+            return Screens.stage.length === 1 ? { label: "Stage Layout", rows: layoutsFor(Screens.stage[0]) }
+                 : { label: "Stage", rows: Screens.stage.map(screen => ({ label: screen.name, items: [{ header: screen.name }].concat(layoutsFor(screen)) })) }
+        }
+        return null
+    }
+
+    // The rows by which an action that is there is changed: what it can be changed to,
+    // for a kind that is one of a list (actionChoices), its panel for a kind that has
+    // one, and what else its kind has to set. `own` says that they are the rows of the
+    // action's own menu under Edit Action, where what there is to pick from is given
+    // straight, under its heading; otherwise, among the other rows of the menu of the
+    // action itself, it is one row that leads to them. Empty for an action with nothing
+    // to change.
+    function actionEditItems(target, action, own) {
+        const items = []
+        const panel = own ? "Edit…" : "Change…"
+        const choices = actionChoices(target, action)
+        if (choices !== null && choices.rows.length > 0) {
+            if (own)
+                [{ header: choices.label }].concat(choices.rows).forEach(row => items.push(row))
+            else
+                items.push({ label: choices.label, items: [{ header: choices.label }].concat(choices.rows) })
+        }
         // (An action that adds time to a timer is not one the panel can show.)
         if (action.kind === "timer" && action.action !== Timers.Increment)
-            items.push({ label: "Change…", run: () => actionDialog.openTimer(target, action, "") })
+            items.push({ label: panel, run: () => actionDialog.openTimer(target, action, "") })
         if (action.kind === "stage")
-            items.push({ label: "Change…", run: () => actionDialog.openStage(target, action) })
+            items.push({ label: panel, run: () => actionDialog.openStage(target, action) })
         // A communication action this app makes: its panel, for the device it names (or,
         // where that is not here, as the action has it)
         if (action.kind === "communication" && (action.command === "midi" || action.command === "http" || action.customControl)) {
             const device = Devices.find(action.deviceId, action.deviceName)
             const known = device.id !== undefined ? device : { id: action.deviceId, name: action.deviceName,
                                                                kind: action.command === "midi" ? "midi" : action.command === "http" ? "http" : "rosstalk" }
-            items.push({ label: "Change…", run: () => actionDialog.openCommunication(target, action, known,
-                                                                                    action.command === "words" ? "customControl" : action.command) })
+            items.push({ label: panel, run: () => actionDialog.openCommunication(target, action, known,
+                                                                                action.command === "words" ? "customControl" : action.command) })
         }
-        // A video input: which of the workspace's it is, by its place
-        if (action.kind === "videoInput" && VideoInputs.inputs.length > 0)
-            items.push({ label: "Video Input", items: [{ header: "Video Input" }].concat(VideoInputs.inputs.map(input => ({
-                label: input.name, current: input.index === action.inputIndex,
-                run: () => commitAction(target, { kind: "videoInput", inputIndex: input.index }, action.id) }))) })
+        // A prop: whether it is put on or taken off
+        if (action.kind === "prop") {
+            const does = clear => commitAction(target, { kind: "prop", propId: action.propId, propName: action.propName, collectionId: action.collectionId,
+                                                         collectionName: action.collectionName, clear: clear }, action.id)
+            if (items.length > 0)
+                items.push({ divider: true })
+            items.push({ label: "Trigger", current: action.clear !== true, run: () => does(false) })
+            items.push({ label: "Clear", current: action.clear === true, run: () => does(true) })
+        }
         // A playlist: whether it starts again when it is playing already
         if (action.kind === "mediaPlaylist" || action.kind === "audioPlaylist")
             items.push(retriggerItem(target, action))
         // A message whose tokens are given words: the words this action gives them
         if (action.kind === "message" && messageOf(action) && givenWords(messageOf(action)))
-            items.push({ label: "Change…", run: () => openMessageAction(target, action) })
+            items.push({ label: panel, run: () => openMessageAction(target, action) })
         // A piece of audio: how it plays on from its end (there is no playlist here
         // for a next to follow), and whether it is music or a sound effect.
         if (action.kind === "audio") {
@@ -2216,20 +2315,36 @@ Window {
             items.push({ header: "Type" })
             items.push({ label: "Music", glyph: "music", current: !action.effect, run: () => change({ effect: false }) })
             items.push({ label: "Sound Effect", glyph: "sound", current: action.effect, run: () => change({ effect: true }) })
-            items.push({ header: "Action" })
         }
+        return items
+    }
+
+    // An action as a row of an Edit Action menu (a slide's, a marker's): leading to the
+    // rows by which it is changed. One that is changed in its panel and nowhere else
+    // opens the panel; one with nothing to change is there all the same, greyed, so that
+    // the menu has what the slide has.
+    function editActionRow(target, action) {
+        const rows = actionEditItems(target, action, true)
+        const row = { label: actionLabel(action), glyph: action.kind, picture: action.picture ?? "" }
+        if (rows.length === 0)
+            row.disabled = true
+        else if (rows.length === 1 && rows[0].run !== undefined && rows[0].current === undefined) {
+            row.label += "…"
+            row.run = rows[0].run
+        } else {
+            row.items = rows
+        }
+        return row
+    }
+
+    // The menu of an action that is there: what it is, and changing it or taking it away.
+    function showActionMenu(target, action, item, x, y) {
+        const items = [{ note: action.title + (action.done ? "" : ". This kind of action is kept in the file, and is not done here.") }]
+            .concat(actionEditItems(target, action, false))
+        if (action.kind === "audio")
+            items.push({ header: "Action" })
         items.push({ label: "Remove", danger: true, run: () => removeAction(target, action) })
         menu.show(items, item, x, y)
-    }
-
-    // The panel in which a timer action or a stage action is changed, for whoever lists
-    // actions and has no way to it of its own.
-    function openTimerAction(target, action) {
-        actionDialog.openTimer(target, action, "")
-    }
-
-    function openStageAction(target, action) {
-        actionDialog.openStage(target, action)
     }
 
     // Something is being dragged that stands for an action: a timer, a prop, a macro or
@@ -2773,6 +2888,8 @@ Window {
             ]) },
             { label: "Add Action", items: [{ header: "Add Action" }].concat(addActionItems(target)) }
         ]
+        if (marker.actions.some(action => actionEditItems(target, action, true).length > 0))
+            items.push({ label: "Edit Action", items: [{ header: "Edit Action" }].concat(marker.actions.map(action => editActionRow(target, action))) })
         if (marker.actions.length > 0)
             items.push({ label: "Remove Action", items: [{ header: "Remove Action" }].concat(marker.actions.map(action => ({
                 label: actionLabel(action), glyph: action.kind, picture: action.picture ?? "", run: () => removeAction(target, action) }))) })
@@ -3337,6 +3454,11 @@ Window {
             { label: "Quick Edit", run: () => quickEdit(index, item) },
             // What else the slide does when it is shown: see src/actions.h
             { label: several ? "Add Action to " + several.length + " Slides" : "Add Action", items: () => addActionItems(target) },
+            // Each of its actions changed, for another of its kind or in its panel (see
+            // actionEditItems): of this slide alone, whatever is selected. (ProPresenter has
+            // Edit Action here; what each of its actions then opens has not been looked at.)
+            { label: "Edit Action", disabled: !slide.actions.some(action => actionEditItems({ slide: index }, action, true).length > 0),
+              items: () => [{ header: "Edit Action" }].concat(slide.actions.map(action => editActionRow({ slide: index }, action))) },
             { label: "Remove Action", disabled: slide.actions.length === 0, items: [{ header: "Remove Action" }].concat(
                 slide.actions.map(action => ({ label: actionLabel(action), glyph: action.kind, picture: action.picture,
                                                run: () => removeAction(target, action) }))) },

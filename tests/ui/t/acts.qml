@@ -83,7 +83,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a slide's menu offers to add an action, and to remove one, under Edit", labels().startsWith("Edit, Quick Edit, Add Action, Remove Action(off), Go To Next Timer…, Theme, Label, Group, [Media]"), labels())
+                check("a slide's menu offers to add an action, to change one and to remove one, under Edit", labels().startsWith("Edit, Quick Edit, Add Action, Edit Action(off), Remove Action(off), Go To Next Timer…, Theme, Label, Group, [Media]"), labels())
                 // The pointer resting on the row opens its menu beside it
                 const row = menuRow("Add Action")
                 testInput.mouse(4, row.x, row.y)
@@ -248,7 +248,7 @@ QtObject {
                 return 300
             },
             () => {
-                check("a clear action has nothing to change, only to remove", labels() === "(note), Remove", labels())
+                check("a clear action can be changed for another thing to clear, or removed", labels() === "(note), Clear, Remove", labels())
                 click(menuRow("Remove"))
                 return 500
             },

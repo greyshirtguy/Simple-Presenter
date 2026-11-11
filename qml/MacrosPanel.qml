@@ -88,21 +88,6 @@ Item {
         win.runMacro(id)
     }
 
-    // Whether an action is one the panel for its kind can show and change
-    function changeable(action) {
-        return action.kind === "stage" || (action.kind === "timer" && action.action !== Timers.Increment)
-            || (action.kind === "message" && win.messageOf(action) !== undefined && win.givenWords(win.messageOf(action)))
-    }
-
-    function change(row, action) {
-        if (action.kind === "stage")
-            win.openStageAction({ macro: row.id }, action)
-        else if (action.kind === "message")
-            win.openMessageAction({ macro: row.id }, action)
-        else
-            win.openTimerAction({ macro: row.id }, action)
-    }
-
     function showMacroMenu(row, item, x, y) {
         const target = { macro: row.id }
         const remove = action => win.removeAction(target, action)
@@ -112,17 +97,15 @@ Item {
             { label: "Remove Action", disabled: row.actions.length === 0, items: [{ header: "Remove Action" }].concat(
                 row.actions.map(action => ({ label: win.actionLabel(action), glyph: action.kind, picture: action.picture, run: () => remove(action) }))) }
         ]
-        // Each action that has something to change, by itself: in its panel, or (a
-        // playlist's Always Retrigger) there and then
-        const playlist = action => action.kind === "mediaPlaylist" || action.kind === "audioPlaylist"
-        const changeables = row.actions.filter(action => changeable(action) || playlist(action))
+        // Each action that has something to change, by itself: another of its kind picked
+        // from a menu (a macro, a look, a prop, a stage layout, what is cleared), its panel,
+        // or what else its kind has to set, there and then (Main's actionEditItems)
+        const changeables = row.actions.map(action => ({ action: action, rows: win.actionEditItems(target, action, true) })).filter(entry => entry.rows.length > 0)
         if (changeables.length > 0) {
             items.push({ header: "Actions" })
-            for (const action of changeables) {
-                items.push({ label: win.actionLabel(action), glyph: action.kind, picture: action.picture, items: [
-                    playlist(action) ? win.retriggerItem(target, action) : { label: "Edit…", run: () => change(row, action) },
-                    { label: "Remove", danger: true, run: () => remove(action) }
-                ] })
+            for (const entry of changeables) {
+                items.push({ label: win.actionLabel(entry.action), glyph: entry.action.kind, picture: entry.action.picture,
+                             items: entry.rows.concat([{ label: "Remove", danger: true, run: () => remove(entry.action) }]) })
             }
         }
         items.push({ header: "Macro" })

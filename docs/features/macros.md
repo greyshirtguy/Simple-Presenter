@@ -15,7 +15,9 @@ their order, so that what it does can be seen at a glance. A click on a macro ru
 
 Everything else is in its menu, on a right click: Run; **Add Action** (as for a
 slide); **Remove Action**, which lists its actions by name; a row for each action that has
-anything to change (a timer action, a stage action), leading to Edit and Remove;
+anything to change, leading to what it can be changed to, as a slide's Edit Action does
+(another macro, look, prop, stage layout or thing to clear, picked from a list with the one
+it is ticked; its panel, for a timer, a stage or a message action), and to Remove;
 Rename; Colour; Duplicate; Move to another collection; and Remove. The `+` over the
 list adds a macro or a collection. One of the clear buttons dragged onto a macro
 gives it that clear action, a layer's or a group's; a piece out of the [audio

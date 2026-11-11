@@ -226,6 +226,38 @@ def prepare_lookreveal(workspace, test_dir):
         out.write(data)
 
 
+def after_editactions(workspace, test_dir):
+    """What the files hold after actions were changed for others of their kind (editactions.qml): the macros' file,
+    whose look and stage layout were changed and put back, as ProPresenter wrote it; and the presentation, with the
+    four actions the test gave a slide and nothing of what it held lost or changed."""
+    import difflib
+    import filecmp
+    place = os.path.join("Libraries", "MainHall", "All Hail King Jesus.pro")
+
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "presentation.proto", source.read()).decode()
+
+    now = decoded(os.path.join(workspace, place))
+    was = decoded(os.path.join(FIXTURES, "workspaces", "Act", place))
+    lost = [line for line in difflib.ndiff(was.split("\n"), now.split("\n")) if line.startswith("- ")]
+    more = lambda words: now.count(words) - was.count(words)
+    clear = re.search(r"clear \{\n\s+target_layer: CLEAR_TARGET_LAYER_BACKGROUND\n\s+\}", now)
+    return [
+        said(filecmp.cmp(os.path.join(workspace, "Configuration", "Macros"), os.path.join(FIXTURES, "workspaces", "Act", "Configuration", "Macros"), shallow=False),
+             "in the macros' file: a look and a stage layout changed and put back leave it as ProPresenter wrote it, byte for byte"),
+        said(not lost, "in the presentation: nothing of what it held is lost or changed", "; ".join(line.strip() for line in lost[:6])),
+        said(more("ACTION_TYPE_AUDIENCE_LOOK") == 1 and more("ACTION_TYPE_CLEAR\n") == 1 and more("ACTION_TYPE_MACRO") == 1 and more("ACTION_TYPE_PROP") == 1,
+             "in the presentation: the slide's four actions, one of each kind",
+             "%d %d %d %d" % (more("ACTION_TYPE_AUDIENCE_LOOK"), more("ACTION_TYPE_CLEAR\n"), more("ACTION_TYPE_MACRO"), more("ACTION_TYPE_PROP"))),
+        said(clear is not None and more("CONTENT_DESTINATION_ANNOUNCEMENTS") == 0,
+             "in the presentation: the clear, changed to the announcements and then to the media, clears the media and names no announcements"),
+        # (A prop that is taken off has a `clear` with nothing in it, as a clear of everything has: one more than there was)
+        said(len(re.findall(r"\n\s+clear \{\n\s+\}", now)) - len(re.findall(r"\n\s+clear \{\n\s+\}", was)) == 1,
+             "in the presentation: the prop action is one that takes the prop off"),
+    ]
+
+
 def after_looks(workspace, test_dir):
     with open(os.path.join(workspace, "Configuration", "Workspace"), "rb") as source:
         text = protoc("decode", "rv.data.ProPresenterWorkspace", "proworkspace.proto", source.read()).decode()
@@ -3989,6 +4021,7 @@ TESTS = {
                          prepare=prepare_decodeguard2),
     "looks": test("Act", after=after_looks),
     "lookreveal": test("Act", timeout=240, prepare=prepare_lookreveal),
+    "editactions": test("Act", timeout=300, after=after_editactions),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),
     # (Settings remembered: the import's last choices are kept there, by the workspace.)

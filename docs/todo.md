@@ -98,7 +98,9 @@ the top of the [README](../README.md).
       those are run; so is communication with a MIDI, RossTalk or HTTP device (see
       [Devices](features/devices.md)). Still to come: the rest of ProPresenter's kinds
       (capture and more, which are kept in the files and shown, and not done), an
-      action's delay, and putting a slide's or a macro's actions in another order.
+      action's delay, putting a slide's or a macro's actions in another order, and
+      picking another playlist or message for an action that is there, as another
+      macro, look, prop, stage layout or thing to clear is picked (Edit Action).
 - [ ] **Looks**: a slide that changes the look taking the look's length for its own
       transition, as ProPresenter's article on look transitions has it (see
       [Looks](features/looks.md), where what is done in its place is said); and the

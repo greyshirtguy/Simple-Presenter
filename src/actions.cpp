@@ -402,9 +402,12 @@ QVariantMap describe(const rv::data::Action &action)
 QString build(const QVariantMap &wanted, rv::data::Action *action)
 {
     const QString kind = wanted.value("kind").toString();
-    if (action->uuid().string().empty())
+    // A new one is given an id and is enabled. One that is there keeps both: whether
+    // ProPresenter has it enabled is not what a change of what it does is about.
+    if (action->uuid().string().empty()) {
         action->mutable_uuid()->set_string(workspace::newUuid());
-    action->set_isenabled(true);
+        action->set_isenabled(true);
+    }
     if (kind == QLatin1String("timer")) {
         action->set_type(Action::ACTION_TYPE_TIMER);
         buildTimer(wanted, action->mutable_timer());
@@ -416,6 +419,10 @@ QString build(const QVariantMap &wanted, rv::data::Action *action)
         if (wanted.value("announcements").toBool()) {
             action->mutable_clear()->set_target_layer(Action::ClearType::CLEAR_TARGET_LAYER_ALL);
             action->mutable_clear()->set_content_destination(Action::CONTENT_DESTINATION_ANNOUNCEMENTS);
+        } else {
+            // (One that cleared the announcements and is changed to clear a layer: of the
+            // show again, which is what a clear with nothing said of it is)
+            action->mutable_clear()->set_content_destination(Action::CONTENT_DESTINATION_GLOBAL);
         }
     } else if (kind == QLatin1String("clearGroup")) {
         // As ProPresenter writes one (seen in a presentation of its own): the group by
