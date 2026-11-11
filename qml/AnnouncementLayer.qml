@@ -43,6 +43,15 @@ Item {
 
     // A playback marker of the video under its slide has been reached
     signal markerReached(int playId, var marker)
+    // What comes in on its slide's layer has been brought in (TransitionLayer.landed), and
+    // what it shows put out of sight for good (TransitionLayer.veil): for the screen's look,
+    // to which this is one layer (see LookGate)
+    signal landed
+
+    function veil() {
+        slideLayer.veil()
+        mediaLayer.veil()
+    }
     // The markers a playing goes by now (see MediaContent.markersOf), and how loud it is
     // (MediaContent.volumeOf)
     property var markersOf: null
@@ -114,6 +123,7 @@ Item {
         duration: announcements.duration
         // (As the screen's own slides: see OutputScene)
         paced: true
+        onLanded: announcements.landed()
         delegate: Slide {
             pictures: announcements.pictures
             backdrop: announcements.backdrop

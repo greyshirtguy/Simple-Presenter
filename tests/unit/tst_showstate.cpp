@@ -1685,6 +1685,42 @@ private slots:
         QVERIFY(show.lookId.isEmpty());
     }
 
+    // A slide's look action comes after its slide, as its actions do; carried out, the look comes
+    // first, so that a screen knows what the look gives it before it is told of the slide (the
+    // maintainer, 2026-11-11: see qml/LookGate.qml), and the rest is as it came
+    void aLookIsCarriedOutBeforeTheSlideItCameWith()
+    {
+        State show;
+        const Workspace w = workspace();
+        Presentation song;
+        song.slides = {slide("a", {}, {QVariantMap {{"kind", "look"}, {"title", "Look"}, {"done", true}, {"lookId", "full"}, {"lookName", ""}}}),
+                       slide("b", {}, {})};
+        const auto kinds = [](const show::Effects &effects) {
+            QList<int> all;
+            for (const show::Effect &effect : effects) {
+                if (effect.kind != show::Effect::Note)
+                    all << int(effect.kind);
+            }
+            return all;
+        };
+        const show::Effects asCame = show.goLive(song.cue(0), false, w);
+        const QList<int> came = kinds(asCame);
+        QVERIFY(came.indexOf(int(show::Effect::Slide)) >= 0);
+        QVERIFY(came.indexOf(int(show::Effect::Slide)) < came.indexOf(int(show::Effect::Look)));
+        const QList<int> carried = kinds(show::looksFirst(asCame));
+        QCOMPARE(carried.first(), int(show::Effect::Look));
+        QCOMPARE(carried.size(), came.size());
+        QList<int> rest = came;
+        rest.removeAll(int(show::Effect::Look));
+        QCOMPARE(carried.mid(1), rest);
+        // With no look among them, they are as they came: the notes too
+        const show::Effects plain = show.goLive(song.cue(1), false, w);
+        const show::Effects same = show::looksFirst(plain);
+        QCOMPARE(same.size(), plain.size());
+        for (int i = 0; i < plain.size(); ++i)
+            QCOMPARE(int(same.at(i).kind), int(plain.at(i).kind));
+    }
+
     // ---- a presentation that changes under the show
 
     void theShowFollowsItsSlideThroughAPresentationReadAgain()

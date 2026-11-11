@@ -205,6 +205,27 @@ def after_acts(workspace, test_dir):
     ]
 
 
+def prepare_lookreveal(workspace, test_dir):
+    """The test of a look and a layer changing together (lookreveal): the workspace's looks all take a second to
+    come and go, and the maintainer's fault was with a look that is made at once, so one of them, "Stream L3rd Name",
+    which gives the stream its slides, is given no time at all, in the copy's own file (the look's transition_duration
+    left out, which is none). Nothing is written outside the test's folder."""
+    path = os.path.join(workspace, "Configuration", "Workspace")
+    if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("the look test would write outside its own folder: " + os.path.realpath(path))
+    with open(path, "rb") as source:
+        text = protoc("decode", "rv.data.ProPresenterWorkspace", "proworkspace.proto", source.read()).decode()
+    look = re.search(r'^audience_looks \{\n(?:(?!^\}).*\n)*?  name: "Stream L3rd Name"\n(?:(?!^\}).*\n)*?^\}', text, re.M)
+    if look is None or "  transition_duration: 1\n" not in look.group(0):
+        raise RuntimeError("the workspace has no look \"Stream L3rd Name\" that takes a second")
+    changed = text[:look.start()] + look.group(0).replace("  transition_duration: 1\n", "") + text[look.end():]
+    data = protoc("encode", "rv.data.ProPresenterWorkspace", "proworkspace.proto", changed.encode())
+    if protoc("decode", "rv.data.ProPresenterWorkspace", "proworkspace.proto", data).decode() != changed:
+        raise RuntimeError("the workspace's file did not come back as it was written")
+    with open(path, "wb") as out:
+        out.write(data)
+
+
 def after_looks(workspace, test_dir):
     with open(os.path.join(workspace, "Configuration", "Workspace"), "rb") as source:
         text = protoc("decode", "rv.data.ProPresenterWorkspace", "proworkspace.proto", source.read()).decode()
@@ -3967,6 +3988,7 @@ TESTS = {
     "decodeguard2": test("Demo", env={"SP_TEST_REMEMBER": "1", "SP_TEST_SYSTEM_ROOT": "<test>/system", "SP_TEST_NOUVEAU_CHIPSET": "e4"},
                          prepare=prepare_decodeguard2),
     "looks": test("Act", after=after_looks),
+    "lookreveal": test("Act", timeout=240, prepare=prepare_lookreveal),
     "themes": test("Act"),
     "chords": test("ProPresenter MR", prepare=prepare_chords, after=after_chords),
     # (Settings remembered: the import's last choices are kept there, by the workspace.)

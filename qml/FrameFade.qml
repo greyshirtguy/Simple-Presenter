@@ -53,7 +53,9 @@ Item {
 
     // Where the fade is at `now`, on that clock: straight, as Qt's NumberAnimation went
     function step(now) {
-        const t = Math.min(1, Math.max(0, (now - startedAt) / duration))
+        // (Its time taken away half way through, it is over: a prop's, as the look takes
+        // its layer out of sight, see PropsLayer)
+        const t = duration > 0 ? Math.min(1, Math.max(0, (now - startedAt) / duration)) : 1
         value = from + (to - from) * t
         if (t >= 1)
             end()

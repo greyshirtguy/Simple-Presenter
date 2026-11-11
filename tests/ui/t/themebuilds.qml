@@ -115,8 +115,11 @@ QtObject {
                 kept.t0 = times ? times[0] : 0
                 check("the slide's macro made the look live, which gives the output the theme", Looks.live.origin === kept.look
                       && Looks.liveOf(kept.screen).themeSlide === kept.themeSlide, Looks.live.name)
-                check("the slide has no builds, the theme does: they run on the output from when it was given the theme there, as the slide came on",
-                      liveSlide.builds === undefined && buildStarts[kept.screen] !== undefined && times !== null
+                // (The look is made live before the slide that brought it is shown, since 2026-11-11: the slide is shown once,
+                // already in the theme, and its builds are the slide's from the start; they were the screen's own, from when
+                // the theme was given it a moment after)
+                check("the slide has no builds, the theme does: they run on the output from when the slide came on in the theme",
+                      liveSlide.builds === undefined && buildStarts[kept.screen] === undefined && times !== null
                       && Math.abs(kept.t0 - kept.shownAt - 600) < 250, JSON.stringify(times) + " shown at " + kept.shownAt)
                 return until(-0.3)
             },

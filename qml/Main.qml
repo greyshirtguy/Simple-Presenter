@@ -4296,6 +4296,23 @@ Window {
         eachAudienceScene((scene, id) => scene.showSlide(slideFor(id, liveSlide), null, buildTimesFor(id)))
     }
 
+    // A screen whose theme the look has changed is shown the live slide again (redress),
+    // but not there and then: at the end of the turn in which the look changed. By then
+    // the screen has been told what else the look gives it, which it is told in no
+    // order that can be counted on; shown the slide before it knew that the look was
+    // taking its slides away, it would begin on it as they went (the maintainer's look
+    // that clears the stream, 2026-11-11: see LookGate). And if a slide has been shown
+    // since, the look having come with it, there is nothing to show again: that slide
+    // was dressed as the look now has it (a look is made live before the slide it came
+    // with: show::looksFirst), where the two were once shown one after the other.
+    function redressLater(key) {
+        const serial = slideChange.serial
+        Qt.callLater(() => {
+            if (slideChange.serial === serial)
+                redress(key)
+        })
+    }
+
     // The slide that is live, shown again on a screen whose theme has changed. In a
     // theme with builds, they run from now there, as they would have had the slide come
     // on in that theme: a name in a lower third is wiped in when the look gives the
@@ -5510,8 +5527,9 @@ Window {
             readonly property var look: Looks.live !== undefined ? Looks.liveOf(audienceHost.wholeId) : null
             readonly property string themeKey: look.theme === "" ? "" : look.theme + "\n" + look.themeSlide
             // The look has given this screen another theme, or none: the slide that is
-            // live is shown again as it now looks here.
-            onThemeKeyChanged: win.redress(audienceHost.modelData)
+            // live is shown again as it now looks here (once the look is the screens' as
+            // well: see redressLater).
+            onThemeKeyChanged: win.redressLater(audienceHost.modelData)
             readonly property bool overNdi: screen.output === "ndi"
             readonly property bool overDeckLink: screen.output === "decklink"
 

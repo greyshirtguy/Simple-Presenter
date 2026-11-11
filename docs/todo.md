@@ -99,6 +99,11 @@ the top of the [README](../README.md).
       [Devices](features/devices.md)). Still to come: the rest of ProPresenter's kinds
       (capture and more, which are kept in the files and shown, and not done), an
       action's delay, and putting a slide's or a macro's actions in another order.
+- [ ] **Looks**: a slide that changes the look taking the look's length for its own
+      transition, as ProPresenter's article on look transitions has it (see
+      [Looks](features/looks.md), where what is done in its place is said); and the
+      media, the props and the messages kept from a screen while a look fades their
+      layer from it, as a slide and an announcement are.
 - [ ] **Bibles**: they are there (see [Bibles](features/bibles.md)), from XML files and from
       api.bible. Still to come: searching a Bible by a word; a second translation
       beside the first; other sources online (the ESV's own, among them); and the

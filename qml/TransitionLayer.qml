@@ -147,6 +147,27 @@ Item {
         hideSource: layer.blending
     }
 
+    // What comes in has been brought in: the cut made, or its transition begun. (For a
+    // screen's look, which does not let a layer it has given back be seen until what is
+    // being put on it is there: see LookGate.)
+    signal landed
+
+    // Puts what the layer shows out of sight for good, so that what is shown next comes
+    // from nothing: for a layer that is out of sight on its screen, the look keeping it
+    // from there, as a change of what is on it arrives (see LookGate). What was on show
+    // is kept until that change is made, and not drawn: a video goes on playing till
+    // then, as it would have, since it may be the one whose frames the other screens are
+    // handed, and its sound goes by the transition.
+    function veil() {
+        if (blending) {
+            backstop.stop()
+            commit("cut short at " + Math.round(progress * 100) + "% out of sight, by a change made from nothing")
+        }
+        const front = (aIsFront ? holderA : holderB).item
+        if (front)
+            front.opacity = 0
+    }
+
     // Transitions to `content`, or to nothing if it is null: at once if the content can
     // be shown at once, and otherwise when it can. `given` is more of the delegate's
     // properties to be set with the content, by name (a slide's build times: see Slide),
@@ -220,6 +241,7 @@ Item {
         currentItem = (aIsFront ? holderB : holderA).item
         if (!animated) {
             commit("")
+            landed()
             return
         }
         // (What the two textures ask for themselves, a frame of the window's after their first,
@@ -239,6 +261,7 @@ Item {
         activeDirection = chosen.direction
         backstop.interval = chosen.duration + 1000
         backstop.restart()
+        landed()
     }
 
     // Where the transition is at `now`, on the clock of the window's frames: eased in and
@@ -281,8 +304,10 @@ Item {
         levelA = aIsFront ? 1 : 0
         levelB = aIsFront ? 0 : 1
         progress = 0
-        // Release what is no longer shown, so an outgoing video stops decoding.
+        // Release what is no longer shown, so an outgoing video stops decoding. (And let
+        // it be drawn when it is next given something, if it was put out of sight: veil.)
         outgoing.item.content = null
+        outgoing.item.opacity = 1
         blending = false
     }
 

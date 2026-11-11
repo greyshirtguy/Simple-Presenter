@@ -23,6 +23,26 @@ over the time the look says. (An action that goes over to the look that is live
 already, and unchanged, costs nothing; one that changes the look is on the screens at
 once, and in the file a moment after, so that it never holds a slide up.)
 
+**A look and a layer changing together.** A slide or a macro can go over to a look and
+change what is on a layer in the same moment: a speaker's name on a slide whose action
+gives the stream its slides, after a look that kept them from it. The screen then shows
+only what the layer is changed to. A layer the look gives back to a screen comes back
+with what is being put on it, which comes in from nothing by its own transition (a slide
+by the slides', media by the media's, a prop at once), and not with what the layer held
+while it was away: the slide before is not seen there, not for a frame. And a layer the
+look takes from a screen by a fade goes with what it had: a slide, or an announcement,
+that changes in that moment is kept from that screen until its layer has gone. (The
+media is played by one screen for them all, and the props and messages are told of their
+changes before the look is, so those are not kept back: a look that takes them from a
+screen by a fade shows what they change to as they go. A look that takes a layer at once
+shows nothing of it.)
+
+ProPresenter's own rule is another. By its support article on look transitions, a slide
+that changes the look keeps its transition and takes the look's length, and the lengths
+are best matched "to avoid unexpected layers presenting during the transition". That
+softens the same fault and is not done here; whether ProPresenter does anything more has
+not been seen. The rule here is the maintainer's.
+
 > [!NOTE]
 > That an action puts the live look back is worth knowing before changing the live
 > look by hand. Songs whose first slide runs a macro that goes over to a look will undo

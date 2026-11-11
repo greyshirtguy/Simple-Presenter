@@ -152,6 +152,26 @@ public:
         const qreal ratio = image.width() / std::max<qreal>(1, other->width());
         return QColor(image.pixel(int(x * ratio), int(y * ratio))).name();
     }
+    // How light each of some points of another of the app's windows is, from 0 to 255, the window drawn once for
+    // them all: `points` are [x, y] each, as shares of the window. For watching what a second audience screen
+    // shows from moment to moment (lookreveal.qml).
+    Q_INVOKABLE QVariantList greysIn(const QString &window, const QVariantList &points)
+    {
+        QQuickWindow *other = named(window.toLatin1().constData());
+        if (!other)
+            return {};
+        const QImage image = other->grabWindow();
+        QVariantList greys;
+        if (image.isNull())
+            return greys;
+        for (const QVariant &point : points) {
+            const QVariantList at = point.toList();
+            const int x = qBound(0, int(at.value(0).toDouble() * image.width()), image.width() - 1);
+            const int y = qBound(0, int(at.value(1).toDouble() * image.height()), image.height() - 1);
+            greys << qGray(image.pixel(x, y));
+        }
+        return greys;
+    }
     // A picture of another of the app's windows, by its name ("calendarWindow")
     Q_INVOKABLE void grabIn(const QString &window, const QString &name)
     {

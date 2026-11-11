@@ -15,6 +15,10 @@ Item {
     property var props: []
     // How long one takes to come or go, in milliseconds
     property int duration: 0
+    // Whether the layer is out of sight on its screen, the look keeping it from there: a
+    // prop then comes or goes at once, so that when the look gives the layer back what
+    // is seen is the props that are on, and none of them on its way out (see LookGate)
+    property bool unseen: false
     // As for Slide: shadows, and whether a timer's hundredths are worth following; and
     // the operator window, for Screen Previews
     property bool effects: true
@@ -102,7 +106,7 @@ Item {
                 id: fade
 
                 to: prop.on && prop.made ? 1 : 0
-                duration: stack.duration
+                duration: stack.unseen ? 0 : stack.duration
             }
         }
     }

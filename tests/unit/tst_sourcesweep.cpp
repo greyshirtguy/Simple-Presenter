@@ -23,7 +23,7 @@ private slots:
             QStringLiteral("AnnouncementLayer.qml"), QStringLiteral("Slide.qml"), QStringLiteral("SlideElement.qml"),
             QStringLiteral("MediaContent.qml"), QStringLiteral("MediaLook.qml"), QStringLiteral("MediaEffects.qml"),
             QStringLiteral("MediaPicture.qml"), QStringLiteral("ScrollingText.qml"), QStringLiteral("BuildRun.qml"),
-            QStringLiteral("TextFills.qml"), QStringLiteral("VideoInputView.qml"), QStringLiteral("FrameFade.qml"),
+            QStringLiteral("TextFills.qml"), QStringLiteral("VideoInputView.qml"), QStringLiteral("FrameFade.qml"), QStringLiteral("LookGate.qml"),
             QStringLiteral("StageScene.qml"), QStringLiteral("StageView.qml"), QStringLiteral("ScreenPicture.qml"),
             QStringLiteral("ChordedText.qml"), QStringLiteral("Output.qml"), QStringLiteral("Stage.qml"),
             QStringLiteral("AuxWindow.qml")};

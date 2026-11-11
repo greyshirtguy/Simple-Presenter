@@ -75,6 +75,10 @@ These are not ProPresenter's.
   slide backgrounds as the slides' background media (or left out, by the panel's switch),
   its notes as slide notes and its sections as groups. What could not be carried over
   (tables, charts, SmartArt, animations) is listed at the end.
+- **A look and a layer changing together.** A slide or a macro that goes over to a look
+  and changes a layer in the same moment: a layer the look gives back to a screen comes
+  back with what is being put on it, which comes in from nothing, and the slide before
+  is not seen there; a layer the look fades from a screen goes with what it had.
 
 ## What it does not do
 

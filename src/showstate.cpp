@@ -1495,6 +1495,22 @@ QVariantMap findClearGroup(const QString &id, const QString &name, const Workspa
     return byName;
 }
 
+Effects looksFirst(const Effects &effects)
+{
+    Effects ordered;
+    for (const Effect &effect : effects) {
+        if (effect.kind == Effect::Look)
+            ordered << effect;
+    }
+    if (ordered.isEmpty())
+        return effects;
+    for (const Effect &effect : effects) {
+        if (effect.kind != Effect::Look)
+            ordered << effect;
+    }
+    return ordered;
+}
+
 QVariantMap findLook(const QString &id, const QString &name, const Workspace &workspace)
 {
     QVariantMap byName;

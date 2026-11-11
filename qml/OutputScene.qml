@@ -33,6 +33,11 @@ import QtQuick
 // text and builds do (FrameFade; see src/frameclock.h). They were Qt's own animations
 // until 2026-11-06, stepped by a timer of Qt's own while two windows are showing, out of
 // time with the screen, and a look changed over a playing video took the video's turn.
+//
+// Each layer a look can keep from the screen has a LookGate, which is that fade and more:
+// a layer the look gives back at the moment something is put on it comes back with that
+// alone, and not with what it held while it was away; and one the look takes away goes
+// with what it had (see LookGate, and keptBack() here).
 Item {
     id: scene
 
@@ -135,6 +140,29 @@ Item {
     // (PaintAhead.paintFirst). A slide whose words were painted ahead is given at once; one
     // whose were not waits for them (`paintingFirst`), a quarter of a second at most.
     function showSlide(slide, transition, times) {
+        if (keptBack(() => scene.showSlide(slide, transition, times)))
+            return
+        giveSlide(slide, transition, times)
+    }
+
+    // Whether a change of the slide layer is kept back, the look taking the layer from
+    // this screen: `change` is then made once the layer has gone, and the screen shows
+    // what it had as it goes. And if it is not, and the layer is out of sight here, what
+    // the layer held is put out of sight for good, so that the change is made from
+    // nothing and the layer comes back, if the look gives it back, with that alone (see
+    // LookGate).
+    function keptBack(change) {
+        if (slideGate.going) {
+            slideGate.keep(change)
+            return true
+        }
+        if (slideGate.arrives())
+            slideLayer.veil()
+        return false
+    }
+
+    // The slide given to the slide layer, its words painted first (see showSlide)
+    function giveSlide(slide, transition, times) {
         heldSlide = undefined
         if (slide && !paintAhead.paintFirst(slide)) {
             paintingFirst = { slide: slide, transition: transition, times: times }
@@ -170,8 +198,13 @@ Item {
             slideLayer.currentItem.buildTimes = times
     }
 
-    // `media` is { source, video, loops, volume }; null clears the layer.
+    // `media` is { source, video, loops, volume }; null clears the layer. (With the layer
+    // out of sight here, what it held is not to be seen again: see LookGate. A change of
+    // the media is not kept back while the look takes the layer away, as a slide's is:
+    // one screen plays the media for them all.)
     function showMedia(media) {
+        if (mediaGate.arrives())
+            mediaLayer.veil()
         mediaLayer.show(media)
     }
 
@@ -185,7 +218,11 @@ Item {
     function showSlideWithMedia(slide, media, transition, times) {
         // A slide still held for other media has been passed over.
         heldSlide = undefined
-        mediaLayer.show(media)
+        showMedia(media)
+        // (Kept back, the slide is shown by itself once its layer has gone, its media
+        // being there by then)
+        if (keptBack(() => scene.showSlide(slide, transition, times)))
+            return
         hold(slide, transition, times)
     }
 
@@ -193,6 +230,8 @@ Item {
     // media is still being waited for, having only just been asked for, the slide waits
     // with it as the slide that asked for it would have.
     function showSlideOverMedia(slide, transition, times) {
+        if (keptBack(() => scene.showSlide(slide, transition, times)))
+            return
         hold(slide, transition, times)
     }
 
@@ -212,7 +251,7 @@ Item {
             if (slide)
                 paintAhead.paintFirst(slide)
         } else {
-            showSlide(slide, transition, times)
+            giveSlide(slide, transition, times)
         }
     }
 
@@ -221,8 +260,16 @@ Item {
     // Show.OverMedia or Show.WithMedia, `media` being what is started under it for the
     // last, or null for none); and the layer taken off.
     function showAnnouncement(slide, showing, media) {
+        // (Kept back while the look takes the layer from this screen, and made from
+        // nothing while it is out of sight here, as the slides are: see keptBack)
+        if (announcementsGate.going) {
+            announcementsGate.keep(() => scene.showAnnouncement(slide, showing, media))
+            return
+        }
         announcementsLayer.wanted = true
         const layer = announcementsLayer.item
+        if (announcementsGate.arrives())
+            layer.veil()
         if (showing === 2)
             layer.showSlideWithMedia(slide, media)
         else if (showing === 1)
@@ -232,8 +279,15 @@ Item {
     }
 
     function clearAnnouncements() {
-        if (announcementsLayer.item)
-            announcementsLayer.item.clear()
+        if (!announcementsLayer.item)
+            return
+        if (announcementsGate.going) {
+            announcementsGate.keep(() => scene.clearAnnouncements())
+            return
+        }
+        if (announcementsGate.arrives())
+            announcementsLayer.item.veil()
+        announcementsLayer.item.clear()
     }
 
     onMessagesChanged: {
@@ -292,11 +346,11 @@ Item {
                     // the place of another is a cut. (A GUESS: ProPresenter has a transition of its own
                     // for video inputs, which is not done here yet.)
                     // How much of each layer is on show, as the look has it, faded by the
-                    // screen's own frames (see FrameFade)
-                    FrameFade {
-                        id: videoInputFade
+                    // screen's own frames (see LookGate)
+                    LookGate {
+                        id: videoInputGate
 
-                        to: scene.videoInputOn ? 1 : 0
+                        on: scene.videoInputOn
                         duration: scene.lookFade
                     }
 
@@ -306,7 +360,7 @@ Item {
                         objectName: "videoInputLayer"
                         anchors.fill: parent
                         active: scene.videoInput >= 0
-                        opacity: videoInputFade.value
+                        opacity: videoInputGate.value
                         visible: opacity > 0
 
                         sourceComponent: VideoInputView {
@@ -316,10 +370,10 @@ Item {
                         }
                     }
 
-                    FrameFade {
-                        id: mediaFade
+                    LookGate {
+                        id: mediaGate
 
-                        to: scene.mediaOn ? 1 : 0
+                        on: scene.mediaOn
                         duration: scene.lookFade
                     }
 
@@ -327,7 +381,7 @@ Item {
                         id: mediaLayer
 
                         anchors.fill: parent
-                        opacity: mediaFade.value
+                        opacity: mediaGate.value
                         visible: opacity > 0
                         name: "media layer"
                         shaderName: scene.mediaTransitionName
@@ -347,8 +401,9 @@ Item {
                         // given something else to show: either way a slide held for it goes now.
                         onWaitingChanged: {
                             if (!waiting && scene.heldSlide !== undefined)
-                                scene.showSlide(scene.heldSlide, scene.heldHow.transition, scene.heldHow.times)
+                                scene.giveSlide(scene.heldSlide, scene.heldHow.transition, scene.heldHow.times)
                         }
+                        onLanded: mediaGate.landed()
                     }
 
                     // The video on the media layer, while one plays, is what the screen's frames keep to
@@ -358,10 +413,10 @@ Item {
                     }
                 }
 
-                FrameFade {
-                    id: slideFade
+                LookGate {
+                    id: slideGate
 
-                    to: scene.slideOn ? 1 : 0
+                    on: scene.slideOn
                     duration: scene.lookFade
                 }
 
@@ -369,7 +424,7 @@ Item {
                     id: slideLayer
 
                     anchors.fill: parent
-                    opacity: slideFade.value
+                    opacity: slideGate.value
                     visible: opacity > 0
                     name: "slide layer"
                     shaderName: scene.transitionName
@@ -382,6 +437,7 @@ Item {
                     // frame of a video playing under it, if one is: see Slide.paintsAhead
                     // and TransitionLayer.paced)
                     paced: true
+                    onLanded: slideGate.landed()
                     delegate: Slide {
                         pictures: scene.pictures
                         logName: "slide layer"
@@ -421,7 +477,8 @@ Item {
 
                 objectName: "copyrightLayer"
                 anchors.fill: parent
-                active: Show.copyrightText !== "" && scene.slideOn
+                // (Not before the slide layer is let be seen: see LookGate)
+                active: Show.copyrightText !== "" && slideGate.open
                 visible: active
 
                 sourceComponent: Slide {
@@ -434,10 +491,10 @@ Item {
 
             // The announcements, over the slides and under the props. Made when the first
             // announcement is shown, and kept: a show that has none has nothing made for them.
-            FrameFade {
-                id: announcementsFade
+            LookGate {
+                id: announcementsGate
 
-                to: scene.announcementsOn ? 1 : 0
+                on: scene.announcementsOn
                 duration: scene.lookFade
             }
 
@@ -448,11 +505,12 @@ Item {
 
                 anchors.fill: parent
                 active: wanted
-                opacity: announcementsFade.value
+                opacity: announcementsGate.value
                 visible: opacity > 0
 
                 sourceComponent: AnnouncementLayer {
                     leads: scene.leads
+                    onLanded: announcementsGate.landed()
                     onMarkerReached: (playId, marker) => scene.markerReached(playId, marker, "announcements")
                     markersOf: scene.markersOf
                     volumeOf: scene.volumeOf
@@ -467,10 +525,10 @@ Item {
                 }
             }
 
-            FrameFade {
-                id: propsFade
+            LookGate {
+                id: propsGate
 
-                to: scene.propsOn ? 1 : 0
+                on: scene.propsOn
                 duration: scene.lookFade
             }
 
@@ -480,7 +538,8 @@ Item {
                 anchors.fill: parent
                 pictures: scene.pictures
                 backdrop: underLayers
-                opacity: propsFade.value
+                unseen: propsGate.unseen
+                opacity: propsGate.value
                 visible: opacity > 0
             }
 
@@ -488,10 +547,10 @@ Item {
             // being a slide laid over the rest as a prop is. It is made when the first message
             // is shown, and kept from then on (the last message to go fades in it): a show in
             // which no message is ever shown has nothing made for them.
-            FrameFade {
-                id: messagesFade
+            LookGate {
+                id: messagesGate
 
-                to: scene.messagesOn ? 1 : 0
+                on: scene.messagesOn
                 duration: scene.lookFade
             }
 
@@ -502,12 +561,13 @@ Item {
 
                 anchors.fill: parent
                 active: wanted
-                opacity: messagesFade.value
+                opacity: messagesGate.value
                 visible: opacity > 0
 
                 sourceComponent: PropsLayer {
                     props: scene.messages
                     duration: propsLayer.duration
+                    unseen: messagesGate.unseen
                     pictures: scene.pictures
                     backdrop: underLayers
                 }

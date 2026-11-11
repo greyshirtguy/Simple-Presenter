@@ -90,7 +90,8 @@ void Show::change(const std::function<show::Effects()> &what)
         ++m_revision;
         emit changed();
     }
-    for (const show::Effect &effect : effects) {
+    // (A look first: see show::looksFirst)
+    for (const show::Effect &effect : show::looksFirst(effects)) {
         switch (effect.kind) {
         case show::Effect::Slide:
             emit slideShown(Alone, {});

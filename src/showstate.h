@@ -136,6 +136,14 @@ struct Effect
 };
 using Effects = QList<Effect>;
 
+// The effects of one change in the order they are carried out: a look made live first,
+// whatever came before it, and the rest as they came. A slide's look action comes after
+// its slide (the slide is shown, then its actions are run), and a screen told of the
+// slide first would begin its change on a layer the look is about to take from that
+// screen; told of the look first, it keeps the change back until the layer has gone,
+// and the screen goes on showing what it had as the layer fades (qml/LookGate.qml).
+Effects looksFirst(const Effects &effects);
+
 class State
 {
 public:

@@ -215,6 +215,7 @@ qt_add_qml_module(SimplePresenter
         qml/ImportLyrics.qml
         qml/ImportPowerPoint.qml
         qml/ImportSong.qml
+        qml/LookGate.qml
         qml/LooksPanel.qml
         qml/MacroGlyph.qml
         qml/MacrosPanel.qml
