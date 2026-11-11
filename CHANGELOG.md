@@ -6,6 +6,14 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.136](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.136) · 2026-11-12
+
+- The two transition duration sliders, the slides' and the media's, have a see-through
+  handle: a faint fill with a light ring, so that the marks and the track show through it
+  as it is slid onto them, the orange of the track ending at its middle. The marks are
+  drawn across the middle of the track instead of under it, and fainter. Other sliders
+  are as they were ([Transitions](docs/features/transitions.md)).
+
 ## [0.135](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.135) · 2026-11-11
 
 - A look and a layer changing together. With a look live that kept the slides from a

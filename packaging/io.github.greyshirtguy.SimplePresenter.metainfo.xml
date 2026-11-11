@@ -39,6 +39,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.136" date="2026-11-12">
+      <description>
+        <p>
+          The transition duration sliders have a see-through handle, with their marks across the
+          middle of the track.
+        </p>
+      </description>
+    </release>
     <release version="0.135" date="2026-11-11">
       <description>
         <p>
