@@ -20,6 +20,25 @@ import SimplePresenterApp
 // selects every slide from the last one selected, and neither takes anything live, as
 // the maintainer asked (Main's selectSlide, SlideSelection): a selected slide has a blue
 // ring. What is selected is what the Text button's formats go to.
+//
+// Three ways of showing them, ProPresenter's, picked by the buttons at the right of the
+// bar under them, before the size buttons (Main's slideView; the maintainer's ask of
+// 2026-11-12): the grid; Easy View, the same grid with each thumbnail showing the slide's
+// words alone, in the view's own format, over a plain colour (or over the slide's media,
+// where its format says to show that); and Table View, a row for each slide, with the
+// grid's cell for it at the left (its thumbnail, its number, group and label) and its
+// words and its notes beside that. One GridView does all three, a table being a grid of
+// one column, so that everything a slide does here (a click, the rings, its menu, a drop,
+// the scroll that follows the live slide) is the same in each. Each view's format is set
+// in the panel of the … beside the buttons (ViewFormatPanel; dimmed in the grid, which
+// has no format), and the size buttons make
+// Table View's thumbnails, and so its rows, larger or smaller. In Easy View the slides
+// are not drawn at all, which makes it the quicker to open.
+//
+// GUESSES at ProPresenter, whose views have been read of and not seen: Table View's group
+// shown as the grid has it, on the first slide of each run of a group, and not as a line
+// over the run; the notes at the right of the words, in grey; Easy View's words made
+// smaller to fit their thumbnail, as large as the format's size on one 250 wide.
 Item {
     id: slides
 
@@ -32,6 +51,223 @@ Item {
     property alias contentY: grid.contentY
     readonly property int columns: grid.columns
     readonly property real gridWidth: grid.width
+    // Which view the slides are shown in (see the top), and its format
+    readonly property bool easy: win.slideView === "easy"
+    readonly property bool table: win.slideView === "table"
+    readonly property var viewFormat: table ? win.tableFormat : win.easyFormat
+
+    // Words cut to `fits` lines, as Table View's Truncate says: at their beginning or in
+    // their middle, a line of "…" taking the place of what is left out. (At their end, Qt's
+    // own eliding does it, a word at a time.) By the slide's lines: a line long enough to
+    // wrap is more than one, and what still does not fit is cut at the end.
+    function truncated(words, how, fits) {
+        const lines = words.split("\n")
+        if (how === "end" || fits < 2 || lines.length <= fits)
+            return words
+        if (how === "start")
+            return ["…"].concat(lines.slice(lines.length - (fits - 1))).join("\n")
+        const head = Math.ceil((fits - 1) / 2)
+        return lines.slice(0, head).concat(["…"], lines.slice(lines.length - (fits - 1 - head))).join("\n")
+    }
+
+    function alignment(align) {
+        return align === "center" ? Text.AlignHCenter : align === "right" ? Text.AlignRight : Text.AlignLeft
+    }
+
+    // Easy View's thumbnail: the slide's words alone, as the view's format says, over its
+    // background, or over the slide's media where that is shown (with an outline then, to
+    // be read over it)
+    component EasyWords: Rectangle {
+        id: easyWords
+
+        // The cell, and its thumbnail, which this is laid over (handed in as it is made)
+        property Item cell: null
+        property Item box: null
+        readonly property string words: cell ? (cell.modelData.plainText ?? "") : ""
+        readonly property bool overMedia: cell !== null && format.showMedia && cell.modelData.media !== undefined
+        readonly property var format: slides.viewFormat
+
+        objectName: "easyWords"
+        width: box ? box.width : 0
+        height: box ? box.height : 0
+        color: overMedia ? "transparent" : format.background
+
+        Text {
+            anchors.fill: parent
+            anchors.margins: Math.max(3, parent.width * 0.04)
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: slides.alignment(easyWords.format.align)
+            wrapMode: Text.Wrap
+            fontSizeMode: Text.Fit
+            minimumPixelSize: 6
+            font.pixelSize: Math.max(6, easyWords.format.size * easyWords.width / 250)
+            font.family: easyWords.format.family !== "" ? easyWords.format.family : Qt.application.font.family
+            font.bold: easyWords.format.bold
+            font.italic: easyWords.format.italic
+            color: easyWords.format.color
+            style: easyWords.overMedia ? Text.Outline : Text.Normal
+            styleColor: "black"
+            elide: Text.ElideRight
+            text: easyWords.words
+        }
+    }
+
+    // Table View's words and notes, beside a slide's thumbnail: the words as the view's
+    // format says, cut as its Truncate says; the notes, where the slide has any, at the
+    // right, smaller and grey
+    component TableWords: Rectangle {
+        id: tableWords
+
+        // The cell, and its thumbnail, past which this is laid, from the top of the frame to
+        // its foot and on to the row's end (handed in as it is made)
+        property Item cell: null
+        property Item box: null
+        readonly property string words: cell ? (cell.modelData.plainText ?? "") : ""
+        readonly property string notes: cell ? (cell.modelData.notesText ?? "") : ""
+        readonly property var format: slides.viewFormat
+        readonly property real inset: 8
+
+        x: box ? box.width + grid.frameWidth + 8 : 0
+        y: -grid.frameWidth
+        width: box && cell ? cell.width - box.parent.x - box.parent.width - 14 : 0
+        height: box ? box.parent.height : 0
+        radius: 4
+        color: format.background
+
+        Text {
+            id: wordsText
+
+            objectName: "tableWords"
+            x: tableWords.inset
+            y: 6
+            width: (tableWords.notes !== "" ? 0.62 : 1) * (tableWords.width - 2 * tableWords.inset)
+            height: tableWords.height - 12
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: slides.alignment(tableWords.format.align)
+            wrapMode: Text.Wrap
+            elide: Text.ElideRight
+            font.pixelSize: tableWords.format.size
+            font.family: tableWords.format.family !== "" ? tableWords.format.family : Qt.application.font.family
+            font.bold: tableWords.format.bold
+            font.italic: tableWords.format.italic
+            color: tableWords.format.color
+            text: slides.truncated(tableWords.words, tableWords.format.truncate, Math.floor(height / Math.max(1, metrics.lineSpacing)))
+        }
+
+        FontMetrics {
+            id: metrics
+
+            font: wordsText.font
+        }
+
+        Rectangle {
+            x: wordsText.x + wordsText.width + tableWords.inset
+            y: 8
+            width: 1
+            height: tableWords.height - 16
+            visible: tableWords.notes !== ""
+            color: "#3a3c42"
+        }
+
+        Text {
+            objectName: "tableNotes"
+            x: wordsText.x + wordsText.width + 2 * tableWords.inset + 1
+            y: 6
+            width: tableWords.width - x - tableWords.inset
+            height: tableWords.height - 12
+            visible: tableWords.notes !== ""
+            verticalAlignment: Text.AlignVCenter
+            wrapMode: Text.Wrap
+            elide: Text.ElideRight
+            color: "#9a9da3"
+            font.pixelSize: Math.max(9, tableWords.format.size - 2)
+            text: tableWords.notes
+        }
+    }
+
+    // Easy View's and Table View's words, as a cell's Loader makes them (one Component of
+    // each for the grid, rather than a pair in every cell: what each cell holds, in the
+    // grid too, is memory for Qt's collector to go through)
+    Component {
+        id: easyWordsMade
+
+        EasyWords {}
+    }
+
+    Component {
+        id: tableWordsMade
+
+        TableWords {}
+    }
+
+    // A button of the three at the right of the bar, which shows the slides in its view:
+    // drawn as ProPresenter's are described (its pack of pictures has none of them), the
+    // grid as four squares, Easy View as a large T, Table View as four lines; lit while it
+    // is the view
+    component ViewButton: Rectangle {
+        id: viewButton
+
+        property string view
+        readonly property bool on: slides.win.slideView === view
+        readonly property color ink: on ? "black" : "#c9ccd1"
+
+        objectName: "slideView:" + view
+        width: 26
+        height: 22
+        radius: 5
+        color: on ? "#4da3ff" : viewMouse.pressed ? "#50535a" : viewMouse.containsMouse ? "#45484e" : "transparent"
+
+        Grid {
+            anchors.centerIn: parent
+            visible: viewButton.view === "grid"
+            columns: 2
+            spacing: 2
+
+            Repeater {
+                model: 4
+
+                Rectangle {
+                    width: 5
+                    height: 5
+                    radius: 1
+                    color: viewButton.ink
+                }
+            }
+        }
+
+        Text {
+            anchors.centerIn: parent
+            visible: viewButton.view === "easy"
+            color: viewButton.ink
+            font.pixelSize: 16
+            font.bold: true
+            text: "T"
+        }
+
+        Column {
+            anchors.centerIn: parent
+            visible: viewButton.view === "table"
+            spacing: 2
+
+            Repeater {
+                model: 4
+
+                Rectangle {
+                    width: 13
+                    height: 1.5
+                    color: viewButton.ink
+                }
+            }
+        }
+
+        MouseArea {
+            id: viewMouse
+
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: slides.win.setSlideView(viewButton.view)
+        }
+    }
 
     function positionViewAtBeginning() {
         grid.positionViewAtBeginning()
@@ -610,7 +846,7 @@ Item {
 
         objectName: "slideGrid"
 
-        readonly property int columns: Math.max(1, Math.floor(width / slides.win.thumbnailWidth))
+        readonly property int columns: slides.table ? 1 : Math.max(1, Math.floor(width / slides.win.thumbnailWidth))
         readonly property real labelHeight: 26
         readonly property int frameWidth: 4
 
@@ -623,7 +859,8 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         cellWidth: Math.floor((width - 12) / columns)
-        cellHeight: (cellWidth - 12 - 2 * frameWidth) * 9 / 16 + frameWidth + labelHeight + 12
+        // (A row of Table View is as high as the cell at its left, of the thumbnail's width)
+        cellHeight: ((slides.table ? slides.win.tableThumbnailWidth : cellWidth - 12) - 2 * frameWidth) * 9 / 16 + frameWidth + labelHeight + 12
         // One row beyond what is in view is kept ready, so that scrolling does not wait for
         // thumbnails to be built, and no more: each is a slide drawn afresh.
         cacheBuffer: Math.max(0, cellHeight)
@@ -678,9 +915,11 @@ Item {
             // A selected slide that is not live has a blue ring in the same place, made by
             // the same Loader, and only for it (selectedRing, below the grid). Live, it keeps
             // its own ring, being selected all the same.
+            // (Round the whole cell, which is a row in Table View: in the grid it is where
+            // the frame is, five pixels out)
             Loader {
-                anchors.fill: frameRect
-                anchors.margins: -5
+                anchors.fill: parent
+                anchors.margins: 1
                 active: cell.live || cell.selected
                 // (Each by its own case: see the trap of one Loader for two kinds)
                 sourceComponent: cell.live ? liveRing : cell.selected ? selectedRing : null
@@ -701,6 +940,8 @@ Item {
                 objectName: "slideFrame:" + cell.index
                 anchors.fill: parent
                 anchors.margins: 6
+                // (In Table View the row's left, as wide as its thumbnail)
+                anchors.rightMargin: slides.table ? parent.width - 6 - slides.win.tableThumbnailWidth : 6
                 color: cell.frame
                 radius: 4
                 // A disabled slide is dimmed (A GUESS at how ProPresenter marks one): it is
@@ -732,6 +973,7 @@ Item {
                         Image {
                             anchors.fill: parent
                             visible: cell.modelData.media !== undefined && !Cursors.altHeld && !lookedMedia.active
+                                     && (!slides.easy || slides.viewFormat.showMedia)
                             source: visible ? slides.win.thumbnailUrl(cell.modelData.media.path) : ""
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
@@ -745,6 +987,7 @@ Item {
 
                             anchors.fill: parent
                             active: cell.modelData.media !== undefined && cell.modelData.media.settings !== undefined && !Cursors.altHeld
+                                    && (!slides.easy || slides.viewFormat.showMedia)
 
                             sourceComponent: MediaPicture {
                                 source: slides.win.thumbnailUrl(cell.modelData.media.path, cell.modelData.media.settings)
@@ -755,11 +998,28 @@ Item {
                         }
                     }
 
+                    // (Not in Easy View, where nothing of it is made: its words take its place)
                     Slide {
                         anchors.fill: parent
-                        slide: cell.modelData
+                        slide: slides.easy ? null : cell.modelData
                         effects: false
                         backdrop: cellMedia
+                    }
+
+                    // Easy View's words, in the slide's place; or Table View's, beside the
+                    // thumbnail to the row's end (out past the thumbnail, which does not
+                    // clip: in the frame, a disabled slide's words are dimmed with it). One
+                    // Loader for the two, made only in those views, each chosen only for its
+                    // own, the cell handed to what it makes as it is made (so that nothing
+                    // of it is a binding in the grid): a Loader is a thing more for every
+                    // slide, in the grid too.
+                    Loader {
+                        active: slides.easy || slides.table
+                        sourceComponent: slides.table ? tableWordsMade : slides.easy ? easyWordsMade : null
+                        onLoaded: {
+                            item.cell = cell
+                            item.box = thumbnail
+                        }
                     }
 
                     // Marks a slide that triggers media, and says whether as a background
@@ -1089,15 +1349,16 @@ Item {
             }
 
             // Where media being dragged would become a slide of its own: a line in the
-            // gap before this slide or after it. The last slide also shows it for a
-            // drag that is over the grid but past every slide.
+            // gap before this slide or after it (over it or under it, in Table View). The
+            // last slide also shows it for a drag that is over the grid but past every slide.
             Rectangle {
                 readonly property bool atEnd: endDrop.containsDrag && cell.index === grid.count - 1
+                readonly property bool after: mediaDrop.zone === "after" || atEnd
 
-                x: mediaDrop.zone === "after" || atEnd ? parent.width - 1.5 : -1.5
-                y: 6
-                width: 3
-                height: parent.height - 12
+                x: slides.table ? 6 : after ? parent.width - 1.5 : -1.5
+                y: slides.table ? (after ? parent.height - 1.5 : -1.5) : 6
+                width: slides.table ? parent.width - 12 : 3
+                height: slides.table ? 3 : parent.height - 12
                 visible: (mediaDrop.containsDrag && !mediaDrop.onto) || atEnd
                 color: "white"
             }
@@ -1174,8 +1435,9 @@ Item {
                 // Which of those the drag is over: "onto", "before" or "after"
                 property string zone: "onto"
                 readonly property bool onto: containsDrag && zone === "onto"
-                // How far in from each side the edges reach
-                readonly property real edge: Math.max(16, Math.min(30, width * 0.14))
+                // How far in from each side the edges reach (from the top and the bottom, in
+                // Table View, where the slides are one over another)
+                readonly property real edge: slides.table ? Math.max(10, Math.min(24, height * 0.2)) : Math.max(16, Math.min(30, width * 0.14))
 
                 function ofAction(drag) {
                     return drag.keys.some(key => slides.win.actionDragKeys.includes(key))
@@ -1188,7 +1450,9 @@ Item {
                         drag.accepted = slides.win.draggedAction(drag.source) !== null
                         return
                     }
-                    zone = drag.x < edge ? "before" : drag.x > width - edge ? "after" : "onto"
+                    const along = slides.table ? drag.y : drag.x
+                    const length = slides.table ? height : width
+                    zone = along < edge ? "before" : along > length - edge ? "after" : "onto"
                     slides.win.acceptMediaDrag(drag)
                 }
 
@@ -1209,8 +1473,8 @@ Item {
         }
     }
 
-    // A thin footer under the slides, with a line over it: the transition at its left
-    // and the size of the thumbnails at its right
+    // A thin footer under the slides, with a line over it: the transition at its left,
+    // and the views and the size of the thumbnails at its right
     Item {
         id: gridFooter
 
@@ -1283,12 +1547,13 @@ Item {
         }
 
         // Bible mode's ← Verse and Verse →: the passage grown by the verse before it or
-        // after it (BiblePanel's step). Midway between the transition and the size of the
-        // thumbnails, where the maintainer asked for them (2026-10-15).
+        // after it (BiblePanel's step). Midway between the transition and the buttons at
+        // the right (the views and the size of the thumbnails), where the maintainer asked
+        // for them (2026-10-15).
         Loader {
             readonly property Item before: mediaControls.active ? mediaControls : transitionControls
 
-            x: before.x + before.width + (zoomButtons.x - before.x - before.width - width) / 2
+            x: before.x + before.width + (viewButtons.x - before.x - before.width - width) / 2
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: 1
             active: slides.win.bibleMode
@@ -1317,6 +1582,84 @@ Item {
             }
         }
 
+        // The three views (see the top), and the … of the view's format
+        // (ViewFormatPanel), at the left of the size buttons, where ProPresenter has its,
+        // the … after the three
+        Row {
+            id: viewButtons
+
+            objectName: "slideViewButtons"
+            anchors.right: zoomButtons.left
+            anchors.rightMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: 1
+            spacing: 2
+
+            ViewButton {
+                view: "grid"
+            }
+
+            ViewButton {
+                view: "easy"
+            }
+
+            ViewButton {
+                view: "table"
+            }
+
+            // ProPresenter's circle with three dots in it. Always there, so that nothing
+            // moves or comes and goes as the view changes (the maintainer's wish), and dimmed
+            // and unclickable in the grid, which has no format here, as the size buttons
+            // beside it are dimmed at their ends
+            Rectangle {
+                id: viewFormatButton
+
+                readonly property bool available: slides.easy || slides.table
+
+                objectName: "viewFormatButton"
+                opacity: available ? 1 : 0.3
+                width: 26
+                height: 22
+                radius: 5
+                color: slides.win.viewFormatOpen ? "#50535a" : formatMouse.pressed ? "#50535a" : formatMouse.containsMouse ? "#45484e" : "transparent"
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 17
+                    height: 17
+                    radius: 8.5
+                    color: "transparent"
+                    border.width: 1.5
+                    border.color: "#c9ccd1"
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 2
+
+                        Repeater {
+                            model: 3
+
+                            Rectangle {
+                                width: 2.5
+                                height: 2.5
+                                radius: 1.25
+                                color: "#c9ccd1"
+                            }
+                        }
+                    }
+                }
+
+                MouseArea {
+                    id: formatMouse
+
+                    anchors.fill: parent
+                    enabled: viewFormatButton.available
+                    hoverEnabled: true
+                    onClicked: slides.win.viewFormatOpen ? slides.win.closeViewFormat() : slides.win.openViewFormat(viewFormatButton)
+                }
+            }
+        }
+
         ZoomButtons {
             id: zoomButtons
 
@@ -1326,8 +1669,11 @@ Item {
             anchors.verticalCenterOffset: 1
             size: 22
             visible: slides.win.document !== null && slides.win.document.slides.length > 0
-            canShrink: slides.win.thumbnailWidth > slides.win.smallestThumbnail
-            canGrow: slides.win.thumbnailWidth < slides.win.largestThumbnail && grid.columns > 1
+            // (In Table View, its thumbnails' width, a row being the whole width)
+            canShrink: slides.table ? slides.win.tableThumbnailWidth > slides.win.smallestTableThumbnail
+                                    : slides.win.thumbnailWidth > slides.win.smallestThumbnail
+            canGrow: slides.table ? slides.win.tableThumbnailWidth < slides.win.largestTableThumbnail
+                                  : slides.win.thumbnailWidth < slides.win.largestThumbnail && grid.columns > 1
             onShrink: slides.win.zoomThumbnails(-1)
             onGrow: slides.win.zoomThumbnails(1)
         }

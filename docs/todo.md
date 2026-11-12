@@ -162,7 +162,5 @@ experiment.
 - [ ] **More to import**: `.ppt`, the old PowerPoint format, and Keynote; and a PowerPoint
       file as pictures of its slides, beside the editable slides
       [Import PowerPoint](features/import-powerpoint.md) makes
-- [ ] **Easy View**
-- [ ] **Table View**
 - [ ] **Timecode**
 - [ ] **Streaming and recording** (RTP), perhaps

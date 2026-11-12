@@ -107,12 +107,12 @@ is longer, and not even it is the whole of it.
 | Ctrl+click / Shift+click on a row of a playlist | Select it as well, or let it go / select every row from the last one selected; a heading can be selected too. What is open stays open |
 | Delete | Take the selected rows out of the playlist |
 | Ctrl+C / Ctrl+V | Copy the selected rows of a playlist / paste them under the row selected, while the rows are what was last clicked; a click on a slide, or Esc, and Ctrl+V is the media bin again |
-| Esc | Put the Text button's popover away; then let go of the slides selected; then leave the playlist's rows |
+| Esc | Put the Text button's popover, or a view's format, away; then let go of the slides selected; then leave the playlist's rows |
 | Ctrl+Alt+B | Bible mode on or off |
 | Ctrl+Alt+C | The Calendar |
 | Ctrl+V | Show or hide the media bin (unless rows are being pasted, above) |
 | Ctrl+1 / Ctrl+2 | The audience screens / the stage screens on or off |
-| Ctrl+= / Ctrl+- | Make the thumbnails larger / smaller: the media bin's where the pointer is over the bin, the slides' otherwise |
+| Ctrl+= / Ctrl+- | Make the thumbnails larger / smaller: the media bin's where the pointer is over the bin, the slides' otherwise (Table View's rows, in Table View) |
 | Shift, held while a transition's duration slider is dragged | The slider moves a tenth as far as the pointer, for a value between its marks |
 | Ctrl+, | The settings |
 

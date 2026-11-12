@@ -228,10 +228,11 @@ QtObject {
                 check("and ringed in the grid as the live slide", viewingLive && liveIndex === 0 && ringed(0))
                 const before = named("biblePrevious"), after = named("bibleNext")
                 const transition = Lib.find(named("gridFooter"), item => item.toString().startsWith("TransitionControls"))
-                const zoom = Lib.find(named("gridFooter"), item => item.toString().startsWith("ZoomButtons"))
-                const from = transition.mapToItem(null, transition.width, 0).x, to = zoom.mapToItem(null, 0, 0).x
+                // (The buttons at the right are the views' and then the size's, since 2026-11-12)
+                const views = named("slideViewButtons")
+                const from = transition.mapToItem(null, transition.width, 0).x, to = views.mapToItem(null, 0, 0).x
                 const middle = (before.mapToItem(null, 0, 0).x + after.mapToItem(null, after.width, 0).x) / 2
-                check("← Verse and Verse → are under the slides, midway between the transition and the size of the thumbnails",
+                check("← Verse and Verse → are under the slides, midway between the transition and the buttons at the right",
                       before.text === "← Verse" && after.text === "Verse →" && before.mapToItem(null, 0, 0).x > from && after.mapToItem(null, after.width, 0).x < to
                       && Math.abs(middle - (from + to) / 2) < 3, from + " " + middle + " " + to)
                 check("and the bar has no Find: Enter finds", named("bibleFind") === null)

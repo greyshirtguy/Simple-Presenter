@@ -268,6 +268,7 @@ qt_add_qml_module(SimplePresenter
         qml/ThemesPanel.qml
         qml/TextFills.qml
         qml/TextFormatPanel.qml
+        qml/ViewFormatPanel.qml
         qml/TimeField.qml
         qml/TimersPanel.qml
         qml/Toolbar.qml

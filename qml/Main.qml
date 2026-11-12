@@ -692,6 +692,26 @@ Window {
     // The width slide thumbnails aim for. The grid fits as many columns of at least this
     // width as it can and stretches them to fill the row.
     property real thumbnailWidth: 250
+    // How the slides are shown, by ProPresenter's three buttons at the right of the bar
+    // under them (the maintainer's ask of 2026-11-12, leaving out its Slides by Group):
+    // "grid", each slide drawn small as the screens show it; "easy", Easy View, each
+    // slide's words alone, in a format of the operator's own, over a plain colour; or
+    // "table", Table View, a row for each slide, with its words and its notes beside its
+    // thumbnail. (ProPresenter shows Easy View while ~ is held too; here ~ is Simple
+    // View's, so there are the buttons alone, as the maintainer said.) The app's own,
+    // kept in its settings, as each view's format is (easyFormat, tableFormat: see
+    // viewFormatOf), set in the panel of the … beside the buttons (ViewFormatPanel).
+    property string slideView: "grid"
+    property var easyFormat: viewFormatOf("easy", null)
+    property var tableFormat: viewFormatOf("table", null)
+    // How wide a slide's thumbnail is in Table View, which the size buttons step there
+    property real tableThumbnailWidth: 160
+    readonly property real smallestTableThumbnail: 112
+    readonly property real largestTableThumbnail: 352
+    // The panel of Easy View's or Table View's format, open over the bar under the slides,
+    // by its button
+    property bool viewFormatOpen: false
+    property Item viewFormatButton: null
     // The chord editors (Editor.qml): how many times its usual size the chord sheet is
     // drawn and the ChordPro text is set, each one of the same steps and kept apart (a
     // size that suits a grid of slides is not the one that suits a page of text); and
@@ -2665,8 +2685,70 @@ Window {
     }
 
     function zoomThumbnails(direction) {
+        // (Table View's rows by their thumbnails' width, a row being the whole width)
+        if (slideView === "table") {
+            tableThumbnailWidth = Math.max(smallestTableThumbnail, Math.min(largestTableThumbnail, tableThumbnailWidth + 24 * direction))
+            return
+        }
         thumbnailWidth = steppedThumbnail(thumbnailWidth, direction, grid.gridWidth, grid.columns,
                                           smallestThumbnail, largestThumbnail)
+    }
+
+    // A view's format (see slideView): what was kept (an object, or null), over what each
+    // view starts with. The keys: `family` ("" for the app's own), `size` (in pixels, on a
+    // thumbnail 250 wide in Easy View, where the words are made smaller to fit and grow
+    // with the thumbnails), `color`, `bold`, `italic`, `align` ("left", "center",
+    // "right"), `background`; Easy View's `showMedia` (the slide's media behind its
+    // words) and Table View's `truncate` ("start", "middle" or "end": where words that do
+    // not fit are cut, as ProPresenter's Truncate has it). GUESSES, ProPresenter's own
+    // having not been looked at: Easy View white and bold on black, in the middle; Table
+    // View light grey at the left on a dark grey, cut at the end.
+    function viewFormatOf(view, kept) {
+        const easy = view === "easy"
+        const made = { family: "", size: easy ? 24 : 14, color: easy ? "#ffffff" : "#e6e6e6", bold: easy, italic: false,
+                       align: easy ? "center" : "left", background: easy ? "#000000" : "#232428", showMedia: false, truncate: "end" }
+        for (const key in made) {
+            if (kept && kept[key] !== undefined && typeof kept[key] === typeof made[key])
+                made[key] = kept[key]
+        }
+        return made
+    }
+
+    function setViewFormat(view, changes) {
+        const changed = viewFormatOf(view, Object.assign({}, view === "easy" ? easyFormat : tableFormat, changes))
+        if (view === "easy")
+            easyFormat = changed
+        else
+            tableFormat = changed
+    }
+
+    function resetViewFormat(view) {
+        setViewFormat(view, viewFormatOf(view, null))
+    }
+
+    function openViewFormat(button) {
+        if (slideView === "grid")
+            return
+        viewFormatButton = button
+        viewFormatOpen = true
+    }
+
+    function closeViewFormat() {
+        if (!viewFormatOpen)
+            return
+        viewFormatOpen = false
+        takeFocus()
+    }
+
+    function setSlideView(view) {
+        if (view !== "grid" && view !== "easy" && view !== "table")
+            return
+        if (view !== slideView)
+            Log.note("view", "the slides shown in " + ({ grid: "the grid", easy: "Easy View", table: "Table View" })[view])
+        slideView = view
+        if (view === "grid")
+            closeViewFormat()
+        takeFocus()
     }
 
     function zoomMediaThumbnails(direction) {
@@ -5031,6 +5113,19 @@ Window {
         sourcesHeight = Number(saved("sourcesHeight", sourcesHeight))
         thumbnailWidth = Math.max(smallestThumbnail, Math.min(largestThumbnail,
                                   Number(saved("thumbnailWidth", thumbnailWidth))))
+        slideView = ["grid", "easy", "table"].includes(String(saved("slideView", "grid"))) ? String(saved("slideView", "grid")) : "grid"
+        // (Kept as JSON; anything unreadable is the view as it starts)
+        const keptFormat = (key) => {
+            try {
+                return JSON.parse(String(saved(key, "")))
+            } catch (error) {
+                return null
+            }
+        }
+        easyFormat = viewFormatOf("easy", keptFormat("easyFormat"))
+        tableFormat = viewFormatOf("table", keptFormat("tableFormat"))
+        tableThumbnailWidth = Math.max(smallestTableThumbnail, Math.min(largestTableThumbnail,
+                                       Number(saved("tableThumbnailWidth", tableThumbnailWidth)) || 160))
         mediaThumbnailWidth = Math.max(smallestMediaThumbnail, Math.min(largestMediaThumbnail,
                                        Number(saved("mediaThumbnailWidth", mediaThumbnailWidth))))
         sidePanelWidth = Number(saved("sidePanelWidth", sidePanelWidth))
@@ -5280,6 +5375,10 @@ Window {
     onMediaListWidthChanged: save("mediaListWidth", mediaListWidth)
     onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
     onThumbnailWidthChanged: save("thumbnailWidth", thumbnailWidth)
+    onSlideViewChanged: save("slideView", slideView)
+    onEasyFormatChanged: save("easyFormat", JSON.stringify(easyFormat))
+    onTableFormatChanged: save("tableFormat", JSON.stringify(tableFormat))
+    onTableThumbnailWidthChanged: save("tableThumbnailWidth", tableThumbnailWidth)
     onChordSheetZoomChanged: save("chordSheetZoom", chordSheetZoom)
     onReflowThumbnailChanged: save("reflowThumbnail", reflowThumbnail)
     onEditorNotesChanged: save("editorNotes", editorNotes)
@@ -6461,8 +6560,10 @@ Window {
             }
             // Esc puts the Text button's popover away, and then lets go of the slides
             // selected (a number being typed takes it first, below)
-            if (event.key === Qt.Key_Escape && win.typedNumber === "" && (win.textFormatOpen || win.selectedSlideIds.length > 0)) {
-                if (win.textFormatOpen)
+            if (event.key === Qt.Key_Escape && win.typedNumber === "" && (win.textFormatOpen || win.viewFormatOpen || win.selectedSlideIds.length > 0)) {
+                if (win.viewFormatOpen)
+                    win.closeViewFormat()
+                else if (win.textFormatOpen)
                     win.closeTextFormat()
                 else
                     win.clearSlideSelection()
@@ -7314,6 +7415,32 @@ Window {
         y: toolbar.height + 4
         sourceComponent: TextFormatPanel {
             win: textFormatLoader.operatorWindow
+        }
+    }
+
+    // The panel of Easy View's or Table View's format, over the bar under the slides, at
+    // the right of its button, made only while it is open; a click anywhere else puts it
+    // away
+    MouseArea {
+        anchors.fill: parent
+        anchors.topMargin: toolbar.height
+        visible: win.viewFormatOpen
+        onClicked: win.closeViewFormat()
+    }
+
+    Loader {
+        id: viewFormatLoader
+
+        readonly property var operatorWindow: win
+        readonly property point at: win.viewFormatButton && win.viewFormatOpen ? win.viewFormatButton.mapToItem(null, 0, 0) : Qt.point(8, 8)
+
+        objectName: "viewFormat"
+        active: win.viewFormatOpen
+        x: win.viewFormatButton ? Math.max(8, Math.min(win.width - width - 8, at.x + win.viewFormatButton.width - width)) : 8
+        y: win.viewFormatButton ? Math.max(toolbar.height + 4, at.y - height - 6) : 8
+        sourceComponent: ViewFormatPanel {
+            win: viewFormatLoader.operatorWindow
+            view: viewFormatLoader.operatorWindow.slideView
         }
     }
 

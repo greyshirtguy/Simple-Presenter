@@ -56,6 +56,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="disabled-slides"></a>**[Disabled slides](docs/features/disabled-slides.md)**: a slide switched off from its menu, passed over by Next, Previous and everything that goes on by itself, and shown only when it is clicked.
 - <a id="groups-and-labels"></a>**[Groups and labels](docs/features/groups-and-labels.md)**: a slide's group and label, changed from the slide's menu, in ProPresenter's colours.
 - <a id="copyright"></a>**[Copyright display](docs/features/copyright.md)**: a song's copyright, from SongSelect or typed in the editor, laid over its first, last or every slide, for a church's CCLI licence, as ProPresenter's display is.
+- <a id="slide-views"></a>**[Grid, Easy View and Table View](docs/features/slide-views.md)**: the slides as thumbnails, as their words alone in large plain letters, or as a table of rows with their words and notes beside each thumbnail, picked by three buttons under them.
 - <a id="arrangements"></a>**[Arrangements](docs/features/arrangements.md)**: verse, chorus, verse, chorus, bridge. The groups are dragged into the order a song is sung in.
 - <a id="stage-layouts"></a><a id="screen-preview"></a>**[Stage layouts](docs/features/stage-layouts.md)**: what the band and the speaker see, with the stage message and Screen Previews of the other screens.
 - <a id="keys"></a>**[Keys](docs/features/keys.md)**: ProPresenter's keys, the groups' hotkeys, the clears on F1 to F6, and a slide reached by typing its number.
