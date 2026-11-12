@@ -6,6 +6,22 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.137](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.137) · 2026-11-13
+
+- Easy View and Table View beside the grid, picked by three buttons at the right of the
+  bar under the slides, before the size buttons, the one in use lit. Easy View shows each
+  slide's words alone, large, over a colour, without drawing the slides; Table View a row
+  for each slide, its words and its notes beside its thumbnail, the size buttons making
+  the rows larger or smaller. A … after the three opens the view's format: font, size,
+  colour, bold, italic, alignment and background, with Easy View's Show Media and Table
+  View's Truncate; in the grid it is dimmed
+  ([Grid, Easy View and Table View](docs/features/slide-views.md)).
+- Clear to Logo, on F12 and in the clear buttons' right-click menu: everything is cleared
+  and the logo chosen in Settings → Screens, a picture or a video, is put up on the media
+  layer, until anything else comes on (a slide, media, a prop, a message, an
+  announcement, a video input or audio). ProPresenter's "clear to logo" action in a slide
+  or a macro does the same ([Clear groups](docs/features/clear-groups.md#clear-to-logo)).
+
 ## [0.136](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.136) · 2026-11-12
 
 - The two transition duration sliders, the slides' and the media's, have a see-through
