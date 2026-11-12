@@ -138,6 +138,12 @@ class Show : public QObject
     // Its messages, { id, name, seconds } each, as Messages lists them: what an action
     // that names a message shows, and how long one is shown before it goes by itself
     Q_PROPERTY(QVariantList messages READ messages WRITE setMessages NOTIFY workspaceChanged)
+    // The logo Clear to Logo puts up: a picture's or a video's file, "" for none (set on
+    // the settings screen, Screens; this computer's, kept in the app's settings, as
+    // ProPresenter keeps its own in its settings and not in a workspace). And whether it
+    // is up now, on the media layer (see show::State::logo).
+    Q_PROPERTY(QString logoFile READ logoFile WRITE setLogoFile NOTIFY workspaceChanged)
+    Q_PROPERTY(bool logoLive READ logoLive NOTIFY mediaChanged)
     // The open workspace's lists (a Catalog), which an action that plays a playlist of
     // the media bin or of the audio bin asks for that playlist's rows, when it is run
     // and not before (see show::Workspace::playlist). Given once, by the operator window.
@@ -218,6 +224,9 @@ public:
     void setClearGroups(const QVariantList &groups);
     QVariantList messages() const { return m_workspace.messages; }
     void setMessages(const QVariantList &messages);
+    QString logoFile() const { return m_workspace.logo.value("path").toString(); }
+    void setLogoFile(const QString &file);
+    bool logoLive() const { return m_state.logo; }
     QObject *catalog() const { return m_catalog; }
     void setCatalog(QObject *catalog);
     QString lookId() const { return m_state.lookId; }
@@ -295,6 +304,9 @@ public:
     Q_INVOKABLE void clearAudioEffects();
     Q_INVOKABLE void clearMessages();
     Q_INVOKABLE void clearAll();
+    // ProPresenter's Clear to Logo (F12): everything cleared, and the logo put up on the
+    // media layer until anything else comes on (see show::State::clearToLogo)
+    Q_INVOKABLE void clearToLogo();
     // Clears what a clear group of the workspace clears, by the group's id (see
     // show::State::clearGroup).
     Q_INVOKABLE void clearGroup(const QString &id);

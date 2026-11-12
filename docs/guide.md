@@ -97,6 +97,7 @@ is longer, and not even it is the whole of it.
 | Down / Up | Next / previous presentation |
 | F1 | Clear the first clear group, which to begin with is Clear All |
 | F2 / F3 / F4 / F5 / F6 | Clear the slide layer / media layer / props / audio / messages |
+| F12 | Clear to Logo: everything cleared, and the logo (Settings → Screens) put up until anything else comes on |
 | ~, held for about half a second (a setting) | Simple View on or off |
 | A letter or a digit | The hotkey of a group: its first slide |
 | A number, then Enter | The slide with that number |

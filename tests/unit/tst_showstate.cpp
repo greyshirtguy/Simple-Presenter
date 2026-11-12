@@ -216,6 +216,14 @@ QVariantMap playlistAction(const QString &kind, const QString &id, const QString
             {"retrigger", retrigger}, {"itemId", item}, {"itemName", QString()}};
 }
 
+// The workspace above, with a logo set
+Workspace withLogo()
+{
+    Workspace w = workspace();
+    w.logo = logoMedia("/pictures/logo.png", false, true);
+    return w;
+}
+
 // The workspace above, with a playlist in each bin, which an action can find: of the
 // media bin, "Loops", whose first row is not on this computer; and of the audio bin,
 // "Before", of three pieces that are each followed by the next. And an empty one, of
@@ -1082,6 +1090,191 @@ private slots:
         QCOMPARE(outside(show.goLive(shown.cue(0), false, workspace())), "slide advance");
         // The Slide Show taken off again while it is waiting: off.
         QCOMPARE(outside(show.follow(plainSong(3).cue(0))), "noadvance");
+    }
+
+    // ---- Clear to Logo
+
+    void theLogoIsMediaOfItsFile()
+    {
+        const QVariantMap still = logoMedia("/pictures/Church Logo.png", false, true);
+        QCOMPARE(still.value("id").toString(), "logo");
+        QCOMPARE(still.value("name").toString(), "Church Logo.png");
+        QCOMPARE(still.value("path").toString(), "/pictures/Church Logo.png");
+        QVERIFY(still.value("logo").toBool());
+        QVERIFY(!still.value("video").toBool());
+        QVERIFY(!still.value("missing").toBool());
+        QVERIFY(!still.value("foreground").toBool());
+        QCOMPARE(still.value("playback").toInt(), 0);
+        // A video goes round for good, silent
+        const QVariantMap moving = logoMedia("/videos/logo.mp4", true, false);
+        QVERIFY(moving.value("video").toBool());
+        QVERIFY(moving.value("loops").toBool());
+        QCOMPARE(moving.value("playback").toInt(), 1);
+        QCOMPARE(moving.value("volume").toDouble(), 0.0);
+        QVERIFY(moving.value("missing").toBool());
+        // No file, no logo
+        QVERIFY(logoMedia(QString(), false, false).isEmpty());
+    }
+
+    // Everything is cleared, the audio as well, and the logo is put on the media layer
+    void clearToLogoClearsEverythingAndPutsUpTheLogo()
+    {
+        State show;
+        Workspace w = withLogo();
+        show.goLive(plainSong().cue(1), false, w);
+        show.showMedia(video("Waves"), QString());
+        show.toggleProp("p1", w);
+        show.setMessage("parent", true, w);
+        show.playAudio(tune("Walk In"), QString());
+        show.showVideoInput(0);
+        const Effects effects = show.clearToLogo(w);
+        QVERIFY(show.cleared);
+        QVERIFY(show.props.isEmpty());
+        QVERIFY(show.messages.isEmpty());
+        QVERIFY(!show.hasMusic);
+        QCOMPARE(show.videoInput, -1);
+        QVERIFY(show.logo);
+        QVERIFY(show.hasMedia);
+        QCOMPARE(show.media.value("path").toString(), "/pictures/logo.png");
+        QVERIFY(show.mediaPlaylistId.isEmpty());
+        // The media taken off and the logo put up in its place, last
+        const QString said = outside(effects);
+        QVERIFY2(said.startsWith("noslide nomedia novideoinput") && said.endsWith("nomusic media"), qPrintable(said));
+        QVERIFY(noted(effects, "everything, to the logo"));
+        QVERIFY(noted(effects, "the logo, \"logo.png\""));
+    }
+
+    // With no logo set, or its file gone, everything is cleared all the same
+    void clearToLogoWithNoLogoClearsEverything()
+    {
+        State show;
+        show.goLive(plainSong().cue(0), false, workspace());
+        show.showMedia(picture("Still"), QString());
+        Effects effects = show.clearToLogo(workspace());
+        QCOMPARE(outside(effects), "noslide nomedia");
+        QVERIFY(!show.logo);
+        QVERIFY(!show.hasMedia);
+        QVERIFY(noted(effects, "no logo is set"));
+
+        Workspace gone = workspace();
+        gone.logo = logoMedia("/pictures/gone.png", false, false);
+        show.goLive(plainSong().cue(1), false, gone);
+        effects = show.clearToLogo(gone);
+        QCOMPARE(outside(effects), "noslide problem");
+        QVERIFY(!show.logo);
+        QVERIFY(!show.hasMedia);
+    }
+
+    // Asked for again while it is up, it stays as it is: not cleared and put up again
+    void clearToLogoAgainLeavesTheLogo()
+    {
+        State show;
+        const Workspace w = withLogo();
+        show.clearToLogo(w);
+        const Effects effects = show.clearToLogo(w);
+        QCOMPARE(outside(effects), "");
+        QVERIFY(show.logo);
+        QVERIFY(show.hasMedia);
+    }
+
+    // A slide that brings no media takes the logo off the media layer, and one that
+    // brings media puts its media in the logo's place
+    void aSlideTakesTheLogoOff()
+    {
+        State show;
+        const Workspace w = withLogo();
+        show.clearToLogo(w);
+        Effects effects = show.goLive(plainSong().cue(0), false, w);
+        QCOMPARE(outside(effects), "nomedia slide");
+        QVERIFY(!show.logo);
+        QVERIFY(!show.hasMedia);
+        QVERIFY(noted(effects, "the logo, as something else comes on"));
+
+        show.clearToLogo(w);
+        Presentation song = plainSong();
+        song.slides[1] = slide("s1", video("Waves"));
+        effects = show.goLive(song.cue(1), false, w);
+        QCOMPARE(outside(effects), "slidewithmedia");
+        QVERIFY(!show.logo);
+        QCOMPARE(show.media.value("name").toString(), "Waves");
+
+        // And with Alt held, without its media: the logo goes all the same
+        show.clearToLogo(w);
+        effects = show.goLive(song.cue(1), true, w);
+        QCOMPARE(outside(effects), "nomedia slide");
+        QVERIFY(!show.logo);
+    }
+
+    // Anything else that comes on takes it off: media in its place; a prop, a message, a
+    // video input, the announcements, or audio by clearing the media layer of it
+    void anythingElseTakesTheLogoOff()
+    {
+        const Workspace w = withLogo();
+        {
+            State show;
+            show.clearToLogo(w);
+            QCOMPARE(outside(show.showMedia(picture("Still"), QString())), "media");
+            QVERIFY(!show.logo);
+            QCOMPARE(show.media.value("name").toString(), "Still");
+        }
+        {
+            State show;
+            show.clearToLogo(w);
+            QCOMPARE(outside(show.toggleProp("p2", w)), "nomedia");
+            QVERIFY(!show.logo);
+            QCOMPARE(show.props, QStringList {"p2"});
+        }
+        {
+            State show;
+            show.clearToLogo(w);
+            QCOMPARE(outside(show.setMessage("lights", true, w)), "nomedia message messagetime");
+            QVERIFY(!show.logo);
+        }
+        {
+            State show;
+            show.clearToLogo(w);
+            QCOMPARE(outside(show.showVideoInput(1)), "nomedia videoinput");
+            QVERIFY(!show.logo);
+        }
+        {
+            State show;
+            show.clearToLogo(w);
+            QCOMPARE(outside(show.goLive(notices().cue(0), false, w)), "nomedia announcement");
+            QVERIFY(!show.logo);
+        }
+        {
+            State show;
+            show.clearToLogo(w);
+            QCOMPARE(outside(show.playAudio(tune("Walk Out"), QString())), "nomedia audio");
+            QVERIFY(!show.logo);
+            QVERIFY(!show.hasMedia);
+        }
+        // Clearing the media takes it off; and once it is off, nothing more is said of it
+        {
+            State show;
+            show.clearToLogo(w);
+            QCOMPARE(outside(show.clearMedia()), "nomedia");
+            QVERIFY(!show.logo);
+            const Effects effects = show.goLive(plainSong().cue(0), false, w);
+            QCOMPARE(outside(effects), "slide");
+            QVERIFY(!noted(effects, "the logo"));
+        }
+    }
+
+    // ProPresenter's clear action that clears to the logo, on a slide: the slide clears
+    // itself (and is still the one the show is at) and the logo goes up
+    void aClearToLogoActionPutsUpTheLogo()
+    {
+        State show;
+        const Workspace w = withLogo();
+        Presentation song = plainSong();
+        song.slides[2] = slide("s2", {}, {clearAction(6)});
+        const Effects effects = show.goLive(song.cue(2), false, w);
+        QCOMPARE(outside(effects), "slide noslide media");
+        QVERIFY(show.cleared);
+        QVERIFY(show.clearedByCue);
+        QVERIFY(show.cueLive());
+        QVERIFY(show.logo);
     }
 
     // ---- clear groups

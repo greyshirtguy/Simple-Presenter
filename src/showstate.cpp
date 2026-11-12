@@ -2,6 +2,9 @@
 
 #include "ccli.h"
 
+#include <QFileInfo>
+#include <QUrl>
+
 namespace show {
 
 namespace {
@@ -279,6 +282,7 @@ Effects State::goLiveAnnouncement(const Cue &cue, bool withoutMedia, const Works
     const QVariantList actions = cue.slide.value("actions").toList();
     const QString label = cue.slide.value("label").toString();
 
+    dropLogo(false, effects);
     announcement.atSlide = true;
     announcement.key = cue.key;
     announcement.playlistId = cue.playlistId;
@@ -349,6 +353,9 @@ Effects State::goLive(const Cue &cue, bool withoutMedia, const Workspace &worksp
     const QVariantList actions = cue.slide.value("actions").toList();
     const QString label = cue.slide.value("label").toString();
 
+    // (The logo off first, so that what follows goes by a media layer without it: a
+    // slide that brings no media does not leave the logo playing under it)
+    dropLogo(brings, effects);
     atSlide = true;
     key = cue.key;
     playlistId = cue.playlistId;
@@ -555,6 +562,7 @@ bool State::alreadyPlaying(const QVariantMap &asked) const
 Effects State::showMedia(const QVariantMap &asked, const QString &playlist)
 {
     Effects effects;
+    dropLogo(true, effects);
     const bool playing = alreadyPlaying(asked);
     effects << note("media", mediaWords(asked) + (playing ? QStringLiteral(", which is playing already and is left to") : QString()));
     hasMedia = true;
@@ -590,10 +598,21 @@ void State::clearMedia(Effects &effects)
         return;
     effects << note("clear", QStringLiteral("the media, ") + quoted(media.value("name").toString()));
     hasMedia = false;
+    logo = false;
     media.clear();
     mediaPlaylistId.clear();
     mediaPlace.clear();
     effects << plain(Effect::NoMedia);
+}
+
+void State::dropLogo(bool mediaComes, Effects &effects)
+{
+    if (!logo)
+        return;
+    logo = false;
+    effects << note("clear", QStringLiteral("the logo, as something else comes on"));
+    if (!mediaComes)
+        clearMedia(effects);
 }
 
 void State::showVideoInput(int index, Effects &effects)
@@ -604,6 +623,7 @@ void State::showVideoInput(int index, Effects &effects)
         effects << note("input", QStringLiteral("video input %1 is on already, and is left as it is").arg(index + 1));
         return;
     }
+    dropLogo(false, effects);
     effects << note("input", QStringLiteral("video input %1 on").arg(index + 1)
                                  + (videoInput >= 0 ? QStringLiteral(", in place of %1").arg(videoInput + 1) : QString()));
     videoInput = index;
@@ -673,6 +693,7 @@ void State::showMessage(const QVariantMap &message, Effects &effects, const QVar
 {
     const QString id = message.value("id").toString();
     const double seconds = qMax(0.0, message.value("seconds").toDouble());
+    dropLogo(false, effects);
     const bool again = messages.contains(id);
     messages.removeAll(id);
     messages << id;
@@ -779,6 +800,7 @@ void State::startAudio(const QVariantMap &asked, const QString &playlist, Effect
         effects << problem(QStringLiteral("The audio %1 is not on this computer, and was not played").arg(quoted(asked.value("name").toString())));
         return;
     }
+    dropLogo(false, effects);
     QVariantMap audio = asked;
     audio.insert("play", ++audioPlays);
     if (audio.value("effect").toBool()) {
@@ -1060,6 +1082,48 @@ Effects State::clearAll()
     return effects;
 }
 
+void State::clearToLogo(const Workspace &workspace, Effects &effects)
+{
+    const QVariantMap &shown = workspace.logo;
+    effects << note("clear", QStringLiteral("everything, to the logo"));
+    clearSlide(effects);
+    // (The logo up already stays up, and is not put up again: the media layer is not
+    // cleared of it, only of anything else)
+    const bool up = logo && hasMedia && !shown.isEmpty() && media.value("path") == shown.value("path");
+    if (!up)
+        clearMedia(effects);
+    clearVideoInput(effects);
+    clearAnnouncements(effects);
+    clearProps(effects);
+    clearMessages(effects);
+    clearMusic(effects);
+    clearSounds(effects);
+    if (up)
+        return;
+    if (shown.isEmpty()) {
+        effects << note("clear", QStringLiteral("no logo is set, so nothing is put up"));
+        return;
+    }
+    if (shown.value("missing").toBool()) {
+        effects << problem(QStringLiteral("The logo %1 is not on this computer, so nothing is put up").arg(quoted(shown.value("path").toString())));
+        return;
+    }
+    effects << note("media", QStringLiteral("the logo, ") + quoted(shown.value("name").toString()));
+    hasMedia = true;
+    logo = true;
+    media = shown;
+    mediaPlaylistId.clear();
+    mediaPlace.clear();
+    effects << withMedia(Effect::Media, shown);
+}
+
+Effects State::clearToLogo(const Workspace &workspace)
+{
+    Effects effects;
+    clearToLogo(workspace, effects);
+    return effects;
+}
+
 // The layers go in the order everything is cleared in, whatever order the group has
 // them in: they are cleared together, and the log reads the same either way.
 //
@@ -1125,6 +1189,7 @@ void State::toggleProp(const QString &id, const Workspace &workspace, Effects &e
                 rivals << other.toMap().value("id").toString();
         }
     }
+    dropLogo(false, effects);
     const qsizetype before = props.size();
     for (const QString &rival : std::as_const(rivals))
         props.removeAll(rival);
@@ -1297,6 +1362,8 @@ void State::runAction(const QVariantMap &action, int depth, const Workspace &wor
             clearMessages(effects);
             clearMusic(effects);
             clearSounds(effects);
+        } else if (layer == 6) {
+            clearToLogo(workspace, effects);
         } else if (layer == 7) {
             clearMessages(effects);
         } else if (layer == 1) {
@@ -1493,6 +1560,29 @@ QVariantMap findClearGroup(const QString &id, const QString &name, const Workspa
             byName = group;
     }
     return byName;
+}
+
+QVariantMap logoMedia(const QString &file, bool video, bool exists)
+{
+    if (file.isEmpty())
+        return {};
+    return {
+        {"id", QStringLiteral("logo")},
+        {"name", QFileInfo(file).fileName()},
+        {"path", file},
+        {"source", QUrl::fromLocalFile(file)},
+        {"video", video},
+        {"missing", !exists},
+        {"logo", true},
+        // (As a background is: round and round for good, a video, and silent)
+        {"foreground", false},
+        {"loops", video},
+        {"retriggers", false},
+        {"volume", 0.0},
+        {"playback", video ? 1 : 0},
+        {"loopCount", 0},
+        {"loopSeconds", 0.0},
+    };
 }
 
 Effects looksFirst(const Effects &effects)

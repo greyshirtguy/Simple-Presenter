@@ -17,9 +17,9 @@ group**, which is Clear All unless the list has been put in another order. A gro
 button can be dragged onto a slide or a macro, as the clears of the layers can, to give
 it the action that clears that group: see [Actions](actions.md).
 
-A right click on any of the clear buttons has **Configure Clear Groups…**, which puts
-up the window they are set up in: the groups down the left, and on the right what the
-one picked has.
+A right click on any of the clear buttons has **Clear to Logo** (below) and
+**Configure Clear Groups…**, which puts up the window they are set up in: the groups
+down the left, and on the right what the one picked has.
 
 - **The layers it clears.** ProPresenter's eight, in its order: audio, audio effects,
   messages, props, announcements, the slide, the media and video inputs, each ticked
@@ -53,3 +53,24 @@ a new group is given (here a name, no layers, and for its picture the first digi
 no group has); and that any group, the one a workspace starts with among them, can be
 renamed, moved and removed. What it rests on is one file of ProPresenter's own, with
 its one group in it, and one presentation with an action that clears that group.
+
+## Clear to Logo
+
+**F12**, or **Clear to Logo** in the clear buttons' menu, clears everything, as Clear
+All does, the audio included, and puts up the **logo**: a picture or a video, chosen in
+**Settings → Screens** (Logo, Choose…). It is put on the media layer as media is, by
+the media's transition, on the screens that show the media, and the media's clear
+button is red while it is up. It stays only while nothing else is on: a slide, media,
+a prop, a message, an announcement or a video input that comes on, or audio that is
+played, takes it off again, and clearing the media clears it too. A slide or a macro
+whose action is ProPresenter's clear to the logo does the same.
+
+With no logo chosen, F12 clears everything all the same and says where one is chosen;
+a logo whose file has gone is said to be missing, and nothing is put up.
+
+ProPresenter keeps its logo in its own settings, on that computer, not in a workspace,
+and so does this: it is the app's own setting. What is a guess: that ProPresenter's
+logo is shown as its media is (on the screens a look gives the media, fitted, by the
+media's transition), and that its Clear to Logo clears the audio, as Clear All does.
+That anything coming on takes the logo off is the maintainer's rule.
+

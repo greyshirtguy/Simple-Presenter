@@ -193,6 +193,9 @@ QString layerWords(const Action::ClearType &clear, bool *done)
         *done = true;
         return QStringLiteral("Clear the video input");
     case Clear::CLEAR_TARGET_LAYER_LOGO:
+        // (Done since 2026-11-12: everything cleared, and the logo the settings give put
+        // up; see show::State::clearToLogo)
+        *done = true;
         return QStringLiteral("Clear to the logo");
     case Clear::CLEAR_TARGET_LAYER_MESSAGES:
         *done = true;

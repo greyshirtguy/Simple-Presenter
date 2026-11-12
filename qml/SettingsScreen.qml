@@ -47,6 +47,9 @@ Rectangle {
     // How long it takes to move, in seconds, and whether it eases in and out (see Main)
     property real slideScrollDuration: 0.4
     property bool slideScrollEased: true
+    // The logo Clear to Logo puts up (Main's logoFile), and the media files it can be
+    property string logoFile: ""
+    property string logoFilter: ""
     // How many of the app's channels have a meter beside the preview, and how solid the
     // meters are: see Main.qml
     property int audioMeters: 2
@@ -82,6 +85,7 @@ Rectangle {
     signal slideScrollEdited(string mode)
     signal slideScrollDurationEdited(real seconds)
     signal slideScrollEasedEdited(bool on)
+    signal logoFileEdited(string file)
     signal useX11Edited(bool useX11)
     signal movingPreviewsEdited(bool on)
     signal movingPreviewEdited(bool on)
@@ -971,6 +975,9 @@ Rectangle {
             visible: screen.section === "screens"
             senders: screen.senders
             scenes: screen.scenes
+            logoFile: screen.logoFile
+            logoFilter: screen.logoFilter
+            onLogoFileEdited: (file) => screen.logoFileEdited(file)
             onFailed: (text) => screen.screensFailed(text)
             onNdiWanted: ndiSetup.visible = true
             onMenuWanted: (rows, item, x, y) => screen.screenMenuWanted(rows, item, x, y)

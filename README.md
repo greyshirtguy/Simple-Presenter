@@ -49,7 +49,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="messages"></a>**[Messages](docs/features/messages.md)**: something to say over everything else, such as a parent wanted at the creche, with a name or a room typed in as it is shown.
 - <a id="announcements"></a>**[Announcements](docs/features/announcements.md)**: a second presentation running over the first on a layer of its own, for the notices before a service or a ticker along the foot of the screen.
 - <a id="go-to-next-timers-and-the-slide-show"></a>**[Go To Next timers and the Slide Show](docs/features/go-to-next-and-slide-show.md)**: slides that go on by themselves after a time, and a whole presentation left going round.
-- <a id="clear-groups"></a>**[Clear groups](docs/features/clear-groups.md)**: named sets of layers, cleared together at one click.
+- <a id="clear-groups"></a>**[Clear groups](docs/features/clear-groups.md)**: named sets of layers, cleared together at one click; and [Clear to Logo](docs/features/clear-groups.md#clear-to-logo) (F12), everything cleared and a logo put up until anything else comes on.
 - <a id="actions"></a>**[Actions](docs/features/actions.md)**: what a slide or a macro does as it goes live: start a timer, clear a layer, give the stage a layout, put a prop on, run a macro, change the look, play a media or audio playlist, show a message or a video input, or send to a device. One that is there is changed for another of its kind from a menu: another macro, look, prop, stage layout or thing to clear.
 - <a id="macros"></a>**[Macros](docs/features/macros.md)**: a named list of actions, run at one click.
 - <a id="calendar"></a>**[Calendar](docs/features/calendar.md)**: events at a date and time, once or every week on chosen days, that take a playlist's presentation live or run a macro by themselves, as ProPresenter's Calendar does.
@@ -59,7 +59,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="slide-views"></a>**[Grid, Easy View and Table View](docs/features/slide-views.md)**: the slides as thumbnails, as their words alone in large plain letters, or as a table of rows with their words and notes beside each thumbnail, picked by three buttons under them.
 - <a id="arrangements"></a>**[Arrangements](docs/features/arrangements.md)**: verse, chorus, verse, chorus, bridge. The groups are dragged into the order a song is sung in.
 - <a id="stage-layouts"></a><a id="screen-preview"></a>**[Stage layouts](docs/features/stage-layouts.md)**: what the band and the speaker see, with the stage message and Screen Previews of the other screens.
-- <a id="keys"></a>**[Keys](docs/features/keys.md)**: ProPresenter's keys, the groups' hotkeys, the clears on F1 to F6, and a slide reached by typing its number.
+- <a id="keys"></a>**[Keys](docs/features/keys.md)**: ProPresenter's keys, the groups' hotkeys, the clears on F1 to F6 and Clear to Logo on F12, and a slide reached by typing its number.
 - <a id="log"></a>**[Log](docs/features/log.md)**: a log of each run, written to be read by a person or handed to an AI model.
 
 | [Timers](docs/features/timers.md) | [Props](docs/features/props.md) | [Stage layouts](docs/features/stage-layouts.md) |

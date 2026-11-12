@@ -157,7 +157,6 @@ Bigger things, nearly all of which ProPresenter does and this does not. No order
 no promise that any of them will turn out to be possible this way: that is the
 experiment.
 
-- [ ] **Clear to logo**
 - [ ] **Timer markers** (an idea of my own)
 - [ ] **More to import**: `.ppt`, the old PowerPoint format, and Keynote; and a PowerPoint
       file as pictures of its slides, beside the editable slides

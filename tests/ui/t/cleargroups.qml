@@ -169,7 +169,8 @@ QtObject {
                 return 400
             },
             () => {
-                check("a right click on the clear button of a layer has the way to the window the groups are set up in", labels() === "Configure Clear Groups…", labels())
+                // (After Clear to Logo, since 2026-11-12)
+                check("a right click on the clear button of a layer has the way to the window the groups are set up in", labels() === "Clear to Logo  (F12), --, Configure Clear Groups…", labels())
                 click(menuRow("Configure Clear Groups…"))
                 return 700
             },

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import SimplePresenterApp
 
 // The Screens section of the settings: the workspace's screens, of both kinds, and what
@@ -28,6 +29,11 @@ import SimplePresenterApp
 // or one of the outputs, whose own frames the screens going out through a card are then
 // drawn by (see decklinkformats.h). ProPresenter has one, kept with its preferences;
 // what it calls it on its settings is not known here, and the name is its field's.
+//
+// After the statistics, the logo ProPresenter's Clear to Logo puts up (F12): a picture or a
+// video file, chosen here. ProPresenter has its own in its settings (General), kept with
+// its preferences on that computer and not in a workspace; so this is this computer's too,
+// kept in the app's settings (Main's logoFile).
 Flickable {
     id: section
 
@@ -36,11 +42,16 @@ Flickable {
     // drawn with (an OutputScene, or the window it is in), for how long its frames are.
     property var senders: ({})
     property var scenes: ({})
+    // The logo's file, "" for none, and the media files it can be (a file dialog's filter)
+    property string logoFile: ""
+    property string logoFilter: ""
 
     // Something went wrong changing the list
     signal failed(string text)
     // A screen has been set to NDI and NDI's library is not here: how to get it is wanted
     signal ndiWanted
+    // Another logo was chosen, or none ("")
+    signal logoFileEdited(string file)
     // The menu of where a screen can go is to be shown (by the operator window, whose
     // menus can have menus in them), under an item
     signal menuWanted(var rows, var item, real x, real y)
@@ -600,6 +611,70 @@ Flickable {
             text: "Show Performance Statistics On Screen"
             checked: Screens.showStatistics
             onToggled: (checked) => Screens.showStatistics = checked
+        }
+
+        // The logo: its file's name, Choose… and, while one is set, None
+        Row {
+            spacing: 8
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                color: "#9a9da3"
+                font.pixelSize: 12
+                text: "Logo"
+            }
+
+            Text {
+                objectName: "logoFileName"
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, 320)
+                elide: Text.ElideMiddle
+                color: section.logoFile === "" ? "#7d8088" : "#e6e6e6"
+                font.pixelSize: 13
+                text: section.logoFile === "" ? "None" : section.logoFile.replace(/^.*\//, "")
+            }
+
+            AppButton {
+                objectName: "chooseLogo"
+                height: 28
+                font.pixelSize: 13
+                text: "Choose…"
+                onClicked: {
+                    logoDialog.active = true
+                    logoDialog.item.open()
+                }
+            }
+
+            AppButton {
+                objectName: "noLogo"
+                height: 28
+                font.pixelSize: 13
+                visible: section.logoFile !== ""
+                text: "None"
+                onClicked: section.logoFileEdited("")
+            }
+        }
+
+        Text {
+            width: parent.width
+            wrapMode: Text.Wrap
+            color: "#9a9da3"
+            font.pixelSize: 12
+            text: "Clear to Logo (F12, and in the menu of the clear buttons) clears everything and puts this up, as media is put up, "
+                + "until anything else comes on: a slide, media, a prop, a message, an announcement, a video input or audio."
+        }
+
+        // (Made when it is first wanted: a dialog made with the window is a cost at every start)
+        Loader {
+            id: logoDialog
+
+            active: false
+
+            sourceComponent: FileDialog {
+                title: "Choose the Logo"
+                nameFilters: [section.logoFilter, "All files (*)"]
+                onAccepted: section.logoFileEdited(decodeURIComponent(String(selectedFile).replace(/^file:\/\//, "")))
+            }
         }
 
         // The clock: once there are card outputs to choose from, or one has been chosen

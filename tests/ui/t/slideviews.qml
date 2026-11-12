@@ -7,11 +7,15 @@ import "lib.js" as Lib
 // plain colour, the slides themselves not drawn; and Table View, a row for each slide, its thumbnail at the left and its
 // words (and notes) beside it. The view lit, kept in the settings; the … of a view's format, its panel, and what it
 // changes drawn; Table View's rows grown by the size buttons, its Truncate, and a click on a row taking it live with the
-// ring round the row.
+// ring round the row. Then Clear to Logo (F12, and in the clears' menu): everything cleared and the logo set in the
+// settings put up on the output, until a slide, media or a prop comes on; and with no logo set, everything cleared and
+// the operator told where one is set.
 QtObject {
     id: t
 
 //COMMON
+    readonly property string media: "@WORKSPACES@".replace(/WorkSpaces$/, "media")
+
     function viewButton(view) {
         return named("slideView:" + view)
     }
@@ -20,6 +24,19 @@ QtObject {
     function rgbAt(p) {
         const c = String(testInput.windowPixel(p.x, p.y)).toLowerCase()
         return { r: parseInt(c.substring(1, 3), 16), g: parseInt(c.substring(3, 5), 16), b: parseInt(c.substring(5, 7), 16), text: c }
+    }
+
+    // The middle of the output window, as { r, g, b }
+    function outputMiddle() {
+        const window = testInput.windowContent("output")
+        if (!window)
+            return { r: -1, g: -1, b: -1, text: "no output window" }
+        const c = String(testInput.pixelIn("output", window.width / 2, window.height / 2))
+        return { r: parseInt(c.substring(1, 3), 16), g: parseInt(c.substring(3, 5), 16), b: parseInt(c.substring(5, 7), 16), text: c }
+    }
+
+    function red(c) {
+        return c.r > 200 && c.g < 60 && c.b < 60
     }
 
     // How much of an item the operator window draws lighter than a grey, as a share of it
@@ -191,6 +208,63 @@ QtObject {
             () => {
                 check("back to the grid: its columns, and the … dimmed again", slideView === "grid" && named("slideGrid").columns === kept.columns
                       && named("viewFormatButton").visible && !named("viewFormatButton").available, named("slideGrid").columns)
+                // ---- Clear to Logo
+                goLive(kept.words)
+                logoFile = media + "/Red.png"
+                return 300
+            },
+            () => {
+                check("the logo is handed to the show", Show.logoFile === media + "/Red.png", Show.logoFile)
+                check("and named on the settings screen, Screens", named("logoFileName").text === "Red.png", named("logoFileName").text)
+                check("and kept in the settings", String(settings.value("logoFile")) === media + "/Red.png")
+                testInput.key(Qt.Key_F12, 0, "")
+                return 500
+            },
+            () => {
+                check("F12 clears to the logo: the slide cleared, the logo on the media layer", Show.logoLive && cleared && liveMedia !== null
+                      && liveMedia.logo === true && liveMedia.name === "Red.png", liveMedia ? liveMedia.name : "no media")
+                const middle = outputMiddle()
+                check("drawn: the logo on the output", red(middle), middle.text)
+                check("the media's clear button lit", named("clearMedia").live && !named("clearSlide").live)
+                clickSlide(kept.words + 1)
+                return 500
+            },
+            () => {
+                check("a slide coming on takes the logo off", !Show.logoLive && liveMedia === null && !cleared && liveIndex === kept.words + 1)
+                const middle = outputMiddle()
+                check("drawn: the logo gone from the output", !red(middle), middle.text)
+                // From the clears' menu, this time
+                showClearMenu(named("clearSlide"), "")
+                return 300
+            },
+            () => {
+                check("the clears' menu has Clear to Logo", labels().startsWith("Clear to Logo  (F12), --, Configure Clear Groups…"), labels())
+                click(menuRow("Clear to Logo  (F12)"))
+                return 400
+            },
+            () => {
+                check("and it clears to the logo", Show.logoLive && cleared)
+                testInput.grab("3-logo")
+                // Clearing the media (F3) takes it off
+                testInput.key(Qt.Key_F3, 0, "")
+                return 400
+            },
+            () => {
+                check("clearing the media takes the logo off", !Show.logoLive && liveMedia === null)
+                check("drawn: the logo gone from the output", !red(outputMiddle()), outputMiddle().text)
+                // With no logo set: everything cleared, and the operator told where one is set
+                logoFile = ""
+                clickSlide(kept.words)
+                return 300
+            },
+            () => {
+                testInput.key(Qt.Key_F12, 0, "")
+                return 400
+            },
+            () => {
+                check("with no logo set, F12 clears everything and puts nothing up", !Show.logoLive && cleared && liveMedia === null)
+                check("and says where a logo is set", notice.indexOf("No logo is set") === 0 && notice.indexOf("Settings → Screens") > 0, notice)
+                check("the log says it", testInput.readText(Log.path).indexOf("no logo is set, so nothing is put up") >= 0)
                 return 100
             },
         ]

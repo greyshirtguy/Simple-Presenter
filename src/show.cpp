@@ -6,7 +6,9 @@
 #include "proconvert.h"
 #include "richtext.h"
 #include "sessionlog.h"
+#include "workspacefiles.h"
 
+#include <QFileInfo>
 #include <QJSValue>
 #include <QRandomGenerator>
 #include <cstdio>
@@ -67,7 +69,8 @@ void Show::change(const std::function<show::Effects()> &what)
         emit announcementChanged();
     if (before.advance != m_state.advance || before.announcementAdvance != m_state.announcementAdvance)
         emit advanceChanged();
-    if (before.hasMedia != m_state.hasMedia || before.media != m_state.media || before.mediaPlaylistId != m_state.mediaPlaylistId)
+    if (before.hasMedia != m_state.hasMedia || before.media != m_state.media || before.mediaPlaylistId != m_state.mediaPlaylistId
+        || before.logo != m_state.logo)
         emit mediaChanged();
     if (before.videoInput != m_state.videoInput)
         emit videoInputChanged();
@@ -208,6 +211,17 @@ void Show::setStageLayoutId(const QString &id)
 void Show::setStageLayout(const QString &screenId, const QString &layoutId)
 {
     change([&] { m_state.setStageLayout(screenId, layoutId); return show::Effects(); });
+}
+
+void Show::setLogoFile(const QString &file)
+{
+    // (Looked at for being there each time it is set, which is as the app starts and
+    // when it is chosen)
+    const QVariantMap logo = show::logoMedia(file, workspace::isVideo(file), QFileInfo::exists(file));
+    if (logo == m_workspace.logo)
+        return;
+    m_workspace.logo = logo;
+    emit workspaceChanged();
 }
 
 void Show::setCopyright(const QVariantMap &copyright)
@@ -427,6 +441,11 @@ void Show::clearAudio()
 void Show::clearAudioEffects()
 {
     change([&] { return m_state.clearAudioEffects(); });
+}
+
+void Show::clearToLogo()
+{
+    change([&] { return m_state.clearToLogo(m_workspace); });
 }
 
 void Show::clearAll()

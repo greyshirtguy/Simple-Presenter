@@ -498,7 +498,9 @@ Window {
     // the clear groups are set up in, which opens on the group whose button it was
     // ("" for the button of a layer).
     function showClearMenu(item, groupId) {
-        menu.show([{ label: "Configure Clear Groups…", run: () => openClearGroups(groupId) }], item)
+        menu.show([{ label: "Clear to Logo  (F12)", run: () => clearToLogo() },
+                   { divider: true },
+                   { label: "Configure Clear Groups…", run: () => openClearGroups(groupId) }], item)
     }
 
     function openSearch() {
@@ -682,6 +684,10 @@ Window {
     // page, the app's own, kept in its settings (the maintainer's ask of 2026-11-08)
     property real slideScrollDuration: 0.4
     property bool slideScrollEased: true
+    // The logo Clear to Logo (F12) puts up: a picture's or a video's file, "" for none.
+    // Set on the settings screen, Screens. ProPresenter keeps its own in its settings, of
+    // that computer and not of a workspace, and so is this: kept in the app's settings.
+    property string logoFile: ""
     // Pane sizes, changed by dragging the dividers between them
     property real sidebarWidth: 260
     // How wide the media bin's list of playlists is. It starts as wide as the lists
@@ -5024,6 +5030,18 @@ Window {
         Show.clearAll()
     }
 
+    // ProPresenter's Clear to Logo (F12, and the clears' menu): everything cleared, and the
+    // logo set on the settings screen put up until anything else comes on (see
+    // show::State::clearToLogo). With none set, everything is cleared all the same, and
+    // the operator is told where one is set.
+    function clearToLogo() {
+        Show.clearToLogo()
+        if (logoFile === "")
+            tell("No logo is set: Settings → Screens has it. Everything was cleared.")
+        else if (!Show.logoLive)
+            report("The logo " + logoFile + " was not found, so everything was cleared and nothing put up.")
+    }
+
     // Clears what a clear group of the workspace clears: those of its layers that there
     // are here (see show::State::clearGroup).
     function clearGroup(group) {
@@ -5113,6 +5131,7 @@ Window {
         sourcesHeight = Number(saved("sourcesHeight", sourcesHeight))
         thumbnailWidth = Math.max(smallestThumbnail, Math.min(largestThumbnail,
                                   Number(saved("thumbnailWidth", thumbnailWidth))))
+        logoFile = String(saved("logoFile", ""))
         slideView = ["grid", "easy", "table"].includes(String(saved("slideView", "grid"))) ? String(saved("slideView", "grid")) : "grid"
         // (Kept as JSON; anything unreadable is the view as it starts)
         const keptFormat = (key) => {
@@ -5375,6 +5394,7 @@ Window {
     onMediaListWidthChanged: save("mediaListWidth", mediaListWidth)
     onSourcesHeightChanged: save("sourcesHeight", sourcesHeight)
     onThumbnailWidthChanged: save("thumbnailWidth", thumbnailWidth)
+    onLogoFileChanged: save("logoFile", logoFile)
     onSlideViewChanged: save("slideView", slideView)
     onEasyFormatChanged: save("easyFormat", JSON.stringify(easyFormat))
     onTableFormatChanged: save("tableFormat", JSON.stringify(tableFormat))
@@ -6319,6 +6339,13 @@ Window {
         value: win.catalog
     }
 
+    // The logo Clear to Logo puts up, and an action that clears to the logo
+    Binding {
+        target: Show
+        property: "logoFile"
+        value: win.logoFile
+    }
+
     // The copyright display's settings, which the show lays the line over the slides by
     Binding {
         target: Show
@@ -6646,6 +6673,10 @@ Window {
                 break
             case Qt.Key_F6:
                 win.clearMessages()
+                break
+            // ProPresenter's key for Clear to Logo
+            case Qt.Key_F12:
+                win.clearToLogo()
                 break
             case Qt.Key_Delete:
                 // The rows selected in the playlist (see removeRows); nothing else is
@@ -7030,6 +7061,8 @@ Window {
                 win.clearAudio()
             else if (event.key === Qt.Key_F6)
                 win.clearMessages()
+            else if (event.key === Qt.Key_F12)
+                win.clearToLogo()
             else
                 return
             event.accepted = true
@@ -7303,6 +7336,9 @@ Window {
         onSlideScrollDurationEdited: (seconds) => win.slideScrollDuration = Math.max(0.1, Math.min(1.5, seconds))
         slideScrollEased: win.slideScrollEased
         onSlideScrollEasedEdited: (on) => win.slideScrollEased = on
+        logoFile: win.logoFile
+        logoFilter: win.catalog.mediaDialogFilter
+        onLogoFileEdited: (file) => win.logoFile = file
         useX11: win.useX11
         onUseX11Edited: (useX11) => win.useX11 = useX11
         movingPreviews: win.movingPreviews

@@ -60,7 +60,17 @@ struct Workspace
     // Its copyright display (see ccli.h): { enabled, license, display, tokens }, as
     // ccli::describe has them; empty for none
     QVariantMap copyright;
+    // The logo Clear to Logo puts up, as media (logoMedia makes it); empty where none is
+    // set. It is this computer's, as ProPresenter's is a setting of its own and not in a
+    // workspace's files; but it is handed in with these, being what an action names.
+    QVariantMap logo;
 };
+
+// The logo, as the media layer is given it: a picture or a video file (`video`), which
+// is a background and, a video, goes round for good; named by the file's name, marked
+// `logo` (so that what shows the media can tell it from the rest), and `missing` where
+// the file is not there. Empty for no file.
+QVariantMap logoMedia(const QString &file, bool video, bool exists);
 
 // A slide as it is triggered: where it is, and what it brings.
 struct Cue
@@ -194,6 +204,10 @@ public:
     // path, slideId } for a slide's, { kind "mediaRow", item } for a row of the media
     // bin; empty where it was played from neither.
     QVariantMap mediaPlace;
+    // Whether what is on the media layer is the logo, put up by Clear to Logo
+    // (ProPresenter's, F12): everything else was cleared for it, and it goes again as
+    // soon as anything else comes on (see dropLogo).
+    bool logo = false;
 
     // The announcements layer: a second presentation, shown at the same time as the
     // one on the slide and media layers and over both. A presentation whose
@@ -421,6 +435,21 @@ public:
     Effects clearAudioEffects();
     Effects clearMessages();
     Effects clearAll();
+    // ProPresenter's Clear to Logo: everything cleared, as clearAll clears it, and the
+    // workspace's logo (Workspace::logo) put on the media layer, by the media's
+    // transition, on whichever screens a look gives the media. With no logo set, or its
+    // file not there, everything is cleared all the same and nothing is put up.
+    //
+    // The logo stays only while nothing else is on: a slide, media, an announcement, a
+    // video input, a prop or a message that comes on, or audio that is played, takes it
+    // off again (the maintainer, 2026-11-12: "self clearing when ANY other layer is
+    // turned back on"); media takes its place on the media layer, anything else has the
+    // media layer cleared of it. Clearing the media, or everything, clears it too.
+    //
+    // GUESSES: that ProPresenter's logo is shown as media is (on the screens that show
+    // the media, fitted as the media is, by the media's transition), and that its Clear
+    // to Logo clears the audio as Clear All does. Neither has been looked at there.
+    Effects clearToLogo(const Workspace &workspace);
     // Clears what a clear group clears, which is those of its layers there are here:
     // the slide, the media, the announcements, the props, the messages, the audio
     // (the music and the sound effects) and the audio effects (the sound effects
@@ -508,6 +537,10 @@ private:
     void runAction(const QVariantMap &action, int depth, const Workspace &workspace, Effects &effects);
     void clearSlide(Effects &effects);
     void clearMedia(Effects &effects);
+    void clearToLogo(const Workspace &workspace, Effects &effects);
+    // The logo taken off, if it is up, as something else comes on: from the media layer
+    // too, unless `mediaComes` (media taking its place there)
+    void dropLogo(bool mediaComes, Effects &effects);
     void showVideoInput(int index, Effects &effects);
     void clearVideoInput(Effects &effects);
     void clearAnnouncements(Effects &effects);

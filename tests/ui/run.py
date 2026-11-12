@@ -3933,7 +3933,7 @@ def after_bible(workspace, test_dir):
 TESTS = {
     "media": test("Demo"),
     "mediatransition": test("Demo", env={"SP_TEST_REMEMBER": "1"}),
-    "slideviews": test("Demo", env={"SP_TEST_REMEMBER": "1"}),
+    "slideviews": test("Demo", env={"SP_TEST_REMEMBER": "1"}, prepare=prepare_red_picture),
     "backgroundsound": test("Demo"),
     "slideimage": test("Act", timeout=240),
     "gridscroll": test("Demo", env={"SP_TEST_REMEMBER": "1"}),
