@@ -48,9 +48,18 @@ Item {
     }
 
     // The presentation the show is at (the slide layer's), and the one the operator has
-    // open: catalog.open's maps (see Catalog::open), or null
-    readonly property var activeDocument: Show.atSlide ? window.liveDocument : null
-    readonly property var focusedDocument: window.document ?? null
+    // open: catalog.open's maps (see Catalog::open), or null. Read from the window when
+    // asked, by a function, and not kept in properties of this one bound to the window's:
+    // those were evaluated again each time a slide went live, and a whole presentation
+    // handed on through a `property var` is costly (a slide's map through one cost 2 ms a
+    // click once). Measured over a video, the API on with no client had them make the work
+    // in each slide's click 5 ms where it is 3.
+    function activeDocument() {
+        return Show.atSlide ? window.liveDocument : null
+    }
+    function focusedDocument() {
+        return window.document ?? null
+    }
 
     // A presentation's place in the list of the library or playlist the operator is
     // looking through, or ProPresenter's "none" if it is not in it
@@ -72,7 +81,7 @@ Item {
     // A slide of the presentation the show is at goes live, as a click on it would
     // had it been open: by its place, from 0
     function triggerActive(index) {
-        const document = activeDocument
+        const document = activeDocument()
         if (!document || !(index >= 0 && index < document.slides.length))
             return notFound
         window.goLiveIn(document, Show.liveKey, Show.livePlaylistId, index)
@@ -297,7 +306,7 @@ Item {
 
     // A slide of the presentation open in the window goes live, as a click on it does
     function triggerFocused(index) {
-        const document = focusedDocument
+        const document = focusedDocument()
         if (!document || !(index >= 0 && index < document.slides.length))
             return notFound
         window.goLive(index)
@@ -346,15 +355,15 @@ Item {
 
         // ---- presentations
         case "presentation/active": {
-            const document = activeDocument
+            const document = activeDocument()
             return ok(document ? HttpApi.presentation(document.path, HttpApi.noIndex()) : { presentation: null })
         }
         case "presentation/focused": {
-            const document = focusedDocument
+            const document = focusedDocument()
             return ok(document ? HttpApi.id(document.uuid ?? "", document.name, listIndexOf(window.documentKey)) : null)
         }
         case "presentation/slide_index": {
-            const document = activeDocument
+            const document = activeDocument()
             return ok(document ? HttpApi.slideIndex("presentation_index", document.uuid ?? "", document.name, HttpApi.noIndex(),
                                                     Show.liveIndex, document.slides.length)
                                : HttpApi.slideIndex("presentation_index", "", "", 0, -1, 0))
@@ -370,23 +379,23 @@ Item {
         case "presentation/active/{index}/trigger":
             return triggerActive(Number(params.index))
         case "presentation/active/next/trigger":
-            return activeDocument ? triggerActive(Show.stepTarget(Show.liveKey, Show.livePlaylistId, 1, false)) : notFound
+            return activeDocument() ? triggerActive(Show.stepTarget(Show.liveKey, Show.livePlaylistId, 1, false)) : notFound
         case "presentation/active/previous/trigger":
-            return activeDocument ? triggerActive(Show.stepTarget(Show.liveKey, Show.livePlaylistId, -1, false)) : notFound
+            return activeDocument() ? triggerActive(Show.stepTarget(Show.liveKey, Show.livePlaylistId, -1, false)) : notFound
         case "presentation/active/group/{group_id}/trigger":
-            return activeDocument ? triggerActive(groupStart(activeDocument, params.group_id)) : notFound
+            return activeDocument() ? triggerActive(groupStart(activeDocument(), params.group_id)) : notFound
         case "presentation/focused/trigger":
             return triggerFocused(0)
         case "presentation/focused/{index}/trigger":
             return triggerFocused(Number(params.index))
         case "presentation/focused/next/trigger":
         case "presentation/focused/previous/trigger":
-            if (!focusedDocument)
+            if (!focusedDocument())
                 return notFound
             window.step(route.includes("/next/") ? 1 : -1)
             return done
         case "presentation/focused/group/{group_id}/trigger":
-            return focusedDocument ? triggerFocused(groupStart(focusedDocument, params.group_id)) : notFound
+            return focusedDocument() ? triggerFocused(groupStart(focusedDocument(), params.group_id)) : notFound
         case "presentation/active/timeline":
         case "presentation/focused/timeline":
             // (The app plays no timeline: one that is not running, at its start.)
@@ -424,7 +433,7 @@ Item {
             return found ? focusRow(found.library.path, "", found.row.path) : notFound
         }
         case "presentation/active/focus":
-            if (!activeDocument)
+            if (!activeDocument())
                 return notFound
             return Show.livePlaylistId !== "" ? focusRow("", Show.livePlaylistId, Show.liveKey)
                                               : focusRow(catalog.libraries.find(l => Show.liveKey.startsWith(l.path + "/"))?.path ?? window.libraryPath,
@@ -1042,8 +1051,15 @@ Item {
     }
 
     // ---- telling the API when what it reports may have changed
+    //
+    // Only while something follows a stream of it (HttpApi.streams): with none, the API
+    // has nothing to look at again, and these would be JavaScript run for nothing at every
+    // change of the show.
+    readonly property bool following: HttpApi.streams > 0
+
 
     Connections {
+        enabled: control.following
         target: Show
         function onChanged() { HttpApi.changed() }
         function onSlideChanged() { HttpApi.changed() }
@@ -1060,6 +1076,7 @@ Item {
     }
 
     Connections {
+        enabled: control.following
         target: control.window
         function onDocumentChanged() { HttpApi.changed() }
         function onDocumentKeyChanged() { HttpApi.changed() }
@@ -1075,57 +1092,68 @@ Item {
     }
 
     Connections {
+        enabled: control.following
         target: Screens
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: control.catalog
         function onChanged() { HttpApi.changed() }
     }
 
     // The workspace's own lists; and the timers, whose running is said once a second
     Connections {
+        enabled: control.following
         target: Looks
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: Props
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: Messages
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: Timers
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: StageLayouts
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: ClearGroups
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: Macros
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: Masks
         function onChanged() { HttpApi.changed() }
     }
 
     Connections {
+        enabled: control.following
         target: control.window.output ? control.window.output.livePlayer : null
         ignoreUnknownSignals: true
         function onPlaybackStateChanged() { HttpApi.changed() }

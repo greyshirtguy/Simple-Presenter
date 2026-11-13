@@ -46,7 +46,8 @@ class QTcpSocket;
 // at once, soon, however many changes came at once, and a chunk sent for what is now
 // different from what was last sent. What changes with time alone (timers, the clock, a
 // video's time: a route's `clocked`) is looked at four times a second, while a stream of
-// it is open. With no stream open, changed() does nothing at all.
+// it is open. With no stream open, changed() does nothing at all, and the window does
+// not call it (HttpApiControl's `following`).
 class HttpApi : public QObject
 {
     Q_OBJECT
