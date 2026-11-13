@@ -800,7 +800,8 @@ void State::startAudio(const QVariantMap &asked, const QString &playlist, Effect
         effects << problem(QStringLiteral("The audio %1 is not on this computer, and was not played").arg(quoted(asked.value("name").toString())));
         return;
     }
-    dropLogo(false, effects);
+    // (Audio played leaves the logo up, as the maintainer asked on 2026-11-13: walk-out
+    // music under the logo. See clearToLogo.)
     QVariantMap audio = asked;
     audio.insert("play", ++audioPlays);
     if (audio.value("effect").toBool()) {

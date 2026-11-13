@@ -1206,7 +1206,7 @@ private slots:
     }
 
     // Anything else that comes on takes it off: media in its place; a prop, a message, a
-    // video input, the announcements, or audio by clearing the media layer of it
+    // video input or the announcements by clearing the media layer of it. Audio does not
     void anythingElseTakesTheLogoOff()
     {
         const Workspace w = withLogo();
@@ -1245,9 +1245,10 @@ private slots:
         {
             State show;
             show.clearToLogo(w);
-            QCOMPARE(outside(show.playAudio(tune("Walk Out"), QString())), "nomedia audio");
-            QVERIFY(!show.logo);
-            QVERIFY(!show.hasMedia);
+            // Audio is the exception: the logo stays up under it (the maintainer's ask)
+            QCOMPARE(outside(show.playAudio(tune("Walk Out"), QString())), "audio");
+            QVERIFY(show.logo);
+            QVERIFY(show.hasMedia);
         }
         // Clearing the media takes it off; and once it is off, nothing more is said of it
         {

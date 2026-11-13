@@ -206,7 +206,7 @@ public:
     QVariantMap mediaPlace;
     // Whether what is on the media layer is the logo, put up by Clear to Logo
     // (ProPresenter's, F12): everything else was cleared for it, and it goes again as
-    // soon as anything else comes on (see dropLogo).
+    // soon as anything else but audio comes on (see dropLogo).
     bool logo = false;
 
     // The announcements layer: a second presentation, shown at the same time as the
@@ -441,10 +441,12 @@ public:
     // file not there, everything is cleared all the same and nothing is put up.
     //
     // The logo stays only while nothing else is on: a slide, media, an announcement, a
-    // video input, a prop or a message that comes on, or audio that is played, takes it
-    // off again (the maintainer, 2026-11-12: "self clearing when ANY other layer is
-    // turned back on"); media takes its place on the media layer, anything else has the
-    // media layer cleared of it. Clearing the media, or everything, clears it too.
+    // video input, a prop or a message that comes on takes it off again (the maintainer,
+    // 2026-11-12: "self clearing when ANY other layer is turned back on"); media takes
+    // its place on the media layer, anything else has the media layer cleared of it.
+    // Audio is the exception: audio played leaves it up (the maintainer, 2026-11-13,
+    // "Let's leave it on when starting audio!"), for music under the logo. Clearing the
+    // media, or everything, clears it too.
     //
     // GUESSES: that ProPresenter's logo is shown as media is (on the screens that show
     // the media, fitted as the media is, by the media's transition), and that its Clear

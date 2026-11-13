@@ -8,7 +8,7 @@
 | Down / Up | Next / previous presentation |
 | F1 | Clear the first [clear group](clear-groups.md), which to begin with is Clear All |
 | F2 / F3 / F4 / F5 / F6 | Clear the slide layer / media layer / props / audio / messages |
-| F12 | [Clear to Logo](clear-groups.md#clear-to-logo): everything cleared, and the logo put up until anything else comes on |
+| F12 | [Clear to Logo](clear-groups.md#clear-to-logo): everything cleared, and the logo put up until anything but audio comes on |
 | ~, held for about half a second (a setting) | [Simple View](simple-view.md) on or off |
 | A letter or a digit | The hotkey of a group, if a group has been given it: goes to the first slide of that group |
 | A number, then Enter | Goes to the slide with that number |
