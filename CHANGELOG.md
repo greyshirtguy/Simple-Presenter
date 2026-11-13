@@ -6,6 +6,28 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.138](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.138) · 2026-11-14
+
+- ProPresenter Remote, Renewed Vision's app for a phone or a tablet, works with the
+  app as with ProPresenter: Settings → Network, Enable ProPresenter Remote, with a
+  controller's password, which may operate the show, and an observer's, which may only
+  follow it. The app is advertised on the network as ProPresenter is (through Avahi),
+  and the Remote's messages are encrypted as ProPresenter's are; it asks by the API's
+  own routes. Building the app now needs `libssl-dev`
+  ([ProPresenter Remote](docs/features/api.md#propresenter-remote)).
+- Pictures of slides through the API, as ProPresenter gives them and the Remote shows
+  its slides by: by a presentation's UUID or a playlist's item, at the size asked, JPEG
+  or PNG, with the slide's media behind it and ProPresenter's checkerboard where it is
+  transparent. They are drawn by a second process of the app's at idle priority, stopped
+  outright while anything goes live, so that a slide's change and a video under it pay
+  nothing for them ([Pictures of slides](docs/features/api.md#pictures-of-slides)).
+- With Enable Network on and no client, every slide taken live cost the app's thread
+  some 2 ms more: it no longer does.
+- Music or a sound started under the logo of Clear to Logo leaves the logo up
+  ([Clear to Logo](docs/features/clear-groups.md#clear-to-logo)).
+- The benchmark times a video with pictures of slides being made, and slides changed
+  over it (benchmark/README.md).
+
 ## [0.137](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.137) · 2026-11-13
 
 - Easy View and Table View beside the grid, picked by three buttons at the right of the
