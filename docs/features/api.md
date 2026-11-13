@@ -64,6 +64,40 @@ ProPresenter's other form of the API, over TCP/IP, nor its server-sent events.
 - Next and previous do what the arrow keys do here, which stay in the presentation.
 - The JSON's keys come in alphabetical order, and a whole number has no ".0".
 
+## ProPresenter Remote
+
+**ProPresenter Remote**, Renewed Vision's app for a phone or a tablet, works with this
+app as it does with ProPresenter, through the API. Under the API's settings in
+**Settings → Network**, **Enable ProPresenter Remote** switches it on, with a
+**Controller** password, which lets a Remote operate the show, and an **Observer**
+password, which lets one only follow it; either can be switched off. The API must be on
+as well (**Enable Network**).
+
+While it is on, the app is advertised on the network as ProPresenter is, under the
+Network Name, so that the Remote lists it by itself; the settings say whether it is.
+That is done by Avahi, which answers for the whole computer on the network and is on
+every Ubuntu desktop: without it, the Remote has to be given the computer's address.
+The Remote then talks to the app over a WebSocket at `/v1/ws` on the API's port, each
+message encrypted with its password (AES-256, as ProPresenter does it), and asks for
+what it shows and does by the API's own paths: so what is there for the Remote is what
+is there above. A Remote whose password is wrong is answered nothing, as ProPresenter
+answers it.
+
+The Remote shows each slide by a picture of it, which it fetches from the API; the app
+has no pictures of slides yet (see *Not there yet* above), so the Remote's slides show
+none.
+
+What is a guess, ProPresenter's not having been seen doing it: the names and order of
+the settings, and the controller on and the observer off to begin with; with both
+passwords on, the first message (ProPresenter's `/version`) sent once under each, the
+controller's first; an observer's request for what operates the show answered "403
+Forbidden"; and a Remote whose password is changed, or switched off, let go of. How the
+Remote's messages are encrypted and what it sends were seen of ProPresenter 22 and its
+Remote on 2026-11-13, and the encryption is as Renewed Vision describes it.
+
+The passwords are kept in this computer's settings for the app, as ProPresenter keeps
+its own in its preferences, and are not in the workspace.
+
 It has been tried with requests made by hand and by the app's own tests, and with
 Companion, whose Timer Set (a PUT with the timer's new length) is what brought the
 timers' PUT here. The log says when it listened, who streamed what, and each request

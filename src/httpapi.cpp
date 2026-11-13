@@ -66,6 +66,15 @@ bool Parser::feed(const QByteArray &bytes)
     return !m_error;
 }
 
+QByteArray Parser::takeRest()
+{
+    const QByteArray rest = m_buffer;
+    m_buffer.clear();
+    // (Not HTTP from here on: a request read now would be a WebSocket frame misread)
+    m_error = m_error ? m_error : 400;
+    return rest;
+}
+
 // One request off the front of what has come, if it is all there
 bool Parser::parseOne()
 {
@@ -134,6 +143,7 @@ bool Parser::parseOne()
 QByteArray reason(int status)
 {
     switch (status) {
+    case 101: return "Switching Protocols";
     case 200: return "OK";
     case 204: return "No Content";
     case 400: return "Bad Request";
@@ -384,6 +394,21 @@ const QList<Route> &routes()
         return made;
     }();
     return all;
+}
+
+bool operates(const Route &route)
+{
+    if (route.method != "GET")
+        return route.pattern != QLatin1String("status/updates");
+    static const QStringList actions {QStringLiteral("trigger"), QStringLiteral("focus"), QStringLiteral("clear"), QStringLiteral("play"),
+                                      QStringLiteral("pause"), QStringLiteral("next"), QStringLiteral("previous"),
+                                      QStringLiteral("go_to_end"), QStringLiteral("auto_advance")};
+    static const QStringList doers {QStringLiteral("clear/layer/{layer}"), QStringLiteral("timers/{operation}"),
+                                    QStringLiteral("timer/{id}/{operation}"), QStringLiteral("timer/{id}/increment/{time}"),
+                                    QStringLiteral("transport/{layer}/skip_forward/{time}"),
+                                    QStringLiteral("transport/{layer}/skip_backward/{time}"),
+                                    QStringLiteral("stage/screen/{id}/layout/{layout_id}")};
+    return actions.contains(route.pattern.section(u'/', -1)) || doers.contains(route.pattern);
 }
 
 namespace {

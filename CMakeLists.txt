@@ -15,6 +15,11 @@ find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Multimedia ShaderTools DBus OpenG
 find_package(Protobuf REQUIRED)
 find_package(Fontconfig REQUIRED)
 find_package(ZLIB REQUIRED)
+# OpenSSL's libcrypto, for ProPresenter Remote's messages, which are AES-256 in CTR mode
+# under a SHA-512/256 key (src/proremote.cpp): Qt has neither. Agreed with the
+# maintainer on 2026-11-13; every Ubuntu has it, and Qt's own network module and the
+# libraries the app plays media with load it already.
+find_package(OpenSSL 3 REQUIRED COMPONENTS Crypto)
 # FFmpeg's libraries, which Qt Multimedia plays video with anyway, are used directly for
 # two things: taking a single frame from a video for its thumbnail (src/videoframe.cpp),
 # and bringing each player's sound to the rate of the device the app mixes for, kept in
@@ -474,6 +479,10 @@ qt_add_qml_module(SimplePresenter
         src/httpapijson.cpp
         src/httpapifiles.h
         src/httpapifiles.cpp
+        src/proremote.h
+        src/proremote.cpp
+        src/dnssd.h
+        src/dnssd.cpp
         src/showstate.h
         src/showstate.cpp
         src/slidenumber.h
@@ -627,7 +636,7 @@ qt_add_shaders(SimplePresenter "shaders"
         shaders/gl-transitions/wipeUp.frag
 )
 
-target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia Qt6::DBus Qt6::OpenGL Qt6::Network proproto Fontconfig::Fontconfig ZLIB::ZLIB
+target_link_libraries(SimplePresenter PRIVATE Qt6::Quick Qt6::Multimedia Qt6::DBus Qt6::OpenGL Qt6::Network proproto Fontconfig::Fontconfig ZLIB::ZLIB OpenSSL::Crypto
                       PkgConfig::FFmpeg PkgConfig::XCB PkgConfig::ALSA)
 # NDI's header files, which say how its library is talked to. They are NDI's, under the
 # MIT licence (each says so at its top); the library itself is not here, and is looked

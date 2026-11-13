@@ -1,6 +1,7 @@
 #pragma once
 
 #include "httpapi.h"
+#include "proremote.h"
 
 #include <QColor>
 #include <QElapsedTimer>
@@ -48,6 +49,23 @@ class QTcpSocket;
 // video's time: a route's `clocked`) is looked at four times a second, while a stream of
 // it is open. With no stream open, changed() does nothing at all, and the window does
 // not call it (HttpApiControl's `following`).
+//
+// ProPresenter Remote (Renewed Vision's phone app; its rules are in proremote.h). With
+// the API listening and the Remote switched on with a controller's or an observer's
+// password, the app advertises itself on the network as ProPresenter does (dnssd.h), and
+// a GET of /v1/ws that asks for a WebSocket is upgraded to one. Each message that comes
+// on it is opened with the passwords' keys (the controller's first), and the first key
+// that opens one is that client's from then on: it is answered by the same routes as an
+// HTTP request, under that key, in the kind of frame it came in. An observer may ask
+// only for what reports the show (httpapi::operates); the rest is answered "403
+// Forbidden" (a GUESS: what ProPresenter answers an observer is not known). A request
+// that streams is one of the client's streams, sent again as the HTTP ones are, with its
+// own url; one for the same url again takes the place of the first, and a client keeps
+// at most mostWatched of them, the oldest let go first (the app's own number: how the
+// Remote ends a stream it no longer wants is not known). Changing the Remote's
+// passwords, or switching it off, lets go of those it no longer lets in.
+class DnsSd;
+
 class HttpApi : public QObject
 {
     Q_OBJECT
@@ -68,6 +86,19 @@ class HttpApi : public QObject
     Q_PROPERTY(QJSValue handler READ handler WRITE setHandler NOTIFY handlerChanged)
     // The port it listens on until another is set (ProPresenter's documentation's)
     Q_PROPERTY(int defaultPort READ defaultPortNumber CONSTANT)
+    // ProPresenter Remote, from the settings: switched on, and its controller's and
+    // observer's passwords, each switched on or not
+    Q_PROPERTY(bool remoteEnabled READ remoteEnabled WRITE setRemoteEnabled NOTIFY settingsChanged)
+    Q_PROPERTY(bool remoteController READ remoteController WRITE setRemoteController NOTIFY settingsChanged)
+    Q_PROPERTY(QString remoteControllerPassword READ remoteControllerPassword WRITE setRemoteControllerPassword NOTIFY settingsChanged)
+    Q_PROPERTY(bool remoteObserver READ remoteObserver WRITE setRemoteObserver NOTIFY settingsChanged)
+    Q_PROPERTY(QString remoteObserverPassword READ remoteObserverPassword WRITE setRemoteObserverPassword NOTIFY settingsChanged)
+    // Whether it is advertised on the network now, under which name, or why it is not;
+    // and how many Remotes are connected
+    Q_PROPERTY(bool remoteAdvertised READ remoteAdvertised NOTIFY statusChanged)
+    Q_PROPERTY(QString remoteName READ remoteName NOTIFY statusChanged)
+    Q_PROPERTY(QString remoteProblem READ remoteProblem NOTIFY statusChanged)
+    Q_PROPERTY(int remotes READ remotes NOTIFY streamsChanged)
 
 public:
     static constexpr int defaultPort = 50001;
@@ -88,6 +119,20 @@ public:
     QJSValue handler() const { return m_handler; }
     int defaultPortNumber() const { return defaultPort; }
     void setHandler(const QJSValue &handler);
+    bool remoteEnabled() const { return m_remoteEnabled; }
+    void setRemoteEnabled(bool on);
+    bool remoteController() const { return m_remoteController; }
+    void setRemoteController(bool on);
+    QString remoteControllerPassword() const { return m_remoteControllerPassword; }
+    void setRemoteControllerPassword(const QString &password);
+    bool remoteObserver() const { return m_remoteObserver; }
+    void setRemoteObserver(bool on);
+    QString remoteObserverPassword() const { return m_remoteObserverPassword; }
+    void setRemoteObserverPassword(const QString &password);
+    bool remoteAdvertised() const;
+    QString remoteName() const;
+    QString remoteProblem() const;
+    int remotes() const;
 
     // Something the API reports may have changed: every open stream is looked at again,
     // once, soon.
@@ -143,11 +188,23 @@ private:
         QVariantMap params;
         QVariantMap query;
         QByteArray last;
+        // A Remote's: the url it was asked with, which each message of it gives back, and
+        // whether it was asked in a binary frame (and so is sent in them)
+        QString echo;
+        bool binary = false;
     };
     struct Client
     {
         QTcpSocket *socket = nullptr;
         httpapi::Parser parser;
+        // A ProPresenter Remote's WebSocket (see above): its frames as they come, the key
+        // its messages open with once one has, whether that is the observer's, and
+        // whether the log has been told of a message that opened with none
+        bool remote = false;
+        proremote::FrameReader frames;
+        QByteArray key;
+        bool observer = false;
+        bool toldUnopened = false;
         // A stream: a chunked GET (one, sent bare) or status/updates ({url, data} each)
         bool streaming = false;
         bool updates = false;
@@ -178,6 +235,15 @@ private:
     Answer evaluate(const httpapi::Route &route, const QVariantMap &params, const QVariantMap &query, const QByteArray &body);
     void fail(const QString &why);
     void updateTicking();
+    // ProPresenter Remote's (see above)
+    bool remoteOpen() const;
+    void settleRemote();
+    void upgrade(Client *client, const httpapi::Request &request);
+    void readRemote(Client *client, const QByteArray &bytes);
+    void heard(Client *client, const proremote::FrameReader::Message &message);
+    void answerRemote(Client *client, const proremote::Request &request, bool binary);
+    void sendRemote(Client *client, const QByteArray &key, const QByteArray &json, bool binary);
+    void closeRemote(Client *client, quint16 code);
 
     bool m_enabled = false;
     int m_port = defaultPort;
@@ -191,4 +257,15 @@ private:
     bool m_full = false;
     bool m_refreshDue = false;
     QTimer m_tick;
+
+    bool m_remoteEnabled = false;
+    bool m_remoteController = false;
+    QString m_remoteControllerPassword;
+    bool m_remoteObserver = false;
+    QString m_remoteObserverPassword;
+    // The keys the passwords make, while their roles are on (empty otherwise)
+    QByteArray m_controllerKey;
+    QByteArray m_observerKey;
+    // Made the first time the Remote is to be advertised
+    DnsSd *m_dnssd = nullptr;
 };

@@ -67,6 +67,12 @@ Rectangle {
     property bool networkEnabled: false
     property string networkName: ""
     property int networkPort: 50001
+    // ProPresenter Remote: on or off, and its controller's and observer's passwords
+    property bool remoteEnabled: false
+    property bool remoteController: true
+    property string remoteControllerPassword: ""
+    property bool remoteObserver: false
+    property string remoteObserverPassword: ""
     // The MIDI Map's commands this app does not do (see MidiControl), greyed on Devices
     property var midiNotHere: []
 
@@ -103,6 +109,11 @@ Rectangle {
     signal networkEnabledEdited(bool on)
     signal networkNameEdited(string name)
     signal networkPortEdited(int port)
+    signal remoteEnabledEdited(bool on)
+    signal remoteControllerEdited(bool on)
+    signal remoteControllerPasswordEdited(string password)
+    signal remoteObserverEdited(bool on)
+    signal remoteObserverPasswordEdited(string password)
     // A label kept ready is to be made (index -1) or changed, in the panel a label is
     // made in; or taken out of the list
     signal labelEdited(int index)
@@ -1954,6 +1965,112 @@ Rectangle {
                         + "as with ProPresenter: there is no password.\n\n"
                         + "Only what this app has is there: much of what ProPresenter offers through it is not. "
                         + "What is there is linked from the README."
+                }
+
+                // ProPresenter Remote, Renewed Vision's app for a phone or a tablet, which
+                // finds the app on the network and works through the API above, under a
+                // password (src/proremote.h). As ProPresenter's settings are described: a
+                // switch, then a controller's password, which may operate the show, and an
+                // observer's, which may only follow it. (GUESSES: the names, the order, and
+                // the controller on and the observer off to begin with.)
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: "#3a3c41"
+                }
+
+                Row {
+                    spacing: 12
+
+                    Rectangle {
+                        objectName: "remoteSwitch"
+                        width: 44
+                        height: 24
+                        radius: 12
+                        color: screen.remoteEnabled ? "#ff8a1f" : "#45484e"
+
+                        Rectangle {
+                            x: screen.remoteEnabled ? parent.width - width - 3 : 3
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 18
+                            height: 18
+                            radius: 9
+                            color: "#e6e6e6"
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: screen.remoteEnabledEdited(!screen.remoteEnabled)
+                        }
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: "#e6e6e6"
+                        font.pixelSize: 15
+                        text: "Enable ProPresenter Remote"
+                    }
+                }
+
+                Repeater {
+                    model: [{ role: "controller", label: "Controller" }, { role: "observer", label: "Observer" }]
+
+                    Row {
+                        id: roleRow
+
+                        required property var modelData
+                        readonly property bool controller: modelData.role === "controller"
+
+                        spacing: 10
+
+                        AppCheck {
+                            objectName: "remote:" + roleRow.modelData.role
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 110
+                            text: roleRow.modelData.label
+                            checked: roleRow.controller ? screen.remoteController : screen.remoteObserver
+                            onToggled: (checked) => roleRow.controller ? screen.remoteControllerEdited(checked)
+                                                                       : screen.remoteObserverEdited(checked)
+                        }
+
+                        AppTextField {
+                            objectName: "remotePassword:" + roleRow.modelData.role
+                            width: 260
+                            height: 30
+                            font.pixelSize: 13
+                            echoMode: TextInput.PasswordEchoOnEdit
+                            placeholderText: "Password"
+                            text: roleRow.controller ? screen.remoteControllerPassword : screen.remoteObserverPassword
+                            onEditingFinished: roleRow.controller ? screen.remoteControllerPasswordEdited(text)
+                                                                  : screen.remoteObserverPasswordEdited(text)
+                        }
+                    }
+                }
+
+                Text {
+                    objectName: "remoteStatus"
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    color: HttpApi.remoteProblem !== "" ? "#ff8a80" : "#e6e6e6"
+                    font.pixelSize: 13
+                    text: !screen.remoteEnabled ? "Off."
+                        : !screen.remoteController && !screen.remoteObserver ? "Off: neither the controller nor the observer is on."
+                        : !HttpApi.listening ? "Waiting for the network above to be on."
+                        : HttpApi.remoteProblem !== "" ? "Not found on the network by itself: " + HttpApi.remoteProblem
+                          + ". A Remote can still be given this computer's address."
+                        : (HttpApi.remoteAdvertised ? "On the network as \u201c" + HttpApi.remoteName + "\u201d." : "Being put on the network.")
+                          + (HttpApi.remotes > 0 ? " " + HttpApi.remotes + (HttpApi.remotes === 1 ? " Remote is" : " Remotes are") + " connected." : "")
+                }
+
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    color: "#9a9da3"
+                    font.pixelSize: 13
+                    text: "ProPresenter Remote, Renewed Vision's app for a phone or a tablet, finds this computer on the "
+                        + "network by the Network Name above, as it finds ProPresenter, and works the show through the API. "
+                        + "It asks for a password: the controller's lets it operate the show, the observer's only follow it. "
+                        + "The passwords are kept with this computer's settings, as ProPresenter keeps its own."
                 }
             }
         }

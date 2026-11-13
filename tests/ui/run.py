@@ -3982,6 +3982,7 @@ TESTS = {
     "paced": test("Demo", timeout=180),
     "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
+    "proremote": test("Demo"),
     "quickedit": test("Act"),
     "builds": test("Demo", timeout=300, prepare=prepare_builds, after=after_builds),
     "themebuilds": test("Act", timeout=240),

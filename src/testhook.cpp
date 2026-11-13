@@ -3,6 +3,7 @@
 #include "benchmark.h"
 #include "decklink.h"
 #include "ndi.h"
+#include "proremote.h"
 #include "richtext.h"
 #include "textlayout.h"
 #include "zipreader.h"
@@ -574,6 +575,42 @@ public:
     {
         const QTcpSocket *socket = m_http.value(id);
         return socket && socket->state() == QAbstractSocket::ConnectedState;
+    }
+    // More bytes on a connection httpSend opened, a character for each byte
+    Q_INVOKABLE void httpWrite(int id, const QString &latin1)
+    {
+        if (QTcpSocket *socket = m_http.value(id))
+            socket->write(latin1.toLatin1());
+    }
+    // ProPresenter Remote, played by a script (src/proremote.h): a message sealed under a
+    // password in a frame as a client sends it (masked), text (base64) or binary; and
+    // the frames that came back after the 101 of the WebSocket's handshake, each
+    // {opcode, text}: a text's or binary's message opened under the password, a control
+    // frame's payload as hex
+    Q_INVOKABLE QString remoteFrame(const QString &password, const QString &json, bool binary)
+    {
+        const QByteArray sealed = proremote::seal(proremote::key(password), json.toUtf8());
+        return QString::fromLatin1(proremote::frame(binary ? proremote::Binary : proremote::Text, binary ? sealed : sealed.toBase64(),
+                                                    QByteArray::fromHex("5a3c96e1")));
+    }
+    Q_INVOKABLE QVariantList remoteMessages(const QString &password, const QString &received)
+    {
+        const QByteArray bytes = received.toLatin1();
+        const qsizetype head = bytes.indexOf("\r\n\r\n");
+        QVariantList made;
+        if (head < 0)
+            return made;
+        proremote::FrameReader reader;
+        reader.feed(bytes.mid(head + 4));
+        while (reader.hasMessage()) {
+            const proremote::FrameReader::Message message = reader.take();
+            const bool data = message.opcode == proremote::Text || message.opcode == proremote::Binary;
+            const QByteArray sealed = message.opcode == proremote::Text ? QByteArray::fromBase64(message.payload) : message.payload;
+            made.append(QVariantMap {{"opcode", int(message.opcode)},
+                                     {"text", data ? QString::fromUtf8(proremote::open(proremote::key(password), sealed))
+                                                   : QString::fromLatin1(message.payload.toHex())}});
+        }
+        return made;
     }
     Q_INVOKABLE void httpClose(int id)
     {

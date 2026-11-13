@@ -552,6 +552,14 @@ Window {
     property bool networkEnabled: false
     property string networkName: ""
     property int networkPort: HttpApi.defaultPort
+    // ProPresenter Remote, through that API (src/proremote.h): on or off, and its
+    // controller's and observer's passwords, each on or off. This computer's, kept with
+    // the app's own settings, as ProPresenter keeps its own in its preferences.
+    property bool remoteEnabled: false
+    property bool remoteController: true
+    property string remoteControllerPassword: ""
+    property bool remoteObserver: false
+    property string remoteObserverPassword: ""
     // Whether the pane at the right is there, in its place or on its way
     readonly property bool sidePanelShown: chromeShown || simpleKeepsSidePanel
     // How far the panes round the slides are in their places: 1 when they are, 0 when
@@ -5206,6 +5214,11 @@ Window {
         networkPort = Number(saved("networkPort", HttpApi.defaultPort)) || HttpApi.defaultPort
         networkName = String(saved("networkName", ""))
         networkEnabled = String(saved("networkEnabled", false)) === "true"
+        remoteEnabled = String(saved("remoteEnabled", false)) === "true"
+        remoteController = String(saved("remoteController", true)) === "true"
+        remoteControllerPassword = String(saved("remoteControllerPassword", ""))
+        remoteObserver = String(saved("remoteObserver", false)) === "true"
+        remoteObserverPassword = String(saved("remoteObserverPassword", ""))
         // By name, so the choice survives transitions being added or reordered.
         selectTransition(String(saved("transition", "")))
         try {
@@ -5443,6 +5456,11 @@ Window {
     onNetworkEnabledChanged: save("networkEnabled", networkEnabled)
     onNetworkNameChanged: save("networkName", networkName)
     onNetworkPortChanged: save("networkPort", networkPort)
+    onRemoteEnabledChanged: save("remoteEnabled", remoteEnabled)
+    onRemoteControllerChanged: save("remoteController", remoteController)
+    onRemoteControllerPasswordChanged: save("remoteControllerPassword", remoteControllerPassword)
+    onRemoteObserverChanged: save("remoteObserver", remoteObserver)
+    onRemoteObserverPasswordChanged: save("remoteObserverPassword", remoteObserverPassword)
     onSimpleChanged: {
         if (simple)
             simpleToggle.announce()
@@ -7379,6 +7397,16 @@ Window {
         onNetworkEnabledEdited: (on) => win.networkEnabled = on
         onNetworkNameEdited: (name) => win.networkName = name
         onNetworkPortEdited: (port) => win.networkPort = port
+        remoteEnabled: win.remoteEnabled
+        remoteController: win.remoteController
+        remoteControllerPassword: win.remoteControllerPassword
+        remoteObserver: win.remoteObserver
+        remoteObserverPassword: win.remoteObserverPassword
+        onRemoteEnabledEdited: (on) => win.remoteEnabled = on
+        onRemoteControllerEdited: (on) => win.remoteController = on
+        onRemoteControllerPasswordEdited: (password) => win.remoteControllerPassword = password
+        onRemoteObserverEdited: (on) => win.remoteObserver = on
+        onRemoteObserverPasswordEdited: (password) => win.remoteObserverPassword = password
         onLabelEdited: (index) => win.editLabelPreset(index)
         onLabelRemoved: (index) => win.report(Labels.remove(index))
         senders: win.senders
@@ -7406,6 +7434,32 @@ Window {
         target: HttpApi
         property: "enabled"
         value: win.networkEnabled
+    }
+    // ProPresenter Remote's, through the API
+    Binding {
+        target: HttpApi
+        property: "remoteEnabled"
+        value: win.remoteEnabled
+    }
+    Binding {
+        target: HttpApi
+        property: "remoteController"
+        value: win.remoteController
+    }
+    Binding {
+        target: HttpApi
+        property: "remoteControllerPassword"
+        value: win.remoteControllerPassword
+    }
+    Binding {
+        target: HttpApi
+        property: "remoteObserver"
+        value: win.remoteObserver
+    }
+    Binding {
+        target: HttpApi
+        property: "remoteObserverPassword"
+        value: win.remoteObserverPassword
     }
     Loader {
         active: HttpApi.listening

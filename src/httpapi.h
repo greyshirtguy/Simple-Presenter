@@ -82,6 +82,10 @@ public:
     bool hasRequest() const { return !m_ready.isEmpty(); }
     Request take() { return m_ready.takeFirst(); }
     int error() const { return m_error; }
+    // What has come after the requests taken, which is not HTTP once a request has
+    // turned the connection into something else (a WebSocket, see proremote.h): taken
+    // away, and nothing more is read
+    QByteArray takeRest();
 
 private:
     bool parseOne();
@@ -123,6 +127,13 @@ struct Route
 
 // Every route answered (anything else is 404)
 const QList<Route> &routes();
+// Whether a route operates the show (triggers, focuses, clears, plays, sets) rather than
+// only reporting it: what ProPresenter Remote's observer may not ask for (see
+// proremote.h). Every PUT, POST and DELETE does but status/updates, and the GETs whose
+// last word is an action (trigger, focus, clear, play, pause, next, previous, go_to_end,
+// auto_advance) or that do one (clear/layer/{layer}, a timer's operations, a skip, a
+// stage screen given a layout).
+bool operates(const Route &route);
 
 struct Match
 {

@@ -196,6 +196,39 @@ private slots:
         QCOMPARE(resolve(items, QString()), -1);
         QCOMPARE(resolve(items, QStringLiteral("00000000-0000-0000-0000-000000000000")), -1);
     }
+
+    // What ProPresenter Remote's observer may ask for: what reports the show, and not
+    // what operates it (each press the Remote was seen to send, 2026-11-13, operates)
+    void whatOperatesTheShow()
+    {
+        const auto routeOf = [](const QByteArray &method, const QString &path) {
+            const Match found = match(method, path);
+            return found ? *found.route : Route {};
+        };
+        for (const QString &path : {QStringLiteral("/v1/presentation/active/2/trigger"), QStringLiteral("/v1/presentation/FEDBF5FB/4/trigger"),
+                                    QStringLiteral("/v1/playlist/A1B2/10/4/trigger"), QStringLiteral("/v1/macro/C3D4/trigger"),
+                                    QStringLiteral("/v1/look/2/trigger"), QStringLiteral("/v1/timer/E5F6/start"),
+                                    QStringLiteral("/v1/timer/E5F6/increment/30"), QStringLiteral("/v1/timers/reset"),
+                                    QStringLiteral("/v1/stage/screen/1/layout/2"), QStringLiteral("/v1/clear/layer/media"),
+                                    QStringLiteral("/v1/clear/group/1/trigger"), QStringLiteral("/v1/prop/1/clear"),
+                                    QStringLiteral("/v1/playlist/focused/next"), QStringLiteral("/v1/presentation/next/focus"),
+                                    QStringLiteral("/v1/transport/presentation/play"), QStringLiteral("/v1/transport/audio/skip_forward/5"),
+                                    QStringLiteral("/v1/trigger/next")})
+            QVERIFY2(operates(routeOf("GET", path)), qPrintable(path));
+        QVERIFY(operates(routeOf("PUT", QStringLiteral("/v1/stage/message"))));
+        QVERIFY(operates(routeOf("DELETE", QStringLiteral("/v1/stage/message"))));
+        QVERIFY(operates(routeOf("POST", QStringLiteral("/v1/message/1/trigger"))));
+        for (const QString &path : {QStringLiteral("/version"), QStringLiteral("/v1/presentation/FEDBF5FB"), QStringLiteral("/v1/playlist/A1B2"),
+                                    QStringLiteral("/v1/library/L1"), QStringLiteral("/v1/clear/groups"), QStringLiteral("/v1/clear/group/1"),
+                                    QStringLiteral("/v1/stage/screen/1/layout"), QStringLiteral("/v1/timers/current"),
+                                    QStringLiteral("/v1/macro_collections"), QStringLiteral("/v1/audio/playlist/A1B2"),
+                                    QStringLiteral("/v1/transport/audio/current"), QStringLiteral("/v1/presentation/active/timeline")})
+            QVERIFY2(!operates(routeOf("GET", path)), qPrintable(path));
+        QVERIFY(!operates(routeOf("POST", QStringLiteral("/v1/status/updates"))));
+        // Every stream only reports
+        for (const Route &route : routes())
+            QVERIFY2(!route.streams || !operates(route), qPrintable(route.pattern));
+    }
 };
 
 QTEST_APPLESS_MAIN(TestHttpApi)

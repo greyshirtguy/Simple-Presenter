@@ -1,5 +1,6 @@
 #include "httpapiserver.h"
 
+#include "dnssd.h"
 #include "httpapifiles.h"
 #include "httpapijson.h"
 #include "sessionlog.h"
@@ -37,6 +38,15 @@ constexpr qint64 mostUnsent = 8 * 1024 * 1024;
 // requests and one for its stream, and makes them again if they are closed.)
 constexpr int mostClients = 64;
 constexpr int quietLimit = 120 * 1000;
+// How many streams one ProPresenter Remote keeps (see httpapiserver.h): the app's own
+// number, some four times what the Remote asks for on connecting
+constexpr int mostWatched = 100;
+
+// A status as ProPresenter gives it in a Remote's error ("404 Not Found")
+QByteArray statusText(int status)
+{
+    return QByteArray::number(status) + ' ' + httpapi::reason(status);
+}
 
 }
 
@@ -77,6 +87,7 @@ void HttpApi::setName(const QString &name)
     m_name = name;
     emit settingsChanged();
     changed();
+    settleRemote();
 }
 
 bool HttpApi::listening() const
@@ -88,7 +99,7 @@ int HttpApi::streams() const
 {
     int count = 0;
     for (const Client *client : m_clients)
-        count += client->streaming ? 1 : 0;
+        count += client->streaming || (client->remote && !client->watched.isEmpty()) ? 1 : 0;
     return count;
 }
 
@@ -290,6 +301,7 @@ void HttpApi::listen()
     SessionLog::write("network", QStringLiteral("the API is listening on port %1, at %2").arg(m_port)
                                      .arg(m_addresses.isEmpty() ? QStringLiteral("no address on a network") : m_addresses.join(QStringLiteral(", "))));
     emit statusChanged();
+    settleRemote();
 }
 
 void HttpApi::stopListening()
@@ -308,6 +320,7 @@ void HttpApi::stopListening()
         m_problem.clear();
         emit statusChanged();
     }
+    settleRemote();
 }
 
 void HttpApi::fail(const QString &why)
@@ -344,7 +357,7 @@ void HttpApi::accept()
         client->quiet->setSingleShot(true);
         client->quiet->setInterval(quietLimit);
         connect(client->quiet, &QTimer::timeout, this, [this, client] {
-            if (m_clients.contains(client) && !client->streaming)
+            if (m_clients.contains(client) && !client->streaming && !client->remote)
                 drop(client);
         });
         client->quiet->start();
@@ -354,12 +367,14 @@ void HttpApi::accept()
 void HttpApi::drop(Client *client)
 {
     m_clients.removeAll(client);
-    const bool streamed = client->streaming;
+    const bool streamed = client->streaming || client->remote;
     const QString peer = peerOf(client->socket);
     client->socket->disconnect(this);
     client->socket->abort();
     client->socket->deleteLater();
-    if (streamed)
+    if (client->remote)
+        SessionLog::write("network", QStringLiteral("ProPresenter Remote at %1 has gone").arg(peer));
+    else if (streamed)
         SessionLog::write("network", QStringLiteral("a stream to %1 has ended").arg(peer));
     delete client;
     m_full = false;
@@ -371,6 +386,10 @@ void HttpApi::drop(Client *client)
 
 void HttpApi::readFrom(Client *client)
 {
+    if (client->remote) {
+        readRemote(client, client->socket->readAll());
+        return;
+    }
     // (A stream keeps the connection: anything sent after it is not for the API, and is not
     // kept either. It was read as requests and kept, every one, for as long as the stream
     // lasted: a client that went on sending had the app hold all of it.)
@@ -402,6 +421,17 @@ void HttpApi::respond(Client *client, const httpapi::Request &request)
         headers.emplaceBack("content-length", "0");
         headers.emplaceBack("date", httpapi::httpDate(QDateTime::currentDateTimeUtc()));
         client->socket->write(httpapi::head(200, headers));
+        return;
+    }
+    // ProPresenter Remote's WebSocket, while the Remote is on; otherwise a path like any
+    // other the API has not (a GUESS at what ProPresenter does with the Remote off)
+    if (request.path == QLatin1String("/v1/ws") && request.method == "GET") {
+        const proremote::Upgrade asked {request.headers.value("upgrade"), request.headers.value("connection"),
+                                        request.headers.value("sec-websocket-key"), request.headers.value("sec-websocket-version")};
+        if (remoteOpen() && proremote::isUpgrade(asked))
+            upgrade(client, request);
+        else
+            send(client, request, remoteOpen() ? 400 : 404);
         return;
     }
     const httpapi::Match found = httpapi::match(request.method, request.path);
@@ -511,6 +541,10 @@ void HttpApi::refresh(Client *client, bool clockedOnly)
         if (data == one.last)
             continue;
         one.last = data;
+        if (client->remote) {
+            sendRemote(client, client->key, proremote::answer(one.echo, data), one.binary);
+            continue;
+        }
         // ({"url": ..., "data": ...} in that order, as ProPresenter writes it)
         const QByteArray body = client->updates ? "{\"url\":" + httpapi::json(one.path, false) + ",\"data\":" + data + "}\r\n\r\n"
                                                 : data + "\r\n\r\n";
@@ -526,7 +560,7 @@ void HttpApi::refreshAll(bool clockedOnly)
 {
     const QList<Client *> clients = m_clients;
     for (Client *client : clients) {
-        if (client->streaming && m_clients.contains(client))
+        if ((client->streaming || client->remote) && m_clients.contains(client))
             refresh(client, clockedOnly);
     }
 }
@@ -581,4 +615,276 @@ HttpApi::Answer HttpApi::evaluate(const httpapi::Route &route, const QVariantMap
     if (!result.isObject())
         return {404, {}};
     return {result.property(QStringLiteral("status")).toInt(), result.property(QStringLiteral("data")).toVariant()};
+}
+
+// ProPresenter Remote (see httpapiserver.h and proremote.h)
+
+void HttpApi::setRemoteEnabled(bool on)
+{
+    if (m_remoteEnabled == on)
+        return;
+    m_remoteEnabled = on;
+    emit settingsChanged();
+    settleRemote();
+}
+
+void HttpApi::setRemoteController(bool on)
+{
+    if (m_remoteController == on)
+        return;
+    m_remoteController = on;
+    emit settingsChanged();
+    settleRemote();
+}
+
+void HttpApi::setRemoteControllerPassword(const QString &password)
+{
+    if (m_remoteControllerPassword == password)
+        return;
+    m_remoteControllerPassword = password;
+    emit settingsChanged();
+    settleRemote();
+}
+
+void HttpApi::setRemoteObserver(bool on)
+{
+    if (m_remoteObserver == on)
+        return;
+    m_remoteObserver = on;
+    emit settingsChanged();
+    settleRemote();
+}
+
+void HttpApi::setRemoteObserverPassword(const QString &password)
+{
+    if (m_remoteObserverPassword == password)
+        return;
+    m_remoteObserverPassword = password;
+    emit settingsChanged();
+    settleRemote();
+}
+
+bool HttpApi::remoteOpen() const
+{
+    return m_remoteEnabled && (m_remoteController || m_remoteObserver);
+}
+
+bool HttpApi::remoteAdvertised() const
+{
+    return m_dnssd && m_dnssd->advertised();
+}
+
+QString HttpApi::remoteName() const
+{
+    return m_dnssd ? m_dnssd->nameInUse() : QString();
+}
+
+QString HttpApi::remoteProblem() const
+{
+    return m_dnssd ? m_dnssd->problem() : QString();
+}
+
+int HttpApi::remotes() const
+{
+    int count = 0;
+    for (const Client *client : m_clients)
+        count += client->remote ? 1 : 0;
+    return count;
+}
+
+// The Remote brought to the settings: the keys its passwords make, the Remotes connected
+// let go of if their password no longer lets them in, and the advertisement on the
+// network there while the API listens and the Remote is on, and gone otherwise
+void HttpApi::settleRemote()
+{
+    m_controllerKey = remoteOpen() && m_remoteController ? proremote::key(m_remoteControllerPassword) : QByteArray();
+    m_observerKey = remoteOpen() && m_remoteObserver ? proremote::key(m_remoteObserverPassword) : QByteArray();
+    const QList<Client *> clients = m_clients;
+    for (Client *client : clients) {
+        if (!client->remote || !m_clients.contains(client))
+            continue;
+        const bool stillIn = remoteOpen()
+                             && (client->key.isEmpty() || (client->observer ? client->key == m_observerKey && client->key != m_controllerKey
+                                                                            : client->key == m_controllerKey));
+        if (!stillIn)
+            closeRemote(client, 1008);
+    }
+
+    const bool wanted = listening() && remoteOpen();
+    if (wanted && !m_dnssd) {
+        m_dnssd = new DnsSd(this);
+        connect(m_dnssd, &DnsSd::stateChanged, this, &HttpApi::statusChanged);
+    }
+    if (m_dnssd)
+        m_dnssd->advertise(wanted ? DnsSd::Service {m_name.isEmpty() ? computerName() : m_name, QStringLiteral("_proapiv1ws._tcp"), m_port,
+                                                    {QByteArrayLiteral("path=/v1/ws")}}
+                                  : DnsSd::Service {});
+}
+
+// The HTTP request turned into a WebSocket, and the answer to /version sent at once
+// under each password that is on (the controller's first), as ProPresenter sends it under
+// its one, so that the Remote can tell whether its password opens it. (Two of them, with
+// both on, is a GUESS: ProPresenter's with an observer's password has not been seen.)
+void HttpApi::upgrade(Client *client, const httpapi::Request &request)
+{
+    httpapi::Headers headers {{"connection", "upgrade"}, {"upgrade", "websocket"}};
+    headers += httpapi::common(request);
+    headers.emplaceBack("sec-websocket-accept", proremote::acceptKey(request.headers.value("sec-websocket-key")));
+    headers.emplaceBack("date", httpapi::httpDate(QDateTime::currentDateTimeUtc()));
+    client->socket->write(httpapi::head(101, headers));
+    client->remote = true;
+    client->quiet->stop();
+    const QByteArray rest = client->parser.takeRest();
+    SessionLog::write("network", QStringLiteral("ProPresenter Remote has connected from %1").arg(peerOf(client->socket)));
+
+    const httpapi::Match version = httpapi::match("GET", QStringLiteral("/version"));
+    const QByteArray welcome = proremote::answer(QStringLiteral("version"), httpapi::json(evaluate(*version.route, {}, {}, {}).data, false));
+    for (const QByteArray &key : {m_controllerKey, m_observerKey}) {
+        if (!key.isEmpty())
+            sendRemote(client, key, welcome, false);
+    }
+    emit streamsChanged();
+    if (!rest.isEmpty())
+        readRemote(client, rest);
+}
+
+void HttpApi::readRemote(Client *client, const QByteArray &bytes)
+{
+    if (!client->frames.feed(bytes)) {
+        SessionLog::write("network", QStringLiteral("ProPresenter Remote at %1 sent what is not a WebSocket's frames: let go of").arg(peerOf(client->socket)));
+        closeRemote(client, quint16(client->frames.error()));
+        return;
+    }
+    while (client->frames.hasMessage() && m_clients.contains(client)) {
+        const proremote::FrameReader::Message message = client->frames.take();
+        if (message.opcode == proremote::Ping) {
+            client->socket->write(proremote::frame(proremote::Pong, message.payload));
+        } else if (message.opcode == proremote::Close) {
+            // (Answered with a close of its own, empty, as ProPresenter answers it)
+            client->socket->write(proremote::frame(proremote::Close, {}));
+            client->socket->disconnectFromHost();
+            return;
+        } else if (message.opcode == proremote::Text || message.opcode == proremote::Binary) {
+            heard(client, message);
+        }
+    }
+    if (m_clients.contains(client) && client->socket->bytesToWrite() > mostUnsent) {
+        SessionLog::write("network", QStringLiteral("ProPresenter Remote at %1 is not reading its answers: let go of").arg(peerOf(client->socket)));
+        drop(client);
+    }
+}
+
+// A message: opened with the client's key once it has one, and until then with each
+// password's in turn, the controller's first. One that opens with none is not answered,
+// as ProPresenter answers none (the log says so once for each client).
+void HttpApi::heard(Client *client, const proremote::FrameReader::Message &message)
+{
+    const bool binary = message.opcode == proremote::Binary;
+    const QByteArray sealed = binary ? message.payload : QByteArray::fromBase64(message.payload);
+    QList<std::pair<QByteArray, bool>> keys;
+    if (!client->key.isEmpty())
+        keys.append({client->key, client->observer});
+    else {
+        if (!m_controllerKey.isEmpty())
+            keys.append({m_controllerKey, false});
+        if (!m_observerKey.isEmpty())
+            keys.append({m_observerKey, true});
+    }
+    for (const auto &[key, observer] : std::as_const(keys)) {
+        proremote::Request request;
+        if (!proremote::read(proremote::open(key, sealed), &request))
+            continue;
+        if (client->key.isEmpty()) {
+            client->key = key;
+            client->observer = observer;
+            SessionLog::write("network", QStringLiteral("ProPresenter Remote at %1 is in, as %2")
+                                             .arg(peerOf(client->socket), observer ? QStringLiteral("an observer") : QStringLiteral("a controller")));
+        }
+        answerRemote(client, request, binary);
+        return;
+    }
+    if (!client->toldUnopened) {
+        client->toldUnopened = true;
+        SessionLog::write("network", QStringLiteral("ProPresenter Remote at %1 sent a message that does not open with the Remote's passwords: "
+                                                    "it is not answered (a password that is not the one set?)").arg(peerOf(client->socket)));
+    }
+}
+
+// A message answered by the HTTP API's routes, as its request would be, and the answer
+// sent back with the url it was asked with
+void HttpApi::answerRemote(Client *client, const proremote::Request &request, bool binary)
+{
+    const auto reply = [&](const QByteArray &json) { sendRemote(client, client->key, json, binary); };
+    const httpapi::Match found = request.url.isEmpty() ? httpapi::Match {} : httpapi::match(request.method, request.path);
+    if (!found || found.route->pattern == QLatin1String("status/updates")) {
+        reply(proremote::failure(request.url, statusText(request.url.isEmpty() ? 400 : 404)));
+        return;
+    }
+    const httpapi::Route &route = *found.route;
+    if (client->observer && httpapi::operates(route)) {
+        SessionLog::write("network", QStringLiteral("ProPresenter Remote at %1, an observer, may not %2 %3").arg(peerOf(client->socket), QString::fromLatin1(request.method), request.path));
+        reply(proremote::failure(request.url, statusText(403)));
+        return;
+    }
+    QVariantMap query;
+    for (const auto &[key, value] : request.query)
+        query.insert(key, value);
+
+    if (request.chunked) {
+        // (Only what streams streams: anything else asked for so is refused, as
+        // ProPresenter refuses libraries asked for so, with 400; but what is not there at
+        // all is 404 first, as ProPresenter answers the Remote's own macro/collections.
+        // What operates is never run to find that out.)
+        if (!route.streams) {
+            const bool absent = !httpapi::operates(route) && evaluate(route, found.params, query, request.body).status == 404;
+            reply(proremote::failure(request.url, statusText(absent ? 404 : 400)));
+            return;
+        }
+        const Answer first = evaluate(route, found.params, query, request.body);
+        if (first.status != 200) {
+            reply(proremote::failure(request.url, statusText(first.status)));
+            return;
+        }
+        const QByteArray data = httpapi::json(first.data, false);
+        const bool wasStreaming = !client->watched.isEmpty();
+        client->watched.removeIf([&request](const Watched &one) { return one.echo == request.url; });
+        while (client->watched.size() >= mostWatched)
+            client->watched.removeFirst();
+        Watched made {request.path, &route, found.params, query, data};
+        made.echo = request.url;
+        made.binary = binary;
+        client->watched.append(made);
+        reply(proremote::answer(request.url, data));
+        if (!wasStreaming)
+            emit streamsChanged();
+        updateTicking();
+        return;
+    }
+    const Answer answer = evaluate(route, found.params, query, request.body);
+    // (What operates the show is in the log, with who asked, as the HTTP API's is)
+    if (httpapi::operates(route))
+        SessionLog::write("network", QStringLiteral("%1 %2 from ProPresenter Remote at %3: %4")
+                                         .arg(QString::fromLatin1(request.method), request.path, peerOf(client->socket)).arg(answer.status));
+    if (answer.status == 200)
+        reply(proremote::answer(request.url, httpapi::json(answer.data, false)));
+    else if (answer.status != 204)
+        reply(proremote::failure(request.url, statusText(answer.status)));
+}
+
+void HttpApi::sendRemote(Client *client, const QByteArray &key, const QByteArray &json, bool binary)
+{
+    const QByteArray sealed = proremote::seal(key, json);
+    client->socket->write(proremote::frame(binary ? proremote::Binary : proremote::Text, binary ? sealed : sealed.toBase64()));
+}
+
+// A Remote let go of with a close frame first, saying why (RFC 6455's codes: 1002 what
+// it sent was not frames, 1008 its password no longer lets it in, 1009 too big)
+void HttpApi::closeRemote(Client *client, quint16 code)
+{
+    QByteArray payload;
+    payload.append(char(code >> 8));
+    payload.append(char(code & 0xff));
+    client->socket->write(proremote::frame(proremote::Close, payload));
+    client->socket->flush();
+    drop(client);
 }

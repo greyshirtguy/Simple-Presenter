@@ -105,6 +105,15 @@ target_include_directories(tst_httpapi PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_httpapi PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME httpapi COMMAND tst_httpapi)
 
+qt_add_executable(tst_proremote
+    tst_proremote.cpp
+    ${PROJECT_SOURCE_DIR}/src/proremote.h
+    ${PROJECT_SOURCE_DIR}/src/proremote.cpp
+)
+target_include_directories(tst_proremote PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_proremote PRIVATE Qt6::Core Qt6::Test OpenSSL::Crypto)
+add_test(NAME proremote COMMAND tst_proremote)
+
 qt_add_executable(tst_httpapijson
     tst_httpapijson.cpp
     ${PROJECT_SOURCE_DIR}/src/httpapijson.h
