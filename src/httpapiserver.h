@@ -64,7 +64,17 @@ class QTcpSocket;
 // at most mostWatched of them, the oldest let go first (the app's own number: how the
 // Remote ends a stream it no longer wants is not known). Changing the Remote's
 // passwords, or switching it off, lets go of those it no longer lets in.
+//
+// Pictures of slides (a route's `picture`: slidepictures.h). The window's handler says of
+// which presentation's file, in which arrangement, and which cue; the picture is drawn by
+// a process of its own (slidepictureservice.h), so that nothing of it is done on this
+// thread but the asking and the sending, and the request is answered when it comes. While
+// it waits, the requests a client sends after it wait too (HTTP answers a connection's
+// requests in turn); the Remote fetches its pictures over several connections at once. A
+// Remote that asks for one over its WebSocket is answered 404, as a GUESS: it was seen
+// to fetch them by HTTP only.
 class DnsSd;
+class SlidePictureService;
 
 class HttpApi : public QObject
 {
@@ -99,6 +109,9 @@ class HttpApi : public QObject
     Q_PROPERTY(QString remoteName READ remoteName NOTIFY statusChanged)
     Q_PROPERTY(QString remoteProblem READ remoteProblem NOTIFY statusChanged)
     Q_PROPERTY(int remotes READ remotes NOTIFY streamsChanged)
+    // Whether the process that draws pictures of slides is running (see
+    // slidepictureservice.h), for the window to hold it still while the show changes
+    Q_PROPERTY(bool drawingPictures READ drawingPictures NOTIFY picturesChanged)
 
 public:
     static constexpr int defaultPort = 50001;
@@ -133,12 +146,16 @@ public:
     QString remoteName() const;
     QString remoteProblem() const;
     int remotes() const;
+    bool drawingPictures() const;
 
     // Something the API reports may have changed: every open stream is looked at again,
     // once, soon.
     Q_INVOKABLE void changed();
     // The computer's name, which the Network Name is until one is set
     Q_INVOKABLE QString computerName() const;
+    // The process drawing pictures of slides held still for the next `ms` milliseconds,
+    // while the show changes (see slidepictureservice.h); nothing if there is none
+    Q_INVOKABLE void holdPictures(int ms);
 
     // The answers' shapes, for the window (see httpapijson.h and httpapifiles.h)
     Q_INVOKABLE QVariantMap id(const QString &uuid, const QString &name, double index) const;
@@ -159,7 +176,6 @@ public:
     Q_INVOKABLE QVariantList playlistItems(const QVariantList &rows) const;
     Q_INVOKABLE QVariantMap playlistItem(const QVariantMap &row, int index) const;
     Q_INVOKABLE QString presentationUuid(const QString &path) const;
-    Q_INVOKABLE QString findPresentation(const QString &uuid, const QStringList &files) const;
     Q_INVOKABLE QVariantMap timer(const QVariantMap &timer, int index) const;
     Q_INVOKABLE QVariantMap timerCurrent(const QVariantMap &timer, const QVariantMap &state, int index) const;
     // { changes, error }, from httpapijson::timerChanges
@@ -178,6 +194,7 @@ signals:
     void statusChanged();
     void streamsChanged();
     void handlerChanged();
+    void picturesChanged();
 
 private:
     // What a stream follows: a path asked for, as its route, and what was last sent of it
@@ -197,6 +214,10 @@ private:
     {
         QTcpSocket *socket = nullptr;
         httpapi::Parser parser;
+        // Which client it is, for an answer that comes later to find it by (a pointer may
+        // be another client's by then); and whether it is waiting for a picture
+        quint64 serial = 0;
+        bool waiting = false;
         // A ProPresenter Remote's WebSocket (see above): its frames as they come, the key
         // its messages open with once one has, whether that is the observer's, and
         // whether the log has been told of a message that opened with none
@@ -244,6 +265,11 @@ private:
     void answerRemote(Client *client, const proremote::Request &request, bool binary);
     void sendRemote(Client *client, const QByteArray &key, const QByteArray &json, bool binary);
     void closeRemote(Client *client, quint16 code);
+    // Pictures of slides (see above)
+    void answerPicture(Client *client, const httpapi::Request &request, const httpapi::Route &route, const QVariantMap &params,
+                       const QVariantMap &query);
+    void respondQueued(Client *client);
+    Client *clientOf(quint64 serial) const;
 
     bool m_enabled = false;
     int m_port = defaultPort;
@@ -268,4 +294,7 @@ private:
     QByteArray m_observerKey;
     // Made the first time the Remote is to be advertised
     DnsSd *m_dnssd = nullptr;
+    // Made the first time a picture of a slide is asked for
+    SlidePictureService *m_pictures = nullptr;
+    quint64 m_lastSerial = 0;
 };

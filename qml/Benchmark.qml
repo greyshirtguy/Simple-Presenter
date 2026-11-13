@@ -208,6 +208,30 @@ QtObject {
         return documents.find(d => d.name === name)
     }
 
+    // Pictures of a presentation's slides asked of the app's own API, as ProPresenter
+    // Remote asks for them as it is looked through: four at a time, each as the one before
+    // comes, by sockets as a phone's come (see Benchmark::askPictures); each round of the
+    // slides another size, so that every picture is drawn (see src/slidepictureworker.h).
+    property bool askingPictures: false
+
+    function startPictures(name) {
+        const entry = presentation(name)
+        if (!entry)
+            return
+        networkPort = 50190
+        networkEnabled = true
+        bench.askPictures(networkPort, HttpApi.presentationUuid(entry.file), catalog.open(entry.file).slides.length, 4)
+        askingPictures = true
+    }
+
+    function stopPictures(label) {
+        if (!askingPictures)
+            return
+        askingPictures = false
+        bench.record(label + ": pictures of slides made a second", bench.stopPictures(), "fps")
+        networkEnabled = false
+    }
+
     // The slides' grid put at its beginning, for a run of slides shown from the first, as
     // every run has had it: a presentation that is live is opened where its live slide is
     // (see SlideGrid.showOpened), and the runs through Words for the stage preview open it
@@ -632,6 +656,25 @@ QtObject {
                     })
                 }
                 changing("Video", "video, " + stageName + ", slides changed", 10)
+                // The same, while pictures of the slides of Shapes are made for the API, as
+                // for ProPresenter Remote (see startPictures): first the video playing as
+                // they are made, the process that makes them starting in it; then the
+                // slides changed as they go on being made
+                jobs.push(() => {
+                    startPictures("Shapes")
+                    next()
+                })
+                playing("video, " + stageName + ", pictures of slides being made", 8)
+                changing("Video", "video, " + stageName + ", slides changed while pictures of slides are made", 10)
+                jobs.push(() => {
+                    stopPictures("video, " + stageName)
+                    after(500)
+                })
+                // (PICTURES=control: the slides changed again with no pictures being made,
+                // for telling what the pictures cost a change from what the run's having
+                // worked the computer hard for some seconds does: see Benchmark::setting)
+                if (bench.setting("PICTURES") === "control")
+                    changing("Video", "video, " + stageName + ", slides changed after the pictures", 10)
                 // And by a dissolve, each over before the next
                 jobs.push(() => {
                     selectTransition("Dissolve")

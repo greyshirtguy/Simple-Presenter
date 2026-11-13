@@ -160,6 +160,7 @@
 #include "messagetext.h"
 #include "selftest.h"
 #include "sessionlog.h"
+#include "slidepictureworker.h"
 #include "thumbnailprovider.h"
 #ifdef SIMPLEPRESENTER_TEST_HOOK
 #include "testhook.h"
@@ -260,6 +261,11 @@ static void chooseVideoDecoding(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    // The process that draws the pictures of slides for the API, which the app starts
+    // itself, is the same program: it opens no log and no window of its own (see
+    // src/slidepictureworker.h)
+    if (slidepictures::isWorker(argc, argv))
+        return slidepictures::runWorker(argc, argv);
     chooseWindowSystem(argc, argv);
     // The log is opened before anything else is tried, so that whatever goes wrong in
     // starting up, down to there being no way to put a window on the screen, is in it.

@@ -209,6 +209,7 @@ qt_add_qml_module(SimplePresenter
         qml/LiveRing.qml
         qml/chordlayout.js
         qml/clearglyphs.js
+        qml/medialook.js
         qml/ChordedText.qml
         qml/ChordProEditor.qml
         qml/ChordSheet.qml
@@ -274,6 +275,7 @@ qt_add_qml_module(SimplePresenter
         qml/TextFills.qml
         qml/TextFormatPanel.qml
         qml/ViewFormatPanel.qml
+        qml/SlidePictureMaker.qml
         qml/TimeField.qml
         qml/TimersPanel.qml
         qml/Toolbar.qml
@@ -483,6 +485,12 @@ qt_add_qml_module(SimplePresenter
         src/proremote.cpp
         src/dnssd.h
         src/dnssd.cpp
+        src/slidepictures.h
+        src/slidepictures.cpp
+        src/slidepictureworker.h
+        src/slidepictureworker.cpp
+        src/slidepictureservice.h
+        src/slidepictureservice.cpp
         src/showstate.h
         src/showstate.cpp
         src/slidenumber.h

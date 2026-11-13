@@ -16,6 +16,8 @@
 #include <QScreen>
 #include <QSysInfo>
 #include <QTextStream>
+#include <QHostAddress>
+#include <QTcpSocket>
 #include <QVideoFrame>
 #include <QVideoSink>
 #include <QWindow>
@@ -465,6 +467,71 @@ double Benchmark::memory() const
 double Benchmark::peakMemory() const
 {
     return statusMegabytes("VmHWM");
+}
+
+void Benchmark::askPictures(int port, const QString &uuid, int count, int atOnce)
+{
+    stopPictures();
+    m_pictureUuid = uuid;
+    m_pictureCount = count;
+    m_pictureIndex = 0;
+    m_pictureRound = 0;
+    m_picturesMade = 0;
+    m_picturesFrom = sinceStart();
+    for (int i = 0; i < atOnce; ++i) {
+        auto *socket = new QTcpSocket(this);
+        m_pictureSockets.append(socket);
+        connect(socket, &QTcpSocket::connected, this, [this, socket] { askNextPicture(socket); });
+        connect(socket, &QTcpSocket::readyRead, this, [this, socket] {
+            QByteArray &buffer = m_pictureBuffers[socket];
+            buffer += socket->readAll();
+            for (;;) {
+                const qsizetype end = buffer.indexOf("\r\n\r\n");
+                if (end < 0)
+                    return;
+                qint64 length = 0;
+                for (const QByteArray &line : buffer.left(end).split('\n')) {
+                    if (line.toLower().startsWith("content-length:"))
+                        length = line.mid(15).trimmed().toLongLong();
+                }
+                if (buffer.size() < end + 4 + length)
+                    return;
+                if (buffer.startsWith("HTTP/1.1 200"))
+                    ++m_picturesMade;
+                buffer.remove(0, end + 4 + length);
+                askNextPicture(socket);
+            }
+        });
+        socket->connectToHost(QHostAddress::LocalHost, quint16(port));
+    }
+}
+
+void Benchmark::askNextPicture(QTcpSocket *socket)
+{
+    if (m_pictureCount <= 0)
+        return;
+    const int index = m_pictureIndex;
+    if (++m_pictureIndex >= m_pictureCount) {
+        m_pictureIndex = 0;
+        ++m_pictureRound;
+    }
+    socket->write(QStringLiteral("GET /v1/presentation/%1/thumbnail/%2?quality=%3 HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+                      .arg(m_pictureUuid).arg(index).arg(300 + m_pictureRound).toLatin1());
+}
+
+double Benchmark::stopPictures()
+{
+    const double seconds = (sinceStart() - m_picturesFrom) / 1000;
+    const int made = m_picturesMade;
+    for (QTcpSocket *socket : std::as_const(m_pictureSockets)) {
+        socket->disconnect(this);
+        socket->abort();
+        socket->deleteLater();
+    }
+    m_pictureSockets.clear();
+    m_pictureBuffers.clear();
+    m_pictureCount = 0;
+    return seconds > 0 && made > 0 ? made / seconds : 0;
 }
 
 void Benchmark::record(const QString &name, double value, const QString &unit)

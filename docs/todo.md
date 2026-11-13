@@ -122,8 +122,8 @@ the top of the [README](../README.md).
 - [ ] **The API**: ProPresenter's HTTP API answers what the app has (see
       [The API](features/api.md)). Still to come: what makes, changes or deletes things in the
       workspace's files through it (looks, messages, timers, props, playlists, macros,
-      clear groups), the pictures of slides and of media, the chord chart, and what
-      waits on features the app does not have yet.
+      clear groups), the pictures of media, props, masks, stage layouts and themes, the
+      chord chart, and what waits on features the app does not have yet.
 - [ ] **Video inputs**: they are there, from the devices Linux has for video (see
       [Video inputs](features/video-inputs.md)). Still to come: a DeckLink card's
       inputs, and NDI sources, as inputs; ProPresenter's audio Delay, channel levels

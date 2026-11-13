@@ -63,6 +63,16 @@ Anything less is as likely to be the machine as the app.
   words to be painted where they were not painted ahead (see `src/paintahead.h`). These
   are what to watch as more is added that keeps drawing.
 
+  Between the cut and the dissolve, the same again while pictures of the slides of
+  Shapes are made for the API, as ProPresenter Remote asks for them when it is looked
+  through (four at a time, each round another size, so that every one is drawn): the
+  video playing for eight seconds as they are made, the process that makes them starting
+  in it, then the slides changed by a cut as they go on being made; and how many pictures
+  were made a second. The pictures are drawn by a process of their own at idle priority
+  (see `src/slidepictureworker.h`): these lines say whether the video or a slide's change
+  pays for them all the same. (The asking is done by the app itself, which a phone would
+  do on the phone: so they cost the app a little more here than a Remote would.)
+
   And over each, what became of every frame of the video on its way to the screen (see
   VideoTiming in `src/benchmark.h`): how many were on the screen too long, which is
   the frame before a late one and is what a stutter is; how many were never shown; how

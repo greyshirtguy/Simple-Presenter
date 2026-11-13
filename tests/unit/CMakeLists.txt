@@ -114,6 +114,15 @@ target_include_directories(tst_proremote PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_proremote PRIVATE Qt6::Core Qt6::Test OpenSSL::Crypto)
 add_test(NAME proremote COMMAND tst_proremote)
 
+qt_add_executable(tst_slidepictures
+    tst_slidepictures.cpp
+    ${PROJECT_SOURCE_DIR}/src/slidepictures.h
+    ${PROJECT_SOURCE_DIR}/src/slidepictures.cpp
+)
+target_include_directories(tst_slidepictures PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_slidepictures PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME slidepictures COMMAND tst_slidepictures)
+
 qt_add_executable(tst_httpapijson
     tst_httpapijson.cpp
     ${PROJECT_SOURCE_DIR}/src/httpapijson.h

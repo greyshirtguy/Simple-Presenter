@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Dialogs
 import QtQuick.Window
 import SimplePresenterApp
+import "medialook.js" as MediaLook
 
 // The operator window, and the heart of the app.
 //
@@ -2791,19 +2792,9 @@ Window {
         return "image://thumbnail/" + encodeURIComponent(path) + "?" + catalog.thumbnailRevision + thumbnailLook(settings)
     }
 
+    // (In a script of its own, which the pictures of slides made for the API share)
     function thumbnailLook(s) {
-        if (!s)
-            return ""
-        let look = ""
-        if (s.thumbnail > 0)
-            look += "&t=" + s.thumbnail
-        if (s.cropOn && (s.cropLeft > 0 || s.cropRight > 0 || s.cropTop > 0 || s.cropBottom > 0))
-            look += "&c=" + [s.cropLeft, s.cropRight, s.cropTop, s.cropBottom].join(",")
-        if (s.rotation)
-            look += "&r=" + s.rotation
-        if (s.flipH || s.flipV)
-            look += "&f=" + (s.flipH ? "h" : "") + (s.flipV ? "v" : "")
-        return look
+        return MediaLook.thumbnailLook(s)
     }
 
     // The media files the slides of a presentation trigger, as paths.

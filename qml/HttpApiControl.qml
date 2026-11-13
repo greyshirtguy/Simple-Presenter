@@ -262,26 +262,69 @@ Item {
         return presentations[at + delta]
     }
 
-    // Every presentation file of the workspace's libraries
-    function allFiles() {
-        // (A list property of C++'s is not quite an array: it has no flatMap.)
-        let files = []
-        for (const library of catalog.libraries)
-            files = files.concat(catalog.documentsIn(library.path).filter(row => window.openable(row)).map(row => row.file))
-        return files
+    // The library row of the presentation with this UUID, and its library; or null.
+    //
+    // Looked up in an index of every presentation of the libraries by UUID, made the first
+    // time one is wanted and again when the libraries change, or when a UUID is not in it
+    // (at most every ten seconds: a file may have been put there without the libraries
+    // knowing). A UUID is read from a file once, and again only if the file changes
+    // (HttpApi.presentationUuid). Not each time: a phone leafing through a presentation
+    // asks for a picture of every slide by its presentation's UUID, a dozen a second, and
+    // looking at every file of the libraries for each, on the app's own thread, held up a
+    // video under the slides (and made garbage that held up the clicks after it).
+    property var byUuid: null
+    property double byUuidMade: 0
+
+    Connections {
+        target: catalog
+
+        function onChanged() {
+            control.byUuid = null
+        }
+        function onWorkspaceChanged() {
+            control.byUuid = null
+        }
     }
 
-    // The library row of the presentation with this UUID, and its library; or null
+    function uuidKey(uuid) {
+        return String(uuid).replace(/[{}]/g, "").toUpperCase()
+    }
+
     function findPresentation(uuid) {
-        const file = HttpApi.findPresentation(uuid, allFiles())
-        if (file === "")
-            return null
-        for (const library of catalog.libraries) {
-            const row = catalog.documentsIn(library.path).find(r => r.file === file)
-            if (row)
-                return { row: row, library: library }
+        const wanted = uuidKey(uuid)
+        if (byUuid === null || (byUuid[wanted] === undefined && Date.now() - byUuidMade > 10000)) {
+            const made = {}
+            for (const library of catalog.libraries) {
+                for (const row of catalog.documentsIn(library.path)) {
+                    if (window.openable(row))
+                        made[uuidKey(HttpApi.presentationUuid(row.file))] = { row: row, library: library }
+                }
+            }
+            byUuid = made
+            byUuidMade = Date.now()
         }
-        return null
+        return byUuid[wanted] ?? null
+    }
+
+    // The process drawing pictures of slides for the API held still while something goes
+    // live on the screens, until its transition is over and half a second more, so that
+    // the change and a video under it have the computer to themselves (see
+    // src/slidepictureservice.h). Nothing if no picture has been asked for.
+    function holdPictures() {
+        HttpApi.holdPictures(Math.min(3000, 1000 * Math.max(window.transitionDuration, window.mediaTransitionDuration) + 500))
+    }
+
+    // Of which file, in which arrangement, and which cue a picture of a slide is (the
+    // pictures' routes: see src/slidepictures.h): a row as a trigger finds it, with its
+    // playlist's choice of arrangement if it is a playlist's, or the presentation's own.
+    // The file is not read here: the process that draws the picture reads it, and says if
+    // the cue is past its last.
+    function pictureOf(row, cue) {
+        const index = Number(cue)
+        if (!row || !window.openable(row) || !Number.isInteger(index) || index < 0)
+            return notFound
+        return ok({ file: row.file, arrangement: row.playlistItem ? (row.arrangement ?? "") : null, index: index,
+                    workspace: catalog.workspacePath })
     }
 
     // Opens a row of a library or a playlist in the window, as clicking it there would
@@ -406,6 +449,21 @@ Item {
             const found = findPresentation(params.uuid)
             return found ? ok(HttpApi.presentation(found.row.file, catalog.documentsIn(found.library.path).findIndex(r => r.file === found.row.file)))
                          : notFound
+        }
+        case "presentation/{uuid}/thumbnail/{index}": {
+            const found = findPresentation(params.uuid)
+            return found ? pictureOf(found.row, params.index) : notFound
+        }
+        case "playlist/{playlist_id}/{index}/thumbnail/{cue_index}": {
+            const playlist = playlistOf(params.playlist_id)
+            if (!playlist || playlist.folder)
+                return notFound
+            return pictureOf(catalog.playlistItems(playlist.path)[Number(params.index)], params.cue_index)
+        }
+        case "playlist/active/presentation/{index}/thumbnail/{cue_index}":
+        case "playlist/active/announcement/{index}/thumbnail/{cue_index}": {
+            const playlistPath = route.includes("/announcement/") ? Show.announcementPlaylistId : Show.livePlaylistId
+            return playlistPath === "" ? notFound : pictureOf(catalog.playlistItems(playlistPath)[Number(params.index)], params.cue_index)
         }
         case "presentation/{uuid}/trigger":
         case "presentation/{uuid}/{index}/trigger": {
@@ -1056,6 +1114,20 @@ Item {
     // has nothing to look at again, and these would be JavaScript run for nothing at every
     // change of the show.
     readonly property bool following: HttpApi.streams > 0
+
+    // And the process drawing pictures of slides held still while something goes live
+    // (see holdPictures), while there is one
+    Connections {
+        target: Show
+        enabled: HttpApi.drawingPictures
+        function onSlideChanged() { control.holdPictures() }
+        function onAnnouncementChanged() { control.holdPictures() }
+        function onMediaChanged() { control.holdPictures() }
+        function onPropsChanged() { control.holdPictures() }
+        function onVideoInputChanged() { control.holdPictures() }
+        function onMessagesChanged() { control.holdPictures() }
+        function onLookChanged() { control.holdPictures() }
+    }
 
 
     Connections {

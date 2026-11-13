@@ -123,6 +123,9 @@ struct Route
     // What it says changes with time alone (a clock, a timer, a playing video), so a
     // stream of it is looked at again often, and not only when the show changes
     bool clocked = false;
+    // It answers with a picture of a slide (slidepictures.h), drawn by another process
+    // and sent when it comes: the window's handler says only of which file and cue
+    bool picture = false;
 };
 
 // Every route answered (anything else is 404)

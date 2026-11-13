@@ -15,6 +15,8 @@
 #include <QDragEnterEvent>
 #include <QFile>
 #include <QGuiApplication>
+#include <QColor>
+#include <QImage>
 #include <QKeyEvent>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -611,6 +613,28 @@ public:
                                                    : QString::fromLatin1(message.payload.toHex())}});
         }
         return made;
+    }
+    // A picture's bytes (as httpReceived gives them, a character for each byte): its
+    // size, the colour at each point asked for ([x, y], as "#rrggbb"), and the share of
+    // it lighter than a grey; width 0 if the bytes are no picture
+    Q_INVOKABLE QVariantMap pictureIn(const QString &latin1, const QVariantList &points, int grey)
+    {
+        const QImage image = QImage::fromData(latin1.toLatin1()).convertToFormat(QImage::Format_RGB32);
+        if (image.isNull())
+            return {{"width", 0}, {"height", 0}};
+        QVariantList colors;
+        for (const QVariant &point : points) {
+            const QVariantList xy = point.toList();
+            colors.append(QColor(image.pixel(xy.value(0).toInt(), xy.value(1).toInt())).name());
+        }
+        qint64 lighter = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            const auto *line = reinterpret_cast<const QRgb *>(image.constScanLine(y));
+            for (int x = 0; x < image.width(); ++x)
+                lighter += qGray(line[x]) > grey ? 1 : 0;
+        }
+        return {{"width", image.width()}, {"height", image.height()}, {"colors", colors},
+                {"lighter", double(lighter) / double(image.width() * image.height())}};
     }
     Q_INVOKABLE void httpClose(int id)
     {

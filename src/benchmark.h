@@ -104,6 +104,8 @@ private:
     QByteArray m_property;
 };
 
+class QTcpSocket;
+
 class Benchmark : public QObject
 {
     Q_OBJECT
@@ -131,7 +133,10 @@ public:
     // layout of the words of the slide on show and of the next; DISSOLVE=<seconds>:
     // the dissolve over the video that long, and not half a second; SHADOWS=1: the words
     // over the video with ProPresenter's shadow (made with the workspace: see
-    // makeWorkspace).
+    // makeWorkspace); PICTURES=control: the slides changed over the video once more after
+    // the pictures of slides are made (see askPictures), with none being made, for telling
+    // what they cost a change from what working the computer hard for some seconds before
+    // it does.
     Q_INVOKABLE QString setting(const QString &name) const;
     // Milliseconds of processor time the app has used, on all its threads
     Q_INVOKABLE double cpu() const;
@@ -168,14 +173,34 @@ public:
     // what was kept (see MotionTiming); each stops keeping it
     Q_INVOKABLE void watchMotion(QObject *window, QObject *item, const QString &property);
     Q_INVOKABLE QVariantMap motionTiming();
+    // Pictures of a presentation's slides asked of the app's own API (at 127.0.0.1 and
+    // `port`), as ProPresenter Remote asks for them as it is looked through: `atOnce`
+    // connections, each asking for the next as its last comes, round the presentation's
+    // `count` cues; each round another size, so that every picture is drawn and none comes
+    // from the cache. By sockets, as a phone's requests come, and not by XMLHttpRequest,
+    // whose objects are the app's own garbage to collect. Until stopPictures(), which says
+    // how many came a second.
+    Q_INVOKABLE void askPictures(int port, const QString &uuid, int count, int atOnce);
+    Q_INVOKABLE double stopPictures();
     // One measurement, for the report, said on the terminal as it is made
     Q_INVOKABLE void record(const QString &name, double value, const QString &unit);
     // Writes the report and ends the app.
     Q_INVOKABLE void finish();
 
 private:
+    void askNextPicture(QTcpSocket *socket);
+
     QString m_reportPath;
     QStringList m_lines;
     VideoTiming *m_video = nullptr;
     MotionTiming *m_motion = nullptr;
+    // The pictures being asked for (see askPictures), and what has come on each connection
+    QList<QTcpSocket *> m_pictureSockets;
+    QHash<QTcpSocket *, QByteArray> m_pictureBuffers;
+    QString m_pictureUuid;
+    int m_pictureCount = 0;
+    int m_pictureIndex = 0;
+    int m_pictureRound = 0;
+    int m_picturesMade = 0;
+    double m_picturesFrom = 0;
 };

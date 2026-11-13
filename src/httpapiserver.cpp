@@ -4,6 +4,7 @@
 #include "httpapifiles.h"
 #include "httpapijson.h"
 #include "sessionlog.h"
+#include "slidepictureservice.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -110,6 +111,17 @@ void HttpApi::setHandler(const QJSValue &handler)
     changed();
 }
 
+bool HttpApi::drawingPictures() const
+{
+    return m_pictures && m_pictures->running();
+}
+
+void HttpApi::holdPictures(int ms)
+{
+    if (m_pictures)
+        m_pictures->hold(ms);
+}
+
 QString HttpApi::computerName() const
 {
     return QHostInfo::localHostName();
@@ -193,11 +205,6 @@ QVariantMap HttpApi::playlistItem(const QVariantMap &row, int index) const
 QString HttpApi::presentationUuid(const QString &path) const
 {
     return httpapifiles::presentationUuid(path);
-}
-
-QString HttpApi::findPresentation(const QString &uuid, const QStringList &files) const
-{
-    return httpapifiles::findPresentation(uuid, files);
 }
 
 QVariantMap HttpApi::timer(const QVariantMap &timer, int index) const
@@ -347,6 +354,7 @@ void HttpApi::accept()
         }
         auto *client = new Client;
         client->socket = socket;
+        client->serial = ++m_lastSerial;
         m_clients << client;
         connect(client->socket, &QTcpSocket::readyRead, this, [this, client] { readFrom(client); });
         connect(client->socket, &QTcpSocket::disconnected, this, [this, client] {
@@ -405,9 +413,61 @@ void HttpApi::readFrom(Client *client)
         send(client, none, client->parser.error());
         return;
     }
-    // (A stream keeps the connection: anything sent after it is not for the API.)
-    while (client->parser.hasRequest() && !client->streaming && m_clients.contains(client))
+    respondQueued(client);
+}
+
+// The requests that have come, in turn: not past one that streams (anything sent after
+// it is not for the API), nor past one waiting for a picture (until it is answered)
+void HttpApi::respondQueued(Client *client)
+{
+    while (m_clients.contains(client) && client->parser.hasRequest() && !client->streaming && !client->waiting)
         respond(client, client->parser.take());
+}
+
+HttpApi::Client *HttpApi::clientOf(quint64 serial) const
+{
+    for (Client *client : m_clients) {
+        if (client->serial == serial)
+            return client;
+    }
+    return nullptr;
+}
+
+void HttpApi::answerPicture(Client *client, const httpapi::Request &request, const httpapi::Route &route, const QVariantMap &params,
+                            const QVariantMap &query)
+{
+    // (Of which file and cue: the window's, as for a trigger; the cue past the last is
+    // the worker's to find, which reads the file, which this thread does not)
+    const Answer where = evaluate(route, params, query, {});
+    if (where.status != 200) {
+        send(client, request, where.status);
+        return;
+    }
+    const QVariantMap at = where.data.toMap();
+    slidepictures::Asked asked;
+    asked.file = at.value(QStringLiteral("file")).toString();
+    if (at.value(QStringLiteral("arrangement")).typeId() == QMetaType::QString)
+        asked.arrangement = at.value(QStringLiteral("arrangement")).toString();
+    asked.index = at.value(QStringLiteral("index")).toInt();
+    asked.quality = slidepictures::qualityOf(request.queryValue(QStringLiteral("quality")));
+    asked.png = slidepictures::pngAsked(request.queryValue(QStringLiteral("thumbnail_type")), request.headers.value("accept"));
+    if (!m_pictures) {
+        m_pictures = new SlidePictureService(this);
+        connect(m_pictures, &SlidePictureService::runningChanged, this, &HttpApi::picturesChanged);
+    }
+    client->waiting = true;
+    const quint64 serial = client->serial;
+    m_pictures->ask(at.value(QStringLiteral("workspace")).toString(), asked, [this, serial, request](int status, const QByteArray &type, const QByteArray &bytes) {
+        Client *waiting = clientOf(serial);
+        if (!waiting)
+            return;
+        waiting->waiting = false;
+        if (status == 200)
+            send(waiting, request, 200, bytes, type);
+        else
+            send(waiting, request, status);
+        respondQueued(waiting);
+    });
 }
 
 void HttpApi::respond(Client *client, const httpapi::Request &request)
@@ -443,6 +503,10 @@ void HttpApi::respond(Client *client, const httpapi::Request &request)
     QVariantMap query;
     for (const auto &[key, value] : request.query)
         query.insert(key, value);
+    if (route.picture) {
+        answerPicture(client, request, route, found.params, query);
+        return;
+    }
 
     if (route.pattern == QLatin1String("status/updates")) {
         QStringList paths;
@@ -816,7 +880,7 @@ void HttpApi::answerRemote(Client *client, const proremote::Request &request, bo
 {
     const auto reply = [&](const QByteArray &json) { sendRemote(client, client->key, json, binary); };
     const httpapi::Match found = request.url.isEmpty() ? httpapi::Match {} : httpapi::match(request.method, request.path);
-    if (!found || found.route->pattern == QLatin1String("status/updates")) {
+    if (!found || found.route->pattern == QLatin1String("status/updates") || found.route->picture) {
         reply(proremote::failure(request.url, statusText(request.url.isEmpty() ? 400 : 404)));
         return;
     }

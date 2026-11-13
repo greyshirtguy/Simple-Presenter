@@ -208,9 +208,10 @@ const QList<Route> &routes()
     // Streams: every GET ProPresenter's documentation gives `chunked` to (48 of them),
     // each answered or not by what the app has, so that a client asking for many at once
     // in status/updates is not refused for one the app has nothing behind. The rest:
-    // what reads and operates the show (the maintainer's first round, 2026-10-17); what
-    // makes, changes or deletes things in ProPresenter's files, and thumbnails, are not
-    // here yet, but for a timer being set up.
+    // what reads and operates the show (the maintainer's first round, 2026-10-17); and the
+    // pictures of slides (2026-11-13). What makes, changes or deletes things in
+    // ProPresenter's files is not here yet, but for a timer being set up; nor are the
+    // pictures of media, props, masks, stage layouts and themes.
     static const QList<Route> all = [] {
         QList<Route> made;
         auto get = [&made](const QByteArray &pattern) { made.append({"GET", QString::fromLatin1(pattern)}); };
@@ -219,6 +220,7 @@ const QList<Route> &routes()
         auto put = [&made](const QByteArray &pattern) { made.append({"PUT", QString::fromLatin1(pattern)}); };
         auto post = [&made](const QByteArray &pattern) { made.append({"POST", QString::fromLatin1(pattern)}); };
         auto remove = [&made](const QByteArray &pattern) { made.append({"DELETE", QString::fromLatin1(pattern)}); };
+        auto picture = [&made](const QByteArray &pattern) { made.append({"GET", QString::fromLatin1(pattern), false, false, true}); };
 
         get("version");
         // Status
@@ -238,6 +240,11 @@ const QList<Route> &routes()
         clocked("presentation/focused/timeline");
         stream("presentation/chord_chart/updates");
         get("presentation/{uuid}");
+        // (The pictures of slides, which ProPresenter Remote shows them by)
+        picture("presentation/{uuid}/thumbnail/{index}");
+        picture("playlist/{playlist_id}/{index}/thumbnail/{cue_index}");
+        picture("playlist/active/presentation/{index}/thumbnail/{cue_index}");
+        picture("playlist/active/announcement/{index}/thumbnail/{cue_index}");
         for (const char *which : {"active", "focused", "{uuid}"}) {
             const QByteArray at = QByteArray("presentation/") + which;
             get(at + "/trigger");

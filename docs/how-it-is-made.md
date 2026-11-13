@@ -310,6 +310,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/searchindex.*`, `src/search.*` | Search: the finding, and the reading of the libraries for it in the background |
 | `src/screens.*` | The workspace's screens and what each is sent out through on this computer (each output of a combined screen by itself): a window, a display, NDI, a card's output or nothing |
 | `src/httpapi*`, `qml/HttpApiControl.qml` | ProPresenter's network API: its rules (`httpapi`), the server (`httpapiserver`), the JSON it answers in, read from the workspace's files where the window has no answer, and the window's answers |
+| `src/slidepicture*`, `qml/SlidePictureMaker.qml` | Pictures of slides for the API, drawn by a second process of the app's at idle priority, so that the app's own thread is not held up by them: the rules, the process, and the app's side of it |
 | `src/proremote.*`, `src/dnssd.*` | ProPresenter Remote through that API: the WebSocket, its encryption and its messages; and the app advertised on the network by Avahi so that the Remote finds it |
 | `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
 | `src/ndisetup.*`, `qml/NdiSetup.qml` | Getting NDI's library: reading NDI's installer for its licence and its archive, and the panel that offers to fetch it or says how to by hand |

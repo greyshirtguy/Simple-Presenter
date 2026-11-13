@@ -23,9 +23,6 @@ QVariantMap presentation(const QString &path, qint64 listIndex);
 // library; the whole file only if it is not there.
 QString presentationUuid(const QString &path);
 
-// Which of these files is the presentation with this UUID; "" for none
-QString findPresentation(const QString &uuid, const QStringList &files);
-
 // A library's presentations (Catalog::documentsIn's rows), as library/{library_id}
 // gives them: {update_type: "all", items: [{uuid, name, index}]}
 QVariantMap library(const QVariantList &rows);

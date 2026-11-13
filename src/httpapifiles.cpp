@@ -8,7 +8,6 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
-#include <QUuid>
 
 namespace httpapifiles {
 
@@ -220,18 +219,6 @@ ByFile<QHash<QString, QString>> arrangementsOf;
 QString presentationUuid(const QString &path)
 {
     return uuids.get(path, readUuid);
-}
-
-QString findPresentation(const QString &uuid, const QStringList &files)
-{
-    const QUuid wanted = QUuid::fromString(uuid);
-    if (wanted.isNull())
-        return {};
-    for (const QString &file : files) {
-        if (QUuid::fromString(presentationUuid(file)) == wanted)
-            return file;
-    }
-    return {};
 }
 
 QVariantMap library(const QVariantList &rows)
