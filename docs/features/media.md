@@ -112,6 +112,13 @@ First in the bin's list is **Video Inputs**, as in ProPresenter: the workspace's
 [video inputs](video-inputs.md), which a click puts on a layer of their own under the
 media.
 
+**The bin's live ring** is on a row only while the media layer has what that row played
+(by a click on it, by its playlist's action, or by Next Cue). The same file brought by a
+slide, a macro or the timeline is not marked in the bin: that is the slide's or the
+action's own media, which its own Media Inspector may have set to look otherwise than the
+row, and so is other media, as the maintainer asked (2026-11-14). Whether ProPresenter
+marks it has not been looked at.
+
 A **media playlist** can be dragged out of the bin's list onto a slide or onto a macro,
 or picked from Add Action, under Media Playlist: that gives it an action that plays the
 playlist from its first row. Run again while the playlist is playing, it leaves it to

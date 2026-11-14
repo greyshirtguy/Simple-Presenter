@@ -403,7 +403,14 @@ Rectangle {
             id: mediaCell
 
             required property var modelData
-            readonly property bool live: bin.win.liveMedia !== null && bin.win.liveMedia.path === modelData.path
+            // Live while the media layer has what this row played, from this playlist; not
+            // for the same file brought by a slide's cue, a macro or the timeline, which is
+            // that cue's own media, set in its own Media Inspector and perhaps looking
+            // otherwise than this row (the maintainer, 2026-11-14: "we should treat them as
+            // separate").
+            readonly property bool live: bin.win.liveMedia !== null && bin.win.liveMediaPlaylistId !== ""
+                                         && bin.win.liveMediaPlaylistId === bin.win.mediaPlaylistId
+                                         && bin.win.liveMedia.id === modelData.id
 
             width: mediaGrid.cellWidth
             height: mediaGrid.cellHeight

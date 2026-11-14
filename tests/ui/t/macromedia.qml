@@ -81,6 +81,12 @@ QtObject {
         return parseInt(c.substring(1, 3), 16) > 200 && parseInt(c.substring(3, 5), 16) < 60 && parseInt(c.substring(5, 7), 16) < 60
     }
 
+    // Whether a colour is the orange of a live ring
+    function orange(c) {
+        return parseInt(c.substring(1, 3), 16) > 200 && parseInt(c.substring(3, 5), 16) > 90 && parseInt(c.substring(3, 5), 16) < 180
+            && parseInt(c.substring(5, 7), 16) < 90
+    }
+
     function greenish(c) {
         return parseInt(c.substring(1, 3), 16) < 60 && parseInt(c.substring(3, 5), 16) > 200 && parseInt(c.substring(5, 7), 16) < 60
     }
@@ -209,7 +215,27 @@ QtObject {
                       slide.actions.map(a => a.kind).join())
                 const wrong = testInput.readText(Log.path).split("\n").filter(l => /qrc:|TypeError|ReferenceError/.test(l))
                 check("nothing went wrong on the way", wrong.length === 0, wrong.join(" | "))
-                return 100
+                clearAll()
+                click(centre(slideCell(0)))
+                return 700
+            },
+            // ---- The bin's live ring is for what the bin played (the maintainer, 2026-11-14)
+            () => {
+                const cell = binRow("Red.mp4")
+                const band = String(testInput.windowPixel(cell.mapToItem(null, 2.5, cell.height / 2).x, cell.mapToItem(null, 2.5, cell.height / 2).y))
+                check("the slide plays its video, the same file as the bin's row, and the row is not marked live: the slide's media is its own",
+                      liveMedia !== null && liveMedia.name === document.slides[0].mediaName && liveMediaPlaylistId === "" && !cell.live && !orange(band),
+                      (liveMedia ? liveMedia.name : "none") + " " + cell.live + " " + band)
+                click(centre(cell))
+                return 700
+            },
+            () => {
+                const cell = binRow("Red.mp4")
+                const band = String(testInput.windowPixel(cell.mapToItem(null, 2.5, cell.height / 2).x, cell.mapToItem(null, 2.5, cell.height / 2).y))
+                check("played from the bin, the row is: drawn, its orange ring", liveMediaPlaylistId === mediaPlaylistId && cell.live && orange(band),
+                      cell.live + " " + band)
+                clearAll()
+                return 300
             },
         ]
         next()
