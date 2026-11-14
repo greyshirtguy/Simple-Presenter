@@ -6,6 +6,18 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.140](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.140) · 2026-11-15
+
+- A macro dragged out of the macros onto the timeline goes on its actions track at
+  the time where it is let go, as the action that runs it
+  ([Timeline](docs/features/timeline.md)).
+- The media bin's live ring is on a row only while the media layer has what that row
+  played. The same file brought by a slide, a macro or the timeline is that cue's own
+  media, which its Media Inspector may have set to look otherwise, and is not marked
+  in the bin ([Media](docs/features/media.md)).
+- The band under each slide's thumbnail is 22 pixels high instead of 26, and its words
+  a size larger.
+
 ## [0.139](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.139) · 2026-11-14
 
 - ProPresenter's timeline: the Timeline button beside Arrangements opens it under the
