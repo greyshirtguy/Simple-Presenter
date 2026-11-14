@@ -24,11 +24,11 @@ import SimplePresenterApp
 //   - a press on the ruler or on a track where it has nothing moves the playhead there,
 //     and dragging along drags it; played, the timeline goes from there;
 //   - a slide of the presentation is carried up from the slides, a picture or a video
-//     dragged out of the media bin, or a piece of the audio bin, and let go on the
-//     timeline, where it goes on its own track at that time (Main's timelineCarried and
-//     dropOnTimeline); while it is carried that track is outlined, and while it is over
-//     the timeline, where it would land is drawn, with the time on the ruler; held near
-//     either end of what is in view, the view scrolls on, for a time out of sight;
+//     dragged out of the media bin, a piece of the audio bin or a macro, and let go on
+//     the timeline, where it goes on its own track at that time (Main's timelineCarried
+//     and dropOnTimeline); while it is carried that track is outlined, and while it is
+//     over the timeline, where it would land is drawn, with the time on the ruler; held
+//     near either end of what is in view, the view scrolls on, for a time out of sight;
 //   - a cue is dragged along its track to another time; a click on it puts the
 //     playhead at it; its own menu (the right button) takes it off;
 //   - the right button on the actions track adds an action there, as a slide's are
@@ -78,11 +78,11 @@ Item {
     // What is being carried that the timeline takes, anywhere in the window (Main's
     // timelineCarried: its track, its length, a slide's colour), or null; where its track
     // is, down from the top of the tracks; and the colour its block would be, as the track
-    // draws one (a slide's group's; the media's purple; the audio's green)
+    // draws one (a slide's group's; the media's purple; the audio's green; an action's grey)
     readonly property var carried: win.timelineCarried
     readonly property var carriedSpan: trackSpan(carried ? carried.track : "slide")
     readonly property color carriedFill: !carried ? "#5a5d66" : carried.track === "slide" ? carried.fill
-                                         : carried.track === "media" ? "#8a6bb3" : "#96cc9e"
+                                         : carried.track === "media" ? "#8a6bb3" : carried.track === "audio" ? "#96cc9e" : "#4b5563"
 
     function trackSpan(key) {
         let top = 0
@@ -459,13 +459,15 @@ Item {
         // Where what is carried over the timeline would land: a white line at the time,
         // across the ruler and down to its track, and the block it would be there, paler
         // (a slide's as far as the next slide's; a picture's, a video's or a piece of
-        // audio's as long as it lasts, or ten seconds where that is not known, as the track
-        // draws it); and the time, on the ruler
+        // audio's as long as it lasts, or ten seconds where that is not known; a macro's as
+        // wide as an action's block; each as its track draws it); and the time, on the ruler
         Item {
             objectName: "timelineLanding"
             readonly property real end: {
                 if (area.carried === null)
                     return 0
+                if (area.carried.track === "action")
+                    return carriedDrop.landing + Math.max(1, 90 / area.pps)
                 if (area.carried.track !== "slide")
                     return carriedDrop.landing + (area.carried.length > 0 ? area.carried.length : 10)
                 const later = area.slideBlocks.find(block => block.start > carriedDrop.landing)
@@ -536,9 +538,10 @@ Item {
     // is: they all say a time, and each thing has one track. A slide carried up from the
     // slides (Main's beginSlideDrag) goes on the slides track; a picture or a video
     // dragged out of the media bin, on the media track; a piece of the audio bin, on the
-    // audio track. Anything else carried (a macro, a clear button) is not taken. (A GUESS:
-    // ProPresenter's help says that slides, media and audio are dragged onto the
-    // timeline, and not what a drop on another of its tracks does.)
+    // audio track; a macro of the macros, on the actions track. Anything else carried (a
+    // clear button, a timer, a prop) is not taken. (A GUESS: ProPresenter's help says
+    // that slides, media, audio and actions are dragged onto the timeline, and not what a
+    // drop on another of its tracks does.)
     DropArea {
         id: carriedDrop
 
@@ -570,7 +573,7 @@ Item {
         width: view.width
         height: view.height
         // (A slide; media; and the drags that stand for actions, of which only a piece
-        // of the audio bin is taken: see follow)
+        // of the audio bin and a macro are taken: see follow)
         keys: ["slide", "media", "action"]
         enabled: area.win.takesDrops
         onEntered: (drag) => follow(drag)

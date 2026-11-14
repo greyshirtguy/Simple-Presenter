@@ -95,6 +95,8 @@ done, or every click goes on the timeline too, as ProPresenter's help warns).
   it is dragged its track is outlined, and over the timeline the block it will be is
   drawn there, as long as the piece lasts (ten seconds for a picture or a video, whose
   length is not known until it is on).
+- A **macro** is dragged onto it from the macros in the same way, and goes on the actions
+  track, as the action that runs it, named as the macro is.
 - A cue is **dragged** along its track to another time.
 - A cue's own menu (the right button) puts the playhead at it, or **Deletes** it.
 - The right button on a track where it has nothing adds something there: on the
@@ -136,8 +138,8 @@ its file, with its length. Nothing else in the file is touched.
   something. A timeline that follows timecode in ProPresenter plays by its own clock
   here, and what it says of its timecode is kept in the file as it is.
 - The end of the timeline dragged to lengthen it: the Duration is typed.
-- Actions dragged onto it (a macro, a clear button): they are put on by the right
-  button and by recording.
+- Other actions dragged onto it (a clear button, a timer, a prop): they are put on by
+  the right button and by recording.
 - Carrying several selected slides at once: one is carried at a time.
 - The playhead moves ten times a second as it plays, a few pixels at a time, so as not
   to have the operator window drawn at every frame for it: smoother than that is not
@@ -169,8 +171,9 @@ are guesses:
 - the menus of a cue and of an empty track, and where the clear groups' Stop Timeline
   ticks are;
 - that what is let go over any of its tracks goes on its own (a slide on the slides
-  track, a picture on the media track, audio on the audio track), and what a carried
-  slide looks like (ProPresenter's is likely a picture of the slide);
+  track, a picture on the media track, audio on the audio track, a macro on the actions
+  track), and what a carried slide looks like (ProPresenter's is likely a picture of the
+  slide);
 - that the API's `has_timeline` means a timeline with something on it, and that MIDI's
   Start Timeline is the presentation open and not the one live, and its Stop a pause;
 - what the old list is for, as said above.

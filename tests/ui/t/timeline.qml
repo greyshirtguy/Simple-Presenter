@@ -13,8 +13,8 @@ import "lib.js" as Lib
 // done; a cue dragged to another time and taken off by its menu. Then the API's play, pause,
 // rewind and status, and what it says of the presentation; MIDI's Start and Stop Timeline;
 // a slide carried up onto the timeline, the timeline scrolling while one is held near its
-// end; a picture of the media bin and a piece of the audio bin dragged onto it, each to its
-// own track; and the clear groups' Stop Timeline ticks. And the guard on drags
+// end; a picture of the media bin, a piece of the audio bin and a macro dragged onto it, each
+// to its own track; and the clear groups' Stop Timeline ticks. And the guard on drags
 // (src/dragstart.h): a cue, a slide or a picture swept over in a click, all at once, is not
 // dragged (nor the picture put on); a press that shifts a few pixels is a click; and with
 // the timeline shut no slide is carried.
@@ -541,6 +541,37 @@ QtObject {
                 check("drawn: its block on the audio track", cues().some(cue => cue.cue.track === "audio" && cue.cue.time === added[0]?.time
                                                                         && Math.abs(cue.y - (panel().rulerHeight + 64)) < 1))
                 check("and it did not play", Show.liveMusic === null)
+                sidePanel.showControlTab = "macros"
+                return 600
+            },
+            () => {
+                const row = Lib.findAll(named("macroList"), i => i.objectName === "macroRow").find(r => !r.heading)
+                kept.macro = row.modelData
+                kept.macroAt = row.mapToItem(null, row.width / 2, row.height / 2)
+                testInput.mouse(0, kept.macroAt.x, kept.macroAt.y)
+                return 250
+            },
+            () => {
+                kept.landAt = onTracks(6, 88 + 12)
+                for (let i = 1; i <= 10; ++i)
+                    testInput.mouse(1, kept.macroAt.x + (kept.landAt.x - kept.macroAt.x) * i / 10, kept.macroAt.y + (kept.landAt.y - kept.macroAt.y) * i / 10)
+                return 200
+            },
+            () => {
+                const outline = named("timelineTrackOutline")
+                check("a macro is carried, and the actions track is outlined", macroDragged !== null && timelineCarried !== null
+                      && timelineCarried.track === "action" && outline.visible && Math.abs(outline.y - (panel().rulerHeight + 88)) < 1,
+                      JSON.stringify(timelineCarried))
+                testInput.mouse(2, kept.landAt.x, kept.landAt.y)
+                return 700
+            },
+            () => {
+                const added = written().cues.filter(cue => cue.track === "action" && cue.action && cue.action.kind === "macro" && Math.abs(cue.time - 6) < 0.05)
+                check("let go, it is written on the actions track as the action that runs it, named as the macro is", added.length === 1
+                      && added[0].name.indexOf(kept.macro.name) >= 0, JSON.stringify(written().cues.map(cue => [cue.track, cue.time, cue.name])))
+                check("drawn: its block on the actions track", added.length === 1 && cues().some(cue => cue.cue.track === "action" && cue.cue.time === added[0].time
+                                                                                                && Math.abs(cue.y - (panel().rulerHeight + 88)) < 1))
+                check("as the log says", logged(/the macro .* dropped on the timeline of .* at 6\./).length === 1, logged(/dropped on the timeline/).slice(-1)[0])
                 clearAll()
                 openClearGroups(ClearGroups.groups[0].id)
                 return 600

@@ -5243,12 +5243,14 @@ Window {
     // how long it lasts there (0 for not known), and for a slide its group's colour. A
     // slide (slideCarried); a picture or a video out of the media bin (mediaDragged), as
     // ProPresenter's media are dragged onto its timeline; a piece of the audio bin
-    // (audioDragged), as its audio is (the maintainer asked for both, 2026-11-14). null
-    // for anything else, or nothing.
+    // (audioDragged), as its audio is; a macro of the macros, onto its actions track (the
+    // maintainer asked for all three, 2026-11-14). null for anything else, or nothing.
     readonly property var timelineCarried: slideCarried !== null ? { track: "slide", length: 0, fill: slideCarried.fill }
                                          : mediaDragged !== null ? { track: "media", length: 0 }
                                          : audioDragged !== null ? { track: "audio", length: Number(audioDragged.duration ?? 0) }
+                                         : macroDragged !== null ? { track: "action", length: 0 }
                                          : null
+    readonly property var macroDragged: actionDrag.Drag.active && actionDrag.payload && actionDrag.payload.kind === "macro" ? actionDrag.payload : null
 
     // Whether the timeline takes what a drag carries, by the item that carries it (a
     // drag's or a drop's `source`). (By the item, and not by timelineCarried: a drag is
@@ -5256,14 +5258,15 @@ Window {
     // been worked out again.)
     function timelineTakes(source) {
         return (source === slideDrag && slideDrag.slide !== null) || (source === mediaDrag && mediaDrag.media !== null)
-            || (source === actionDrag && actionDrag.payload !== null && actionDrag.payload.kind === "audio")
+            || (source === actionDrag && actionDrag.payload !== null && (actionDrag.payload.kind === "audio" || actionDrag.payload.kind === "macro"))
     }
 
     // What was carried has been let go on the timeline of the presentation being viewed, at
     // `time` (`source`, the drop's own item: see draggedAction). A slide goes on the slides
     // track; a picture, a video or a piece of audio goes on its own track as the action
     // that plays it, as the right button's menu puts one there (commitAction, with the
-    // timeline as its target), named by its file and as long as it is.
+    // timeline as its target), named by its file and as long as it is; and a macro goes
+    // on the actions track as the action that runs it, named as the macro is.
     function dropOnTimeline(source, time) {
         if (!document)
             return
@@ -5274,6 +5277,12 @@ Window {
             Log.note("drop", "slide " + (slide.index + 1) + " of " + quoted(document.name) + " dropped on its timeline at " + time.toFixed(2) + " s")
             if (report(catalog.addTimelineCues(document.path, [{ time: time, slideId: slide.id }])))
                 afterTimelineChange(document.path)
+            return
+        }
+        if (source === actionDrag && actionDrag.payload && actionDrag.payload.kind === "macro") {
+            const macro = actionDrag.payload
+            Log.note("drop", "the macro " + quoted(macro.name) + " dropped on the timeline of " + quoted(document.name) + " at " + time.toFixed(2) + " s")
+            commitAction({ timeline: document.path, time: time }, macroAction(macro, { id: macro.collectionId, name: macro.collectionName }), "")
             return
         }
         const media = source === mediaDrag && mediaDrag.media ? mediaDrag.media : null
