@@ -54,6 +54,7 @@ QtObject {
     function hold(label, to) {
         const from = centre(label)
         testInput.mouse(0, from.x, from.y)
+        testInput.hold(200)
         for (let i = 1; i <= 10; ++i)
             testInput.mouse(1, from.x + (to.x - from.x) * i / 10, from.y + (to.y - from.y) * i / 10)
         kept.held = to

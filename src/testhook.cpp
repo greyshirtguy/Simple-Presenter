@@ -26,6 +26,7 @@
 #include <QQuickItem>
 #include <QPointer>
 #include <QQuickWindow>
+#include <QThread>
 #include <QVideoSink>
 #include <QTcpSocket>
 #include <QTextStream>
@@ -353,6 +354,11 @@ public:
     }
     Q_INVOKABLE void say(const QString &line) { QTextStream(stdout) << line << "\n"; }
     Q_INVOKABLE qint64 now() { return QDateTime::currentMSecsSinceEpoch(); }
+    // A button held down for a while, as a hand holds one before it drags: the app's
+    // thread waits this many milliseconds, doing nothing, so that its clocks move on with
+    // nothing else happening (a press becomes a drag only after a moment: dragstart.h).
+    // Called between a press and the moves of a drag, in one step of a script.
+    Q_INVOKABLE void hold(int milliseconds) { QThread::msleep(qMax(0, milliseconds)); }
     // CPU time this process has used so far, in milliseconds
     Q_INVOKABLE double cpu()
     {

@@ -497,6 +497,8 @@ qt_add_qml_module(SimplePresenter
         src/slidenumber.cpp
         src/numbertyping.h
         src/numbertyping.cpp
+        src/dragstart.h
+        src/dragstart.cpp
         src/sessionlog.h
         src/sessionlog.cpp
         src/windowlists.h

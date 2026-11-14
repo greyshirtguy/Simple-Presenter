@@ -2390,8 +2390,12 @@ Window {
     // `payload` says what: { kind, id, name } and, for a prop or a macro, its
     // collection, or for a clear button the layer it clears. (A prop dropped on another
     // prop of its collection is moved there instead: see PropsPanel.)
-    function beginActionDrag(payload) {
+    // (`point`, of the window, is where the pointer is: the drag is put there before it is
+    // started, for it is offered at once to whatever is under it, and it would otherwise
+    // be offered where the last drag was let go, perhaps on something that takes it.)
+    function beginActionDrag(payload, point) {
         actionDrag.payload = payload
+        moveActionDrag(point)
         actionDrag.Drag.active = true
     }
 

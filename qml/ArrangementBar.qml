@@ -74,6 +74,7 @@ Item {
     property var carried: null
     property point carriedAt
     property point pressedAt
+    property real pressedTime: 0
     // Where in the label the press was: it is carried by that point of it, as a thing
     // picked up is
     property point pressedIn
@@ -98,13 +99,17 @@ Item {
     // is this point of the label.
     function press(at, within) {
         pressedAt = at
+        pressedTime = DragStart.now()
         pressedIn = within
     }
 
     // A label moved with the button down, to this point of the bar. Once that is a
-    // little way from where it was pressed it is being dragged.
+    // little way from where it was pressed, with the button held a moment, it is being
+    // dragged (DragStart, src/dragstart.h: so that a click made in passing is not one).
+    // (Asked on the release too, before release(): one let go past both without a move
+    // since is dragged there and dropped at once.)
     function drag(from, place, group, at) {
-        if (carried === null && Math.abs(at.x - pressedAt.x) + Math.abs(at.y - pressedAt.y) <= 8)
+        if (carried === null && !DragStart.begins(pressedAt, at, pressedTime))
             return
         if (carried === null)
             carried = { from: from, place: place, group: group }
@@ -273,7 +278,10 @@ Item {
                             if (pressed)
                                 bar.drag("master", -1, masterLabel.modelData, mapToItem(bar, mouse.x, mouse.y))
                         }
-                        onReleased: bar.release()
+                        onReleased: (mouse) => {
+                            bar.drag("master", -1, masterLabel.modelData, mapToItem(bar, mouse.x, mouse.y))
+                            bar.release()
+                        }
                         onCanceled: bar.letGo()
                     }
                 }
@@ -383,7 +391,10 @@ Item {
                             if (pressed)
                                 bar.drag("run", runLabel.index, runLabel.modelData, mapToItem(bar, mouse.x, mouse.y))
                         }
-                        onReleased: bar.release()
+                        onReleased: (mouse) => {
+                            bar.drag("run", runLabel.index, runLabel.modelData, mapToItem(bar, mouse.x, mouse.y))
+                            bar.release()
+                        }
                         onCanceled: bar.letGo()
                     }
 

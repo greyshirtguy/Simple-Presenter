@@ -82,6 +82,7 @@ QtObject {
 
     function dragTo(from, to) {
         testInput.mouse(0, from.x, from.y)
+        testInput.hold(200)
         for (let i = 1; i <= 12; ++i)
             testInput.mouse(1, from.x + (to.x - from.x) * i / 12, from.y + (to.y - from.y) * i / 12)
         kept.to = to

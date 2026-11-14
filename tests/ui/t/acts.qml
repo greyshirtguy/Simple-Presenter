@@ -325,6 +325,7 @@ check("a new macro is added to the collection, with its name ready to be typed",
                 const from = row.mapToItem(null, row.width / 2, row.height / 2)
                 const to = centre(slideCell(kept.drop))
                 testInput.mouse(0, from.x, from.y)
+                testInput.hold(200)
                 for (let i = 1; i <= 12; ++i)
                     testInput.mouse(1, from.x + (to.x - from.x) * i / 12, from.y + (to.y - from.y) * i / 12)
                 kept.to = to
@@ -351,6 +352,7 @@ check("a new macro is added to the collection, with its name ready to be typed",
                 const from = rows[0].mapToItem(null, 60, 14)
                 const to = centre(slideCell(kept.drop))
                 testInput.mouse(0, from.x, from.y)
+                testInput.hold(200)
                 for (let i = 1; i <= 12; ++i)
                     testInput.mouse(1, from.x + (to.x - from.x) * i / 12, from.y + (to.y - from.y) * i / 12)
                 testInput.mouse(2, to.x, to.y)

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import SimplePresenterApp
 
 // A list of { name, path } entries, one selected (`selectedPath`), or several
 // (`selectedPaths`, for the rows of a playlist), and one optionally marked live (or, for
@@ -253,6 +254,7 @@ ListView {
             id: mouse
 
             property point pressedAt
+            property real pressedTime: 0
             property bool dragging: false
             readonly property bool canDrag: list.dragProxy !== null && list.draggable(entry.modelData)
 
@@ -260,6 +262,22 @@ ListView {
                 const at = mapToItem(list.dragProxy.parent, mouse.x, mouse.y)
                 list.dragProxy.x = at.x
                 list.dragProxy.y = at.y
+            }
+
+            // Whether the press has become a drag of the entry, with the pointer at
+            // `mouse`: once the pointer is a little way off with the button held a
+            // moment (DragStart, src/dragstart.h), so that a click made in passing is
+            // not one
+            function carry(mouse) {
+                if (!dragging && DragStart.begins(pressedAt, Qt.point(mouse.x, mouse.y), pressedTime)) {
+                    dragging = true
+                    follow(mouse)
+                    list.dragProxy.entry = entry.modelData
+                    list.dragProxy.Drag.active = true
+                }
+                if (dragging)
+                    follow(mouse)
+                return dragging
             }
 
             function finish() {
@@ -275,25 +293,23 @@ ListView {
             preventStealing: canDrag
             onPressed: (mouse) => {
                 pressedAt = Qt.point(mouse.x, mouse.y)
+                pressedTime = DragStart.now()
                 dragging = false
             }
             onPositionChanged: (mouse) => {
-                if (!canDrag || !(pressedButtons & Qt.LeftButton))
-                    return
-                if (!dragging && Math.abs(mouse.x - pressedAt.x) + Math.abs(mouse.y - pressedAt.y) > 10) {
-                    dragging = true
-                    follow(mouse)
-                    list.dragProxy.entry = entry.modelData
-                    list.dragProxy.Drag.active = true
-                }
-                if (dragging)
-                    follow(mouse)
+                if (canDrag && (pressedButtons & Qt.LeftButton))
+                    carry(mouse)
             }
+            // (One let go past the distance and the moment without a move since is
+            // dragged there and dropped at once. A click made in passing and let go off
+            // the entry picks nothing.)
             onReleased: (mouse) => {
+                if (canDrag && mouse.button === Qt.LeftButton && !dragging)
+                    carry(mouse)
                 if (dragging) {
                     list.dragProxy.Drag.drop()
                     finish()
-                } else if (entry.label) {
+                } else if (entry.label || !containsMouse) {
                     return
                 } else if (mouse.button === Qt.RightButton) {
                     list.menuRequested(entry.modelData, entry)

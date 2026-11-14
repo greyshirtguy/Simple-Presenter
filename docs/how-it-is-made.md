@@ -275,6 +275,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/timers.*` | The workspace's timers: their file, their running, and what a text box linked to one shows |
 | `src/clocks.*`, `src/clocktext.*` | The time of day and the time a video has left, for text boxes linked to them, kept going only while one is shown; and how a date and a time are written |
 | `src/groupkeys.*` | The hotkeys of groups: read from and written to the workspace's list of groups, where ProPresenter keeps them |
+| `src/dragstart.*` | When a press becomes a drag, for every drag and drop of the operator window: the pointer a little way off and the button held a moment, so that a click made in passing is not one |
 | `src/slidenumber.*`, `src/numbertyping.*` | A slide asked for by its number, typed: what the digits make and which slide that is, and what QML reaches those rules by |
 | `src/groupedit.*` | Putting a slide, and those after it in its group, into another group, as ProPresenter does |
 | `src/arrangementedit.*` | A presentation's arrangements made, copied, renamed and removed, and a group put into one, moved along it and taken out |

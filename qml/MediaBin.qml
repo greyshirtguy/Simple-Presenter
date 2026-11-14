@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import SimplePresenterApp
 
 // The media bin, along the bottom of the operator window: the workspace's media
 // playlists and the folders they are kept in on the left, and the files of the playlist
@@ -548,16 +549,35 @@ Rectangle {
 
             // Click to put the file on the media layer; drag it onto a slide to
             // make that slide trigger it, or onto another of the playlist's media
-            // to move it there.
+            // to move it there. A press becomes a drag once
+            // the pointer is a little way off with the button held a moment
+            // (DragStart, src/dragstart.h), so that a click made in passing is
+            // not one; and that click puts the file on the layer only if it is
+            // let go on it.
             MouseArea {
                 id: mediaMouse
 
                 property point pressedAt
+                property real pressedTime: 0
                 property bool dragging: false
 
                 function finish() {
                     dragging = false
                     bin.mediaDrag.Drag.active = false
+                }
+
+                // Whether the press has become a drag of the file, with the pointer
+                // at `mouse`
+                function carry(mouse) {
+                    const at = mapToItem(bin.mediaDrag.parent, mouse.x, mouse.y)
+                    bin.mediaDrag.x = at.x
+                    bin.mediaDrag.y = at.y
+                    if (!dragging && DragStart.begins(pressedAt, Qt.point(mouse.x, mouse.y), pressedTime)) {
+                        dragging = true
+                        bin.mediaDrag.media = mediaCell.modelData
+                        bin.mediaDrag.Drag.active = true
+                    }
+                    return dragging
                 }
 
                 anchors.fill: parent
@@ -566,24 +586,23 @@ Rectangle {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onPressed: (mouse) => {
                     pressedAt = Qt.point(mouse.x, mouse.y)
+                    pressedTime = DragStart.now()
                     dragging = false
                 }
                 onPositionChanged: (mouse) => {
-                    if (!(pressedButtons & Qt.LeftButton))
-                        return
-                    const at = mapToItem(bin.mediaDrag.parent, mouse.x, mouse.y)
-                    bin.mediaDrag.x = at.x
-                    bin.mediaDrag.y = at.y
-                    if (!dragging && Math.abs(mouse.x - pressedAt.x) + Math.abs(mouse.y - pressedAt.y) > 10) {
-                        dragging = true
-                        bin.mediaDrag.media = mediaCell.modelData
-                        bin.mediaDrag.Drag.active = true
-                    }
+                    if (pressedButtons & Qt.LeftButton)
+                        carry(mouse)
                 }
+                // (One let go past the distance and the moment without a move since
+                // is dragged there and dropped at once.)
                 onReleased: (mouse) => {
+                    if (mouse.button === Qt.LeftButton && !dragging)
+                        carry(mouse)
                     if (dragging) {
                         dragging = false
                         bin.dropMedia()
+                    } else if (!containsMouse) {
+                        return
                     } else if (mouse.button === Qt.RightButton) {
                         bin.win.showMediaItemMenu(mediaCell.modelData, mediaCell)
                     } else if (!mediaCell.modelData.missing) {

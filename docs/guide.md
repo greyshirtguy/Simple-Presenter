@@ -49,6 +49,12 @@ These are not ProPresenter's.
   slide's media and leaves the slide layer as it is.
 - **Dragging the clear buttons.** A clear button dropped on a slide or a macro gives it
   the action that clears that layer, or that clear group.
+- **No drag by accident.** Whatever is dragged and dropped in the operator window (a
+  row of a list or of a bin, a button of the show controls, a group in the arrangement
+  editor) is dragged only once the pointer is a little way off (twelve pixels) with the
+  button held a moment (150 ms), so that a click made while the hand is still moving the
+  pointer stays a click, and puts nothing anywhere. (The editors' own handles keep the
+  few pixels they had.)
 - **How solid the icons on the slides are** is a setting (Settings → Slides), from
   nearly gone to solid.
 - **When the slides follow the live one** is a setting there too: **Early**, where a

@@ -628,3 +628,13 @@ qt_add_executable(tst_sourcesweep
 target_compile_definitions(tst_sourcesweep PRIVATE SIMPLEPRESENTER_QML_DIR="${PROJECT_SOURCE_DIR}/qml")
 target_link_libraries(tst_sourcesweep PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME sourcesweep COMMAND tst_sourcesweep)
+
+# (Its header names Qt's QML registration, for the one QML reaches it by.)
+qt_add_executable(tst_dragstart
+    tst_dragstart.cpp
+    ${PROJECT_SOURCE_DIR}/src/dragstart.h
+    ${PROJECT_SOURCE_DIR}/src/dragstart.cpp
+)
+target_include_directories(tst_dragstart PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_dragstart PRIVATE Qt6::Core Qt6::Qml Qt6::Test)
+add_test(NAME dragstart COMMAND tst_dragstart)
