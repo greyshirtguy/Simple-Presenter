@@ -49,6 +49,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="messages"></a>**[Messages](docs/features/messages.md)**: something to say over everything else, such as a parent wanted at the creche, with a name or a room typed in as it is shown.
 - <a id="announcements"></a>**[Announcements](docs/features/announcements.md)**: a second presentation running over the first on a layer of its own, for the notices before a service or a ticker along the foot of the screen.
 - <a id="go-to-next-timers-and-the-slide-show"></a>**[Go To Next timers and the Slide Show](docs/features/go-to-next-and-slide-show.md)**: slides that go on by themselves after a time, and a whole presentation left going round.
+- <a id="timeline"></a>**[Timeline](docs/features/timeline.md)**: a presentation's slides, media, audio and actions at set times, played from its start or from anywhere in it, for a song run to its track; recorded by clicking along with it, and kept in the presentation's file as ProPresenter keeps it.
 - <a id="clear-groups"></a>**[Clear groups](docs/features/clear-groups.md)**: named sets of layers, cleared together at one click; and [Clear to Logo](docs/features/clear-groups.md#clear-to-logo) (F12), everything cleared and a logo put up until anything but audio comes on.
 - <a id="actions"></a>**[Actions](docs/features/actions.md)**: what a slide or a macro does as it goes live: start a timer, clear a layer, give the stage a layout, put a prop on, run a macro, change the look, play a media or audio playlist, show a message or a video input, or send to a device. One that is there is changed for another of its kind from a menu: another macro, look, prop, stage layout or thing to clear.
 - <a id="macros"></a>**[Macros](docs/features/macros.md)**: a named list of actions, run at one click.
@@ -125,7 +126,7 @@ the video kept moving as the slides change over it: see
 [Built for modest hardware](docs/how-it-is-made.md#built-for-modest-hardware).
 
 <a id="todo"></a>**What it cannot do yet** is a longer list. ProPresenter does a great deal more than this:
-there are no timelines here yet and no capture, nor video in from a DeckLink card or over NDI, among much else. See
+there is no capture here yet, no timecode, nor video in from a DeckLink card or over NDI, among much else. See
 [what is not there yet](docs/todo.md).
 
 ## What's new

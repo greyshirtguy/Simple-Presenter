@@ -21,6 +21,13 @@ import SimplePresenterApp
 // the maintainer asked (Main's selectSlide, SlideSelection): a selected slide has a blue
 // ring. What is selected is what the Text button's formats go to.
 //
+// While the timeline is open over the slides, a slide can be carried up onto it, as in
+// ProPresenter (Main's beginSlideDrag), once the press has become a drag by the rule of
+// every drag here (DragStart, src/dragstart.h): some way moved, the button held a
+// moment. Not otherwise: with the timeline shut a slide is never carried. (While it is
+// open, a drag that starts on a slide carries the slide and does not scroll the grid;
+// the wheel and the scroll bar still do.)
+//
 // Three ways of showing them, ProPresenter's, picked by the buttons at the right of the
 // bar under them, before the size buttons (Main's slideView; the maintainer's ask of
 // 2026-11-12): the grid; Easy View, the same grid with each thumbnail showing the slide's
@@ -55,6 +62,15 @@ Item {
     readonly property bool easy: win.slideView === "easy"
     readonly property bool table: win.slideView === "table"
     readonly property var viewFormat: table ? win.tableFormat : win.easyFormat
+
+    // A press on a slide, which may become its being carried onto the timeline: where it
+    // was in the window, when (DragStart.now()), and whether it has become that. Kept here, once,
+    // and not in every slide's cell: there is one press at a time. `carrying` stays set
+    // after the release, for the click that a MouseArea reports after it, until the next
+    // press.
+    property point pressedAt
+    property real pressedTime: 0
+    property bool carrying: false
 
     // Words cut to `fits` lines, as Table View's Truncate says: at their beginning or in
     // their middle, a line of "…" taking the place of what is left out. (At their end, Qt's
@@ -547,11 +563,13 @@ Item {
     // A thin header over the slides. In its middle is the name of the presentation
     // being viewed. At its left is the key a song's chords are shown in, for a song
     // that has chords, and after that whatever there is to tell the user. At its right
-    // is the button that opens the arrangement editor under this line
+    // are the button that opens the arrangement editor under this line
     // (ArrangementBar.qml), as ProPresenter has its Arrangements button in the
     // presentation's header, with the arrangement being viewed named beside it if that
-    // is not Master. The line is as high as it was without the editor, and the
-    // editor's two rows are added to it while it is open.
+    // is not Master; and after it the one that opens the timeline (TimelinePanel.qml),
+    // as ProPresenter has its Timeline button there. The line is as high as it was
+    // without them, and the editor's two rows and the timeline are added to it while
+    // they are open.
     Item {
         id: gridHeader
 
@@ -562,10 +580,17 @@ Item {
         // (Not for Bible mode's slides, which have no arrangements, destination or Slide
         // Show of their own to set: the maintainer, 2026-10-15)
         readonly property bool arranging: slides.win.arrangementsShown && slides.win.document !== null && !slides.win.simple && !slides.win.bibleMode
+        // Whether the timeline is open under the line (and under the arrangement editor,
+        // if that is open too): by the same rule (TimelinePanel.qml)
+        readonly property bool timelining: slides.win.timelineShown && slides.win.document !== null && !slides.win.simple && !slides.win.bibleMode
 
         onArrangingChanged: {
             if (arranging)
                 arrangementBar.wanted = true
+        }
+        onTimeliningChanged: {
+            if (timelining)
+                timelinePanel.wanted = true
         }
 
         anchors.left: parent.left
@@ -574,7 +599,7 @@ Item {
         anchors.leftMargin: 16
         anchors.rightMargin: 16
         visible: slides.win.document !== null || slides.win.notice !== ""
-        height: visible ? 30 + (arranging ? arrangementBar.height : 0) : 6
+        height: visible ? 30 + (arranging ? arrangementBar.height : 0) + (timelining ? timelinePanel.height + 4 : 0) : 6
 
         // The key a song's chords are shown in, where a stage screen shows them: at the
         // left of the line. It is there only for a presentation that has chords.
@@ -778,7 +803,8 @@ Item {
             objectName: "arrangementToggle"
             readonly property bool on: gridHeader.arranging
 
-            anchors.right: parent.right
+            anchors.right: timelineToggle.left
+            anchors.rightMargin: 4
             y: 4
             width: 30
             height: 22
@@ -805,6 +831,73 @@ Item {
             }
         }
 
+        // The Timeline button, at the right of the Arrangements button, where
+        // ProPresenter has its own: opens the presentation's timeline under this line
+        // (TimelinePanel.qml), and shuts it; lit while it is open, as the Arrangements
+        // button is. ProPresenter's pack has no picture of it, so its picture is drawn
+        // here after ProPresenter's: two cues, and the playhead between them.
+        Rectangle {
+            id: timelineToggle
+
+            objectName: "timelineToggle"
+            readonly property bool on: gridHeader.timelining
+            readonly property color ink: on ? "black" : "#e6e6e6"
+
+            anchors.right: parent.right
+            y: 4
+            width: 30
+            height: 22
+            radius: 6
+            visible: slides.win.document !== null && !slides.win.simple && !slides.win.bibleMode
+            color: on ? "#4da3ff" : timelineMouse.pressed ? "#50535a" : timelineMouse.containsMouse ? "#45484e" : "#3a3c42"
+
+            Rectangle {
+                x: 6
+                y: 9
+                width: 6
+                height: 7
+                radius: 1
+                color: timelineToggle.ink
+            }
+
+            Rectangle {
+                x: 18
+                y: 9
+                width: 6
+                height: 7
+                radius: 1
+                color: timelineToggle.ink
+            }
+
+            Rectangle {
+                x: 14
+                y: 5
+                width: 2
+                height: 14
+                color: timelineToggle.ink
+            }
+
+            Rectangle {
+                x: 12
+                y: 4
+                width: 6
+                height: 3
+                radius: 1
+                color: timelineToggle.ink
+            }
+
+            MouseArea {
+                id: timelineMouse
+
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: {
+                    slides.win.takeFocus()
+                    slides.win.timelineShown = !slides.win.timelineShown
+                }
+            }
+        }
+
         // The arrangement editor, under the line. It is made when it is first opened,
         // and kept: nothing of it is made as the app starts unless it was left open.
         Loader {
@@ -824,6 +917,27 @@ Item {
                 win: slides.win
             }
             Component.onCompleted: wanted = gridHeader.arranging
+        }
+
+        // The timeline, under the line and the arrangement editor. Made when it is first
+        // opened, and kept, as the editor is.
+        Loader {
+            id: timelinePanel
+
+            property bool wanted: false
+
+            objectName: "timelinePanelLoader"
+            anchors.left: parent.left
+            anchors.right: parent.right
+            y: 30 + (gridHeader.arranging ? arrangementBar.height : 0) + 2
+            height: item ? item.height : 0
+            active: wanted
+            visible: gridHeader.timelining
+            sourceComponent: TimelinePanel {
+                objectName: "timelinePanel"
+                win: slides.win
+            }
+            Component.onCompleted: wanted = gridHeader.timelining
         }
     }
 
@@ -1369,6 +1483,45 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
+                // While the timeline is open a slide can be carried onto it (see the top):
+                // the grid would otherwise take the drag for itself, to scroll by.
+                preventStealing: gridHeader.timelining
+
+                // Whether the press has become a drag carrying this slide, at `at`, a
+                // point of the window: from the first move that makes it one, on.
+                function carry(at) {
+                    if (!slides.carrying && gridHeader.timelining && DragStart.begins(slides.pressedAt, at, slides.pressedTime)) {
+                        slides.carrying = true
+                        slides.win.beginSlideDrag(cell.index, at)
+                    }
+                    if (slides.carrying)
+                        slides.win.moveSlideDrag(at)
+                    return slides.carrying
+                }
+
+                onPressed: (mouse) => {
+                    if (mouse.button !== Qt.LeftButton)
+                        return
+                    slides.pressedAt = mapToItem(null, mouse.x, mouse.y)
+                    slides.pressedTime = DragStart.now()
+                    slides.carrying = false
+                }
+                onPositionChanged: (mouse) => {
+                    if (gridHeader.timelining && (pressedButtons & Qt.LeftButton))
+                        carry(mapToItem(null, mouse.x, mouse.y))
+                }
+                // Let go: dropped where it is, if it was carried; or, if it is let go
+                // after the moment and the distance without having been moved since (a
+                // quick move, then still), carried there and dropped all at once.
+                onReleased: (mouse) => {
+                    if (mouse.button === Qt.LeftButton && gridHeader.timelining && carry(mapToItem(null, mouse.x, mouse.y)))
+                        slides.win.endSlideDrag(true)
+                }
+                onCanceled: {
+                    if (slides.carrying)
+                        slides.win.endSlideDrag(false)
+                    slides.carrying = false
+                }
                 // The icon in the corner under the pointer, if there is one. (An icon may
                 // be inside something that holds two of them, or more.)
                 function iconAt(x, y) {
@@ -1385,6 +1538,9 @@ Item {
                 }
 
                 onClicked: (mouse) => {
+                    // (A slide that was carried, and let go on itself, is not clicked.)
+                    if (mouse.button === Qt.LeftButton && slides.carrying)
+                        return
                     if (mouse.button === Qt.LeftButton) {
                         // The keyboard comes back to the show, from whatever box of the
                         // window was being typed in.

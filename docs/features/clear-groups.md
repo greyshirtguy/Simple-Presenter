@@ -27,6 +27,9 @@ down the left, and on the right what the one picked has.
   its sound effects; the audio effects are the sound effects alone, so that a group
   can stop those and leave the music playing. The video inputs are the
   [video input](video-inputs.md) layer.
+- **Stop Timeline**, for the presentation and for the announcements: whether the group
+  stops the [timeline](timeline.md) playing there, whatever layers it clears. Clear All
+  stops both, as ProPresenter's does.
 - **The picture** on its button, one of the thirty-two ProPresenter has to choose from.
   For the two that ProPresenter's icon pack has (the one called All, and the message)
   it is ProPresenter's own picture; the digits are digits; and the rest are this app's
@@ -48,7 +51,8 @@ the file exactly as it was.
 What is a guess, ProPresenter's own window for this not having been looked at: how
 that window is laid out; the order the layers are listed in, which is the order
 ProPresenter's own group has them in; that its "audio" stops the sound effects as well
-as the music; that F1 is for the first group of the list; what
+as the music; where its Stop Timeline is, which its help puts under Presentation and
+under Announcements; that F1 is for the first group of the list; what
 a new group is given (here a name, no layers, and for its picture the first digit that
 no group has); and that any group, the one a workspace starts with among them, can be
 renamed, moved and removed. What it rests on is one file of ProPresenter's own, with

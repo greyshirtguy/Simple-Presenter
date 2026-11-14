@@ -5,8 +5,8 @@
 #include <QtQml/qqmlregistration.h>
 
 // When a press becomes a drag, for every drag and drop of the operator window: a row of
-// a list or of a bin, a button of the show controls, a group of the arrangement editor.
-// (Not the editors' own
+// a list or of a bin, a button of the show controls, a group of the arrangement editor,
+// a slide carried onto the timeline, a cue moved along it. (Not the editors' own
 // handles: an element moved or sized on the slide editor's canvas, a row of its list of
 // elements, a chord carried in the chord editor. Those are worked with care, away from a
 // show, and keep the few pixels they had.)

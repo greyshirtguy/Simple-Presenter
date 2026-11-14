@@ -629,6 +629,28 @@ target_compile_definitions(tst_sourcesweep PRIVATE SIMPLEPRESENTER_QML_DIR="${PR
 target_link_libraries(tst_sourcesweep PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME sourcesweep COMMAND tst_sourcesweep)
 
+qt_add_executable(tst_timeline
+    tst_timeline.cpp
+    ${PROJECT_SOURCE_DIR}/src/timeline.h
+    ${PROJECT_SOURCE_DIR}/src/timeline.cpp
+)
+target_include_directories(tst_timeline PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_timeline PRIVATE Qt6::Core Qt6::Test proproto)
+add_test(NAME timeline COMMAND tst_timeline)
+
+# (The player is one of the window's types, and its header names Qt's QML registration;
+# it is built and tried here with no window.)
+qt_add_executable(tst_timelineplayer
+    tst_timelineplayer.cpp
+    ${PROJECT_SOURCE_DIR}/src/timelineplayer.h
+    ${PROJECT_SOURCE_DIR}/src/timelineplayer.cpp
+    ${PROJECT_SOURCE_DIR}/src/timeline.h
+    ${PROJECT_SOURCE_DIR}/src/timeline.cpp
+)
+target_include_directories(tst_timelineplayer PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_timelineplayer PRIVATE Qt6::Core Qt6::Qml Qt6::Test proproto)
+add_test(NAME timelineplayer COMMAND tst_timelineplayer)
+
 # (Its header names Qt's QML registration, for the one QML reaches it by.)
 qt_add_executable(tst_dragstart
     tst_dragstart.cpp

@@ -83,6 +83,11 @@
 //   played from a media playlist may be followed by another of its playlist when it
 //   ends, ProPresenter's Next Cue (src/mediacue.h, and State::mediaFinished).
 //
+//   A presentation may have a timeline (ProPresenter's: src/timeline.h): its slides,
+//   media, audio and actions at set times. What plays one (src/timelineplayer.h) only
+//   keeps the time and says when a cue is due; Main.qml then takes the slide live, or
+//   runs the action, through Show, as any click would.
+//
 // What is heard.
 //
 //   Besides the layers that are seen there is the audio layer: the pieces of the audio

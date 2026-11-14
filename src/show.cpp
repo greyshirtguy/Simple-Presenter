@@ -171,6 +171,9 @@ void Show::change(const std::function<show::Effects()> &what)
         case show::Effect::NoVideoInput:
             // (What the screens show of it they read from liveVideoInput.)
             break;
+        case show::Effect::NoTimeline:
+            emit timelineStopped(effect.text);
+            break;
         }
     }
 }
@@ -630,6 +633,16 @@ QStringList Show::setLiveVolume(const QVariantMap &place, const QString &file, d
 void Show::runMarker(const QVariantMap &marker, const QString &media)
 {
     change([&] { return m_state.runMarker(marker, media, m_workspace); });
+}
+
+void Show::runTimelineAction(const QVariantMap &action, double offset, const QString &name)
+{
+    change([&] { return m_state.runTimelineAction(action, offset, name, m_workspace); });
+}
+
+void Show::stopMusicOf(const QStringList &ids)
+{
+    change([&] { return m_state.stopMusicOf(ids); });
 }
 
 QVariant Show::propOf(const QVariantMap &action) const

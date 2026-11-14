@@ -136,6 +136,8 @@ struct Effect
         Communicate,    // tell a communication device what `action` says (see communications.h)
         VideoInput,     // put the video input whose place is `action`'s "index" on the video input layer
         NoVideoInput,   // take the video input layer off
+        NoTimeline,     // stop the timeline that is playing (timelineplayer.h) of `text`: "presentation", the
+                        // presentation's on the slide and media layers, or "announcements"
     };
     Kind kind = Note;
     QVariantMap media;
@@ -434,6 +436,11 @@ public:
     Effects clearAudio();
     Effects clearAudioEffects();
     Effects clearMessages();
+    // Everything: and the two timelines stop, as ProPresenter's own Clear All group has
+    // them stop (A GUESS: that the clearing of everything that is not that group, which
+    // a MIDI note's Clear All asks for, stops them as well). An action that clears
+    // everything clears the layers one by one and leaves the timelines, so that one on a
+    // timeline does not stop the timeline it is on.
     Effects clearAll();
     // ProPresenter's Clear to Logo: everything cleared, as clearAll clears it, and the
     // workspace's logo (Workspace::logo) put on the media layer, by the media's
@@ -456,7 +463,9 @@ public:
     // the slide, the media, the announcements, the props, the messages, the audio
     // (the music and the sound effects) and the audio effects (the sound effects
     // alone). The other it names (video inputs) is ProPresenter's, and nothing is
-    // done for it. A group the workspace has not clears nothing.
+    // done for it. And it stops the timelines it names (its `timelines`, ProPresenter's
+    // Stop Timeline: "presentation" and "announcements"), whatever layers it has. A
+    // group the workspace has not clears nothing.
     Effects clearGroup(const QString &id, const Workspace &workspace);
 
     // Turns a prop on, in front of the props that are on already, or off if it is on.
@@ -488,6 +497,17 @@ public:
 
     // Runs a macro by hand.
     Effects runMacro(const QString &id, const Workspace &workspace);
+    // A cue of a timeline that is an action has come due (timelineplayer.h): it is run
+    // as a macro's actions are. `offset` is how far into it the timeline is, for a
+    // piece of audio or a video started part way (timeline::entering): it is handed on
+    // with the audio or the media as `startAt`, in seconds, for whatever plays it to
+    // start there. `name` is the cue's, for the log.
+    Effects runTimelineAction(const QVariantMap &action, double offset, const QString &name, const Workspace &workspace);
+    // A timeline has been paused: the music it started stops, if it is still the music
+    // playing, by the ids of the pieces of audio on the timeline (`ids`), so that the
+    // timeline played on starts it again where it is. (Sound effects are short, and
+    // are left to finish.)
+    Effects stopMusicOf(const QStringList &ids);
     // A playback marker has been reached by the media playing it, or picked from the
     // transport's Marker menu (see playbackmarkers.h): its actions are run as a macro's
     // are. `marker` is { name, time, actions } as playbackmarkers::describe has it, and
@@ -557,6 +577,8 @@ private:
     void playPlaylist(const QVariantMap &action, const Workspace &workspace, Effects &effects);
     void clearGroup(const QVariantMap &group, Effects &effects);
     void toggleProp(const QString &id, const Workspace &workspace, Effects &effects);
+    // The timeline of `which` ("presentation" or "announcements") to stop
+    void stopTimeline(const QString &which, Effects &effects);
 };
 
 // What the rules look up in a workspace. Each answers with an empty map for nothing.

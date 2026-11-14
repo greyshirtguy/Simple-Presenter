@@ -472,6 +472,11 @@ Window {
     // ArrangementsPanel.qml), which is made when it is first wanted.
     property bool arrangementsShown: false
     property bool arrangementsOpen: false
+    // Whether the timeline is open over the slides (TimelinePanel.qml), and how spread
+    // out its time is, in pixels a second: this computer's own, kept as the
+    // arrangement editor's is. (The rest of the timeline is under "The timeline", below.)
+    property bool timelineShown: false
+    property real timelineZoom: 18
 
     // Whether the window the clear groups are set up in is up (see ClearGroupsPanel).
     // It is made when it is first wanted, which in most sessions is never.
@@ -1861,6 +1866,15 @@ Window {
     // Runs a macro by hand, from the show controls.
     function runMacro(id) {
         Show.runMacro(id)
+        // (On a timeline that is being recorded, as an action that runs it)
+        if (presentationTimeline.recording || announcementTimeline.recording) {
+            for (const collection of Macros.collections) {
+                const macro = collection.macros.find(candidate => candidate.id === id)
+                if (macro)
+                    recordOnTimeline({ track: "action", name: macro.name, action: { kind: "macro", label: macro.name },
+                                       wanted: macroAction(macro, collection) })
+            }
+        }
     }
 
     // ---- The guide (GuideWindow.qml, src/guide.h): the ? at the right of the toolbar
@@ -2014,6 +2028,15 @@ Window {
         if (target.macro !== undefined) {
             Log.note("edit", "an action " + (existingId ? "changed in" : "added to") + " a macro: " + action.kind)
             return report(existingId ? Macros.changeAction(target.macro, existingId, action) : Macros.addAction(target.macro, action))
+        }
+        // A timeline's (see showTimelineTrackMenu): `target.timeline` is the presentation's
+        // file, and `target.time` where the cue goes
+        if (target.timeline !== undefined) {
+            Log.note("edit", "an action put on the timeline of " + quoted(target.timeline) + " at " + target.time.toFixed(2) + " s: " + action.kind)
+            const done = report(catalog.addTimelineCues(target.timeline, [{ time: target.time, wanted: action, name: "" }]))
+            if (done)
+                afterTimelineChange(target.timeline)
+            return done
         }
         const slide = document.slides[target.slide]
         const places = !existingId && target.slides !== undefined && target.slides.length > 1 ? target.slides : [target.slide]
@@ -2542,6 +2565,7 @@ Window {
             Show.follow(liveCue(reloaded, index >= 0 ? index : liveIndex))
         }
         followAnnouncements(reloaded, viewingAnnouncements)
+        followTimelines(reloaded)
         document = reloaded
         grid.contentY = scrolledTo
     }
@@ -2855,6 +2879,13 @@ Window {
     // is playing, a sound effect over whatever is (see show::State::playAudio).
     function playAudio(audio, playlist = "") {
         Show.playAudio(audio, playlist)
+        // (A row of the bin, played by hand, goes on a timeline that is being recorded,
+        // named by its file as ProPresenter names one)
+        if (playlist !== "" && audio && audio.id) {
+            const file = String(audio.path ?? "").split("/").pop()
+            recordOnTimeline({ track: "audio", name: file !== "" ? file : audio.name ?? "", length: Number(audio.duration ?? 0),
+                               action: { kind: "audio", label: audio.name ?? "" }, wanted: { kind: "audio", item: audio.id } })
+        }
     }
 
     function clearAudio() {
@@ -4694,6 +4725,9 @@ Window {
             liveDocument = presentation
             liveFresh = null
         }
+        // (A timeline playing on that layer stops if this is another presentation's slide:
+        // see TimelinePlayer.wentLive. Its own slides come here too, and leave it playing.)
+        timelinePlayerOf(presentation).wentLive(key, playlist)
         Show.goLive(cueAt(presentation, key, playlist, index), withoutMedia === true)
         // The grid follows a slide of the presentation it is showing, however the slide
         // went live: a click, a key, or the API (which in 0.129 and before left the grid
@@ -4721,6 +4755,10 @@ Window {
     // from, if it was.
     function showMedia(media, playlist = "") {
         Show.showMedia(media, playlist)
+        // (A row of the bin, put on by hand, goes on a timeline that is being recorded)
+        if (playlist !== "" && media && media.id)
+            recordOnTimeline({ track: "media", name: media.name ?? "", length: 0, action: { kind: "media", label: media.name ?? "" },
+                               wanted: { kind: "media", item: media.id } })
     }
 
     function openMediaPlaylist(id) {
@@ -4849,6 +4887,8 @@ Window {
         if (!viewedGoesToAnnouncements && Show.stepBuild(documentKey, viewedPlaylistId, index))
             return
         goLive(index, withoutMedia)
+        // (On the timeline, if it is being recorded: TimelinePlayer)
+        recordSlide(index)
     }
 
     function clearSlide() {
@@ -4862,6 +4902,388 @@ Window {
 
     function clearMedia() {
         Show.clearMedia()
+    }
+
+    // ---- The timeline (ProPresenter's: src/timeline.h has what it is, and the guesses).
+    //
+    // Two players (TimelinePlayer): the timeline of the presentation on the slide and
+    // media layers, and that of the presentation the announcements are showing, which
+    // can play at once, as ProPresenter's two can. Each has one presentation's timeline
+    // at a time, by the row it was opened from, and the presentation as it was read, for
+    // its slides (`presentationTimelineDocument`, `announcementTimelineDocument`). The
+    // timeline over the slides (TimelinePanel) is the presentation being viewed's, played
+    // by the player of the layer that presentation goes to; Play gives that player this
+    // presentation first.
+    //
+    // What a cue does when it is due is done here, through Show, as by any hand: a
+    // slide goes live as a click would take it live (goLiveIn), and an action is run as
+    // a macro's are (Show.runTimelineAction). The player decides only when.
+    TimelinePlayer {
+        id: presentationTimeline
+
+        objectName: "presentationTimeline"
+        watched: win.timelineShown && win.timelineHere === presentationTimeline && win.timelineMine
+        onCueDue: (cue, offset) => win.timelineCueDue(presentationTimeline, cue, offset)
+        onPaused: win.timelinePaused(presentationTimeline)
+        onRecordingChanged: if (!recording) win.writeRecorded(presentationTimeline)
+    }
+
+    TimelinePlayer {
+        id: announcementTimeline
+
+        objectName: "announcementTimeline"
+        watched: win.timelineShown && win.timelineHere === announcementTimeline && win.timelineMine
+        onCueDue: (cue, offset) => win.timelineCueDue(announcementTimeline, cue, offset)
+        onPaused: win.timelinePaused(announcementTimeline)
+        onRecordingChanged: if (!recording) win.writeRecorded(announcementTimeline)
+    }
+
+    readonly property var timelinePlayers: [presentationTimeline, announcementTimeline]
+    property var presentationTimelineDocument: null
+    property var announcementTimelineDocument: null
+    // Where the playhead is on the timeline of a presentation being viewed whose timeline
+    // no player has: what Play starts from
+    property real timelineCursor: 0
+
+    // The player for a presentation, by the layer it goes to
+    function timelinePlayerOf(presentation) {
+        return presentation && presentation.destination === "announcements" ? announcementTimeline : presentationTimeline
+    }
+
+    readonly property var timelineHere: timelinePlayerOf(document)
+    // Whether that player has the timeline of the presentation being viewed, of the row
+    // it is viewed from
+    readonly property bool timelineMine: document !== null && timelineHere.path === document.path
+                                         && timelineHere.key === documentKey && timelineHere.playlistId === viewedPlaylistId
+
+    function timelineDocumentOf(player) {
+        return player === announcementTimeline ? announcementTimelineDocument : presentationTimelineDocument
+    }
+
+    // Gives a player the timeline of a presentation, of the row `key` of `playlist`.
+    // Whatever was recorded on another's and not yet written is written first.
+    function loadTimeline(player, presentation, key, playlist) {
+        if (!player.holds(key, playlist) || player.path !== presentation.path)
+            writeRecorded(player)
+        player.load(presentation.path, key, playlist, presentation.timeline ?? ({}))
+        if (player === announcementTimeline)
+            announcementTimelineDocument = presentation
+        else
+            presentationTimelineDocument = presentation
+    }
+
+    // Plays the timeline of a presentation, by its row: the presentation being viewed's
+    // from its Play, or any's from the API. From where its playhead is.
+    function playTimelineOf(presentation, key, playlist) {
+        if (!presentation || !presentation.timeline)
+            return
+        const player = timelinePlayerOf(presentation)
+        if (!player.holds(key, playlist) || player.path !== presentation.path) {
+            loadTimeline(player, presentation, key, playlist)
+            if (presentation === document)
+                player.seek(timelineCursor)
+        }
+        Log.note("timeline", "played, of " + quoted(presentation.name) + ", from " + player.position.toFixed(2) + " s")
+        player.play()
+    }
+
+    function playTimeline() {
+        playTimelineOf(document, documentKey, viewedPlaylistId)
+    }
+
+    function pauseTimeline() {
+        if (timelineMine)
+            timelineHere.pause()
+    }
+
+    // ProPresenter's Rewind: the playhead to the start, playing on if it was playing
+    function rewindTimeline() {
+        seekTimeline(0)
+    }
+
+    function seekTimeline(seconds) {
+        const at = Math.max(0, seconds)
+        if (timelineMine)
+            timelineHere.seek(at)
+        else
+            timelineCursor = Math.min(at, document?.timeline?.duration ?? at)
+    }
+
+    // Record, on and off. Turned on, the player is given this presentation's timeline
+    // (another's that was playing stops) at the playhead; turned off, what was recorded
+    // is written (writeRecorded, by the player's onRecordingChanged).
+    function toggleTimelineRecording() {
+        if (!document)
+            return
+        const player = timelineHere
+        if (timelineMine && player.recording) {
+            player.recording = false
+            return
+        }
+        if (!timelineMine) {
+            loadTimeline(player, document, documentKey, viewedPlaylistId)
+            player.seek(timelineCursor)
+        }
+        player.recording = true
+        Log.note("timeline", "recording onto the timeline of " + quoted(document.name) + ", from " + player.position.toFixed(2) + " s")
+    }
+
+    // What a player has recorded, written to its presentation's file at once, and the
+    // presentation read again (see reloadDocument, which gives the player its cues as
+    // they now are)
+    function writeRecorded(player) {
+        if (player.recordedCount === 0)
+            return
+        const path = player.path
+        const cues = player.takeRecorded()
+        Log.note("timeline", cues.length + (cues.length === 1 ? " cue" : " cues") + " recorded onto the timeline of " + quoted(path))
+        if (!report(catalog.addTimelineCues(path, cues)))
+            return
+        afterTimelineChange(path)
+    }
+
+    // Puts what is triggered by hand on the timeline that is recording, if one is: a
+    // slide only on the timeline of its own presentation; anything else on whichever is.
+    function recordOnTimeline(cue) {
+        for (const player of [presentationTimeline, announcementTimeline]) {
+            if (!player.recording)
+                continue
+            if (cue.track === "slide" && !(player.holds(documentKey, viewedPlaylistId) && player.path === document?.path))
+                continue
+            player.record(cue)
+        }
+    }
+
+    function recordSlide(index) {
+        const slide = document?.slides[index]
+        if (!slide || !(presentationTimeline.recording || announcementTimeline.recording))
+            return
+        const named = document.timeline?.slides?.[slide.id] ?? ({})
+        recordOnTimeline({ track: "slide", slideId: slide.id, name: named.name ?? "", group: named.group ?? slide.group ?? "",
+                           groupColor: named.groupColor ?? slide.groupColor ?? "" })
+    }
+
+    // A timeline's cue is due (see TimelinePlayer): a slide goes live, where the
+    // arrangement being shown has it (timeline::slidePlace); anything else is run.
+    function timelineCueDue(player, cue, offset) {
+        if (cue.track !== "slide") {
+            Show.runTimelineAction(cue.action, offset, cue.name)
+            return
+        }
+        const presentation = timelineDocumentOf(player)
+        if (!presentation)
+            return
+        const announcements = player === announcementTimeline
+        const atIt = announcements ? Show.announcementKey === player.key && Show.announcementPlaylistId === player.playlistId
+                                   : Show.liveKey === player.key && Show.livePlaylistId === player.playlistId
+        const place = player.slidePlace(presentation.slides.map(slide => slide.id), cue.slideId,
+                                        atIt ? (announcements ? Show.announcementIndex : Show.liveIndex) : -1)
+        if (place < 0) {
+            Log.note("timeline", "the cue " + quoted(cue.name) + " is of a slide the arrangement shown has not, and nothing was triggered")
+            return
+        }
+        goLiveIn(presentation, player.key, player.playlistId, place)
+    }
+
+    // Paused: the music it started stops with it (Show.stopMusicOf), to be started again
+    // where the timeline is when it plays on
+    function timelinePaused(player) {
+        const ids = (player.timeline.cues ?? []).filter(cue => cue.track === "audio").map(cue => cue.action?.audio?.id ?? "")
+                                                .filter(id => id !== "")
+        if (ids.length > 0)
+            Show.stopMusicOf(ids)
+    }
+
+    // A change has been written to the file of the presentation at `path`: it is read
+    // again, where it is being viewed (reloadDocument gives the players its timeline as it
+    // now is); where it is not, the players that have it are given it all the same.
+    function afterTimelineChange(path) {
+        if (document && document.path === path) {
+            reloadDocument()
+            return
+        }
+        for (const player of [presentationTimeline, announcementTimeline]) {
+            if (player.path !== path)
+                continue
+            const reread = catalog.openArranged(path, timelineDocumentOf(player)?.arrangement ?? "")
+            if (reread.error)
+                continue
+            loadTimeline(player, reread, player.key, player.playlistId)
+        }
+    }
+
+    // The presentation being viewed has been read again: a player that has its timeline
+    // is given it as it now is, and the presentation for its slides.
+    function followTimelines(reloaded) {
+        for (const player of [presentationTimeline, announcementTimeline]) {
+            if (player.path === reloaded.path && player.holds(documentKey, viewedPlaylistId))
+                loadTimeline(player, reloaded, documentKey, viewedPlaylistId)
+        }
+    }
+
+    function setTimelineLoop(on) {
+        if (!document || !report(catalog.setTimelineLoop(document.path, on)))
+            return
+        Log.note("edit", "the timeline of " + quoted(document.name) + (on ? " loops" : " does not loop"))
+        afterTimelineChange(document.path)
+    }
+
+    function setTimelineDuration(seconds) {
+        if (!document || !report(catalog.setTimelineDuration(document.path, seconds)))
+            return
+        Log.note("edit", "the timeline of " + quoted(document.name) + " is " + seconds + " s long")
+        afterTimelineChange(document.path)
+    }
+
+    function moveTimelineCue(cue, time) {
+        if (!document || cue.place < 0 || !report(catalog.moveTimelineCue(document.path, cue.place, time)))
+            return
+        Log.note("edit", "the cue " + quoted(cue.name) + " of the timeline of " + quoted(document.name) + " moved to " + time.toFixed(2) + " s")
+        afterTimelineChange(document.path)
+    }
+
+    function removeTimelineCue(cue) {
+        if (!document || cue.place < 0 || !report(catalog.removeTimelineCue(document.path, cue.place)))
+            return
+        Log.note("edit", "the cue " + quoted(cue.name) + " taken off the timeline of " + quoted(document.name))
+        afterTimelineChange(document.path)
+    }
+
+    // A cue's own menu: put the playhead at it, or take it off. (One recorded and not
+    // yet written is taken off by turning Record off and then taking it off.)
+    function showTimelineCueMenu(cue, item, x, y) {
+        const items = [{ header: cue.name !== "" ? cue.name : "Cue" },
+                       { label: "Move Playhead Here", run: () => seekTimeline(cue.time) }]
+        if (cue.place >= 0)
+            items.push({ label: "Delete", danger: true, run: () => removeTimelineCue(cue) })
+        else
+            items.push({ note: "Recorded: it is saved when Record is turned off." })
+        menu.show(items, item, x, y)
+    }
+
+    // What the right button on an empty place of a track adds there, at `time`: on the
+    // actions track, an action, as a slide's are added (commitAction, with a timeline as
+    // the target); on the media track and the audio track, a row of the bins (their
+    // playlists, each leading to its rows); on the slides track, a slide of the
+    // presentation, by its place in the arrangement shown.
+    function showTimelineTrackMenu(track, time, item, x, y) {
+        if (!document)
+            return
+        const target = { timeline: document.path, time: time }
+        const at = " at " + time.toFixed(1) + " s"
+        if (track === "action") {
+            menu.show(addActionItems(target), item, x, y)
+            return
+        }
+        const addRow = (kind, row) => commitAction(target, { kind: kind, item: row.id }, "")
+        if (track === "media" || track === "audio") {
+            const audio = track === "audio"
+            const lists = (audio ? catalog.audioPlaylists : catalog.mediaPlaylists).filter(node => !node.folder)
+            const items = [{ header: (audio ? "Add Audio" : "Add Media") + at }]
+            for (const node of lists) {
+                const rows = (audio ? catalog.audioIn(node.path) : catalog.mediaIn(node.path)).filter(row => !row.missing)
+                if (rows.length > 0)
+                    items.push({ label: node.name, items: [{ header: node.name }].concat(rows.map(row => ({ label: row.name, run: () => addRow(track, row) }))) })
+            }
+            if (items.length === 1)
+                items.push({ note: audio ? "The audio bin has nothing to add." : "The media bin has nothing to add." })
+            menu.show(items, item, x, y)
+            return
+        }
+        const items = [{ header: "Add Slide" + at }]
+        document.slides.forEach((slide, place) => {
+            const words = String(slide.plainText ?? "").split("\n")[0].trim()
+            items.push({ label: (place + 1) + (slide.group ? " " + slide.group : "") + (words !== "" ? ": " + words : ""),
+                         run: () => {
+                             if (report(catalog.addTimelineCues(document.path, [{ time: time, slideId: slide.id }])))
+                                 afterTimelineChange(document.path)
+                         } })
+        })
+        menu.show(items, item, x, y)
+    }
+
+    // A slide carried onto the timeline. ProPresenter's slides are dragged up onto its
+    // timeline (the maintainer, 2026-11-14); here a slide of the presentation being viewed
+    // is carried from the slides (SlideGrid) while its timeline is open over them, and
+    // not otherwise: with the timeline shut, a slide is never carried, and a click on one
+    // is a click however the pointer moves. What is carried is drawn as the block the slide
+    // becomes on the timeline (slideDrag); let go on the timeline it goes on its slides
+    // track at the time there (TimelinePanel), as recording would put it (by its id, named
+    // "Cue" and its place: timeline::addSlide), and is written at once, as every change to
+    // the timeline is. Let go anywhere else, nothing is done.
+    // (`point`, of the window, is where the pointer is: see beginActionDrag)
+    function beginSlideDrag(index, point) {
+        const slide = document?.slides[index]
+        if (!slide)
+            return
+        const named = document.timeline?.slides?.[slide.id] ?? ({})
+        const block = { group: named.group ?? slide.group ?? "", groupColor: named.groupColor ?? slide.groupColor ?? "" }
+        slideDrag.slide = { index: index, id: slide.id, path: document.path, name: named.name ?? "", group: block.group,
+                            fill: groupColor(block) }
+        moveSlideDrag(point)
+        slideDrag.Drag.active = true
+    }
+
+    function moveSlideDrag(point) {
+        const at = slideDrag.parent.mapFromItem(null, point.x, point.y)
+        slideDrag.x = at.x
+        slideDrag.y = at.y
+    }
+
+    function endSlideDrag(dropped) {
+        if (dropped)
+            slideDrag.Drag.drop()
+        slideDrag.Drag.active = false
+    }
+
+    // The slide that is being carried, as beginSlideDrag has it, or null
+    readonly property var slideCarried: slideDrag.Drag.active ? slideDrag.slide : null
+
+    // What is being carried that the timeline takes, as it would be on it: its track, and
+    // how long it lasts there (0 for not known), and for a slide its group's colour. A
+    // slide (slideCarried); a picture or a video out of the media bin (mediaDragged), as
+    // ProPresenter's media are dragged onto its timeline; a piece of the audio bin
+    // (audioDragged), as its audio is (the maintainer asked for both, 2026-11-14). null
+    // for anything else, or nothing.
+    readonly property var timelineCarried: slideCarried !== null ? { track: "slide", length: 0, fill: slideCarried.fill }
+                                         : mediaDragged !== null ? { track: "media", length: 0 }
+                                         : audioDragged !== null ? { track: "audio", length: Number(audioDragged.duration ?? 0) }
+                                         : null
+
+    // Whether the timeline takes what a drag carries, by the item that carries it (a
+    // drag's or a drop's `source`). (By the item, and not by timelineCarried: a drag is
+    // offered to what is under it as it starts, before what follows its starting has
+    // been worked out again.)
+    function timelineTakes(source) {
+        return (source === slideDrag && slideDrag.slide !== null) || (source === mediaDrag && mediaDrag.media !== null)
+            || (source === actionDrag && actionDrag.payload !== null && actionDrag.payload.kind === "audio")
+    }
+
+    // What was carried has been let go on the timeline of the presentation being viewed, at
+    // `time` (`source`, the drop's own item: see draggedAction). A slide goes on the slides
+    // track; a picture, a video or a piece of audio goes on its own track as the action
+    // that plays it, as the right button's menu puts one there (commitAction, with the
+    // timeline as its target), named by its file and as long as it is.
+    function dropOnTimeline(source, time) {
+        if (!document)
+            return
+        if (source === slideDrag) {
+            const slide = slideDrag.slide
+            if (!slide || slide.path !== document.path)
+                return
+            Log.note("drop", "slide " + (slide.index + 1) + " of " + quoted(document.name) + " dropped on its timeline at " + time.toFixed(2) + " s")
+            if (report(catalog.addTimelineCues(document.path, [{ time: time, slideId: slide.id }])))
+                afterTimelineChange(document.path)
+            return
+        }
+        const media = source === mediaDrag && mediaDrag.media ? mediaDrag.media : null
+        const audio = source === actionDrag && actionDrag.payload && actionDrag.payload.kind === "audio" ? actionDrag.payload : null
+        const row = media ?? audio
+        if (!row)
+            return
+        Log.note("drop", (media ? (media.video ? "the video " : "the picture ") : "the audio ") + quoted(row.name) + " dropped on the timeline of "
+                 + quoted(document.name) + " at " + time.toFixed(2) + " s")
+        commitAction({ timeline: document.path, time: time }, { kind: media ? "media" : "audio", item: row.id }, "")
     }
 
     // The video input layer: an input put on it by its place in the workspace's list (a
@@ -5171,6 +5593,9 @@ Window {
         audioMeterOpacity = isFinite(meterOpacity) ? Math.max(0.05, Math.min(1, meterOpacity)) : 0.5
         stageMessageText = String(saved("stageMessage", ""))
         arrangementsShown = String(saved("arrangementsShown", false)) === "true"
+        timelineShown = String(saved("timelineShown", false)) === "true"
+        const zoom = Number(saved("timelineZoom", timelineZoom))
+        timelineZoom = isFinite(zoom) ? Math.max(4, Math.min(80, zoom)) : 18
         const messagesHeight = Number(saved("messagesSplit", messagesSplit))
         messagesSplit = isFinite(messagesHeight) ? Math.max(36, messagesHeight) : 62
         const previewArea = Number(saved("previewHeight", 0))
@@ -5546,7 +5971,13 @@ Window {
     onPlaylistIdChanged: saveSelection("playlist", playlistId)
     // (Not in Bible mode, nor Bible mode's slides: theirs is a file that goes when the
     // app closes, and the grid in Bible mode shows nothing else.)
-    onDocumentKeyChanged: if (!bibleMode && documentKey !== bibleKey) saveSelection("presentation", documentKey)
+    onDocumentKeyChanged: {
+        if (!bibleMode && documentKey !== bibleKey)
+            saveSelection("presentation", documentKey)
+        // (The playhead of a timeline no player has starts at the start of each
+        // presentation opened: see timelineCursor)
+        timelineCursor = 0
+    }
     onMediaPlaylistIdChanged: saveSelection("mediaPlaylist", mediaPlaylistId)
     onAudioPlaylistIdChanged: saveSelection("audioPlaylist", audioPlaylistId)
     onAudioFadeChanged: save("audioFade", audioFade)
@@ -5559,6 +5990,8 @@ Window {
     onMessagesSplitChanged: save("messagesSplit", messagesSplit)
     onPreviewHeightChanged: save("previewHeight", previewHeight)
     onArrangementsShownChanged: save("arrangementsShown", arrangementsShown)
+    onTimelineShownChanged: save("timelineShown", timelineShown)
+    onTimelineZoomChanged: save("timelineZoom", timelineZoom)
     // What each stage screen has, as last noted in the log
     property var notedLayouts: ({})
 
@@ -6210,6 +6643,14 @@ Window {
         function onCommunicate(action) {
             Devices.send(action)
         }
+
+        // A clear group's Stop Timeline, or everything cleared
+        function onTimelineStopped(which) {
+            const player = which === "announcements" ? announcementTimeline : presentationTimeline
+            if (player.playing)
+                Log.note("timeline", "the timeline of " + quoted(player.path) + " stopped, by a clear")
+            player.stop()
+        }
     }
 
     // The clocks a text box can show besides a timer (see Clocks). The time of day
@@ -6413,7 +6854,7 @@ Window {
     Binding {
         target: Show
         property: "clearGroups"
-        value: ClearGroups.groups.map(group => ({ id: group.id, name: group.name, layers: group.layers }))
+        value: ClearGroups.groups.map(group => ({ id: group.id, name: group.name, layers: group.layers, timelines: group.timelines }))
     }
 
     // (How long a message is shown is said here: only one that goes after a time has
@@ -6896,6 +7337,58 @@ Window {
                     color: "#e6e6e6"
                     font.pixelSize: 13
                     text: actionDrag.payload ? actionDrag.payload.name : ""
+                }
+            }
+        }
+
+        // A slide being carried up onto the timeline (see beginSlideDrag): a point that
+        // follows the pointer, with the block the slide will be on the timeline beside it,
+        // in its group's colour, the group's name over the cue's, as the timeline draws it
+        // (TimelineCueBlock). (ProPresenter's own is likely a picture of the slide; this
+        // says what will land, and costs no drawing of the slide.)
+        Item {
+            id: slideDrag
+
+            property var slide: null
+
+            objectName: "slideDrag"
+            z: 50
+            Drag.keys: ["slide"]
+
+            Rectangle {
+                x: 12
+                y: 8
+                width: Math.max(slideDragGroup.implicitWidth, slideDragName.implicitWidth) + 16
+                height: 40
+                radius: 2
+                visible: slideDrag.Drag.active
+                color: slideDrag.slide ? slideDrag.slide.fill : "#5a5d66"
+                border.width: 1.5
+                border.color: "white"
+                opacity: 0.92
+
+                Column {
+                    x: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 1
+
+                    Text {
+                        id: slideDragGroup
+
+                        visible: text !== ""
+                        color: "white"
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        text: slideDrag.slide ? slideDrag.slide.group : ""
+                    }
+
+                    Text {
+                        id: slideDragName
+
+                        color: "white"
+                        font.pixelSize: 12
+                        text: slideDrag.slide ? (slideDrag.slide.name !== "" ? slideDrag.slide.name : "Slide " + (slideDrag.slide.index + 1)) : ""
+                    }
                 }
             }
         }

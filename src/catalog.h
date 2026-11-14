@@ -334,6 +334,13 @@ public:
     Q_INVOKABLE QString addSlideActions(const QString &path, const QStringList &slideIds, const QVariantMap &action);
     Q_INVOKABLE QString changeSlideAction(const QString &path, const QString &slideId, const QString &actionId, const QVariantMap &action);
     Q_INVOKABLE QString removeSlideAction(const QString &path, const QString &slideId, const QString &actionId);
+    // A presentation's timeline (src/timeline.h): cues put on it, moved by their place,
+    // taken off; its length, and whether it goes round (see ProDocument)
+    Q_INVOKABLE QString addTimelineCues(const QString &path, const QVariantList &cues);
+    Q_INVOKABLE QString moveTimelineCue(const QString &path, int place, double time);
+    Q_INVOKABLE QString removeTimelineCue(const QString &path, int place);
+    Q_INVOKABLE QString setTimelineDuration(const QString &path, double seconds);
+    Q_INVOKABLE QString setTimelineLoop(const QString &path, bool loop);
     // Stops a slide triggering media, and saves the presentation file.
     Q_INVOKABLE QString removeSlideMedia(const QString &path, const QString &slideId);
     // Deletes a slide from the presentation, for good, and saves the presentation file.

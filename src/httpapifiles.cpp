@@ -80,8 +80,10 @@ QVariantMap read(const QString &path)
     const QString name = file.name().empty() ? QFileInfo(path).completeBaseName() : QString::fromStdString(file.name());
     return {{"id", httpapijson::id(QString::fromStdString(file.uuid().string()), name, httpapijson::noIndex)},
             {"groups", groups},
-            // (The app plays no timeline, so none is offered.)
-            {"has_timeline", false},
+            // (Whether its timeline has anything on it: A GUESS at what ProPresenter means,
+            // every presentation of its having a timeline of some length. ProPresenter
+            // Remote shows a presentation's timeline controls by it, it is supposed.)
+            {"has_timeline", file.timeline().cues_v2_size() > 0 || file.timeline().cues_size() > 0},
             {"presentation_path", path},
             {"destination", file.content_destination() == rv::data::Action::CONTENT_DESTINATION_ANNOUNCEMENTS ? QStringLiteral("announcements")
                                                                                                               : QStringLiteral("presentation")},

@@ -121,6 +121,8 @@ qt_add_executable(SimplePresenter
     src/alsamidi.h
     src/prodocument.cpp
     src/prodocument.h
+    src/timeline.cpp
+    src/timeline.h
     src/richtext.cpp
     src/richtext.h
     src/rtf.cpp
@@ -277,6 +279,8 @@ qt_add_qml_module(SimplePresenter
         qml/ViewFormatPanel.qml
         qml/SlidePictureMaker.qml
         qml/TimeField.qml
+        qml/TimelineCueBlock.qml
+        qml/TimelinePanel.qml
         qml/TimersPanel.qml
         qml/Toolbar.qml
         qml/ToolbarIcon.qml
@@ -365,6 +369,8 @@ qt_add_qml_module(SimplePresenter
         src/awake.cpp
         src/show.h
         src/show.cpp
+        src/timelineplayer.h
+        src/timelineplayer.cpp
         src/search.h
         src/search.cpp
         src/searchindex.h

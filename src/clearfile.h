@@ -13,8 +13,10 @@
 // groups. Each has an id, a name, the layers it clears, a picture for its button (one
 // of thirty-two ProPresenter has, by number, or a picture of the user's own, kept in
 // the file), whether that picture is tinted and with what colour, whether its button
-// is hidden, and two things to do with timelines and with the slide a presentation
-// would go to next, which this app has nothing for and leaves as they are.
+// is hidden, which timelines it stops (ProPresenter's Stop Timeline, under Presentation
+// and under Announcements in its clear groups' settings), and whether the slide a
+// presentation would go to next is cleared too, which this app has nothing for and
+// leaves as it is.
 //
 // One file of ProPresenter's own was looked at for this (version 20 on a Mac), and it
 // held what ProPresenter starts every workspace with: one group, called "Clear All",
@@ -70,6 +72,10 @@ struct Group
     QString tint;
     // Whether its button is kept out of sight
     bool hidden = false;
+    // The timelines it stops (ProPresenter's Stop Timeline): the presentation's, which
+    // the file calls the global destination, and the announcements'. Each as one of
+    // "presentation" and "announcements", in the file's order.
+    QStringList timelines;
 };
 
 // The layers there are, in ProPresenter's order; and those of them this app has
@@ -108,6 +114,9 @@ QString setIcon(const QString &workspace, const QString &id, int icon);
 // leaves the colour the group has.
 QString setTint(const QString &workspace, const QString &id, bool tinted, const QString &color);
 QString setHidden(const QString &workspace, const QString &id, bool hidden);
+// Whether it stops the timeline of `which`: "presentation" or "announcements". (A new
+// group stops neither: A GUESS, as for the rest of a new group, see above.)
+QString setStopsTimeline(const QString &workspace, const QString &id, const QString &which, bool on);
 // Moves it up the list (by -1) or down (by 1).
 QString move(const QString &workspace, const QString &id, int by);
 QString remove(const QString &workspace, const QString &id);

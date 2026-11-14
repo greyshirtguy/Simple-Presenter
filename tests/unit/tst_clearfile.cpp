@@ -187,6 +187,9 @@ private slots:
         QVERIFY(found.at(1).image.startsWith("\x89PNG") && found.at(1).image.size() == 34);
         QVERIFY(found.at(1).tinted && found.at(1).hidden);
         QCOMPARE(found.at(1).tint, "#ff0000");
+        // ProPresenter's own stops both timelines; the other neither
+        QCOMPARE(found.at(0).timelines, (QStringList {"presentation", "announcements"}));
+        QVERIFY(found.at(1).timelines.isEmpty());
     }
 
     void aFileThatCannotBeReadIsSaidToBe()
@@ -475,6 +478,28 @@ private slots:
         QVERIFY(groups(workspace.path(), &error).at(0).hidden);
         QVERIFY(setHidden(workspace.path(), kOwn, false).isEmpty());
         QCOMPARE(bytesOf(workspace.path()), was);
+    }
+
+    // ProPresenter's Stop Timeline: taken off and put back, in the file's list of
+    // timeline targets, and nothing else touched
+    void aGroupStopsATimelineOrDoesNot()
+    {
+        QTemporaryDir workspace;
+        writeProPresenters(workspace.path());
+        const QByteArray was = bytesOf(workspace.path());
+        QString error;
+        QVERIFY(setStopsTimeline(workspace.path(), kOwn, "presentation", true).isEmpty());
+        QCOMPARE(bytesOf(workspace.path()), was);
+        QVERIFY(setStopsTimeline(workspace.path(), kOwn, "presentation", false).isEmpty());
+        QCOMPARE(groups(workspace.path(), &error).at(0).timelines, QStringList {"announcements"});
+        const QString other = groups(workspace.path(), &error).at(1).id;
+        QVERIFY(setStopsTimeline(workspace.path(), other, "announcements", true).isEmpty());
+        QCOMPARE(groups(workspace.path(), &error).at(1).timelines, QStringList {"announcements"});
+        QVERIFY(setStopsTimeline(workspace.path(), other, "announcements", false).isEmpty());
+        QVERIFY(setStopsTimeline(workspace.path(), kOwn, "presentation", true).isEmpty());
+        // (Put back last of the list, where it was first: read, the two are as they were)
+        QCOMPARE(groups(workspace.path(), &error).at(0).timelines, (QStringList {"announcements", "presentation"}));
+        QVERIFY(!setStopsTimeline(workspace.path(), kOwn, "stage", true).isEmpty());
     }
 
     void aGroupThatIsNotThereIsSaidNotToBe()

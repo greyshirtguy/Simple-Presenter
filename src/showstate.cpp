@@ -1080,7 +1080,17 @@ Effects State::clearAll()
     clearMessages(effects);
     clearMusic(effects);
     clearSounds(effects);
+    stopTimeline(QStringLiteral("presentation"), effects);
+    stopTimeline(QStringLiteral("announcements"), effects);
     return effects;
+}
+
+void State::stopTimeline(const QString &which, Effects &effects)
+{
+    Effect stopped;
+    stopped.kind = Effect::NoTimeline;
+    stopped.text = which;
+    effects << stopped;
 }
 
 void State::clearToLogo(const Workspace &workspace, Effects &effects)
@@ -1157,6 +1167,8 @@ void State::clearGroup(const QVariantMap &group, Effects &effects)
         clearMusic(effects);
     if (layers.contains(QLatin1String("audio")) || layers.contains(QLatin1String("audioEffects")))
         clearSounds(effects);
+    for (const QString &which : group.value("timelines").toStringList())
+        stopTimeline(which, effects);
 }
 
 Effects State::clearGroup(const QString &id, const Workspace &workspace)
@@ -1258,6 +1270,31 @@ Effects State::runMacro(const QString &id, const Workspace &workspace)
     const QVariantList actions = macro.value("actions").toList();
     effects << note("macro", quoted(macro.value("name").toString()) + QStringLiteral(" run by hand: ") + actionsWord(actions.size()));
     runActions(actions, 1, workspace, effects);
+    return effects;
+}
+
+Effects State::runTimelineAction(const QVariantMap &action, double offset, const QString &name, const Workspace &workspace)
+{
+    Effects effects;
+    QVariantMap given = action;
+    const QString kind = action.value("kind").toString();
+    const QString part = kind == QLatin1String("audio") ? QStringLiteral("audio") : kind == QLatin1String("media") ? QStringLiteral("media") : QString();
+    if (offset > 0 && !part.isEmpty()) {
+        QVariantMap played = given.value(part).toMap();
+        played.insert("startAt", offset);
+        given.insert(part, played);
+    }
+    effects << note("timeline", QStringLiteral("the cue %1 is due").arg(quoted(name))
+                                    + (offset > 0 && !part.isEmpty() ? QStringLiteral(", %1 s in").arg(offset, 0, 'f', 2) : QString()));
+    runAction(given, 1, workspace, effects);
+    return effects;
+}
+
+Effects State::stopMusicOf(const QStringList &ids)
+{
+    Effects effects;
+    if (hasMusic && ids.contains(music.value("id").toString()))
+        clearMusic(effects);
     return effects;
 }
 

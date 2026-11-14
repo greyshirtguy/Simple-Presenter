@@ -238,6 +238,10 @@ const QList<Route> &routes()
         stream("presentation/slide_index");
         clocked("presentation/active/timeline");
         clocked("presentation/focused/timeline");
+        // (A timeline's play, pause and rewind: see timelineplayer.h)
+        get("presentation/active/timeline/{operation}");
+        get("presentation/focused/timeline/{operation}");
+        get("presentation/{uuid}/timeline/{operation}");
         stream("presentation/chord_chart/updates");
         get("presentation/{uuid}");
         // (The pictures of slides, which ProPresenter Remote shows them by)
@@ -278,6 +282,8 @@ const QList<Route> &routes()
         get("playlist/focused/next");
         get("playlist/focused/previous");
         clocked("playlist/focused/{index}/timeline");
+        get("playlist/focused/{index}/timeline/{operation}");
+        get("playlist/{playlist_id}/{index}/timeline/{operation}");
         for (const char *which : {"focused", "{playlist_id}"}) {
             const QByteArray at = QByteArray("playlist/") + which;
             get(at + "/trigger");
@@ -296,11 +302,13 @@ const QList<Route> &routes()
             get(at + "/{index}/trigger");
             get(at + "/{index}/{cue_index}/trigger");
             clocked(at + "/{index}/timeline");
+            get(at + "/{index}/timeline/{operation}");
         }
         // Announcements
         stream("announcement/active");
         stream("announcement/slide_index");
         clocked("announcement/active/timeline");
+        get("announcement/active/timeline/{operation}");
         get("announcement/active/trigger");
         get("announcement/active/next/trigger");
         get("announcement/active/previous/trigger");
@@ -415,7 +423,8 @@ bool operates(const Route &route)
                                     QStringLiteral("transport/{layer}/skip_forward/{time}"),
                                     QStringLiteral("transport/{layer}/skip_backward/{time}"),
                                     QStringLiteral("stage/screen/{id}/layout/{layout_id}")};
-    return actions.contains(route.pattern.section(u'/', -1)) || doers.contains(route.pattern);
+    return actions.contains(route.pattern.section(u'/', -1)) || doers.contains(route.pattern)
+        || route.pattern.endsWith(QLatin1String("/timeline/{operation}"));
 }
 
 namespace {

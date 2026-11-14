@@ -32,6 +32,7 @@ What is there, by ProPresenter's paths under `/v1/`:
 | **The stage** | its screens and layouts, which layout each screen has, and changing it; the stage message shown and hidden |
 | **Media and audio** | the media playlists and the audio bin, their items played, next and previous; the video playing on the media layer played, paused, and moved through; the time left of it |
 | **Video inputs** | listed, and one put on the [video input](video-inputs.md) layer; whether one is on it, and clearing it |
+| **Timelines** | a presentation's [timeline](timeline.md) played, paused and rewound, and whether it is running and where its playhead is: the live presentation's, the one open, one by its UUID, one by its place in a playlist, and the announcements' |
 | **Pictures of slides** | any slide of a presentation, by its UUID, or of an item of a playlist, as a JPEG or a PNG of the size asked for (see below) |
 | **The rest** | the workspace's global groups and masks; and, for a client that asks for everything at once, capture (never capturing) |
 
@@ -46,8 +47,7 @@ when the network splits it.
 (looks, messages, props, playlists, macros, clear groups; of the timers, only setting
 one up is here); the pictures of media, props, masks, stage layouts and themes; the
 chord chart; and what waits on things the app does not do
-yet (capture, a timeline, pausing or moving through the audio bin's
-music). Those answer 404, as ProPresenter answers what it does not know. Nor is
+yet (capture, pausing or moving through the audio bin's music). Those answer 404, as ProPresenter answers what it does not know. Nor is
 ProPresenter's other form of the API, over TCP/IP, nor its server-sent events.
 
 **Where it is not quite ProPresenter's**:

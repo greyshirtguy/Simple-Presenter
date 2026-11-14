@@ -332,6 +332,11 @@ public:
     // menu: its actions are run (see show::State::runMarker). `media` is what it is on,
     // in a few words, for the log.
     Q_INVOKABLE void runMarker(const QVariantMap &marker, const QString &media);
+    // A timeline's action cue has come due, `offset` seconds into it (see
+    // show::State::runTimelineAction); and a timeline has been paused, the music among
+    // its pieces of audio (by their ids) to stop (show::State::stopMusicOf)
+    Q_INVOKABLE void runTimelineAction(const QVariantMap &action, double offset, const QString &name);
+    Q_INVOKABLE void stopMusicOf(const QStringList &ids);
     // Where the markers of a layer's media are kept ("media", "announcements" or "audio":
     // see show::State::placeOf), for the transport to change them; empty for none
     Q_INVOKABLE QVariantMap livePlace(const QString &layer) const { return m_state.placeOf(layer); }
@@ -440,6 +445,9 @@ signals:
     void musicCleared();
     void soundsCleared();
     void timerAction(const QVariantMap &action);
+    // The timeline of `which` is to stop: "presentation" or "announcements" (a clear
+    // group's Stop Timeline, or everything cleared)
+    void timelineStopped(const QString &which);
 
 private:
     // Does one thing to the show: says what of it has changed, and then carries out

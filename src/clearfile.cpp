@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QSaveFile>
 
+#include <algorithm>
 #include <functional>
 
 namespace clearfile {
@@ -122,6 +123,12 @@ Group read(const FileGroup &from)
     if (from.has_icon_tint_color() && from.icon_tint_color().alpha() > 0)
         group.tint = hexOf(from.icon_tint_color());
     group.hidden = from.is_hidden_in_preview();
+    for (int target : from.timeline_targets()) {
+        const QString which = target == Action::CONTENT_DESTINATION_GLOBAL ? QStringLiteral("presentation")
+                            : target == Action::CONTENT_DESTINATION_ANNOUNCEMENTS ? QStringLiteral("announcements") : QString();
+        if (!which.isEmpty() && !group.timelines.contains(which))
+            group.timelines << which;
+    }
     return group;
 }
 
@@ -382,6 +389,29 @@ QString setHidden(const QString &workspace, const QString &id, bool hidden)
     return changeGroup(workspace, id, [&](FileGroup *group, bool *changed) {
         *changed = group->is_hidden_in_preview() != hidden;
         group->set_is_hidden_in_preview(hidden);
+        return QString();
+    });
+}
+
+QString setStopsTimeline(const QString &workspace, const QString &id, const QString &which, bool on)
+{
+    const auto target = which == QLatin1String("announcements") ? Action::CONTENT_DESTINATION_ANNOUNCEMENTS
+                                                                : Action::CONTENT_DESTINATION_GLOBAL;
+    if (which != QLatin1String("announcements") && which != QLatin1String("presentation"))
+        return QStringLiteral("There is no timeline called %1").arg(which);
+    return changeGroup(workspace, id, [&](FileGroup *group, bool *changed) {
+        const auto &targets = group->timeline_targets();
+        const bool has = std::find(targets.begin(), targets.end(), int(target)) != targets.end();
+        *changed = has != on;
+        if (!*changed)
+            return QString();
+        if (on) {
+            group->add_timeline_targets(target);
+        } else {
+            // (Every mention of it, and nothing else of the list, which keeps its order.)
+            auto *list = group->mutable_timeline_targets();
+            list->erase(std::remove(list->begin(), list->end(), int(target)), list->end());
+        }
         return QString();
     });
 }

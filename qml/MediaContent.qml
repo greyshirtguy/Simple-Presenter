@@ -49,7 +49,8 @@ Item {
 
     // { source, video, loops, volume, playback, loopCount, loopSeconds, settings }, or
     // null for nothing (the behaviour as workspace::MediaBehaviour has it, the settings
-    // as mediasettings::describe has them)
+    // as mediasettings::describe has them); and `startAt`, the seconds into it a video
+    // is to start, for one a timeline starts part way through
     property var content: null
     // Whether this plays a video itself, or is fed the frames of the scene that does
     property bool leads: true
@@ -162,16 +163,28 @@ Item {
             // round a number of times), and whether it has reached its end
             property int roundsLeft: root.content?.playback === 2 ? Math.max(1, root.content.loopCount) - 1 : 0
             property bool atEnd: false
+            // Where it is to start, past its in point, in milliseconds: for a video a
+            // timeline starts part way through (TimelinePlayer, `startAt` in seconds); 0
+            // for every other
+            readonly property real startAt: Math.max(0, Number(root.content?.startAt ?? 0)) * 1000
             // Set once it has been started: at once, or once the file is open, for one
-            // that starts at an in point (the player can only be sent there then)
+            // that starts at an in point or part way (the player can only be sent there then)
             property bool started: false
 
-            // Starts it, from its in point if it has one.
+            // Starts it, from its in point if it has one, and as far past that as it is
+            // to start. Past its end, a video that goes round is as far into a round as
+            // that would be; one that plays once starts at its end.
             function start() {
                 if (started)
                     return
-                if (inAt > 0)
-                    mediaPlayer.setPosition(inAt)
+                let from = inAt + startAt
+                if (startAt > 0 && mediaPlayer.duration > 0) {
+                    const end = outAt > 0 ? Math.min(outAt, mediaPlayer.duration) : mediaPlayer.duration
+                    if (from >= end)
+                        from = root.content?.loops === true ? inAt + (from - inAt) % Math.max(1, end - inAt) : Math.max(inAt, end - 1)
+                }
+                if (from > 0)
+                    mediaPlayer.setPosition(from)
                 started = true
                 mediaPlayer.play()
             }
@@ -223,7 +236,7 @@ Item {
                     }
                 }
                 Component.onCompleted: {
-                    if (movie.inAt <= 0)
+                    if (movie.inAt <= 0 && movie.startAt <= 0)
                         movie.start()
                 }
             }

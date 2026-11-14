@@ -13,14 +13,17 @@ import SimplePresenterApp
 // Trigger Slide takes a slide of the presentation open live; Next and Previous Playlist
 // Item take the next presentation of the playlist open live at its first slide; Toggle
 // Prop and Trigger Macro count in the collection selected, the first until one is.
-// Bail to Logo and the timelines are not here: this app has no logo and no timelines.
+// Start, Stop and Rewind Timeline are the timeline of the presentation open here, as its
+// own Play, Pause and Rewind are (Stop pauses it where it is: A GUESS, as is that it is
+// the presentation open and not the one live). Bail to Logo is not here: what it does
+// beside Clear to Logo has not been looked at.
 QtObject {
     id: control
 
     required property var window
 
     // The commands there is nothing here to do, by their keys: greyed in the map
-    readonly property var notHere: ["bailToLogo", "startTimeline", "stopTimeline", "rewindTimeline"]
+    readonly property var notHere: ["bailToLogo"]
     // The collections of props and of macros a note selected, by their places
     property int propCollection: 0
     property int macroCollection: 0
@@ -77,6 +80,17 @@ QtObject {
         }
         case "nextPlaylistItem": done = stepPlaylistItem(1); break
         case "previousPlaylistItem": done = stepPlaylistItem(-1); break
+        case "startTimeline":
+        case "stopTimeline":
+        case "rewindTimeline":
+            done = window.document !== null
+            if (done && key === "startTimeline")
+                window.playTimeline()
+            else if (done && key === "stopTimeline")
+                window.pauseTimeline()
+            else if (done)
+                window.rewindTimeline()
+            break
         case "nextSlide": window.step(1); break
         case "previousSlide": window.step(-1); break
         case "selectPlaylist": {

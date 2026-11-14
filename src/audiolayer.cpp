@@ -8,6 +8,8 @@
 #include <QMediaPlayer>
 #include <QUrl>
 
+#include <memory>
+
 namespace {
 
 // A stop that is not to click: the sound is taken down over this long, not cut off in
@@ -308,8 +310,34 @@ void AudioLayer::start(const QVariantMap &audio)
     voice->player->setSource(audio.value("source").toUrl().isValid() ? audio.value("source").toUrl()
                                                                      : QUrl::fromLocalFile(audio.value("path").toString()));
     voice->feed->setPlaying(true);
-    voice->player->play();
-    SessionLog::write("audio", QStringLiteral("%1 started%2%3").arg(quoted(voice->name), crossing && !voice->effect ? QStringLiteral(", crossing with what was playing") : QString(),
+    // A piece started part way (`startAt`, in seconds: a timeline played from the middle
+    // of it, see TimelinePlayer) is sent there before it plays; which the player can be
+    // only once it has the file open, so it waits for that, and plays nothing before.
+    const qint64 startAt = qint64(audio.value("startAt").toDouble() * 1000);
+    if (startAt > 0) {
+        QMediaPlayer *player = voice->player;
+        const auto begin = [player, startAt] {
+            player->setPosition(startAt);
+            player->play();
+        };
+        if (player->mediaStatus() == QMediaPlayer::LoadedMedia || player->mediaStatus() == QMediaPlayer::BufferedMedia) {
+            begin();
+        } else {
+            // (Once: the connection is let go of as it is used, or with the player, if
+            // the piece is stopped before its file is open)
+            auto opened = std::make_shared<QMetaObject::Connection>();
+            *opened = connect(player, &QMediaPlayer::mediaStatusChanged, player, [opened, begin](QMediaPlayer::MediaStatus status) {
+                if (status != QMediaPlayer::LoadedMedia && status != QMediaPlayer::BufferedMedia)
+                    return;
+                QObject::disconnect(*opened);
+                begin();
+            });
+        }
+    } else {
+        voice->player->play();
+    }
+    SessionLog::write("audio", QStringLiteral("%1 started%2%3%4").arg(quoted(voice->name),
+                                                                    startAt > 0 ? QStringLiteral(" %1 s in").arg(startAt / 1000.0, 0, 'f', 2) : QString(), crossing && !voice->effect ? QStringLiteral(", crossing with what was playing") : QString(),
                                                                    m_device.isEmpty() ? QString()
                                                                    : deviceFound() ? QStringLiteral(", through ") + quoted(AudioMixer::instance()->deviceName())
                                                                    : QStringLiteral(", wherever the system sends sound: the device chosen for it is not there now")));

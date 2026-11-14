@@ -111,6 +111,54 @@ Item {
         return done
     }
 
+    // ---- timelines (src/timeline.h): how one is going, and ProPresenter's play, pause
+    // and rewind of one
+
+    // How the timeline of the presentation of the row `key` of `playlist` is going:
+    // running or not, and where its playhead is; not running, at its start, for a
+    // presentation whose timeline neither player has (nothing is read to say so: the
+    // routes that ask are asked again and again by whatever follows them)
+    function timelineStatus(key, playlist) {
+        for (const player of window.timelinePlayers) {
+            if (player.holds(key, playlist))
+                return ok({ is_running: player.playing, current_time: player.position })
+        }
+        return ok({ is_running: false, current_time: 0 })
+    }
+
+    // Plays, pauses or rewinds the timeline of a presentation (as read, of the row `key`
+    // of `playlist`), as its buttons do. A player that has not got it is given it to play;
+    // one not playing it has nothing to pause; rewound, the playhead goes to its start.
+    function timelineOperation(presentation, key, playlist, operation) {
+        if (!presentation || presentation.error || !["play", "pause", "rewind"].includes(operation))
+            return notFound
+        const player = window.timelinePlayerOf(presentation)
+        const held = player.holds(key, playlist) && player.path === presentation.path
+        if (operation === "play")
+            window.playTimelineOf(presentation, key, playlist)
+        else if (operation === "pause" && held)
+            player.pause()
+        else if (operation === "rewind" && held)
+            player.rewind()
+        else if (operation === "rewind" && presentation === window.document)
+            window.timelineCursor = 0
+        return done
+    }
+
+    // A row of a playlist as a presentation, read; the one open, the live one or the
+    // announcements', as it is, where it is that row
+    function rowPresentation(row, playlist) {
+        if (!row || !window.openable(row))
+            return null
+        if (row.path === window.documentKey && playlist === window.viewedPlaylistId && window.document)
+            return window.document
+        if (row.path === Show.liveKey && playlist === Show.livePlaylistId && window.liveDocument)
+            return window.liveDocument
+        if (row.path === Show.announcementKey && playlist === Show.announcementPlaylistId && window.announcementDocument)
+            return window.announcementDocument
+        return window.load(row)
+    }
+
     // ---- the workspace's things: each found by UUID, name or index in its list
 
     function findIn(list, id) {
@@ -440,9 +488,17 @@ Item {
         case "presentation/focused/group/{group_id}/trigger":
             return focusedDocument() ? triggerFocused(groupStart(focusedDocument(), params.group_id)) : notFound
         case "presentation/active/timeline":
+            return timelineStatus(Show.liveKey, Show.livePlaylistId)
         case "presentation/focused/timeline":
-            // (The app plays no timeline: one that is not running, at its start.)
-            return ok({ is_running: false, current_time: 0 })
+            return timelineStatus(window.documentKey, window.viewedPlaylistId)
+        case "presentation/active/timeline/{operation}":
+            return timelineOperation(activeDocument(), Show.liveKey, Show.livePlaylistId, params.operation)
+        case "presentation/focused/timeline/{operation}":
+            return timelineOperation(focusedDocument(), window.documentKey, window.viewedPlaylistId, params.operation)
+        case "presentation/{uuid}/timeline/{operation}": {
+            const found = findPresentation(params.uuid)
+            return found ? timelineOperation(rowPresentation(found.row, ""), found.row.path, "", params.operation) : notFound
+        }
 
         // ---- a presentation by its UUID
         case "presentation/{uuid}": {
@@ -523,7 +579,10 @@ Item {
                                                       : focusRow(catalog.libraries.find(l => Show.announcementKey.startsWith(l.path + "/"))?.path
                                                                  ?? window.libraryPath, "", Show.announcementKey)
         case "announcement/active/timeline":
-            return ok({ is_running: false, current_time: 0 })
+            return timelineStatus(Show.announcementKey, Show.announcementPlaylistId)
+        case "announcement/active/timeline/{operation}":
+            return timelineOperation(Show.announcementAtSlide ? window.announcementDocument : null, Show.announcementKey,
+                                     Show.announcementPlaylistId, params.operation)
 
         // ---- libraries
         case "libraries":
@@ -637,8 +696,28 @@ Item {
         }
         case "playlist/focused/{index}/timeline":
         case "playlist/active/presentation/{index}/timeline":
-        case "playlist/active/announcement/{index}/timeline":
-            return ok({ is_running: false, current_time: 0 })
+        case "playlist/active/announcement/{index}/timeline": {
+            const playlistPath = route.startsWith("playlist/focused") ? window.playlistId
+                               : route.includes("/announcement/") ? Show.announcementPlaylistId : Show.livePlaylistId
+            const row = playlistPath === "" ? null : catalog.playlistItems(playlistPath)[Number(params.index)]
+            return row ? timelineStatus(row.path, playlistPath) : ok({ is_running: false, current_time: 0 })
+        }
+        case "playlist/focused/{index}/timeline/{operation}":
+        case "playlist/active/presentation/{index}/timeline/{operation}":
+        case "playlist/active/announcement/{index}/timeline/{operation}":
+        case "playlist/{playlist_id}/{index}/timeline/{operation}": {
+            let playlistPath = route.startsWith("playlist/focused") ? window.playlistId
+                             : route.includes("/announcement/") ? Show.announcementPlaylistId
+                             : route.startsWith("playlist/active") ? Show.livePlaylistId : ""
+            if (route.startsWith("playlist/{playlist_id}")) {
+                const playlist = playlistOf(params.playlist_id)
+                playlistPath = playlist && !playlist.folder ? playlist.path : ""
+            }
+            if (playlistPath === "")
+                return notFound
+            const row = catalog.playlistItems(playlistPath)[Number(params.index)]
+            return row ? timelineOperation(rowPresentation(row, playlistPath), row.path, playlistPath, params.operation) : notFound
+        }
 
         // ---- looks
         case "looks":

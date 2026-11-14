@@ -274,7 +274,7 @@ QString outside(const Effects &effects)
     static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia",
                                   "announcement", "announcementovermedia", "announcementwithmedia", "noannouncements",
                                   "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem", "build", "communicate",
-                                  "videoinput", "novideoinput"};
+                                  "videoinput", "novideoinput", "notimeline"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -607,7 +607,7 @@ private slots:
         QVERIFY(show.clearSlide().isEmpty());
         QVERIFY(show.clearMedia().isEmpty());
         QVERIFY(show.clearProps().isEmpty());
-        QCOMPARE(outside(show.clearAll()), "");
+        QCOMPARE(outside(show.clearAll()), "notimeline notimeline");
     }
 
     void clearingEverythingTakesTheSlideTheMediaAndTheProps()
@@ -617,7 +617,7 @@ private slots:
         song.slides = {slide("a", video("waves.mp4"))};
         show.goLive(song.cue(0), false, workspace());
         show.toggleProp("p1", workspace());
-        QCOMPARE(outside(show.clearAll()), "noslide nomedia");
+        QCOMPARE(outside(show.clearAll()), "noslide nomedia notimeline notimeline");
         QVERIFY(show.cleared && !show.clearedByCue && !show.hasMedia && show.props.isEmpty());
         // It is still at the slide, for stepping.
         QCOMPARE(show.index, 0);
@@ -735,7 +735,7 @@ private slots:
         State show;
         show.goLive(plainSong().cue(0), false, workspace());
         show.goLive(notices().cue(1), false, workspace());
-        QCOMPARE(outside(show.clearAll()), "noslide noannouncements");
+        QCOMPARE(outside(show.clearAll()), "noslide noannouncements notimeline notimeline");
         QVERIFY(show.cleared && show.announcement.cleared);
         // The group of every layer does the same; one that has not the announcements leaves them.
         show.goLive(plainSong().cue(0), false, workspace());
@@ -978,7 +978,7 @@ private slots:
         QVERIFY(!show.advance.waiting && noted(effects, "no longer goes on by itself"));
         // Everything cleared
         show.goLive(song.cue(0), false, workspace());
-        QCOMPARE(outside(show.clearAll()), "noadvance noslide");
+        QCOMPARE(outside(show.clearAll()), "noadvance noslide notimeline notimeline");
         // The media cleared, or the props: the slide still leads on.
         show.goLive(song.cue(0), false, workspace());
         show.clearMedia();
@@ -2386,7 +2386,7 @@ private slots:
         show.playAudio(tune("Prelude"), "list");
         show.playAudio(soundEffect("Thunder"), "list");
         const Effects effects = show.clearAll();
-        QCOMPARE(outside(effects), "noslide nomusic nosounds");
+        QCOMPARE(outside(effects), "noslide nomusic nosounds notimeline notimeline");
         QVERIFY(!show.hasMusic && show.sounds.isEmpty());
     }
 
@@ -2469,6 +2469,61 @@ private slots:
         const Effects effects = show.runMacro("walkin", w);
         QCOMPARE(outside(effects), "audio");
         QCOMPARE(show.music.value("playback").toString(), "loop");
+    }
+
+    // ---- the timeline (timeline.h): its actions, and what stops it
+
+    // A clear group stops the timelines it names, whatever layers it has; and clearing
+    // everything stops both (as ProPresenter's own Clear All group does)
+    void aClearGroupStopsTheTimelinesItNames()
+    {
+        Workspace w = workspace();
+        w.clearGroups << QVariantMap {{"id", "stop"}, {"name", "Stop"}, {"layers", QStringList {}},
+                                      {"timelines", QStringList {"presentation", "announcements"}}}
+                      << QVariantMap {{"id", "slideOnly"}, {"name", "Slide"}, {"layers", QStringList {"slide"}},
+                                      {"timelines", QStringList {"announcements"}}};
+        State show;
+        show.goLive(plainSong().cue(0), false, w);
+        Effects effects = show.clearGroup("stop", w);
+        QCOMPARE(outside(effects), "notimeline notimeline");
+        QCOMPARE(effects.last().text, QStringLiteral("announcements"));
+        QVERIFY(!show.cleared);
+        effects = show.clearGroup("slideOnly", w);
+        QCOMPARE(outside(effects), "noslide notimeline");
+        QCOMPARE(effects.last().text, QStringLiteral("announcements"));
+        // A group that names none stops none
+        QCOMPARE(outside(show.clearGroup("all", w)), "");
+    }
+
+    // A timeline's action is run as a macro's are; audio and media started part way are
+    // handed on with where to start, and the rest as they are
+    void aTimelinesActionIsRunAndStartsWhereTheTimelineIs()
+    {
+        State show;
+        Effects effects = show.runTimelineAction(audioAction(tune("Track")), 12.5, "Track.mp3", workspace());
+        QCOMPARE(outside(effects), "audio");
+        QCOMPARE(show.music.value("startAt").toDouble(), 12.5);
+        QVERIFY(noted(effects, "the cue \"Track.mp3\" is due, 12.50 s in"));
+        const QVariantMap mediaAction {{"kind", "media"}, {"title", "Show the video"}, {"done", true}, {"media", video("waves.mp4")}};
+        effects = show.runTimelineAction(mediaAction, 3, "waves.mp4", workspace());
+        QCOMPARE(outside(effects), "media");
+        QCOMPARE(show.media.value("startAt").toDouble(), 3.0);
+        // From its start: nothing said of where
+        effects = show.runTimelineAction(audioAction(tune("Other")), 0, "Other.mp3", workspace());
+        QVERIFY(!show.music.contains("startAt"));
+        // A background playing already is left to play, part way or not
+        QCOMPARE(outside(show.runTimelineAction(mediaAction, 9, "waves.mp4", workspace())), "");
+    }
+
+    // Paused, a timeline stops the music it started, and only that
+    void aPausedTimelineStopsItsOwnMusic()
+    {
+        State show;
+        show.playAudio(tune("Prelude"), "list");
+        QCOMPARE(outside(show.stopMusicOf({"row-Track"})), "");
+        QVERIFY(show.hasMusic);
+        QCOMPARE(outside(show.stopMusicOf({"row-Track", "row-Prelude"})), "nomusic");
+        QVERIFY(!show.hasMusic);
     }
 
     // A macro's picture or video (actions.h, "media") is put on the media layer as a

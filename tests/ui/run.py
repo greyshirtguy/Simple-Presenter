@@ -3984,6 +3984,7 @@ TESTS = {
     "httpapi": test("Demo"),
     "proremote": test("Demo"),
     "slidepictures": test("Demo"),
+    "timeline": test("Act", timeout=240, prepare=prepare_audio),
     "quickedit": test("Act"),
     "builds": test("Demo", timeout=300, prepare=prepare_builds, after=after_builds),
     "themebuilds": test("Act", timeout=240),

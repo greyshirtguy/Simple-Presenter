@@ -371,6 +371,7 @@ QVariantMap Catalog::open(const QString &path, const std::optional<QString> &arr
         {"slideShow", document.slideShow},
         {"transition", document.transition},
         {"ccli", document.ccli},
+        {"timeline", document.timeline},
         {"error", error},
     };
 }
@@ -595,6 +596,31 @@ void Catalog::showInFolder(const QString &path) const
 QString Catalog::addSlideActions(const QString &path, const QStringList &slideIds, const QVariantMap &action)
 {
     return ProDocument::addCueActions(path, slideIds, action);
+}
+
+QString Catalog::addTimelineCues(const QString &path, const QVariantList &cues)
+{
+    return ProDocument::addTimelineCues(path, cues);
+}
+
+QString Catalog::moveTimelineCue(const QString &path, int place, double time)
+{
+    return ProDocument::moveTimelineCue(path, place, time);
+}
+
+QString Catalog::removeTimelineCue(const QString &path, int place)
+{
+    return ProDocument::removeTimelineCue(path, place);
+}
+
+QString Catalog::setTimelineDuration(const QString &path, double seconds)
+{
+    return ProDocument::setTimelineDuration(path, seconds);
+}
+
+QString Catalog::setTimelineLoop(const QString &path, bool loop)
+{
+    return ProDocument::setTimelineLoop(path, loop);
 }
 
 QString Catalog::changeSlideAction(const QString &path, const QString &slideId, const QString &actionId, const QVariantMap &action)

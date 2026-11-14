@@ -12,6 +12,7 @@
 
 #include "textformat.h"
 #include "themefile.h"
+#include "timeline.h"
 
 #include "actions.h"
 #include "proconvert.h"
@@ -28,6 +29,8 @@ using workspace::newUuid;
 #include <QMutex>
 #include <QSizeF>
 #include <QUrl>
+
+#include <algorithm>
 
 namespace {
 
@@ -178,6 +181,7 @@ ProDocument ProDocument::load(const QString &path, const QString &workspace,
     document.destination = destinationOf(presentation);
     document.slideShow = presentation.has_slide_show_duration() ? presentation.slide_show_duration() : 0;
     document.ccli = ccli::describe(presentation.ccli());
+    document.timeline = timeline::describe(presentation, actions::describe);
     if (presentation.has_transition())
         document.transition = builds::describeTransition(presentation.transition());
 
@@ -806,6 +810,95 @@ QString ProDocument::addCueActions(const QString &path, const QStringList &cueId
             return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
     }
     return writePresentation(path, presentation);
+}
+
+namespace {
+
+// Reads the presentation, has `change` change it, and writes it back if it says it did
+QString changeTimeline(const QString &path, const std::function<QString(rv::data::Presentation *, bool *)> &change)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!proconvert::readPresentation(path, &presentation, &error))
+        return error;
+    bool changed = false;
+    error = change(&presentation, &changed);
+    if (!error.isEmpty() || !changed)
+        return error;
+    return proconvert::writePresentation(path, presentation);
+}
+
+// What ProPresenter calls a cue of an action on its timeline: a piece of audio by its
+// file, with the file's extension ("Josh Leake - New City.mp3", as in its file); media
+// the same way (A GUESS, by the audio); anything else by what it is called (A GUESS)
+QString timelineName(const QVariantMap &action)
+{
+    const QString kind = action.value("kind").toString();
+    if (kind == QLatin1String("audio") || kind == QLatin1String("media")) {
+        const QVariantMap played = action.value(kind).toMap();
+        const QString file = QFileInfo(played.value("path").toString()).fileName();
+        if (!file.isEmpty())
+            return file;
+        return played.value("name").toString();
+    }
+    return action.value("label").toString();
+}
+
+} // namespace
+
+QString ProDocument::addTimelineCues(const QString &path, const QVariantList &cues)
+{
+    return changeTimeline(path, [&](rv::data::Presentation *presentation, bool *changed) {
+        for (const QVariant &entry : cues) {
+            const QVariantMap cue = entry.toMap();
+            const double time = std::max(0.0, cue.value("time").toDouble());
+            if (cue.contains("slideId")) {
+                if (!timeline::addSlide(presentation, time, cue.value("slideId").toString()))
+                    return QStringLiteral("%1 no longer has that slide").arg(QFileInfo(path).fileName());
+            } else {
+                rv::data::Action made;
+                const QString error = actions::build(cue.value("wanted").toMap(), &made);
+                if (!error.isEmpty())
+                    return error;
+                const QString name = cue.value("name").toString();
+                timeline::addAction(presentation, time, made, name.isEmpty() ? timelineName(actions::describe(made)) : name);
+            }
+            *changed = true;
+        }
+        return QString();
+    });
+}
+
+QString ProDocument::moveTimelineCue(const QString &path, int place, double time)
+{
+    return changeTimeline(path, [&](rv::data::Presentation *presentation, bool *changed) {
+        *changed = timeline::move(presentation, place, time);
+        return QString();
+    });
+}
+
+QString ProDocument::removeTimelineCue(const QString &path, int place)
+{
+    return changeTimeline(path, [&](rv::data::Presentation *presentation, bool *changed) {
+        *changed = timeline::remove(presentation, place);
+        return QString();
+    });
+}
+
+QString ProDocument::setTimelineDuration(const QString &path, double seconds)
+{
+    return changeTimeline(path, [&](rv::data::Presentation *presentation, bool *changed) {
+        *changed = timeline::setDuration(presentation, seconds);
+        return QString();
+    });
+}
+
+QString ProDocument::setTimelineLoop(const QString &path, bool loop)
+{
+    return changeTimeline(path, [&](rv::data::Presentation *presentation, bool *changed) {
+        *changed = timeline::setLoop(presentation, loop);
+        return QString();
+    });
 }
 
 QString ProDocument::changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action)

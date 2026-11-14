@@ -548,8 +548,8 @@ Rectangle {
             }
 
             // Click to put the file on the media layer; drag it onto a slide to
-            // make that slide trigger it, or onto another of the playlist's media
-            // to move it there. A press becomes a drag once
+            // make that slide trigger it, onto another of the playlist's media
+            // to move it there, or onto the timeline. A press becomes a drag once
             // the pointer is a little way off with the button held a moment
             // (DragStart, src/dragstart.h), so that a click made in passing is
             // not one; and that click puts the file on the layer only if it is

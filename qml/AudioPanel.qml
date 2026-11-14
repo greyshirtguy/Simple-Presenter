@@ -457,7 +457,7 @@ Item {
                     win: panel.win
                     payload: piece.modelData.missing ? null
                            : ({ kind: "audio", id: piece.modelData.id, name: piece.modelData.name, picture: piece.modelData.effect ? "SoundEffect" : "",
-                                playlist: panel.win.audioPlaylistId })
+                                playlist: panel.win.audioPlaylistId, duration: piece.modelData.duration })
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: (mouse) => {

@@ -21,6 +21,10 @@ import SimplePresenterApp
 //   - The tint is the colour the picture is drawn in, when it is switched on.
 //   - A group can be kept out of sight, which takes its button away and nothing else:
 //     an action that clears it still does, and so does F1 if it is the first.
+//   - A group can stop the timeline of the presentation, and that of the announcements
+//     (ProPresenter's Stop Timeline, which its help puts under Presentation and under
+//     Announcements, on by default: its own Clear All group has both). Here they are two
+//     ticks of their own under the layers (A GUESS at where ProPresenter has them).
 //
 // The order of the list is the order of the buttons, and the first group is the one F1
 // clears; a group's menu moves it up and down. A new group (the +) clears nothing until
@@ -127,6 +131,13 @@ Rectangle {
     function setTint(tinted, color) {
         if (group && say(ClearGroups.setTint(picked, tinted, color)))
             Log.note("edit", described(group) + (tinted ? " tinted " + (color !== "" ? color : group.tint) : " no longer tinted"))
+    }
+
+    // Whether it stops the timeline of the presentation ("presentation") or of the
+    // announcements ("announcements")
+    function setStopsTimeline(which, on) {
+        if (group && say(ClearGroups.setStopsTimeline(picked, which, on)))
+            Log.note("edit", described(group) + (on ? " stops " : " no longer stops ") + "the timeline of the " + which)
     }
 
     function setHidden(hidden) {
@@ -518,6 +529,33 @@ Rectangle {
                         font.pixelSize: 11
                         text: "The greyed layers are ProPresenter's, which this app has not got yet: what the group says of them is shown, "
                               + "and kept as it is."
+                    }
+
+                    Item {
+                        width: 1
+                        height: 4
+                    }
+
+                    Caption {
+                        text: "STOP TIMELINE"
+                    }
+
+                    Row {
+                        spacing: 12
+
+                        Repeater {
+                            model: [{ key: "presentation", name: "Presentation" }, { key: "announcements", name: "Announcements" }]
+
+                            AppCheck {
+                                required property var modelData
+
+                                objectName: "clearTimeline:" + modelData.key
+                                width: (parts.width - 12) / 2
+                                text: modelData.name
+                                checked: panel.group !== null && (panel.group.timelines ?? []).indexOf(modelData.key) >= 0
+                                onToggled: (checked) => panel.setStopsTimeline(modelData.key, checked)
+                            }
+                        }
                     }
 
                     Item {

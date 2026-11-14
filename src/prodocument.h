@@ -85,6 +85,8 @@ struct ProDocument
     QVariantMap transition;
     // Its copyright details, as ccli::describe has them (see ccli.h)
     QVariantMap ccli;
+    // Its timeline (ProPresenter's: see timeline.h), as timeline::describe has it
+    QVariantMap timeline;
 
     // Reads a ProPresenter 7 .pro file. `arrangement` names the arrangement to follow,
     // "" (or a name the file does not have) being every group in stored order; without
@@ -187,6 +189,19 @@ struct ProDocument
     // Each writes the file back and returns an error message, empty on success; a cue
     // not there is an error, and nothing is written.
     static QString addCueActions(const QString &path, const QStringList &cueIds, const QVariantMap &action);
+    // The timeline (timeline.h). Cues put on it, after those there are, in order: each
+    // { time, slideId } for a slide, or { time, wanted, name } for an action, `wanted`
+    // as actions::build takes it, and `name` what the cue is called ("" for what
+    // ProPresenter calls one: a piece of audio or media by its file, anything else by
+    // what it is). A cue, by its place (as timeline::describe numbers them), moved to
+    // another time, or taken off. Its length in seconds, and whether it goes round.
+    // Each writes the file back, unless nothing is changed, and returns an error
+    // message, empty on success.
+    static QString addTimelineCues(const QString &path, const QVariantList &cues);
+    static QString moveTimelineCue(const QString &path, int place, double time);
+    static QString removeTimelineCue(const QString &path, int place);
+    static QString setTimelineDuration(const QString &path, double seconds);
+    static QString setTimelineLoop(const QString &path, bool loop);
     static QString changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action);
     static QString removeCueAction(const QString &path, const QString &cueId, const QString &actionId);
     // Sets the key the presentation's chords are written in, as chords.h names keys.

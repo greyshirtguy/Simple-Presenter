@@ -58,7 +58,8 @@ device's sources, on any channel, does what its note is set to; for those under
 **Select by Index** the note's velocity says which one, from 1: Select Playlist with a
 velocity of 4 opens the 4th playlist, Toggle Prop On/Off with 2 the 2nd prop of the
 collection selected. **Auto Fill** gives the notes one after another from the note
-typed. Bail to Logo and the timelines are greyed: this app has neither. The last note
+typed. Start, Stop and Rewind Timeline work the timeline of the presentation open, as
+its own buttons do ([Timeline](timeline.md)); Bail to Logo is greyed. The last note
 heard is shown at the top, with what it did. The map is this computer's, for every
 workspace.
 

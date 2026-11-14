@@ -213,7 +213,11 @@ private slots:
                                     QStringLiteral("/v1/clear/group/1/trigger"), QStringLiteral("/v1/prop/1/clear"),
                                     QStringLiteral("/v1/playlist/focused/next"), QStringLiteral("/v1/presentation/next/focus"),
                                     QStringLiteral("/v1/transport/presentation/play"), QStringLiteral("/v1/transport/audio/skip_forward/5"),
-                                    QStringLiteral("/v1/trigger/next")})
+                                    QStringLiteral("/v1/trigger/next"), QStringLiteral("/v1/presentation/active/timeline/play"),
+                                    QStringLiteral("/v1/presentation/FEDBF5FB/timeline/rewind"),
+                                    QStringLiteral("/v1/playlist/A1B2/3/timeline/pause"),
+                                    QStringLiteral("/v1/playlist/active/announcement/2/timeline/play"),
+                                    QStringLiteral("/v1/announcement/active/timeline/pause")})
             QVERIFY2(operates(routeOf("GET", path)), qPrintable(path));
         QVERIFY(operates(routeOf("PUT", QStringLiteral("/v1/stage/message"))));
         QVERIFY(operates(routeOf("DELETE", QStringLiteral("/v1/stage/message"))));
@@ -222,7 +226,8 @@ private slots:
                                     QStringLiteral("/v1/library/L1"), QStringLiteral("/v1/clear/groups"), QStringLiteral("/v1/clear/group/1"),
                                     QStringLiteral("/v1/stage/screen/1/layout"), QStringLiteral("/v1/timers/current"),
                                     QStringLiteral("/v1/macro_collections"), QStringLiteral("/v1/audio/playlist/A1B2"),
-                                    QStringLiteral("/v1/transport/audio/current"), QStringLiteral("/v1/presentation/active/timeline")})
+                                    QStringLiteral("/v1/transport/audio/current"), QStringLiteral("/v1/presentation/active/timeline"),
+                                    QStringLiteral("/v1/playlist/focused/2/timeline")})
             QVERIFY2(!operates(routeOf("GET", path)), qPrintable(path));
         QVERIFY(!operates(routeOf("POST", QStringLiteral("/v1/status/updates"))));
         // Every stream only reports

@@ -110,10 +110,14 @@ QtObject {
                 kept.from = slidesFrom()
                 check("the song has its groups, as Master has them, and the one arrangement ProPresenter gave it, which it is viewed in",
                       kept.master.length === 7 && document.arrangement === "Default" && names() === "Default" && viewed().groups.length === 11, kept.masterNames.join(","))
-                check("the line over the slides has the Arrangements button at its right, with ProPresenter's picture, and no drop-down any more",
+                // (At its right is the Timeline button, since the timeline came: the two where
+                // ProPresenter has them, the arrangements' and then the timeline's)
+                const timelineButton = named("timelineToggle")
+                check("the line over the slides has the Arrangements button at its right, before the Timeline button, with ProPresenter's picture, and no drop-down any more",
                       toggle !== null && toggle.visible && toggle.on === false && named("arrangementBox") === null
                       && Lib.findAll(toggle, i => i.name === "Arrangements" && i.inkName !== undefined).length === 1
-                      && Math.abs(toggle.mapToItem(grid, toggle.width, 0).x - (grid.width - 16)) < 1.5)
+                      && Math.abs(toggle.mapToItem(grid, toggle.width, 0).x - (timelineButton.mapToItem(grid, 0, 0).x - 4)) < 1.5
+                      && Math.abs(timelineButton.mapToItem(grid, timelineButton.width, 0).x - (grid.width - 16)) < 1.5)
                 const title = named("gridTitle")
                 const viewedIn = named("gridArrangement")
                 check("the song's name is in the middle of the line", title.text === "Abandoned"

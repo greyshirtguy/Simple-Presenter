@@ -74,6 +74,7 @@ QString ClearGroups::reload()
                 {"tinted", group.tinted},
                 {"tint", group.tint},
                 {"hidden", group.hidden},
+                {"timelines", group.timelines},
             });
         }
     }
@@ -125,6 +126,13 @@ QString ClearGroups::setTint(const QString &id, bool tinted, const QString &colo
 QString ClearGroups::setHidden(const QString &id, bool hidden)
 {
     const QString error = clearfile::setHidden(m_workspace, id, hidden);
+    reload();
+    return error;
+}
+
+QString ClearGroups::setStopsTimeline(const QString &id, const QString &which, bool on)
+{
+    const QString error = clearfile::setStopsTimeline(m_workspace, id, which, on);
     reload();
     return error;
 }

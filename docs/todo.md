@@ -138,6 +138,10 @@ the top of the [README](../README.md).
       Integrations" switch.
 - [ ] **Calendar**: it is there (see [Calendar](features/calendar.md)). Still to come:
       ProPresenter's Capture, and leaving out one time of a repeating event.
+- [ ] **Timeline**: it is there (see [Timeline](features/timeline.md)). Still to come:
+      following SMPTE timecode, ProPresenter's Timecode box, and a video on the timeline
+      following it to wherever the timecode says; actions dragged onto it, and its end
+      dragged to lengthen it.
 - [ ] **The audio bin**: it is there (see [Audio](features/audio.md)). Still to come: shuffling a
       playlist; a hot key for a piece; where a piece starts and stops, and how loud it
       is, which ProPresenter's inspector sets and which are kept in the file and, but

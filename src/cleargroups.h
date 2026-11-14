@@ -19,13 +19,14 @@ class ClearGroups : public QObject
     QML_ELEMENT
     QML_SINGLETON
     // The groups, in the file's order, each
-    //   { id, name, layers, icon, picture, image, tinted, tint, hidden }
+    //   { id, name, layers, icon, picture, image, tinted, tint, hidden, timelines }
     // layers: the layers it clears, by clearfile's names for them, in the file's order;
     // icon: its picture as the file numbers them, and picture: what that is of, in a
     // word ("All", "Bell", "" for a picture of the user's own); image: that picture of
     // the user's own, as an address an Image can be given, or "" if it has none that
     // can be shown; tinted and tint ("#rrggbb" or ""): whether the picture is tinted
-    // and with what; hidden: whether its button is kept out of sight.
+    // and with what; hidden: whether its button is kept out of sight; timelines: the
+    // timelines it stops, "presentation" and "announcements" (clearfile::Group).
     Q_PROPERTY(QVariantList groups READ groups NOTIFY changed)
     // The layers there are, in ProPresenter's order: { key, name, ours }, `ours` being
     // whether this app has that layer, and so whether a group's having it can be
@@ -57,6 +58,9 @@ public:
     Q_INVOKABLE QString setIcon(const QString &id, int icon);
     Q_INVOKABLE QString setTint(const QString &id, bool tinted, const QString &color);
     Q_INVOKABLE QString setHidden(const QString &id, bool hidden);
+    // Whether it stops the timeline of the presentation ("presentation") or of the
+    // announcements ("announcements"): ProPresenter's Stop Timeline
+    Q_INVOKABLE QString setStopsTimeline(const QString &id, const QString &which, bool on);
     Q_INVOKABLE QString move(const QString &id, int by);
     Q_INVOKABLE QString remove(const QString &id);
 
