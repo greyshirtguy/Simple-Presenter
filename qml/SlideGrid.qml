@@ -961,7 +961,10 @@ Item {
         objectName: "slideGrid"
 
         readonly property int columns: slides.table ? 1 : Math.max(1, Math.floor(width / slides.win.thumbnailWidth))
-        readonly property real labelHeight: 26
+        // The chin under each thumbnail, for its number, its group's name and its label
+        // (22, and its words 13: four pixels thinner and a size larger than they were, at the
+        // maintainer's asking, 2026-11-14)
+        readonly property real labelHeight: 22
         readonly property int frameWidth: 4
 
         anchors.left: parent.left
@@ -1403,7 +1406,7 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight
                     color: cell.lightFrame ? "black" : "white"
-                    font.pixelSize: 12
+                    font.pixelSize: 13
                     text: (cell.index + 1)
                         + (cell.modelData.groupStart && cell.modelData.group !== "" ? "  " + cell.modelData.group : "")
                         + (!cell.tagged && cell.modelData.label !== "" && cell.modelData.label !== cell.modelData.group
@@ -1446,7 +1449,7 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
                             color: cell.lightTag ? "black" : "white"
-                            font.pixelSize: 11
+                            font.pixelSize: 12
                             text: cell.modelData.label
                         }
                     }

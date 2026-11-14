@@ -84,6 +84,25 @@ QtObject {
                 check("and a click on it opens nothing", !viewFormatOpen && (named("viewFormat") === null || named("viewFormat").item === null))
                 kept.dotsX = dots.mapToItem(null, 0, 0).x
                 kept.columns = named("slideGrid").columns
+                // The chin under a thumbnail: 22 pixels, its words 13 (the maintainer, 2026-11-14)
+                const cell = slideCell(kept.words)
+                const frame = Lib.find(cell, item => item.objectName.startsWith("slideFrame:"))
+                const thumbnail = thumbnailOf(cell)
+                const caption = Lib.find(frame, item => item.text !== undefined && item.font !== undefined
+                                                        && String(item.text).startsWith(String(kept.words + 1)))
+                const chin = frame.height - (thumbnail.y + thumbnail.height)
+                check("the chin under a thumbnail is 22 pixels, and its words 13", Math.abs(chin - 22) < 0.5 && caption !== null && caption.font.pixelSize === 13,
+                      chin + " " + (caption ? caption.font.pixelSize : "no caption"))
+                const colour = String(cell.frame).toLowerCase()
+                const near = (p, c) => [1, 3, 5].every(i => Math.abs(parseInt(p.substring(i, i + 2), 16) - parseInt(c.substring(i, i + 2), 16)) < 12)
+                const under = thumbnail.mapToItem(null, thumbnail.width - 3, thumbnail.height + 3)
+                const foot = frame.mapToItem(null, frame.width - 3, frame.height - 3)
+                const over = thumbnail.mapToItem(null, thumbnail.width - 3, thumbnail.height - 3)
+                const p1 = String(testInput.windowPixel(under.x, under.y)).toLowerCase()
+                const p2 = String(testInput.windowPixel(foot.x, foot.y)).toLowerCase()
+                const p3 = String(testInput.windowPixel(over.x, over.y)).toLowerCase()
+                check("drawn: the chin in the frame's colour from under the thumbnail to the frame's foot, and the thumbnail over it",
+                      near(p1, colour) && near(p2, colour) && !near(p3, colour), [p1, p2, p3, colour].join(" "))
                 click(centre(easy))
                 return 500
             },
