@@ -6,6 +6,28 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.139](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.139) · 2026-11-14
+
+- ProPresenter's timeline: the Timeline button beside Arrangements opens it under the
+  line over the slides, with its ruler, its tracks of slides, media, audio and actions,
+  and Rewind, Play, Record, Loop and the Duration. Played, its slides go live and its
+  media, audio and actions are done at their times; played from part way, the slide
+  before goes live and the audio and video under the playhead start where it is in
+  them. With Record on, what is clicked is put on it. Slides are carried up onto it
+  from the slides, and pictures, videos and audio dragged onto it from the bins; cues
+  are dragged along it and taken off by their menu. It is kept in the presentation's
+  file as ProPresenter keeps it, read from either of its two lists of cues
+  ([Timeline](docs/features/timeline.md)).
+- The timeline is played, paused and rewound by ProPresenter's API routes for it
+  (those ProPresenter Remote and Bitfocus Companion's module ask by; not tried with
+  either), and by MIDI's Start, Stop and Rewind Timeline; a clear group's Stop
+  Timeline stops it.
+- A light guard against dragging by accident, everywhere in the operator window: a
+  drag starts only once the pointer is twelve pixels off with the button held for
+  150 ms, so a click made while the pointer is still moving stays a click.
+- A drag started from the show controls is no longer offered first to wherever the
+  last one was let go.
+
 ## [0.138](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.138) · 2026-11-14
 
 - ProPresenter Remote, Renewed Vision's app for a phone or a tablet, works with the

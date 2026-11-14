@@ -39,6 +39,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.139" date="2026-11-14">
+      <description>
+        <p>
+          ProPresenter's timeline: slides, media, audio and actions played at set times,
+          recorded, and dragged onto it; and a light guard against dragging by accident.
+        </p>
+      </description>
+    </release>
     <release version="0.138" date="2026-11-14">
       <description>
         <p>
