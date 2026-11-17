@@ -39,6 +39,15 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.141" date="2026-11-18">
+      <description>
+        <p>
+          An API of the app's own for making and changing presentations, playlists and
+          themes, with MCP on top of it for AI models; and pages that list the API and
+          let it be tried.
+        </p>
+      </description>
+    </release>
     <release version="0.140" date="2026-11-15">
       <description>
         <p>

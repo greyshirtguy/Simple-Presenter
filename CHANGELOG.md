@@ -6,6 +6,24 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.141](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.141) · 2026-11-18
+
+- The extended API: an API of the app's own beside ProPresenter's, on the same port
+  under `/sp/v1/`, switched on by itself in Settings, Network. Through it a program can
+  make, change and delete the open workspace's presentations (their slides, words,
+  elements, actions, groups, arrangements and timeline), its playlists and its themes,
+  so that a service can be set up by a script. It is off until switched on, and then
+  answers programs on this computer only, unless other computers are let in; what is
+  deleted through it goes to the Trash, and a copy of a file is kept before it is
+  changed ([The extended API, and MCP](docs/features/extended-api.md)).
+- MCP on top of it: each of its operations is a tool an AI model can call, at `/mcp` on
+  the API's port or by the command `SimplePresenter --mcp`.
+- Pages that list the API and let each request be tried: one for what the app answers
+  of ProPresenter's API, at `/v1/doc/index.html`, where ProPresenter serves its own,
+  and one for the extended API at `/sp/v1/doc/index.html`. Settings, Network has both
+  as links. They are drawn by Swagger UI, which the app carries, so they work with no
+  internet ([The API](docs/features/api.md)).
+
 ## [0.140](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.140) · 2026-11-15
 
 - A macro dragged out of the macros onto the timeline goes on its actions track at
