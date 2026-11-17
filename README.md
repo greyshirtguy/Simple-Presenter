@@ -93,7 +93,7 @@ works here, where it differs from ProPresenter, and what is a guess.
 - <a id="ndi"></a>**[NDI](docs/features/ndi.md)**: a screen sent over the network for a vision mixer or OBS to pick up. NDI's library is not included: the app offers to fetch it, under NDI's own licence.
 - <a id="blackmagic-decklink"></a>**[Blackmagic DeckLink](docs/features/decklink.md)**: a screen out through a card's output, in ten formats, keyed or not, and drawn by the card's own frames if it is the Clock Source. It has been tried so far on one card.
 - <a id="the-extended-api"></a>**[The extended API, and MCP](docs/features/extended-api.md)**: the app's own addition to that API, switched on by itself: a program can make, change and delete the workspace's presentations (their slides, words, elements, groups and arrangements), playlists and themes, so that a service can be set up by a script; and the same is offered to an AI model as tools, through MCP, so that it can be asked for in words.
-- <a id="the-api"></a>**[The API](docs/features/api.md)**: ProPresenter's own network API, so that Bitfocus Companion's module, ProPresenter Remote on a phone or a tablet, and the other remotes made for ProPresenter can follow the show and work it. The page says what is there and what is not.
+- <a id="the-api"></a>**[The API](docs/features/api.md)**: ProPresenter's own network API, so that Bitfocus Companion's module, ProPresenter Remote on a phone or a tablet, and the other remotes made for ProPresenter can follow the show and work it. The page says what is there and what is not; and the app serves a page of its own that lists it and lets it be tried, as ProPresenter does.
 - <a id="devices"></a>**[Devices](docs/features/devices.md)**: MIDI notes and RossTalk Custom Controls sent from slides and macros, and ProPresenter's MIDI Map, so that a MIDI device's notes work the show.
 
 ### Custom features
@@ -240,6 +240,11 @@ It uses, under their own licences:
   [Companion module for ProPresenter](https://github.com/bitfocus/companion-module-renewedvision-propresenter-api),
   whose repository is under the MIT licence. `icons/README.md` has that licence, and
   how the files here were made from the pack's.
+- [Swagger UI](https://github.com/swagger-api/swagger-ui), under the Apache License
+  2.0: the three files in `third_party/swagger-ui`, as its release has them, with its
+  licence and its notice. It draws the pages that list the API, and is carried in the
+  app and served by it; `third_party/swagger-ui/README.md` says which release and how
+  it was checked.
 - Protocol Buffers, fontconfig, zlib, FFmpeg (through Qt Multimedia, and directly
   for video thumbnails) and ALSA's library (for MIDI), as provided by the system.
 

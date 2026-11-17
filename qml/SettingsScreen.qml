@@ -1978,17 +1978,26 @@ Rectangle {
                               + (HttpApi.streams > 0 ? ". " + HttpApi.streams + (HttpApi.streams === 1 ? " client is" : " clients are") + " following the show." : ".")
                     }
 
+                    // (The page of documentation the API serves, as ProPresenter's serves its
+                    // own, is named while the API is on, as a link the browser opens: src/httpapidoc.h)
                     Text {
+                        objectName: "networkAbout"
                         width: parent.width
                         wrapMode: Text.Wrap
                         color: "#9a9da3"
                         font.pixelSize: 13
+                        textFormat: Text.StyledText
+                        linkColor: "#6fb3ff"
+                        onLinkActivated: (link) => Qt.openUrlExternally(link)
+                        readonly property string page: "http://127.0.0.1:" + HttpApi.port + "/v1/doc/index.html"
                         text: "ProPresenter's network API, as ProPresenter offers it: programs on this network that work "
                             + "with ProPresenter, such as Bitfocus Companion's ProPresenter module, can follow the show and "
                             + "operate it through it, by this computer's address and the port. Anyone on the network can, "
-                            + "as with ProPresenter: there is no password.\n\n"
+                            + "as with ProPresenter: there is no password.<br><br>"
                             + "Only what this app has is there: much of what ProPresenter offers through it is not. "
-                            + "What is there is linked from the README."
+                            + (HttpApi.listening ? "What is there is listed, and can be tried, on a page the app serves as ProPresenter serves "
+                                                   + "its own: <a href=\"" + page + "\">" + page + "</a>"
+                                                 : "What is there is listed on a page the app serves while this is on, and is linked from the README.")
                     }
 
                     // ProPresenter Remote, Renewed Vision's app for a phone or a tablet, which
@@ -2162,14 +2171,22 @@ Rectangle {
                     }
 
                     Text {
+                        objectName: "extendedAbout"
                         width: parent.width
                         wrapMode: Text.Wrap
                         color: "#9a9da3"
                         font.pixelSize: 13
+                        textFormat: Text.StyledText
+                        linkColor: "#6fb3ff"
+                        onLinkActivated: (link) => Qt.openUrlExternally(link)
+                        readonly property string page: "http://127.0.0.1:" + HttpApi.port + "/sp/v1/doc/index.html"
                         text: "This app's own addition to the API above, which is not ProPresenter's: through it a program can make, change "
                             + "and delete the workspace's presentations, playlists and themes, and an AI model can be asked to, through MCP. "
                             + "Whatever can reach it can change the workspace: there is no password. A presentation or a theme deleted "
-                            + "through it goes to the Trash, and a copy of a file is kept before it is changed."
+                            + "through it goes to the Trash, and a copy of a file is kept before it is changed. "
+                            + (screen.extendedEnabled && HttpApi.listening
+                                   ? "What it has is listed, and can be tried, on a page of its own: <a href=\"" + page + "\">" + page + "</a>"
+                                   : "What it has is listed on a page the app serves while it is on, and is linked from the README.")
                     }
                 }
             }
@@ -2457,6 +2474,16 @@ Rectangle {
                 text: "A screen can be sent over the network with NDI®, by NDI's own library, which is not part of this app "
                     + "(Screens has how to get it). NDI® is a registered trademark of Vizrt NDI AB. "
                     + "<a href=\"https://ndi.video\">ndi.video</a>"
+            }
+
+            Text {
+                objectName: "aboutSwagger"
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#9a9da3"
+                font.pixelSize: 13
+                text: "The pages that list the API (Network has where they are) are drawn by Swagger UI, which is SmartBear "
+                    + "Software's, under the Apache License 2.0. Its licence and its notice are served beside the pages."
             }
         }
     }

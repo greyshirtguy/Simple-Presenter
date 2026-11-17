@@ -491,6 +491,8 @@ qt_add_qml_module(SimplePresenter
         src/proremote.cpp
         src/extendedapi.h
         src/extendedapi.cpp
+        src/httpapidoc.h
+        src/httpapidoc.cpp
         src/extendedapijson.h
         src/extendedapijson.cpp
         src/extendedapirun.h
@@ -543,6 +545,27 @@ qt_add_resources(SimplePresenter "extendedapi"
     PREFIX "/"
     FILES
         docs/features/extended-api.md
+)
+
+# The API's pages of documentation (src/httpapidoc.h): the app's own page, and Swagger UI,
+# which draws it (third_party/swagger-ui, as it comes, with its licence and its notice).
+# Read as :/apidoc/<name> when a page is asked for, and at no other time.
+set(apidoc_files
+    src/apidoc.html
+    third_party/swagger-ui/swagger-ui-bundle.js
+    third_party/swagger-ui/swagger-ui-bundle.js.LICENSE.txt
+    third_party/swagger-ui/swagger-ui.css
+    third_party/swagger-ui/LICENSE
+    third_party/swagger-ui/NOTICE
+)
+set_source_files_properties(src/apidoc.html PROPERTIES QT_RESOURCE_ALIAS index.html)
+foreach(file IN ITEMS swagger-ui-bundle.js swagger-ui-bundle.js.LICENSE.txt swagger-ui.css LICENSE NOTICE)
+    set_source_files_properties(third_party/swagger-ui/${file} PROPERTIES QT_RESOURCE_ALIAS ${file})
+endforeach()
+qt_add_resources(SimplePresenter "apidoc"
+    PREFIX "/apidoc"
+    FILES
+        ${apidoc_files}
 )
 
 qt_add_resources(SimplePresenter "icons"

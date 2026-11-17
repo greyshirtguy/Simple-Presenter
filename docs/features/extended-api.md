@@ -108,6 +108,14 @@ partly see-through), and lengths are in a slide's own units (a slide is usually 
 for tools that try an API or generate a client for one. Each operation is an MCP tool of
 the name given, whose arguments are the parts of the path and what the body takes.
 
+**A page to try it from.** While the API is on, `http://127.0.0.1:50001/sp/v1/doc/index.html`
+(the settings have it as a link) lists every operation under the headings of this page,
+with what each takes, and sends a request when asked to: the same kind of page as
+ProPresenter serves for its own API, which the app serves too, for what it answers of
+that, at [`/v1/doc/index.html`](api.md). It is held as close as the API is: a browser on
+this computer is given it, and one on another computer only once other computers are let
+in. A request sent from it changes the workspace as any other does.
+
 A connection is kept open for the next request, as HTTP does, and the app keeps sixty-four
 at once for all of its API: a program that asks often should ask again on the connection
 it has, or close it (`Connection: close`), and not leave one open for each request.

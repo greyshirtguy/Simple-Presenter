@@ -44,8 +44,8 @@
 //   - It is off until it is switched on by itself (Settings, Network), and then answers
 //     only programs on this computer, unless it is also opened to the network.
 //   - A request that comes from a web page says so (its Origin). One from a page of
-//     this computer's own is answered (served at one of its addresses or by its name);
-//     with the network opened, one from a
+//     this computer's own is answered (served at one of its addresses or by its name:
+//     the API's own page of documentation is one); with the network opened, one from a
 //     page served by a computer of the local network too; one from any other page is
 //     refused, so that a page somewhere on the internet, open in a browser here, cannot
 //     reach it. A page that will not say where it is from ("null": one in a sandbox, a
@@ -147,6 +147,10 @@ QString pathOf(const Operation &operation, const QVariantMap &values, bool theme
 QVariantMap inputSchema(const Operation &operation);
 // The whole of it as an OpenAPI 3.1 document, for a server of that name and version
 QVariantMap openApi(const QString &version);
+// The part of the page of documentation an operation is listed in (httpapidoc.h), which
+// is the reference's heading for it; and the parts there are, in the page's order
+QString sectionOf(const Operation &operation);
+QStringList sections();
 
 // ---- who may ask (see above)
 

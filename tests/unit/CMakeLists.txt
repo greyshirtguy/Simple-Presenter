@@ -105,6 +105,23 @@ target_include_directories(tst_httpapi PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_httpapi PRIVATE Qt6::Core Qt6::Test)
 add_test(NAME httpapi COMMAND tst_httpapi)
 
+# The API's pages of documentation (src/httpapidoc.h). It reads the window's answerer,
+# to hold what the page lists to what is answered, and the app's CMakeLists.txt, to hold
+# the page's files to those the app carries.
+qt_add_executable(tst_httpapidoc
+    tst_httpapidoc.cpp
+    ${PROJECT_SOURCE_DIR}/src/httpapidoc.h
+    ${PROJECT_SOURCE_DIR}/src/httpapidoc.cpp
+    ${PROJECT_SOURCE_DIR}/src/httpapi.h
+    ${PROJECT_SOURCE_DIR}/src/httpapi.cpp
+)
+target_include_directories(tst_httpapidoc PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_definitions(tst_httpapidoc PRIVATE
+    HANDLER_SOURCE="${PROJECT_SOURCE_DIR}/qml/HttpApiControl.qml"
+    CMAKE_LISTS="${PROJECT_SOURCE_DIR}/CMakeLists.txt")
+target_link_libraries(tst_httpapidoc PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME httpapidoc COMMAND tst_httpapidoc)
+
 qt_add_executable(tst_proremote
     tst_proremote.cpp
     ${PROJECT_SOURCE_DIR}/src/proremote.h

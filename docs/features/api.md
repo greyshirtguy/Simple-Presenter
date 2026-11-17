@@ -43,10 +43,23 @@ on one connection, the computer's clock every second among them. Each piece is t
 JSON followed by an empty line (CR LF CR LF), so that a client can tell where one ends
 when the network splits it.
 
+**Its page of documentation.** ProPresenter serves a page that lists its API, says what
+each request is for and lets it be tried, at `/v1/doc/index.html` on the API's port.
+The app serves one at the same address (the settings have it as a link while the API is
+on), drawn by the same library as ProPresenter's, [Swagger UI](https://swagger.io/tools/swagger-ui/):
+but **it lists what this app answers, and nothing it does not**, in the app's own words
+and not ProPresenter's. It is made from the app's own table of what it answers, so the
+two cannot drift apart. A request tried from the page is carried out by the app that
+served the page: one that shows a slide shows it on the screens. Everything the page
+is made of comes from the app, so it works with no internet. (`/v1/doc` is sent on to
+the page, and `/v1/doc/swagger.json` is the description the page draws, which is a line
+of JavaScript and not JSON, both as ProPresenter has them.)
+
 **The app's own, beside it.** ProPresenter's API has nothing for a presentation itself.
 The app has an API of its own for that, on the same port and switched on by itself: the
 [extended API](extended-api.md), which makes and changes presentations, playlists and
-themes, and offers the same to an AI model through MCP.
+themes, and offers the same to an AI model through MCP. It has a page of documentation
+of its own, at `/sp/v1/doc/index.html`, which the first page points to.
 
 **Not there yet**: ProPresenter's own requests that make, change or delete things in
 the workspace's files (looks, messages, props, playlists, macros, clear groups; of the

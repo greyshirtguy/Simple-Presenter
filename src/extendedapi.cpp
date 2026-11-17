@@ -605,6 +605,64 @@ QVariantMap inputSchema(const Operation &operation)
 
 namespace {
 
+// The parts the operations are listed in on the page of documentation, and in the
+// reference (whose headings these are, but for the first, which is what is asked of the
+// workspace as a whole)
+struct Section
+{
+    const char *name;
+    const char *about;
+};
+const QList<Section> &sectionList()
+{
+    static const QList<Section> all {
+        {"Workspace", "The open workspace as a whole: what is in it, its libraries, finding a presentation, and this API's own description of itself."},
+        {"Presentations", "A presentation: made, read, changed, copied and deleted; its groups, its arrangements and its timeline; a theme put on "
+                          "its slides, and their text formatted."},
+        {"Slides", "A presentation's slides: added, read, changed, moved, copied and deleted."},
+        {"Elements", "What is on a slide: its text boxes, shapes, pictures and videos."},
+        {"Actions", "What a slide does besides showing itself."},
+        {"Themes", "The themes, their slides, and what is on those."},
+        {"Playlists", "The playlists of presentations, their folders and their rows."},
+        {"Media", "The media files a slide can be given."},
+    };
+    return all;
+}
+
+}
+
+QStringList sections()
+{
+    QStringList names;
+    for (const Section &section : sectionList())
+        names.append(QString::fromLatin1(section.name));
+    return names;
+}
+
+QString sectionOf(const Operation &operation)
+{
+    const QByteArray &name = operation.name;
+    if (name.contains("playlist"))
+        return QStringLiteral("Playlists");
+    if (name.contains("theme") && name != "apply_theme")
+        return QStringLiteral("Themes");
+    if (name.contains("element"))
+        return QStringLiteral("Elements");
+    if (name.contains("action"))
+        return QStringLiteral("Actions");
+    if (name.contains("slide"))
+        return QStringLiteral("Slides");
+    if (name == "list_media")
+        return QStringLiteral("Media");
+    // (What is asked of a library or of all of them is the workspace's; what is asked
+    // of one presentation, by its path, is the presentation's)
+    if (operation.pattern.startsWith("presentation/") || name == "create_presentation")
+        return QStringLiteral("Presentations");
+    return QStringLiteral("Workspace");
+}
+
+namespace {
+
 // Whether an operation makes something new, and so answers 201 where the others answer 200
 bool makes(const Operation &operation)
 {
@@ -651,6 +709,8 @@ QVariantMap openApi(const QString &version)
                                            {QStringLiteral("schema"), schema}});
         }
         QVariantMap made {{QStringLiteral("operationId"), QString::fromLatin1(operation.name) + (theme ? QStringLiteral("_of_theme") : QString())},
+                          // (Under its part of the page: a theme's slide and what is on it under the themes)
+                          {QStringLiteral("tags"), QStringList {theme ? QStringLiteral("Themes") : sectionOf(operation)}},
                           {QStringLiteral("summary"), QString::fromUtf8(operation.title)},
                           {QStringLiteral("description"), QString::fromUtf8(operation.description)},
                           {QStringLiteral("responses"),
@@ -680,6 +740,12 @@ QVariantMap openApi(const QString &version)
         if (!operation.themePattern.isEmpty())
             add(operation, operation.themePattern, true);
     }
+    QVariantList described;
+    for (const Section &section : sectionList())
+        described.append(QVariantMap {{QStringLiteral("name"), QString::fromLatin1(section.name)},
+                                      {QStringLiteral("description"), QString::fromUtf8(section.about)}});
+    // (The opening words are Markdown, which the page of documentation draws: its
+    // links are to the app's other page and to the reference, on whatever served this.)
     return {{QStringLiteral("openapi"), QStringLiteral("3.1.0")},
             {QStringLiteral("info"),
              QVariantMap {{QStringLiteral("title"), QStringLiteral("Simple Presenter: the extended API")},
@@ -689,7 +755,15 @@ QVariantMap openApi(const QString &version)
                                           "presentations, playlists and themes of the open workspace. It is one person's hobby "
                                           "project, shared as an example and not as a product: nothing here is promised to stay "
                                           "as it is.\n\n"
-                                          "`GET /sp/v1/reference` has every property by name.")}}},
+                                          "Tried from a page, a request **changes the workspace's files**: what is deleted goes to the "
+                                          "Trash, and a copy of each file is kept before it is changed.\n\n"
+                                          "`GET /sp/v1/reference` has every property by name. ProPresenter's own API, "
+                                          "as far as the app answers it, has [a page of its own](/v1/doc/index.html).")}}},
+            // (Asked of whatever served this: an address with nothing before its first
+            // slash is that computer's own)
+            {QStringLiteral("servers"), QVariantList {QVariantMap {{QStringLiteral("url"), QStringLiteral("/")},
+                                                                   {QStringLiteral("description"), QStringLiteral("The app that served this")}}}},
+            {QStringLiteral("tags"), described},
             {QStringLiteral("paths"), paths}};
 }
 

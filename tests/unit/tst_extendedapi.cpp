@@ -230,6 +230,41 @@ private slots:
         QVERIFY(paths.value("/sp/v1/playlists").toMap().value("get").toMap().value("responses").toMap().contains("200"));
     }
 
+    // ---- the page of documentation
+
+    void everyOperationIsUnderAHeadingOfThePage()
+    {
+        const QStringList headings = sections();
+        QVERIFY(headings.size() >= 8);
+        QSet<QString> used;
+        for (const Operation &each : operations()) {
+            QVERIFY2(headings.contains(sectionOf(each)), each.name.constData());
+            used.insert(sectionOf(each));
+        }
+        QCOMPARE(int(used.size()), int(headings.size()));
+        QCOMPARE(sectionOf(*operation("apply_theme")), QStringLiteral("Presentations"));
+        QCOMPARE(sectionOf(*operation("create_presentation")), QStringLiteral("Presentations"));
+        QCOMPARE(sectionOf(*operation("list_presentations")), QStringLiteral("Workspace"));
+        QCOMPARE(sectionOf(*operation("add_theme_slide")), QStringLiteral("Themes"));
+        QCOMPARE(sectionOf(*operation("update_playlist_item")), QStringLiteral("Playlists"));
+        QCOMPARE(sectionOf(*operation("list_action_targets")), QStringLiteral("Actions"));
+        QCOMPARE(sectionOf(*operation("duplicate_slide")), QStringLiteral("Slides"));
+        // The description says them, in that order, and each operation's; a theme's
+        // slide and what is on it are under the themes; and it is asked of what served it
+        const QVariantMap described = openApi(QStringLiteral("1.2"));
+        QStringList said;
+        for (const QVariant &each : described.value("tags").toList())
+            said.append(each.toMap().value("name").toString());
+        QCOMPARE(said, headings);
+        const QVariantMap paths = described.value("paths").toMap();
+        QCOMPARE(paths.value("/sp/v1/presentation/{presentation}/slide/{slide}/elements").toMap().value("post").toMap().value("tags").toStringList(),
+                 QStringList({"Elements"}));
+        QCOMPARE(paths.value("/sp/v1/theme/{theme}/slide/{slide}/elements").toMap().value("post").toMap().value("tags").toStringList(),
+                 QStringList({"Themes"}));
+        QCOMPARE(described.value("servers").toList().value(0).toMap().value("url").toString(), QStringLiteral("/"));
+        QVERIFY(described.value("info").toMap().value("description").toString().contains(QLatin1String("(/v1/doc/index.html)")));
+    }
+
     // ---- who may ask
 
     void offItAnswersNobody()

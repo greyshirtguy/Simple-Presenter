@@ -102,7 +102,8 @@ what you checked; do not say "the tests pass" and mean a part of them.
   anything of its SDK but the headers in `third_party/decklink/include`: its samples
   are for the use of whoever downloaded them, and none of their code goes here. Nor is a key for api.bible: a build takes one
   from `packaging/api-bible-key.txt`, which git ignores, and a person's own is in their
-  settings.
+  settings. (Swagger UI, which draws the pages that list the API, was agreed to: its
+  release's files are in `third_party/swagger-ui` as they come, and are not edited.)
 - A feature that is the app's own, or a new key, goes in `docs/guide.md` as well as in
   its page: the app shows that file behind the ? at the right of its toolbar.
 - Something new that moves on a screen moves by a `FrameClock` (`src/frameclock.h`),
@@ -119,6 +120,11 @@ what you checked; do not say "the tests pass" and mean a part of them.
   there, is carried out in `src/extendedapirun.cpp`, and is named on its page, which a
   unit test holds to the table. It changes files only by the app's own ways of changing
   them, on a copy that takes the file's place when all of a request has gone well.
+- The pages that list the API (`/v1/doc/index.html`, as ProPresenter serves its own, and
+  `/sp/v1/doc/index.html`) list what the app answers and nothing else: a route of
+  ProPresenter's that is added (`src/httpapi.cpp`) needs a line saying what it does in
+  `src/httpapidoc.cpp`, which a unit test holds to the routes and to what answers them.
+  The line is the app's own words: nothing is copied from ProPresenter's documentation.
 - Words the user reads say plainly what a thing does. They never promise help, never
   call the app a product, and never say or suggest that it is fit to be relied on.
 - A thing ProPresenter has a picture for is shown with ProPresenter's picture, not a

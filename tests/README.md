@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are sixty-eight:
+So far there are sixty-nine:
 
 | Test | What it tries |
 | --- | --- |
@@ -30,6 +30,7 @@ So far there are sixty-eight:
 | `tst_ndisetup` | Reading NDI's installer (`src/ndisetup.h`): finding the licence it shows and the archive it carries, and not being fooled by something that is not it |
 | `tst_decklinkformats` | What a screen sent out through a Blackmagic DeckLink card is sent as (`src/decklinkformats.h`): the formats offered, in the menu's order, each with its size, its rate and the code Blackmagic's SDK gives it; pictures made straight from premultiplied, rounded, never past white, and a pixel with nothing on it left alone; and the beat the screens are drawn on together: when a pass is due, which screens it takes, when each is next, and, played through a second of a transition, three outputs of one format drawn in every pass together, one that fell out of step back with them at the next, and outputs of two rates each drawn no oftener than its own frames come; and screens kept to a card's own frames: due a lead before each, a moment just gone still now, never twice in one of them, one whose card has no frame free not waited for, a card whose frames are longer than its format says kept to through a second of a transition, and the lead itself |
 | `tst_httpapi` | The rules of the HTTP API (`src/httpapi.h`): requests read as they come, whole or in pieces, with their query and body, the path kept as it came as well as with its escapes undone, a client that waits to be told before it sends its body told once, and what is not HTTP refused; responses, JSON with CR LF CR LF after it, and chunks written as ProPresenter writes them; paths matched to ProPresenter's routes, words before parts; what `status/updates` takes, every stream Companion's module asks for among it; an id found by UUID, name or index in ProPresenter's order |
+| `tst_httpapidoc` | The API's pages of documentation (`src/httpapidoc.h`): every route with a line of its own or said to answer nothing, and no line for a route there is not; what the page lists held to what the window's answerer has a case for, whose source it reads; the description's paths, the parts of each said once, its headings, what a route takes in its query and its body, and what it answers with; the description as the page loads it, a line of JavaScript; the page's files, each one the app carries; and which paths are of the page's folder |
 | `tst_proremote` | ProPresenter Remote's side of the API (`src/proremote.h`): the key made of a password and the AES-256 CTR sealing and opening, against published vectors; a WebSocket's opening and frames, whole, masked, in pieces, too large or wrong; and the Remote's requests read and its answers written as ProPresenter's are |
 | `tst_slidepictures` | The pictures of slides for the API (`src/slidepictures.h`): the size and kind asked for read as ProPresenter reads them, the checkerboard's squares, what is asked of the second process and what it answers, and the name a picture is kept in the cache by |
 | `tst_timeline` | ProPresenter's timeline (`src/timeline.h`), on a presentation made as ProPresenter 22 writes one, with fields it knows nothing of: the cues read from the new list or the old one, slides named "Cue" and their place through the groups, a piece's length from its action or its media; what a playhead passing triggers and in what order, what a timeline started part way does, and which place of a slide that comes up twice is taken; and cues put on, moved and taken off, the old list copied over and left, and the length and Loop, with everything else kept |
@@ -170,6 +171,10 @@ with `protoc`: a presentation of ProPresenter's own of which the test changed tw
 has nothing else changed, and a copy of it as it was is kept; and what was made are
 files as ProPresenter keeps them. What carries the operations out
 (`src/extendedapirun.h`) is tried by this test alone: it works on a whole workspace.
+It asks for the pages of documentation too, ProPresenter's API's and the app's own:
+each page, the description it draws and what draws it, and that the app's own is not
+there while its API is off. (That a browser draws them, and that a request tried from
+one is carried out, was looked at by hand in a browser: the tests have no browser.)
 
 And `quickedit` puts a slide's words right with Quick Edit: the panel up from the slide's
 menu, over the slide's thumbnail at about twice its size and the window behind not

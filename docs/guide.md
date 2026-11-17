@@ -95,6 +95,12 @@ These are not ProPresenter's.
   unless **From Other Computers** is ticked. There is no password. What is deleted
   through it goes to the Trash, a copy of a file is kept before it is changed,
   and a presentation open in the editor is left alone.
+- **Pages that list the API.** While the network is on, the app serves a page that lists
+  what it answers of ProPresenter's API and lets each request be tried, at
+  `http://127.0.0.1:<port>/v1/doc/index.html`, where ProPresenter serves its own; and
+  one for the extended API, while that is on, at `/sp/v1/doc/index.html`. Settings →
+  Network has both as links. A request tried from a page is carried out: one that
+  shows a slide shows it on the screens.
 
 ## What it does not do
 

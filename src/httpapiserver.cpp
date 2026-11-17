@@ -4,6 +4,7 @@
 #include "extendedapi.h"
 #include "extendedapijson.h"
 #include "extendedapirun.h"
+#include "httpapidoc.h"
 #include "httpapifiles.h"
 #include "httpapijson.h"
 #include "mcp.h"
@@ -12,6 +13,7 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QFile>
 #include <QHostAddress>
 #include <QHostInfo>
 #include <QJSEngine>
@@ -564,6 +566,10 @@ void HttpApi::respondOwn(Client *client, const httpapi::Request &request)
         client->socket->write(httpapi::head(200, headers));
         return;
     }
+    // Its page of documentation (httpapidoc.h), which is held as close as what it
+    // describes: answered to whoever the API itself would answer
+    if (respondDoc(client, request, QStringLiteral("/sp/v1/doc"), true))
+        return;
     ExtendedApi *api = extended();
     if (!api) {
         sendJson(client, request, 503, extendedapijson::error(QStringLiteral("The app is not ready to answer")));
@@ -623,6 +629,63 @@ void HttpApi::respondOwn(Client *client, const httpapi::Request &request)
     sendJson(client, request, answer.status, answer.data);
 }
 
+// A page of documentation and its files (httpapidoc.h): ProPresenter's API as the app
+// answers it, in `folder` "/v1/doc" where ProPresenter serves its own, or with `extended`
+// the app's own API in "/sp/v1/doc". True if the request was for something in the
+// folder, and has been answered.
+//
+// The files are the app's own resources, read as they are asked for and kept nowhere:
+// the largest is Swagger UI itself, 1.7 MB, which is unpacked from the app in a few
+// milliseconds when somebody opens the page, on this thread, as any answer is made.
+// Nothing of it is read, or costs anything, until then.
+bool HttpApi::respondDoc(Client *client, const httpapi::Request &request, const QString &folder, bool extended)
+{
+    bool redirect = false;
+    const QString name = httpapidoc::nameIn(folder, request.path, &redirect);
+    if (name.isNull())
+        return false;
+    const auto nothing = [&] {
+        // (As each API says what it has not: ProPresenter's with nothing, the app's own with why)
+        if (extended)
+            sendJson(client, request, 404, extendedapijson::error(QStringLiteral("The page of documentation has no %1: it is at %2/index.html").arg(request.path, folder)));
+        else
+            send(client, request, 404);
+    };
+    if (request.method != "GET") {
+        nothing();
+        return true;
+    }
+    // The folder by its own name is sent on to its page, as ProPresenter sends
+    // /v1/doc on; with a slash after it ProPresenter answers 404, and so does this for
+    // ProPresenter's, the app's own being sent on then too
+    if (redirect || (extended && name.isEmpty())) {
+        httpapi::Headers headers = httpapi::common(request);
+        headers.emplaceBack("location", (folder + QStringLiteral("/index.html")).toLatin1());
+        headers.emplaceBack("content-length", "0");
+        headers.emplaceBack("date", httpapi::httpDate(QDateTime::currentDateTimeUtc()));
+        client->socket->write(httpapi::head(302, headers));
+        return true;
+    }
+    // The description, made as it is asked for (it says the app's version, and
+    // ProPresenter's page whether the app's own API is there to be linked to). It is
+    // called swagger.json and sent as JSON, as ProPresenter's is, and is JavaScript.
+    if (name == QLatin1String("swagger.json")) {
+        const QString version = QCoreApplication::applicationVersion();
+        const QVariantMap description = extended ? extendedapi::openApi(version)
+                                                 : httpapidoc::openApi(version, m_extendedEnabled ? QStringLiteral("/sp/v1/doc/index.html") : QString());
+        send(client, request, 200, httpapidoc::asScript(description));
+        return true;
+    }
+    const httpapidoc::File found = httpapidoc::file(name);
+    QFile file(found.resource);
+    if (!found || !file.open(QIODevice::ReadOnly)) {
+        nothing();
+        return true;
+    }
+    send(client, request, 200, file.readAll(), found.type);
+    return true;
+}
+
 void HttpApi::respond(Client *client, const httpapi::Request &request)
 {
     // The app's own paths, which are held closer than ProPresenter's (extendedapi.h)
@@ -652,6 +715,9 @@ void HttpApi::respond(Client *client, const httpapi::Request &request)
             send(client, request, remoteOpen() ? 400 : 404);
         return;
     }
+    // The page of documentation, where ProPresenter has its own (httpapidoc.h)
+    if (respondDoc(client, request, QStringLiteral("/v1/doc"), false))
+        return;
     const httpapi::Match found = httpapi::match(request.method, request.path);
     if (!found) {
         send(client, request, 404);

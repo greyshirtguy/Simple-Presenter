@@ -163,6 +163,7 @@ QByteArray reason(int status)
     case 201: return "Created";
     case 202: return "Accepted";
     case 204: return "No Content";
+    case 302: return "Found";
     case 400: return "Bad Request";
     case 403: return "Forbidden";
     case 404: return "Not Found";

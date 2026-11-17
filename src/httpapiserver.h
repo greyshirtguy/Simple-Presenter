@@ -83,6 +83,11 @@ class QTcpSocket;
 // (extendedapirun.h), not by the window's answerer; a request that is refused or that
 // fails is answered with its status and {"error": why}, where ProPresenter's paths say
 // nothing.
+//
+// The pages of documentation (httpapidoc.h): ProPresenter serves a page that lists its
+// API and lets it be tried, at /v1/doc/index.html, and so does the server, for what it
+// answers of that API; and one for the app's own at /sp/v1/doc/index.html, which is
+// held as close as the app's own paths are.
 class DnsSd;
 class ExtendedApi;
 class SlidePictureService;
@@ -292,6 +297,8 @@ private:
     // The app's own paths (see above): a request to one answered, and what carries the
     // operations out, found the first time one is asked for
     void respondOwn(Client *client, const httpapi::Request &request);
+    // A page of documentation, ProPresenter's API's or the app's own (httpapidoc.h)
+    bool respondDoc(Client *client, const httpapi::Request &request, const QString &folder, bool extended);
     void sendJson(Client *client, const httpapi::Request &request, int status, const QVariant &data);
     ExtendedApi *extended();
 

@@ -64,6 +64,16 @@ QtObject {
         }
     }
 
+    // A description as a page of documentation loads it ("var openapi_spec = {…};"), read
+    function described(id) {
+        const body = response(id).body.trim()
+        try {
+            return JSON.parse(decodeURIComponent(escape(body.slice("var openapi_spec = ".length, body.length - 1))))
+        } catch (error) {
+            return { info: { description: "" } }
+        }
+    }
+
     // An MCP message as the current revision has one, with the headers it must come with
     function mcp(id, method, params) {
         const all = Object.assign({ _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } },
@@ -301,6 +311,8 @@ QtObject {
                 kept.offMcp = send("POST", "/mcp", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}")
                 // (ProPresenter's own paths answer all the while)
                 kept.version = send("GET", "/version")
+                kept.offPage = send("GET", "/sp/v1/doc/index.html")
+                kept.offDescribed = send("GET", "/v1/doc/swagger.json")
                 return 700
             },
             () => {
@@ -308,6 +320,10 @@ QtObject {
                 check("off, its paths are not there, and say that it is switched off and where it is switched on", off.status === 404
                       && /switched off/.test(json(kept.off).error) && /Settings/.test(json(kept.off).error) && response(kept.offMcp).status === 404
                       && response(kept.version).status === 200, off.raw)
+                check("nor is its page of documentation, which ProPresenter's page says is switched off, without a link to it",
+                      response(kept.offPage).status === 404 && response(kept.offDescribed).status === 200
+                      && described(kept.offDescribed).info.description.includes("switched off")
+                      && !described(kept.offDescribed).info.description.includes("/sp/v1/doc"), response(kept.offDescribed).body.slice(0, 200))
                 click(centre(named("extendedSwitch")))
                 return 800
             },
@@ -344,7 +360,61 @@ QtObject {
                 kept.unknownKey = api("POST", "libraries", { nmae: "x" })
                 kept.openapi = api("GET", "openapi.json")
                 kept.reference = api("GET", "reference?topic=elements")
+                // The pages of documentation: ProPresenter's API's, where ProPresenter has its own, and the app's own
+                kept.folder = send("GET", "/v1/doc")
+                kept.folderSlash = send("GET", "/v1/doc/")
+                kept.page = send("GET", "/v1/doc/index.html")
+                kept.described = send("GET", "/v1/doc/swagger.json")
+                kept.looks = send("GET", "/v1/doc/swagger-ui.css")
+                kept.drawer = send("GET", "/v1/doc/swagger-ui-bundle.js")
+                kept.licence = send("GET", "/v1/doc/LICENSE")
+                kept.noFile = send("GET", "/v1/doc/swagger-ui-standalone-preset.js")
+                kept.ownFolder = send("GET", "/sp/v1/doc/")
+                kept.ownPageOfDoc = send("GET", "/sp/v1/doc/index.html")
+                kept.ownDescribed = send("GET", "/sp/v1/doc/swagger.json")
+                kept.ownFromElsewhere = send("GET", "/sp/v1/doc/index.html", undefined, { Origin: "https://example.com" })
+                kept.unanswered = send("DELETE", "/v1/transport/presentation/auto_advance")
                 return 1500
+            },
+            () => {
+                // ---- The pages of documentation
+                const page = response(kept.page)
+                check("ProPresenter's API has a page of documentation where ProPresenter has its own, which its folder's name is sent on to",
+                      response(kept.folder).status === 302 && response(kept.folder).headers["location"] === "/v1/doc/index.html"
+                      && response(kept.folderSlash).status === 404 && page.status === 200 && page.headers["content-type"].startsWith("text/html")
+                      && page.body.includes("swagger-ui-bundle.js") && page.body.includes("./swagger.json"), page.raw.slice(0, 300))
+                // (The page asks nothing of anywhere but the app: no address of another computer is in it)
+                check("the page loads nothing from anywhere else", !/(src|href)="https?:/.test(page.body) && !/url:\s*"https?:/.test(page.body))
+                const about = described(kept.described)
+                const paths = Object.keys(about.paths ?? {})
+                check("it describes what the app answers of ProPresenter's API, and nothing of the app's own, in the form ProPresenter's page loads",
+                      response(kept.described).body.startsWith("var openapi_spec = {") && response(kept.described).headers["content-type"] === "application/json"
+                      && paths.length > 150 && paths.every(path => path === "/version" || path.startsWith("/v1/"))
+                      && about.paths["/v1/status/slide"].get.summary.length > 10 && about.paths["/v1/status/slide"].get.tags[0] === "Status"
+                      && about.paths["/v1/presentation/{uuid}/{index}/trigger"].get.parameters.length === 2
+                      && about.info.version === Qt.application.version, paths.length + " paths")
+                check("it leaves out what the app has a path for and nothing behind, which answers 404",
+                      about.paths["/v1/presentation/chord_chart/updates"] === undefined && about.paths["/v1/transport/{layer}/auto_advance"].delete === undefined
+                      && response(kept.unanswered).status === 404, response(kept.unanswered).raw)
+                check("and points to the app's own page, which is there while its API is on",
+                      about.info.description.includes("(/sp/v1/doc/index.html)") && response(kept.ownPageOfDoc).status === 200
+                      && response(kept.ownPageOfDoc).body === page.body && response(kept.ownFolder).status === 302
+                      && response(kept.ownFolder).headers["location"] === "/sp/v1/doc/index.html", response(kept.ownFolder).raw.slice(0, 200))
+                const own = described(kept.ownDescribed)
+                check("the app's own page describes its own API, under the headings of its reference, and points back",
+                      Object.keys(own.paths ?? {}).every(path => path.startsWith("/sp/v1/")) && own.paths["/sp/v1/workspace"].get.tags[0] === "Workspace"
+                      && own.tags.map(tag => tag.name).join(",") === "Workspace,Presentations,Slides,Elements,Actions,Themes,Playlists,Media"
+                      && own.info.description.includes("(/v1/doc/index.html)"), JSON.stringify(own.tags))
+                check("which is held as close as the API it describes: a web page from elsewhere is not given it",
+                      response(kept.ownFromElsewhere).status === 403, response(kept.ownFromElsewhere).raw.slice(0, 200))
+                check("what draws the page is served by the app, with its licence beside it",
+                      response(kept.looks).status === 200 && response(kept.looks).headers["content-type"] === "text/css" && response(kept.looks).body.length > 100000
+                      && response(kept.drawer).status === 200 && response(kept.drawer).headers["content-type"] === "text/javascript"
+                      && response(kept.drawer).body.length > 1000000 && response(kept.drawer).body.includes("SwaggerUIBundle")
+                      && response(kept.licence).status === 200 && response(kept.licence).body.includes("Apache License")
+                      && response(kept.noFile).status === 404,
+                      response(kept.looks).status + " " + response(kept.drawer).status + " " + response(kept.drawer).body.length)
+                return 100
             },
             () => {
                 const about = json(kept.workspace)

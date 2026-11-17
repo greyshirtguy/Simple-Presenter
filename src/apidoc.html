@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!--
+  A page of the API's documentation: ProPresenter's API as the app answers it, at
+  /v1/doc/index.html where ProPresenter serves its own, and the app's extended API at
+  /sp/v1/doc/index.html. The same page serves both: what it lists is whatever the
+  "swagger.json" beside it says, which the app makes as it is asked for (src/httpapidoc.h
+  says how, and why it is called JSON and is JavaScript).
+
+  The page is the app's own. What draws it is Swagger UI (third_party/swagger-ui, under
+  the Apache licence: LICENSE and NOTICE are served beside this page). Everything it
+  loads is from the app that served it: nothing is fetched from anywhere else, so it
+  works on a computer with no internet, as one running a show may well be.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Simple Presenter API</title>
+    <link rel="stylesheet" type="text/css" href="./swagger-ui.css">
+    <style>
+        html { box-sizing: border-box; overflow-y: scroll; }
+        *, *:before, *:after { box-sizing: inherit; }
+        body { margin: 0; background: #fafafa; }
+    </style>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="./swagger-ui-bundle.js" charset="UTF-8"></script>
+    <script src="./swagger.json" charset="UTF-8"></script>
+    <script>
+        window.onload = function () {
+            document.title = openapi_spec.info.title;
+            window.ui = SwaggerUIBundle({
+                spec: openapi_spec,
+                dom_id: "#swagger-ui",
+                deepLinking: true,
+                presets: [SwaggerUIBundle.presets.apis],
+                // Headings shut to begin with: there are some two hundred requests
+                docExpansion: "none",
+                // Nothing asked of anywhere but the app (Swagger UI would otherwise ask
+                // a site of its makers' whether the description is a valid one)
+                validatorUrl: null
+            });
+        };
+    </script>
+</body>
+</html>
