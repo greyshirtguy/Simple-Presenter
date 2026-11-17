@@ -123,7 +123,14 @@ the top of the [README](../README.md).
       [The API](features/api.md)). Still to come: what makes, changes or deletes things in the
       workspace's files through it (looks, messages, timers, props, playlists, macros,
       clear groups), the pictures of media, props, masks, stage layouts and themes, the
-      chord chart, and what waits on features the app does not have yet.
+      chord chart, cancelling a slide's Go To Next Timer that is waiting, and what
+      waits on features the app does not have yet.
+- [ ] **The extended API**: the app's own, for presentations, playlists and themes, and
+      MCP on top of it (see [The extended API](features/extended-api.md)). Still to come:
+      a media file sent through it; a library renamed or deleted, and a presentation
+      moved to another; a slide's builds and transitions, scrolling text and the fills
+      of letters; the props, stage layouts, masks, looks, macros, timers and messages
+      themselves; and the media bin and the audio bin.
 - [ ] **Video inputs**: they are there, from the devices Linux has for video (see
       [Video inputs](features/video-inputs.md)). Still to come: a DeckLink card's
       inputs, and NDI sources, as inputs; ProPresenter's audio Delay, channel levels

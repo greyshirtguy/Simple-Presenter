@@ -4,6 +4,7 @@
 #include "audiocue.h"
 #include "mediacue.h"
 #include "playbackmarkers.h"
+#include "playlistrows.h"
 #include "mediasettings.h"
 #include "prodocument.h"
 #include "sessionlog.h"
@@ -696,6 +697,120 @@ QString PlaylistFile::addPresentation(const QString &root, const QString &playli
     }
     if (id)
         *id = QString::fromStdString(madeId);
+    return write(root, kind, document);
+}
+
+namespace {
+
+// A new row for a presentation's file, shown in the arrangement the presentation has
+// selected, as addPresentation makes one
+rv::data::PlaylistItem presentationRow(const QString &root, const QString &file)
+{
+    rv::data::PlaylistItem item;
+    item.mutable_uuid()->set_string(newUuid());
+    item.set_name(QFileInfo(file).completeBaseName().toStdString());
+    rv::data::PlaylistItem::Presentation *presentation = item.mutable_presentation();
+    workspace::recordFile(presentation->mutable_document_path(), file, root);
+    QStringList arrangements;
+    QString selected;
+    if (ProDocument::arrangementsOf(file, &arrangements, &selected) && !selected.isEmpty()) {
+        presentation->mutable_arrangement()->set_string(ProDocument::arrangementId(file, selected).toStdString());
+        presentation->set_arrangement_name(selected.toStdString());
+    }
+    return item;
+}
+
+}
+
+QString PlaylistFile::addHeader(const QString &root, const QString &playlistId, const QString &name, const QString &color,
+                                const QString &underId, QString *id)
+{
+    const Kind kind = Presentations;
+    rv::data::PlaylistDocument document;
+    const QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::Playlist *playlist = findNode(document.mutable_root_node(), playlistId.toStdString());
+    if (!playlist || playlist->has_playlists())
+        return QStringLiteral("That playlist is no longer there");
+    rv::data::PlaylistItem made;
+    if (!playlistrows::makeHeader(&made, name, color, newUuid()))
+        return QStringLiteral("A heading's colour is written \"#rrggbb\"");
+
+    // Under the row named, as addPresentation puts one
+    auto *items = playlist->mutable_items()->mutable_items();
+    *items->Add() = made;
+    if (!underId.isEmpty()) {
+        int place = items->size() - 1;
+        for (int i = 0; i < items->size() - 1; ++i) {
+            if (items->Get(i).uuid().string() == underId.toStdString())
+                place = i + 1;
+        }
+        for (int i = items->size() - 1; i > place; --i)
+            items->SwapElements(i, i - 1);
+    }
+    if (id)
+        *id = QString::fromStdString(made.uuid().string());
+    return write(root, kind, document);
+}
+
+QString PlaylistFile::setHeader(const QString &root, const QString &itemId, const QString *name, const QString *color)
+{
+    const Kind kind = Presentations;
+    rv::data::PlaylistDocument document;
+    QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::PlaylistItem *item = findItem(document.mutable_root_node(), itemId.toStdString());
+    if (!item)
+        return QStringLiteral("The playlist no longer has that entry");
+    const std::string before = item->SerializeAsString();
+    error = playlistrows::changeHeader(item, name, color);
+    if (!error.isEmpty() || item->SerializeAsString() == before)
+        return error;
+    return write(root, kind, document);
+}
+
+QString PlaylistFile::setItems(const QString &root, const QString &playlistId, const QList<Wanted> &wanted, QStringList *ids)
+{
+    const Kind kind = Presentations;
+    rv::data::PlaylistDocument document;
+    QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::Playlist *playlist = findNode(document.mutable_root_node(), playlistId.toStdString());
+    if (!playlist || playlist->has_playlists())
+        return QStringLiteral("That playlist is no longer there");
+    const std::string before = playlist->SerializeAsString();
+
+    // The file each row is on this computer, for a presentation wanted to be matched to
+    // the row that is it
+    workspace::FileFinder finder(root, QStringLiteral("Libraries"));
+    QStringList files;
+    for (const rv::data::PlaylistItem &item : playlist->items().items())
+        files.append(item.has_presentation() ? finder.find(item.presentation().document_path()) : QString());
+    error = playlistrows::set(playlist, wanted, files, [&root](const QString &file) { return presentationRow(root, file); },
+                              [] { return newUuid(); }, ids);
+    if (!error.isEmpty() || playlist->SerializeAsString() == before)
+        return error;
+    return write(root, kind, document);
+}
+
+QString PlaylistFile::insertItems(const QString &root, const QString &playlistId, const QList<Wanted> &wanted, const QString &underId,
+                                  QStringList *ids)
+{
+    const Kind kind = Presentations;
+    rv::data::PlaylistDocument document;
+    QString error = readForChange(root, kind, &document);
+    if (!error.isEmpty())
+        return error;
+    rv::data::Playlist *playlist = findNode(document.mutable_root_node(), playlistId.toStdString());
+    if (!playlist || playlist->has_playlists())
+        return QStringLiteral("That playlist is no longer there");
+    error = playlistrows::insert(playlist, wanted, underId, [&root](const QString &file) { return presentationRow(root, file); },
+                                 [] { return newUuid(); }, ids);
+    if (!error.isEmpty() || wanted.isEmpty())
+        return error;
     return write(root, kind, document);
 }
 

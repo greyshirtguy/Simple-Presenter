@@ -2,10 +2,6 @@
 
 namespace groupedit {
 
-namespace {
-
-// Makes a group the chosen one: its name, its colour, and which of the workspace's
-// groups it is. Its own id and its hotkey are not touched.
 void dress(rv::data::Group *group, const Choice &choice)
 {
     group->set_name(choice.name.toStdString());
@@ -30,8 +26,6 @@ void dress(rv::data::Group *group, const Choice &choice)
     // one left from before would be the wrong one.)
     group->clear_application_group_name();
 }
-
-} // namespace
 
 Outcome setGroupFrom(rv::data::Presentation *presentation, const std::string &cueId, const Choice &choice,
                      const std::function<std::string()> &newId)

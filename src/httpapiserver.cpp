@@ -1,8 +1,12 @@
 #include "httpapiserver.h"
 
 #include "dnssd.h"
+#include "extendedapi.h"
+#include "extendedapijson.h"
+#include "extendedapirun.h"
 #include "httpapifiles.h"
 #include "httpapijson.h"
+#include "mcp.h"
 #include "sessionlog.h"
 #include "slidepictureservice.h"
 
@@ -11,7 +15,9 @@
 #include <QHostAddress>
 #include <QHostInfo>
 #include <QJSEngine>
+#include <QJsonDocument>
 #include <QNetworkInterface>
+#include <QQmlEngine>
 #include <QSysInfo>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -109,6 +115,23 @@ void HttpApi::setHandler(const QJSValue &handler)
     m_handler = handler;
     emit handlerChanged();
     changed();
+}
+
+void HttpApi::setExtendedEnabled(bool on)
+{
+    if (m_extendedEnabled == on)
+        return;
+    m_extendedEnabled = on;
+    SessionLog::write("network", on ? QStringLiteral("the extended API and MCP are on") : QStringLiteral("the extended API and MCP are off"));
+    emit settingsChanged();
+}
+
+void HttpApi::setExtendedNetwork(bool on)
+{
+    if (m_extendedNetwork == on)
+        return;
+    m_extendedNetwork = on;
+    emit settingsChanged();
 }
 
 bool HttpApi::drawingPictures() const
@@ -413,6 +436,10 @@ void HttpApi::readFrom(Client *client)
         send(client, none, client->parser.error());
         return;
     }
+    // A client that waits to be told before it sends its body is told (curl, with a
+    // body of any size: it would wait a second and send it anyway)
+    if (client->parser.takeContinue())
+        client->socket->write("HTTP/1.1 100 Continue\r\n\r\n");
     respondQueued(client);
 }
 
@@ -470,8 +497,139 @@ void HttpApi::answerPicture(Client *client, const httpapi::Request &request, con
     });
 }
 
+ExtendedApi *HttpApi::extended()
+{
+    if (!m_extended) {
+        QQmlEngine *engine = qmlEngine(this);
+        m_extended = engine ? engine->singletonInstance<ExtendedApi *>("SimplePresenterApp", "ExtendedApi") : nullptr;
+        if (m_extended) {
+            // What the show has that a slide's action can name: ProPresenter's own
+            // routes for them, which the window answers
+            m_extended->setShowAsker([this](const QString &pattern) -> QVariant {
+                for (const httpapi::Route &route : httpapi::routes()) {
+                    if (route.method == "GET" && route.pattern == pattern) {
+                        const Answer answer = evaluate(route, {}, {}, {});
+                        return answer.status == 200 ? answer.data : QVariant();
+                    }
+                }
+                return {};
+            });
+        }
+    }
+    return m_extended;
+}
+
+void HttpApi::sendJson(Client *client, const httpapi::Request &request, int status, const QVariant &data)
+{
+    send(client, request, status, data.isValid() && !data.isNull() ? httpapi::json(data, false) : QByteArray());
+}
+
+// A request to one of the app's own paths: the extended API's, or MCP's (see the header)
+void HttpApi::respondOwn(Client *client, const httpapi::Request &request)
+{
+    // Who asks: this computer itself, whether by the loopback address or by one of its
+    // own addresses on a network (a browser here that was given the computer's number)
+    QStringList own;
+    const QHostAddress peer = client->socket->peerAddress();
+    bool isOwn = peer.isLoopback();
+    if (!isOwn || request.headers.contains("origin")) {
+        bool isFour = false;
+        const quint32 four = peer.toIPv4Address(&isFour);
+        const QHostAddress plain = isFour ? QHostAddress(four) : peer;
+        for (const QHostAddress &address : QNetworkInterface::allAddresses()) {
+            own.append(address.toString());
+            isOwn = isOwn || address.isEqual(plain, QHostAddress::TolerantConversion);
+        }
+    }
+    const extendedapi::Asker asker {isOwn, request.headers.value("origin"), request.headers.value("host")};
+    const extendedapi::Access access {m_extendedEnabled, m_extendedNetwork, QSysInfo::machineHostName(), own};
+    const QString refusal = extendedapi::refusal(asker, access);
+    if (!refusal.isEmpty()) {
+        // (Refused, and not told it may ask from where it asked: the Origin is not given back)
+        httpapi::Request refused = request;
+        refused.headers.remove("origin");
+        if (!extendedapi::off(access))
+            SessionLog::write("network", QStringLiteral("%1 %2 from %3 refused: %4").arg(QString::fromLatin1(request.method), request.path, peerOf(client->socket), refusal));
+        sendJson(client, refused, extendedapi::off(access) ? 404 : 403, extendedapijson::error(refusal));
+        return;
+    }
+    // A browser's question whether a page of this computer's may: it may
+    if (request.method == "OPTIONS") {
+        httpapi::Headers headers = httpapi::common(request);
+        headers.emplaceBack("access-control-allow-methods", "GET, OPTIONS, PUT, PATCH, DELETE, POST");
+        if (request.headers.contains("access-control-request-headers"))
+            headers.emplaceBack("access-control-allow-headers", request.headers.value("access-control-request-headers"));
+        headers.emplaceBack("content-length", "0");
+        headers.emplaceBack("date", httpapi::httpDate(QDateTime::currentDateTimeUtc()));
+        client->socket->write(httpapi::head(200, headers));
+        return;
+    }
+    ExtendedApi *api = extended();
+    if (!api) {
+        sendJson(client, request, 503, extendedapijson::error(QStringLiteral("The app is not ready to answer")));
+        return;
+    }
+
+    // MCP: a message a POST, each answered with one JSON object (mcp.h)
+    if (request.path == extendedapi::mcpPath()) {
+        if (request.method != "POST") {
+            httpapi::Headers headers = httpapi::common(request);
+            headers.emplaceBack("allow", "POST");
+            headers.emplaceBack("content-length", "0");
+            headers.emplaceBack("date", httpapi::httpDate(QDateTime::currentDateTimeUtc()));
+            client->socket->write(httpapi::head(405, headers));
+            return;
+        }
+        const mcp::Headers headers {true, request.headers.value("mcp-protocol-version"), request.headers.value("mcp-method"), request.headers.value("mcp-name")};
+        const mcp::Server server {QStringLiteral("simplepresenter"), QStringLiteral("Simple Presenter"), QCoreApplication::applicationVersion()};
+        const QString peer = peerOf(client->socket);
+        const mcp::Reply reply = mcp::handle(request.body, headers, server,
+                                             [api, &peer](const extendedapi::Operation &operation, bool theme, const QVariantMap &params,
+                                                          const QVariantMap &query, const QVariantMap &body) -> mcp::Called {
+            const ExtendedApi::Answer answer = api->answer(operation, theme, params, query, body);
+            // (What changes the workspace is in the log, with who asked, as a request is)
+            if (operation.kind != extendedapi::Operation::Read)
+                SessionLog::write("network", QStringLiteral("MCP %1 from %2: %3").arg(QString::fromLatin1(operation.name), peer).arg(answer.status));
+            return {answer.status, answer.data};
+        });
+        send(client, request, reply.status, reply.body);
+        return;
+    }
+
+    const extendedapi::Match found = extendedapi::match(request.method, request.rawPath);
+    if (!found) {
+        // A path there is, asked with a method it has not, is told which it has
+        const QList<QByteArray> methods = extendedapi::methodsOf(request.rawPath);
+        if (methods.isEmpty()) {
+            sendJson(client, request, 404, extendedapijson::error(QStringLiteral("The extended API has nothing at %1: GET %2openapi.json lists what it has").arg(request.path, extendedapi::prefix())));
+            return;
+        }
+        const QByteArray body = httpapi::json(extendedapijson::error(QStringLiteral("%1 is asked with %2").arg(request.path, QString::fromLatin1(methods.join(" or ")))), false);
+        httpapi::Headers headers = httpapi::common(request);
+        headers.emplaceBack("allow", methods.join(", "));
+        headers.emplaceBack("content-type", "application/json");
+        headers.emplaceBack("content-length", QByteArray::number(body.size()));
+        headers.emplaceBack("date", httpapi::httpDate(QDateTime::currentDateTimeUtc()));
+        client->socket->write(httpapi::head(405, headers) + body);
+        return;
+    }
+    QVariantMap query;
+    for (const auto &[key, value] : request.query)
+        query.insert(key, value);
+    const ExtendedApi::Answer answer = api->answer(*found.operation, found.theme, found.params, query, request.body);
+    if (found.operation->kind != extendedapi::Operation::Read)
+        SessionLog::write("network", QStringLiteral("%1 %2 from %3: %4").arg(QString::fromLatin1(request.method), request.path, peerOf(client->socket))
+                                         .arg(answer.status));
+    sendJson(client, request, answer.status, answer.data);
+}
+
 void HttpApi::respond(Client *client, const httpapi::Request &request)
 {
+    // The app's own paths, which are held closer than ProPresenter's (extendedapi.h)
+    if (extendedapi::own(request.path)) {
+        respondOwn(client, request);
+        return;
+    }
     // A browser's question whether it may (CORS): it may
     if (request.method == "OPTIONS") {
         httpapi::Headers headers = httpapi::common(request);

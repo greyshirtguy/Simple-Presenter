@@ -489,6 +489,22 @@ qt_add_qml_module(SimplePresenter
         src/httpapifiles.cpp
         src/proremote.h
         src/proremote.cpp
+        src/extendedapi.h
+        src/extendedapi.cpp
+        src/extendedapijson.h
+        src/extendedapijson.cpp
+        src/extendedapirun.h
+        src/extendedapirun.cpp
+        src/slideedit.h
+        src/slideedit.cpp
+        src/presentationedit.h
+        src/presentationedit.cpp
+        src/playlistrows.h
+        src/playlistrows.cpp
+        src/mcp.h
+        src/mcp.cpp
+        src/mcpstdio.h
+        src/mcpstdio.cpp
         src/dnssd.h
         src/dnssd.cpp
         src/slidepictures.h
@@ -519,6 +535,14 @@ qt_add_resources(SimplePresenter "guide"
     PREFIX "/"
     FILES
         docs/guide.md
+)
+
+# The extended API's reference (src/extendedapirun.h): the repository's page, carried in
+# the app as the guide is, for GET /sp/v1/reference and the MCP tool of that name
+qt_add_resources(SimplePresenter "extendedapi"
+    PREFIX "/"
+    FILES
+        docs/features/extended-api.md
 )
 
 qt_add_resources(SimplePresenter "icons"

@@ -60,6 +60,11 @@ enum class Outcome {
     NoSuchSlide, // no group of the presentation has a slide with that cue
 };
 
+// Makes a group the chosen one: its name, its colour, and which of the workspace's
+// groups it is. Its own id and its hotkey are not touched. (What setGroupFrom gives a
+// group; and by itself, for a group that is renamed or made: presentationedit.h.)
+void dress(rv::data::Group *group, const Choice &choice);
+
 // Sets the group of the slide whose cue is `cueId`, and of the slides after it in its
 // group. `newId` gives an id for a new group when one is wanted.
 Outcome setGroupFrom(rv::data::Presentation *presentation, const std::string &cueId, const Choice &choice,

@@ -113,6 +113,12 @@ what you checked; do not say "the tests pass" and mean a part of them.
   or a clock's text on a screen playing a video changes with the video's frames, see
   `StrokedText::replace`.) `tests/unit/tst_sourcesweep.cpp` looks through the screens'
   files for Qt's animations and fails on one.
+- The app's own API beside ProPresenter's (`docs/features/extended-api.md`) is one
+  table of operations (`src/extendedapi.cpp`): its routes, its OpenAPI description and
+  the tools MCP offers an AI model are all made of that table, so a new operation goes
+  there, is carried out in `src/extendedapirun.cpp`, and is named on its page, which a
+  unit test holds to the table. It changes files only by the app's own ways of changing
+  them, on a copy that takes the file's place when all of a request has gone well.
 - Words the user reads say plainly what a thing does. They never promise help, never
   call the app a product, and never say or suggest that it is fit to be relied on.
 - A thing ProPresenter has a picture for is shown with ProPresenter's picture, not a

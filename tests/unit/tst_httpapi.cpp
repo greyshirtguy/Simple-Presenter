@@ -140,6 +140,39 @@ private slots:
         parser.feed("GET /v1/look/Lyrics%20L3rd/trigger HTTP/1.1\r\n\r\n");
         found = match("GET", parser.take().path);
         QCOMPARE(found.params.value("id").toString(), QStringLiteral("Lyrics L3rd"));
+        // And the path is kept as it came as well, for what must tell a slash within a
+        // part of it from those between its parts (the app's own paths: extendedapi.h)
+        parser.feed("GET /sp/v1/theme/Samples%2FBlack%20Box?x=1 HTTP/1.1\r\n\r\n");
+        const Request escaped = parser.take();
+        QCOMPARE(escaped.rawPath, QStringLiteral("/sp/v1/theme/Samples%2FBlack%20Box"));
+        QCOMPARE(escaped.path, QStringLiteral("/sp/v1/theme/Samples/Black Box"));
+    }
+
+    void aClientThatWaitsToBeToldToSendItsBodyIsToldOnce()
+    {
+        // curl, with a body of more than a kilobyte: the head first, "Expect:
+        // 100-continue" in it, and the body only when it is told to go on (or a second later)
+        Parser parser;
+        QVERIFY(parser.feed("POST /sp/v1/libraries HTTP/1.1\r\nContent-Length: 14\r\nExpect: 100-continue\r\n\r\n"));
+        QVERIFY(!parser.hasRequest());
+        QVERIFY(parser.takeContinue());
+        QVERIFY(!parser.takeContinue());
+        // (A part of the body: not told again)
+        QVERIFY(parser.feed("{\"name\""));
+        QVERIFY(!parser.takeContinue());
+        QVERIFY(parser.feed(":\"A\"}\r\n"));
+        QVERIFY(parser.hasRequest());
+        QCOMPARE(parser.take().body, QByteArray("{\"name\":\"A\"}\r\n"));
+        QVERIFY(!parser.takeContinue());
+        // The next on the same connection is told for itself; one that came whole is not told at all
+        QVERIFY(parser.feed("POST /sp/v1/libraries HTTP/1.1\r\nContent-Length: 2\r\nExpect: 100-continue\r\n\r\n"));
+        QVERIFY(parser.takeContinue());
+        QVERIFY(parser.feed("{}"));
+        QVERIFY(parser.hasRequest());
+        parser.take();
+        QVERIFY(parser.feed("POST /sp/v1/libraries HTTP/1.1\r\nContent-Length: 2\r\nExpect: 100-continue\r\n\r\n{}"));
+        QVERIFY(!parser.takeContinue());
+        QVERIFY(parser.hasRequest());
     }
 
     void whatStatusUpdatesTakes()

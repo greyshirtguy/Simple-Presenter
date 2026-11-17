@@ -101,6 +101,14 @@ QString fileNameOf(const rv::data::URL &reference);
 // which on a Mac is the system it was written on and the way to the folder there.
 void renameFileIn(rv::data::URL *reference, const QString &fileName);
 
+// Keeps a copy of a file as it is, before something changes it for good: beside the
+// editor's own copies (the app's data folder, "Edit Backups", in a folder for where the
+// file is in its workspace), under the file's name with the time and "before" `what`
+// after it ("before theme"). With `newest`, only that many of the copies made for the
+// same `what` are kept, the oldest going first; with 0 all are. Where the copy went, or
+// "" if it could not be made (which stops nothing: the change goes on).
+QString keepCopy(const QString &path, const QString &workspaceFolder, const QString &what, int newest = 0);
+
 // A media element for an image or video file, laid out the way ProPresenter writes one;
 // a video is set to loop. It is what a slide's media action and a media playlist's row
 // both hold.

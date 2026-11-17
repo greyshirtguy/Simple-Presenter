@@ -3704,6 +3704,89 @@ def after_arrange(workspace, test_dir):
     return lines
 
 
+def prepare_extendedapi(workspace, test_dir):
+    """A presentation ProPresenter wrote, kept as it was given (extendedapi-before), for what the extended API changes of
+    it to be set against after."""
+    shutil.copy(os.path.join(workspace, "Libraries", "Demo", "It Is Well.pro"), os.path.join(test_dir, "extendedapi-before"))
+
+
+def after_extendedapi(workspace, test_dir):
+    """The extended API: what the files hold after the test, read with protoc and not by the app. A presentation of
+    ProPresenter's own, of which the test gave one slide a label and notes and disabled another: nothing else of it is
+    changed, and a copy of it as it was is kept. The presentation, the theme and the playlist the test made are files
+    as ProPresenter keeps them. No words of the songs are printed."""
+    import difflib
+
+    def decoded(path, message="rv.data.Presentation", proto="presentation.proto"):
+        with open(path, "rb") as source:
+            return protoc("decode", message, proto, source.read()).decode()
+
+    def blocks(text, name):
+        return re.findall(r"^%s \{\n.*?^\}\n" % name, text, re.S | re.M)
+
+    with open(os.path.join(test_dir, "extendedapi-before"), "rb") as source:
+        before_bytes = source.read()
+    before = decoded(os.path.join(test_dir, "extendedapi-before"))
+    now = decoded(os.path.join(workspace, "Libraries", "Demo", "It Is Well.pro"))
+    was, cues = blocks(before, "cues"), blocks(now, "cues")
+    rest_was = re.sub(r"^cues \{\n.*?^\}\n", "", before, flags=re.S | re.M)
+    rest_now = re.sub(r"^cues \{\n.*?^\}\n", "", now, flags=re.S | re.M)
+    # The slides are numbered through the groups, which is not always the order the file lists its cues in: so the two
+    # that were changed are found by being the two that differ
+    differing = [i for i in range(min(len(was), len(cues))) if was[i] != cues[i]]
+    changes = [[line[0] + line[1:].strip() for line in difflib.ndiff(was[i].split("\n"), cues[i].split("\n")) if line[:1] in "+-"] for i in differing]
+    labelled = [c for c in changes if any(line.startswith("+text: \"From the API\"") for line in c)]
+    disabled = [c for c in changes if c == ["-isEnabled: true"]]
+    # (A label is its words, with whatever colour it had; notes are RTF and their attributes)
+    label_ok = re.compile(r"^[+-](label \{|text: |notes \{|rtf_data: |attributes \{|\})")
+    kept = glob.glob(os.path.join(test_dir, "data", "SimplePresenter", "SimplePresenter", "Edit Backups", "*", "Libraries", "Demo",
+                                  "It Is Well * before the API.pro"))
+    kept_same = False
+    if len(kept) == 1:
+        with open(kept[0], "rb") as source:
+            kept_same = source.read() == before_bytes
+
+    # A presentation the test made, changed through the API, then at the window, then through the API again: a copy
+    # from before the API's first change, and one of it as the window left it
+    again = sorted(glob.glob(os.path.join(test_dir, "data", "SimplePresenter", "SimplePresenter", "Edit Backups", "*", "Libraries", "Made Here",
+                                          "Second One * before the API.pro")))
+    again_differ = False
+    if len(again) == 2:
+        with open(again[0], "rb") as first, open(again[1], "rb") as later:
+            again_differ = first.read() != later.read()
+        again_differ = again_differ and "ANNOUNCEMENT" in decoded(again[1]).upper() and "ANNOUNCEMENT" not in decoded(again[0]).upper()
+
+    made = decoded(os.path.join(workspace, "Libraries", "Made Here", "Renamed By API.pro"))
+    groups = blocks(made, "cue_groups")
+    theme = decoded(os.path.join(workspace, "Themes", "API Theme", "Theme"), "rv.data.Template.Document", "template.proto")
+    playlists = decoded(os.path.join(workspace, "Playlists", "Library"), "rv.data.PlaylistDocument", "propresenter.proto")
+    service = re.search(r'name: "API Service".*?^      \}\n', playlists, re.S | re.M)
+    service = service.group(0) if service else ""
+    return [
+        said(len(was) == len(cues) and rest_was == rest_now, "ProPresenter's presentation: nothing of it but two of its slides is changed",
+             "%d cues then %d" % (len(was), len(cues))),
+        said(len(differing) == 2 and len(labelled) == 1 and len(disabled) == 1, "one slide differs by being disabled and nothing else, one by more",
+             "%d differ: %s" % (len(differing), [c[:4] for c in changes])),
+        said(len(labelled) == 1 and all(label_ok.match(line) for line in labelled[0]), "the other only by its label and its notes",
+             str([line[:30] for line in (labelled[0] if labelled else []) if not label_ok.match(line)][:6])),
+        said(kept_same, "a copy of it as it was is kept beside the editor's, before the API", str(kept)),
+        said(again_differ, "a presentation changed at the window between two changes by the API has a second copy kept, of it as the window left it",
+             str([os.path.basename(path) for path in again])),
+        said(len(blocks(made, "cues")) == 6 and len(groups) == 2 and 'name: "Verse"' in groups[0] and 'name: "Chorus"' in groups[1]
+             and "selected_arrangement {" in made and made.count("arrangements {") == 1 and "application: APPLICATION_PROPRESENTER" in made
+             and "music {" in made and 'name: "Renamed By API"' in made and "slide_show_duration: 7" in made,
+             "the presentation made, and renamed: its slides (with the one copied into it) in two groups, one arrangement, selected, a key, and its new name inside it",
+             "%d cues, %d groups" % (len(blocks(made, "cues")), len(groups))),
+        said(theme.count("slides {") == 1 and 'name: "Lower"' in theme and "draws_background_color: true" in theme
+             and os.path.isdir(os.path.join(workspace, "Themes", "API Theme", "Assets")), "the theme made: its one slide, named, with its background, and a folder for its pictures"),
+        said(service.count("header {") == 2 and 'name: "Welcome"\n          header {\n          }' in service
+             and re.search(r'name: "Worship"\n          header \{\n            color \{\n              red: 1\n              green: 0\.57', service) is not None
+             and service.count("presentation {") == 2 and 'arrangement_name: "Sunday"' not in service,
+             "the playlist laid out: a heading with no colour as a header with none, one with its colour, and two presentations, the arrangement asked off taken off",
+             service.replace("\n", " ")[:300] if "Welcome" not in service else ""),
+    ]
+
+
 def after_reflow(workspace, test_dir):
     """A slide split in two and slides joined in the reflow editor: what the presentation's file holds, read with
     protoc and not by the app. The test kept the file with its one slide (reflow-before), after the first split
@@ -3982,6 +4065,7 @@ TESTS = {
     "paced": test("Demo", timeout=180),
     "cardclock": test("Demo", timeout=180, env={"SP_TEST_DECKLINK": "1"}, prepare=prepare_red_picture),
     "httpapi": test("Demo"),
+    "extendedapi": test("Demo", timeout=240, prepare=prepare_extendedapi, after=after_extendedapi),
     "proremote": test("Demo"),
     "slidepictures": test("Demo"),
     "timeline": test("Act", timeout=240, prepare=prepare_audio),

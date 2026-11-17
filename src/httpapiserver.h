@@ -73,7 +73,18 @@ class QTcpSocket;
 // requests in turn); the Remote fetches its pictures over several connections at once. A
 // Remote that asks for one over its WebSocket is answered 404, as a GUESS: it was seen
 // to fetch them by HTTP only.
+//
+// The app's own (extendedapi.h): besides ProPresenter's paths the server answers this
+// app's, under "/sp/v1/", which make and change what the workspace holds, and MCP at
+// "/mcp" (mcp.h), which offers those to an AI model as tools. Both are off until they
+// are switched on by themselves (`extendedEnabled`), answer only this computer unless
+// they are opened to the network (`extendedNetwork`), and turn away a web page from
+// elsewhere (extendedapi::refusal). They are carried out by ExtendedApi
+// (extendedapirun.h), not by the window's answerer; a request that is refused or that
+// fails is answered with its status and {"error": why}, where ProPresenter's paths say
+// nothing.
 class DnsSd;
+class ExtendedApi;
 class SlidePictureService;
 
 class HttpApi : public QObject
@@ -109,6 +120,10 @@ class HttpApi : public QObject
     Q_PROPERTY(QString remoteName READ remoteName NOTIFY statusChanged)
     Q_PROPERTY(QString remoteProblem READ remoteProblem NOTIFY statusChanged)
     Q_PROPERTY(int remotes READ remotes NOTIFY streamsChanged)
+    // The app's own extended API and MCP, from the settings: switched on, and opened to
+    // other computers than this one
+    Q_PROPERTY(bool extendedEnabled READ extendedEnabled WRITE setExtendedEnabled NOTIFY settingsChanged)
+    Q_PROPERTY(bool extendedNetwork READ extendedNetwork WRITE setExtendedNetwork NOTIFY settingsChanged)
     // Whether the process that draws pictures of slides is running (see
     // slidepictureservice.h), for the window to hold it still while the show changes
     Q_PROPERTY(bool drawingPictures READ drawingPictures NOTIFY picturesChanged)
@@ -147,6 +162,10 @@ public:
     QString remoteProblem() const;
     int remotes() const;
     bool drawingPictures() const;
+    bool extendedEnabled() const { return m_extendedEnabled; }
+    void setExtendedEnabled(bool on);
+    bool extendedNetwork() const { return m_extendedNetwork; }
+    void setExtendedNetwork(bool on);
 
     // Something the API reports may have changed: every open stream is looked at again,
     // once, soon.
@@ -270,6 +289,11 @@ private:
                        const QVariantMap &query);
     void respondQueued(Client *client);
     Client *clientOf(quint64 serial) const;
+    // The app's own paths (see above): a request to one answered, and what carries the
+    // operations out, found the first time one is asked for
+    void respondOwn(Client *client, const httpapi::Request &request);
+    void sendJson(Client *client, const httpapi::Request &request, int status, const QVariant &data);
+    ExtendedApi *extended();
 
     bool m_enabled = false;
     int m_port = defaultPort;
@@ -297,4 +321,7 @@ private:
     // Made the first time a picture of a slide is asked for
     SlidePictureService *m_pictures = nullptr;
     quint64 m_lastSerial = 0;
+    bool m_extendedEnabled = false;
+    bool m_extendedNetwork = false;
+    QPointer<ExtendedApi> m_extended;
 };

@@ -43,10 +43,15 @@ on one connection, the computer's clock every second among them. Each piece is t
 JSON followed by an empty line (CR LF CR LF), so that a client can tell where one ends
 when the network splits it.
 
-**Not there yet**: whatever makes, changes or deletes things in the workspace's files
-(looks, messages, props, playlists, macros, clear groups; of the timers, only setting
-one up is here); the pictures of media, props, masks, stage layouts and themes; the
-chord chart; and what waits on things the app does not do
+**The app's own, beside it.** ProPresenter's API has nothing for a presentation itself.
+The app has an API of its own for that, on the same port and switched on by itself: the
+[extended API](extended-api.md), which makes and changes presentations, playlists and
+themes, and offers the same to an AI model through MCP.
+
+**Not there yet**: ProPresenter's own requests that make, change or delete things in
+the workspace's files (looks, messages, props, playlists, macros, clear groups; of the
+timers, only setting one up is here); the pictures of media, props, masks, stage layouts and themes; the
+chord chart; cancelling a slide's Go To Next Timer (whether one is waiting can be asked); and what waits on things the app does not do
 yet (capture, pausing or moving through the audio bin's music). Those answer 404, as ProPresenter answers what it does not know. Nor is
 ProPresenter's other form of the API, over TCP/IP, nor its server-sent events.
 

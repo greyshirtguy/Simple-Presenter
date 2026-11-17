@@ -30,6 +30,10 @@
 //   And ProPresenter's own network API can be switched on (src/httpapiserver.h), so that
 //   what follows and operates ProPresenter over the network (Bitfocus Companion) can
 //   follow and operate this: the operator window answers it (qml/HttpApiControl.qml).
+//   Beside ProPresenter's API the server answers one of this app's own, for making and
+//   changing what a workspace holds (its presentations, playlists and themes:
+//   src/extendedapi.h lists what it has, src/extendedapirun.h carries it out), and
+//   offers the same to an AI model as tools, through MCP (src/mcp.h).
 //   Communication devices (src/devices.h: MIDI through ALSA, RossTalk, HTTP requests)
 //   are sent what slides' and macros' actions say (src/communications.h), and a MIDI
 //   device's notes work the show by ProPresenter's MIDI Map (qml/MidiControl.qml).
@@ -162,6 +166,7 @@
 #include "decodingchoice.h"
 #include "decodingguard.h"
 #include "iconprovider.h"
+#include "mcpstdio.h"
 #include "messagetext.h"
 #include "selftest.h"
 #include "sessionlog.h"
@@ -271,6 +276,11 @@ int main(int argc, char *argv[])
     // src/slidepictureworker.h)
     if (slidepictures::isWorker(argc, argv))
         return slidepictures::runWorker(argc, argv);
+    // And so is what an AI model's program starts to reach the show's tools (`--mcp`):
+    // no window, no log and no workspace, only MCP on its standard input and output,
+    // each tool passed on to the app that is running (see src/mcpstdio.h)
+    if (mcpstdio::asked(argc, argv))
+        return mcpstdio::run(argc, argv, QStringLiteral(APP_VERSION));
     chooseWindowSystem(argc, argv);
     // The log is opened before anything else is tried, so that whatever goes wrong in
     // starting up, down to there being no way to put a window on the screen, is in it.
@@ -303,7 +313,12 @@ int main(int argc, char *argv[])
                                                     "is tried. The same can be kept in the settings, under Video.");
     const QCommandLineOption hardwareDecodingOption("hardware-decoding", "Have the graphics chip's video decoder tried, for this run, on a computer where "
                                                     "the app would leave it untried. The same can be kept in the settings, under Video.");
-    parser.addOptions({listOption, workspaceOption, screenOption, selfTestOption, benchmarkOption, softwareDecodingOption, hardwareDecodingOption});
+    // (Acted on already, before the application was made: see the top of main.)
+    const QCommandLineOption mcpOption("mcp", "Run as an MCP server on standard input and output, for an AI model's program to start: "
+                                       "its tools ask the app that is running the show, through its extended API. No window is opened.");
+    const QCommandLineOption mcpApiOption("mcp-api", "With --mcp: where the app running the show is asked, if not on this computer at the port in its settings.", "address");
+    parser.addOptions({listOption, workspaceOption, screenOption, selfTestOption, benchmarkOption, softwareDecodingOption, hardwareDecodingOption,
+                       mcpOption, mcpApiOption});
 #ifdef SIMPLEPRESENTER_TEST_HOOK
     testhook::addOptions(parser);
 #endif

@@ -26,6 +26,56 @@ Item {
     Component.onCompleted: HttpApi.handler = handle
     Component.onDestruction: HttpApi.handler = null
 
+    // ---- the extended API and MCP (src/extendedapirun.h), which the server carries out
+    // by itself and not through handle(): what it needs of the window, and the window
+    // told what it has changed. (Set as the window's things change, which is seldom: none
+    // of them is of the show.)
+    Binding {
+        target: ExtendedApi
+        property: "catalog"
+        value: control.window.catalog
+    }
+    // (The groups a slide can be put in at the window: the workspace's list of them, or
+    // where it has none the groups of the settings)
+    Binding {
+        target: ExtendedApi
+        property: "groups"
+        value: control.window.groupChoices()
+    }
+    Binding {
+        target: ExtendedApi
+        property: "busy"
+        value: control.window.editingPath !== "" ? [control.window.editingPath] : []
+    }
+    Binding {
+        target: ExtendedApi
+        property: "search"
+        value: Search
+    }
+    Connections {
+        target: ExtendedApi
+
+        function onPresentationChanged(path) {
+            control.window.presentationChangedOutside(path)
+        }
+        // (The lists are not followed while the catalog renames a file: the window does
+        // it itself once the file has its new name, as for a rename made here. See
+        // holdingLists in Main.qml.)
+        function onRenaming(underWay) {
+            control.window.holdingLists = underWay
+        }
+        function onPresentationRenamed(from, to) {
+            control.window.presentationRenamedOutside(from, to)
+        }
+        function onThemesChanged() {
+            control.window.themesChangedOutside()
+        }
+        // (Whatever it was, a stream of what the API reports may have something new)
+        function onDid(what) {
+            HttpApi.changed()
+        }
+    }
+
     // ---- answers
 
     function ok(data) {

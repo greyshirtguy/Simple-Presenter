@@ -97,6 +97,13 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
 // text boxes' whole look and not their text's format alone, is the user's and mine,
 // and not looked up in ProPresenter.)
 int dressText(rv::data::Slide *slide, const rv::data::Slide &style);
+// A new slide for a theme, as the window's Themes make one: nothing drawn behind it, of
+// an HD screen's size, with one text box over most of it that says "Text" in white, to
+// be made into something. And a name for one that no slide of the theme has ("Theme
+// Slide", "Theme Slide 2").
+void fillSlide(rv::data::Template_Slide *made, const QString &name);
+QString freeSlideName(const rv::data::Template_Document &theme);
+
 // Whether a slide has a text box with words in it, which is what a theme's words go
 // into and what has a text style
 bool hasWords(const rv::data::Slide &slide);

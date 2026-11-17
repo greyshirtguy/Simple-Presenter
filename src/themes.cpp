@@ -24,57 +24,6 @@ QVariant orNull(const QVariantMap &map)
     return map.isEmpty() ? QVariant::fromValue(nullptr) : QVariant(map);
 }
 
-// A new theme slide: black with one text box, to be made into something.
-void fillSlide(rv::data::Template::Slide *made, const QString &name)
-{
-    made->set_name(name.toStdString());
-    rv::data::Slide *slide = made->mutable_base_slide();
-    slide->set_draws_background_color(false);
-    slide->mutable_size()->set_width(1920);
-    slide->mutable_size()->set_height(1080);
-    slide->mutable_uuid()->set_string(workspace::newUuid());
-    rv::data::Slide::Element element = proconvert::makeTextElement(*slide, nullptr);
-    rv::data::Graphics::Text *text = element.mutable_element()->mutable_text();
-    TextRun format = proconvert::readText(*text).firstRun();
-    format.applyFormat({{"size", 90.0}, {"bold", true}, {"color", QColor(Qt::white)}});
-    proconvert::writeText(text, RichText::plain(QStringLiteral("Text"), format, Qt::AlignHCenter));
-    const QString id = QString::fromStdString(element.element().uuid().string());
-    *slide->add_elements() = element;
-    proconvert::applyChanges(slide, id, {
-        {"name", QStringLiteral("Text")}, {"x", 110.0}, {"y", 190.0}, {"width", 1700.0}, {"height", 700.0},
-        {"textScale", int(rv::data::Graphics::Text::SCALE_BEHAVIOR_SCALE_FONT_DOWN)},
-    });
-}
-
-QString freeSlideName(const rv::data::Template::Document &theme)
-{
-    QSet<QString> taken;
-    for (const rv::data::Template::Slide &slide : theme.slides())
-        taken.insert(QString::fromStdString(slide.name()));
-    QString name = QStringLiteral("Theme Slide");
-    for (int n = 2; taken.contains(name); ++n)
-        name = QStringLiteral("Theme Slide %1").arg(n);
-    return name;
-}
-
-// The file as it is, kept beside the editor's backups before it is changed: by a theme,
-// or by a pasted text style (`what`).
-void keepCopy(const QString &path, const QString &workspace, const QString &what)
-{
-    const QFileInfo file(path);
-    QString place = file.dir().dirName();
-    const QString relative = QDir(workspace).relativeFilePath(file.absolutePath());
-    if (!workspace.isEmpty() && !relative.startsWith(QLatin1String("..")))
-        place = QFileInfo(workspace).fileName() + u'/' + relative;
-    const QDir directory(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + QStringLiteral("/Edit Backups/") + place);
-    if (!directory.mkpath(QStringLiteral(".")))
-        return;
-    const QString target = directory.filePath(file.completeBaseName() + QDateTime::currentDateTime().toString(QStringLiteral(" yyyy-MM-dd HH.mm.ss"))
-                                              + QStringLiteral(" before ") + what + u'.' + file.suffix());
-    if (!QFile::exists(target))
-        QFile::copy(path, target);
-}
-
 }
 
 void Themes::open(const QString &workspace)
@@ -171,7 +120,7 @@ QString Themes::apply(const QString &presentation, const QStringList &slideIds, 
     const rv::data::Template::Slide *themed = themefile::slideOf(theme, slideId);
     if (!themed)
         return QStringLiteral("The theme \"%1\" no longer has that slide").arg(place);
-    keepCopy(presentation, m_workspace, QStringLiteral("theme"));
+    workspace::keepCopy(presentation, m_workspace, QStringLiteral("theme"));
     int count = 0;
     error = ProDocument::dressCues(presentation, slideIds, themed->base_slide(), m_elementIds, &count);
     if (error.isEmpty())
@@ -220,7 +169,7 @@ QString Themes::pasteTextStyle(const QString &presentation, const QStringList &s
     rv::data::Slide style;
     if (m_copiedTextStyle.isEmpty() || !style.ParseFromArray(m_copiedTextStyle.constData(), int(m_copiedTextStyle.size())))
         return QStringLiteral("There is no copied text style to paste");
-    keepCopy(presentation, m_workspace, QStringLiteral("text style"));
+    workspace::keepCopy(presentation, m_workspace, QStringLiteral("text style"));
     int count = 0;
     const QString error = ProDocument::dressCuesText(presentation, slideIds, style, &count);
     if (error.isEmpty())
@@ -249,7 +198,7 @@ QString Themes::applyTextStyleToAll(const QString &presentation, const QString &
     // dressCuesText's are Paste Text Style's)
     if (ProDocument::textFormatOfCues(presentation, others, &error).value(QStringLiteral("boxes")).toInt() == 0)
         return error.isEmpty() ? QStringLiteral("No other slide has words for the text style to go on") : error;
-    keepCopy(presentation, m_workspace, QStringLiteral("text style to all"));
+    workspace::keepCopy(presentation, m_workspace, QStringLiteral("text style to all"));
     int count = 0;
     error = ProDocument::dressCuesText(presentation, others, style, &count);
     if (error.isEmpty())
@@ -281,7 +230,7 @@ QVariantMap Themes::formatText(const QString &presentation, const QStringList &s
         if (!file.open(QIODevice::ReadOnly))
             return {{"error", QStringLiteral("%1 could not be read").arg(QFileInfo(presentation).fileName())}, {"boxes", 0}};
         m_beforeFormat.insert(presentation, file.readAll());
-        keepCopy(presentation, m_workspace, QStringLiteral("text format"));
+        workspace::keepCopy(presentation, m_workspace, QStringLiteral("text format"));
     }
     int count = 0;
     const QString error = ProDocument::formatCuesText(presentation, slideIds, format, &count);
@@ -325,7 +274,7 @@ QVariantMap Themes::add(const QString &name)
         return {{"error", QStringLiteral("There is a theme or a folder of themes called \"%1\" already").arg(wanted)}};
     rv::data::Template::Document theme;
     rv::data::Template::Slide *slide = theme.add_slides();
-    fillSlide(slide, QStringLiteral("Theme Slide"));
+    themefile::fillSlide(slide, QStringLiteral("Theme Slide"));
     const QString slideId = QString::fromStdString(slide->base_slide().uuid().string());
     const QString error = themefile::write(m_workspace, wanted, theme);
     if (error.isEmpty()) {
@@ -356,7 +305,7 @@ QVariantMap Themes::addSlide(const QString &place)
     if (!themefile::read(m_workspace, place, &theme, &error))
         return {{"error", error}};
     rv::data::Template::Slide *slide = theme.add_slides();
-    fillSlide(slide, freeSlideName(theme));
+    themefile::fillSlide(slide, themefile::freeSlideName(theme));
     const QString slideId = QString::fromStdString(slide->base_slide().uuid().string());
     error = themefile::write(m_workspace, place, theme);
     if (error.isEmpty())

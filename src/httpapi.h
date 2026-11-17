@@ -50,8 +50,11 @@ namespace httpapi {
 struct Request
 {
     QByteArray method;
-    // The path, its %-escapes undone, without the query
+    // The path, its %-escapes undone, without the query; and the same as it came, its
+    // escapes kept, for what must tell a slash within a part of it ("%2F") from the
+    // slashes between its parts (this app's own paths: extendedapi.h)
     QString path;
+    QString rawPath;
     QList<std::pair<QString, QString>> query;
     // By name, in lower case
     QHash<QByteArray, QByteArray> headers;
@@ -80,6 +83,11 @@ public:
     // with which status to answer (400, 413, 431), and nothing more is read.
     bool feed(const QByteArray &bytes);
     bool hasRequest() const { return !m_ready.isEmpty(); }
+    // Whether a request whose head has come asks to be told to go on before it sends its
+    // body (`Expect: 100-continue`, which curl sends with a body of more than a
+    // kilobyte, and then waits a second for the answer before sending it anyway): true
+    // once for each such request, for the server to say "100 Continue" then.
+    bool takeContinue();
     Request take() { return m_ready.takeFirst(); }
     int error() const { return m_error; }
     // What has come after the requests taken, which is not HTTP once a request has
@@ -93,6 +101,10 @@ private:
     QByteArray m_buffer;
     QList<Request> m_ready;
     int m_error = 0;
+    // A request is waiting to be told to go on; and the one whose head is at the front
+    // of what has come has been told already
+    bool m_wantsContinue = false;
+    bool m_continued = false;
 };
 
 using Headers = QList<std::pair<QByteArray, QByteArray>>;

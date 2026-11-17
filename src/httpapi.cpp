@@ -99,6 +99,7 @@ bool Parser::parseOne()
     request.version = first[2];
     const QByteArray target = first[1];
     const qsizetype mark = target.indexOf('?');
+    request.rawPath = QString::fromLatin1(mark < 0 ? target : target.left(mark));
     request.path = decoded(mark < 0 ? target : target.left(mark));
     if (mark >= 0) {
         for (const QByteArray &pair : target.mid(mark + 1).split('&')) {
@@ -132,12 +133,26 @@ bool Parser::parseOne()
         m_error = 413;
         return false;
     }
-    if (m_buffer.size() < end + 4 + length)
+    if (m_buffer.size() < end + 4 + length) {
+        // (Its body is still to come, and it may be waiting to be told to send it)
+        if (!m_continued && request.headers.value("expect").toLower().contains("100-continue")) {
+            m_continued = true;
+            m_wantsContinue = true;
+        }
         return false;
+    }
     request.body = m_buffer.mid(end + 4, length);
     m_buffer.remove(0, end + 4 + length);
     m_ready.append(request);
+    m_continued = false;
     return true;
+}
+
+bool Parser::takeContinue()
+{
+    const bool wanted = m_wantsContinue;
+    m_wantsContinue = false;
+    return wanted;
 }
 
 QByteArray reason(int status)
@@ -145,10 +160,14 @@ QByteArray reason(int status)
     switch (status) {
     case 101: return "Switching Protocols";
     case 200: return "OK";
+    case 201: return "Created";
+    case 202: return "Accepted";
     case 204: return "No Content";
     case 400: return "Bad Request";
     case 403: return "Forbidden";
     case 404: return "Not Found";
+    case 405: return "Method Not Allowed";
+    case 409: return "Conflict";
     case 413: return "Payload Too Large";
     case 431: return "Request Header Fields Too Large";
     case 500: return "Internal Server Error";

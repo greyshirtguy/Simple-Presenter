@@ -6,6 +6,8 @@
 #include "action.pb.h"
 
 #include <QCollator>
+#include <QDateTime>
+#include <QStandardPaths>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -167,6 +169,32 @@ QString fileNameOf(const rv::data::URL &reference)
 {
     const QString name = QUrl(QString::fromStdString(reference.absolute_string())).fileName();
     return name.isEmpty() ? QFileInfo(QString::fromStdString(reference.local().path())).fileName() : name;
+}
+
+QString keepCopy(const QString &path, const QString &workspaceFolder, const QString &what, int newest)
+{
+    const QFileInfo file(path);
+    QString place = file.dir().dirName();
+    const QString relative = QDir(workspaceFolder).relativeFilePath(file.absolutePath());
+    if (!workspaceFolder.isEmpty() && !relative.startsWith(QLatin1String("..")))
+        place = QFileInfo(workspaceFolder).fileName() + u'/' + relative;
+    const QDir directory(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + QStringLiteral("/Edit Backups/") + place);
+    if (!directory.mkpath(QStringLiteral(".")))
+        return {};
+    // (Under the file's own ending, which some of ProPresenter's files have none of)
+    const QString ending = file.suffix().isEmpty() ? QString() : u'.' + file.suffix();
+    const QString tail = QStringLiteral(" before ") + what + ending;
+    const QString target = directory.filePath(file.completeBaseName() + QDateTime::currentDateTime().toString(QStringLiteral(" yyyy-MM-dd HH.mm.ss")) + tail);
+    if (!QFile::exists(target) && !QFile::copy(path, target))
+        return {};
+    if (newest > 0) {
+        // Their names sort by time, so the oldest come first. (The pattern is in pieces
+        // only because "??-", written whole, is a trigraph.)
+        const QStringList copies = directory.entryList({file.completeBaseName() + QStringLiteral(" ????" "-??" "-?? ??.??.??") + tail}, QDir::Files, QDir::Name);
+        for (qsizetype i = 0; i < copies.size() - newest; ++i)
+            QFile::remove(directory.filePath(copies.at(i)));
+    }
+    return target;
 }
 
 rv::data::Media mediaElement(const QString &file, const QString &workspaceFolder)

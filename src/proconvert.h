@@ -31,6 +31,18 @@ bool readPresentation(const QString &path, rv::data::Presentation *presentation,
 // is written back as it was read. The file is replaced in one step, so a failure part
 // way through leaves the original untouched. Returns an error message, empty on success.
 QString writePresentation(const QString &path, const rv::data::Presentation &presentation);
+// While one of these lives, writePresentation says nothing in the log of what it saves:
+// for what makes its changes to a copy of a presentation's file and puts the copy in
+// the file's place at the end (the extended API: extendedapirun.h), whose steps are not
+// the file being saved, and would be a line each in the log for nothing.
+class UnloggedSaves
+{
+public:
+    UnloggedSaves();
+    ~UnloggedSaves();
+    UnloggedSaves(const UnloggedSaves &) = delete;
+    UnloggedSaves &operator=(const UnloggedSaves &) = delete;
+};
 QColor toColor(const rv::data::Color &color);
 void setColor(rv::data::Color *target, const QColor &color);
 

@@ -660,3 +660,126 @@ qt_add_executable(tst_dragstart
 target_include_directories(tst_dragstart PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_dragstart PRIVATE Qt6::Core Qt6::Qml Qt6::Test)
 add_test(NAME dragstart COMMAND tst_dragstart)
+
+# The extended API (src/extendedapi.h): its table of operations and who may ask. Its
+# page for people is held to the table by it.
+qt_add_executable(tst_extendedapi
+    tst_extendedapi.cpp
+    ${PROJECT_SOURCE_DIR}/src/extendedapi.h
+    ${PROJECT_SOURCE_DIR}/src/extendedapi.cpp
+)
+target_include_directories(tst_extendedapi PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_definitions(tst_extendedapi PRIVATE REFERENCE_PAGE="${PROJECT_SOURCE_DIR}/docs/features/extended-api.md")
+target_link_libraries(tst_extendedapi PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+add_test(NAME extendedapi COMMAND tst_extendedapi)
+
+qt_add_executable(tst_mcp
+    tst_mcp.cpp
+    ${PROJECT_SOURCE_DIR}/src/mcp.h
+    ${PROJECT_SOURCE_DIR}/src/mcp.cpp
+    ${PROJECT_SOURCE_DIR}/src/mcpstdio.h
+    ${PROJECT_SOURCE_DIR}/src/mcpstdio.cpp
+    ${PROJECT_SOURCE_DIR}/src/extendedapi.h
+    ${PROJECT_SOURCE_DIR}/src/extendedapi.cpp
+)
+target_include_directories(tst_mcp PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_mcp PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+add_test(NAME mcp COMMAND tst_mcp)
+
+qt_add_executable(tst_playlistrows
+    tst_playlistrows.cpp
+    ${PROJECT_SOURCE_DIR}/src/playlistrows.h
+    ${PROJECT_SOURCE_DIR}/src/playlistrows.cpp
+)
+target_include_directories(tst_playlistrows PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_playlistrows PRIVATE Qt6::Core Qt6::Gui Qt6::Test proproto)
+add_test(NAME playlistrows COMMAND tst_playlistrows)
+
+# (Its text is the app's own, which finds fonts: so the log's stand-in, as for the others.
+# And it reads proconvert's source, to hold its list of properties to what the editor changes.)
+qt_add_executable(tst_extendedapijson
+    tst_extendedapijson.cpp
+    ${PROJECT_SOURCE_DIR}/src/extendedapijson.h
+    ${PROJECT_SOURCE_DIR}/src/extendedapijson.cpp
+    ${PROJECT_SOURCE_DIR}/src/richtext.h
+    ${PROJECT_SOURCE_DIR}/src/richtext.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontnames.h
+    ${PROJECT_SOURCE_DIR}/src/fontnames.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontresolver.h
+    ${PROJECT_SOURCE_DIR}/src/fontresolver.cpp
+    sessionlogstub.cpp
+)
+target_include_directories(tst_extendedapijson PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_definitions(tst_extendedapijson PRIVATE PROCONVERT_SOURCE="${PROJECT_SOURCE_DIR}/src/proconvert.cpp")
+target_link_libraries(tst_extendedapijson PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test Fontconfig::Fontconfig)
+add_test(NAME extendedapijson COMMAND tst_extendedapijson)
+
+# A presentation's slides and what is on them changed (src/presentationedit.h,
+# src/slideedit.h): on presentations as the files have them, so with what reads and
+# writes a slide (proconvert and what it draws on), which the app's own tests otherwise
+# reach only through the app.
+qt_add_executable(tst_presentationedit
+    tst_presentationedit.cpp
+    ${PROJECT_SOURCE_DIR}/src/presentationedit.h
+    ${PROJECT_SOURCE_DIR}/src/presentationedit.cpp
+    ${PROJECT_SOURCE_DIR}/src/slideedit.h
+    ${PROJECT_SOURCE_DIR}/src/slideedit.cpp
+    ${PROJECT_SOURCE_DIR}/src/extendedapijson.h
+    ${PROJECT_SOURCE_DIR}/src/extendedapijson.cpp
+    ${PROJECT_SOURCE_DIR}/src/arrangementedit.h
+    ${PROJECT_SOURCE_DIR}/src/arrangementedit.cpp
+    ${PROJECT_SOURCE_DIR}/src/ccli.h
+    ${PROJECT_SOURCE_DIR}/src/ccli.cpp
+    ${PROJECT_SOURCE_DIR}/src/chords.h
+    ${PROJECT_SOURCE_DIR}/src/chords.cpp
+    ${PROJECT_SOURCE_DIR}/src/groupedit.h
+    ${PROJECT_SOURCE_DIR}/src/groupedit.cpp
+    ${PROJECT_SOURCE_DIR}/src/labelfile.h
+    ${PROJECT_SOURCE_DIR}/src/labelfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/proconvert.h
+    ${PROJECT_SOURCE_DIR}/src/proconvert.cpp
+    ${PROJECT_SOURCE_DIR}/src/workspacefiles.h
+    ${PROJECT_SOURCE_DIR}/src/workspacefiles.cpp
+    ${PROJECT_SOURCE_DIR}/src/reflow.h
+    ${PROJECT_SOURCE_DIR}/src/reflow.cpp
+    ${PROJECT_SOURCE_DIR}/src/richtext.h
+    ${PROJECT_SOURCE_DIR}/src/richtext.cpp
+    ${PROJECT_SOURCE_DIR}/src/builds.h
+    ${PROJECT_SOURCE_DIR}/src/builds.cpp
+    ${PROJECT_SOURCE_DIR}/src/textscroller.h
+    ${PROJECT_SOURCE_DIR}/src/textscroller.cpp
+    ${PROJECT_SOURCE_DIR}/src/clocktext.h
+    ${PROJECT_SOURCE_DIR}/src/clocktext.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontresolver.h
+    ${PROJECT_SOURCE_DIR}/src/fontresolver.cpp
+    ${PROJECT_SOURCE_DIR}/src/linejoin.h
+    ${PROJECT_SOURCE_DIR}/src/linejoin.cpp
+    ${PROJECT_SOURCE_DIR}/src/mediasettings.h
+    ${PROJECT_SOURCE_DIR}/src/mediasettings.cpp
+    ${PROJECT_SOURCE_DIR}/src/rtf.h
+    ${PROJECT_SOURCE_DIR}/src/rtf.cpp
+    ${PROJECT_SOURCE_DIR}/src/rtfwriter.h
+    ${PROJECT_SOURCE_DIR}/src/rtfwriter.cpp
+    ${PROJECT_SOURCE_DIR}/src/textfills.h
+    ${PROJECT_SOURCE_DIR}/src/textfills.cpp
+    ${PROJECT_SOURCE_DIR}/src/timers.h
+    ${PROJECT_SOURCE_DIR}/src/timers.cpp
+    ${PROJECT_SOURCE_DIR}/src/videoinputfile.h
+    ${PROJECT_SOURCE_DIR}/src/videoinputfile.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.h
+    ${PROJECT_SOURCE_DIR}/src/audiorouting.cpp
+    ${PROJECT_SOURCE_DIR}/src/fontnames.h
+    ${PROJECT_SOURCE_DIR}/src/fontnames.cpp
+    ${PROJECT_SOURCE_DIR}/src/transitionkinds.h
+    ${PROJECT_SOURCE_DIR}/src/transitionkinds.cpp
+    ${PROJECT_SOURCE_DIR}/src/mediaeffects.h
+    ${PROJECT_SOURCE_DIR}/src/mediaeffects.cpp
+    ${PROJECT_SOURCE_DIR}/src/colortriggers.h
+    ${PROJECT_SOURCE_DIR}/src/colortriggers.cpp
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.h
+    ${PROJECT_SOURCE_DIR}/src/audiolevel.cpp
+    sessionlogstub.cpp
+)
+target_include_directories(tst_presentationedit PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_presentationedit PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test proproto Fontconfig::Fontconfig)
+add_test(NAME presentationedit COMMAND tst_presentationedit)

@@ -566,6 +566,14 @@ Window {
     property string remoteControllerPassword: ""
     property bool remoteObserver: false
     property string remoteObserverPassword: ""
+    // The extended API and MCP, on the same port (src/extendedapi.h): this app's own
+    // addition, which makes and changes what the workspace holds. Off until switched
+    // on by itself, and then for this computer alone unless it is opened to the others.
+    property bool extendedEnabled: false
+    property bool extendedNetwork: false
+    // The file the editor has open, "" while it is down: what the extended API leaves
+    // alone meanwhile (see ExtendedApi.busy)
+    readonly property string editingPath: editing ? editScreen.editor.path : ""
     // Whether the pane at the right is there, in its place or on its way
     readonly property bool sidePanelShown: chromeShown || simpleKeepsSidePanel
     // How far the panes round the slides are in their places: 1 when they are, 0 when
@@ -3175,24 +3183,84 @@ Window {
         if (renamed.path === was)
             return
         Log.note("edit", "the presentation " + quoted(was.replace(/^.*\//, "")) + " renamed " + quoted(renamed.path.replace(/^.*\//, "")))
+        followRename(was, renamed.path, viewed)
+    }
+
+    // What here goes by a presentation's file pointed at the file as it now is, after it
+    // has been renamed: by the window (renamePresentation), or through the extended API
+    // (presentationRenamedOutside). `viewed`: it was the one being viewed.
+    function followRename(was, now, viewed) {
         // In a library a row goes by its file; in a playlist it has an id of its own.
         if (playlistId === "" && documentKey === was)
-            documentKey = renamed.path
-        Show.renamed(was, renamed.path)
+            documentKey = now
+        Show.renamed(was, now)
         followCatalog()
         if (liveDocument !== null && liveDocument.path === was) {
-            const live = livePlaylistId !== "" ? catalog.openArranged(renamed.path, liveDocument.arrangement) : catalog.open(renamed.path)
+            const live = livePlaylistId !== "" ? catalog.openArranged(now, liveDocument.arrangement) : catalog.open(now)
             liveDocument = live
             Show.follow(liveCue(live, liveIndex))
         }
         if (announcementDocument !== null && announcementDocument.path === was) {
-            const theirs = Show.announcementPlaylistId !== "" ? catalog.openArranged(renamed.path, announcementDocument.arrangement)
-                                                              : catalog.open(renamed.path)
+            const theirs = Show.announcementPlaylistId !== "" ? catalog.openArranged(now, announcementDocument.arrangement)
+                                                              : catalog.open(now)
             announcementDocument = theirs
             Show.follow(announcementCue(theirs, Show.announcementIndex))
         }
         if (viewed && currentEntry())
             document = load(currentEntry())
+    }
+
+    // ---- Changes made through the extended API (src/extendedapirun.h, by way of
+    // HttpApiControl): the window follows them as it follows its own
+
+    // A presentation's file has been changed: if it is the one being viewed it is read
+    // again, the slide that is live found again by its id, as after any change the
+    // window makes itself (reloadDocument); if it is live, or in the announcements, and
+    // is not the one being viewed, it is read again as it was read, so that the show
+    // goes on through the presentation as it now is. What is on the output is left as it
+    // is until a slide is next shown, as when a presentation is edited here. While the
+    // editor is up (on another presentation: one it has open is not changed from
+    // outside), nothing is read again that the editor's closing will not read.
+    function presentationChangedOutside(path) {
+        // (Its words may be other words: what finds presentations by their words reads
+        // again the files that have changed, on a thread of its own)
+        Search.read(catalog.librariesDirectory)
+        const viewed = document !== null && document.path === path && documentKey !== bibleKey
+        if (viewed && !editing && currentEntry()) {
+            reloadDocument()
+            return
+        }
+        if (liveDocument !== null && liveDocument.path === path) {
+            const live = livePlaylistId !== "" ? catalog.openArranged(path, liveDocument.arrangement) : catalog.open(path)
+            if (live.error === "" || live.slides.length > 0) {
+                const index = Show.placeAfterReload(liveDocument.slides.map(slide => slide.id), liveIndex, live.slides.map(slide => slide.id))
+                liveDocument = live
+                Show.follow(liveCue(live, index >= 0 ? index : liveIndex))
+            }
+        }
+        if (announcementDocument !== null && announcementDocument.path === path) {
+            const theirs = Show.announcementPlaylistId !== "" ? catalog.openArranged(path, announcementDocument.arrangement)
+                                                              : catalog.open(path)
+            if (theirs.error === "" || theirs.slides.length > 0) {
+                const index = Show.placeAfterReload(announcementDocument.slides.map(slide => slide.id), Show.announcementIndex,
+                                                    theirs.slides.map(slide => slide.id))
+                announcementDocument = theirs
+                Show.follow(announcementCue(theirs, index >= 0 ? index : Show.announcementIndex))
+            }
+        }
+    }
+
+    // One has been renamed (its file, and the name inside it)
+    function presentationRenamedOutside(was, now) {
+        Log.note("edit", "the presentation " + quoted(was.replace(/^.*\//, "")) + " renamed " + quoted(now.replace(/^.*\//, "")) + ", through the API")
+        followRename(was, now, document !== null && document.path === was)
+    }
+
+    // The themes are not as they were: listed again, and a screen dressed in one by the
+    // look that is live shows it as it now is, as when the editor closes on a theme
+    function themesChangedOutside() {
+        Themes.reload()
+        eachAudienceScene((scene, id, key) => redress(key))
     }
 
     // Takes a presentation out of its library: its file goes to the Trash, and no
@@ -5648,6 +5716,8 @@ Window {
         remoteControllerPassword = String(saved("remoteControllerPassword", ""))
         remoteObserver = String(saved("remoteObserver", false)) === "true"
         remoteObserverPassword = String(saved("remoteObserverPassword", ""))
+        extendedEnabled = String(saved("extendedEnabled", false)) === "true"
+        extendedNetwork = String(saved("extendedNetwork", false)) === "true"
         // By name, so the choice survives transitions being added or reordered.
         selectTransition(String(saved("transition", "")))
         try {
@@ -5890,6 +5960,8 @@ Window {
     onRemoteControllerPasswordChanged: save("remoteControllerPassword", remoteControllerPassword)
     onRemoteObserverChanged: save("remoteObserver", remoteObserver)
     onRemoteObserverPasswordChanged: save("remoteObserverPassword", remoteObserverPassword)
+    onExtendedEnabledChanged: save("extendedEnabled", extendedEnabled)
+    onExtendedNetworkChanged: save("extendedNetwork", extendedNetwork)
     onSimpleChanged: {
         if (simple)
             simpleToggle.announce()
@@ -7904,6 +7976,10 @@ Window {
         onRemoteControllerPasswordEdited: (password) => win.remoteControllerPassword = password
         onRemoteObserverEdited: (on) => win.remoteObserver = on
         onRemoteObserverPasswordEdited: (password) => win.remoteObserverPassword = password
+        extendedEnabled: win.extendedEnabled
+        extendedNetwork: win.extendedNetwork
+        onExtendedEnabledEdited: (on) => win.extendedEnabled = on
+        onExtendedNetworkEdited: (on) => win.extendedNetwork = on
         onLabelEdited: (index) => win.editLabelPreset(index)
         onLabelRemoved: (index) => win.report(Labels.remove(index))
         senders: win.senders
@@ -7957,6 +8033,17 @@ Window {
         target: HttpApi
         property: "remoteObserverPassword"
         value: win.remoteObserverPassword
+    }
+    // The extended API's and MCP's, on the same port
+    Binding {
+        target: HttpApi
+        property: "extendedEnabled"
+        value: win.extendedEnabled
+    }
+    Binding {
+        target: HttpApi
+        property: "extendedNetwork"
+        value: win.extendedNetwork
     }
     Loader {
         active: HttpApi.listening

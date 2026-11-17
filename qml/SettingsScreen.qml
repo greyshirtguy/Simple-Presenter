@@ -73,6 +73,9 @@ Rectangle {
     property string remoteControllerPassword: ""
     property bool remoteObserver: false
     property string remoteObserverPassword: ""
+    // The extended API and MCP: on or off, and whether other computers may use them
+    property bool extendedEnabled: false
+    property bool extendedNetwork: false
     // The MIDI Map's commands this app does not do (see MidiControl), greyed on Devices
     property var midiNotHere: []
 
@@ -109,6 +112,8 @@ Rectangle {
     signal networkEnabledEdited(bool on)
     signal networkNameEdited(string name)
     signal networkPortEdited(int port)
+    signal extendedEnabledEdited(bool on)
+    signal extendedNetworkEdited(bool on)
     signal remoteEnabledEdited(bool on)
     signal remoteControllerEdited(bool on)
     signal remoteControllerPasswordEdited(string password)
@@ -1861,216 +1866,311 @@ Rectangle {
             active: screen.section === "network"
             visible: active
 
-            sourceComponent: Column {
-                spacing: 14
+            // (In a part of its own that scrolls: with ProPresenter Remote's settings and the
+            // extended API's under the API's it is taller than a small window.)
+            sourceComponent: Flickable {
+                id: networkPart
 
-                Row {
-                    spacing: 12
+                clip: true
+                contentHeight: networkWords.height
+                boundsBehavior: Flickable.StopAtBounds
 
-                    // A switch
-                    Rectangle {
-                        objectName: "networkSwitch"
-                        width: 44
-                        height: 24
-                        radius: 12
-                        color: screen.networkEnabled ? "#ff8a1f" : "#45484e"
-
-                        Rectangle {
-                            x: screen.networkEnabled ? parent.width - width - 3 : 3
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 18
-                            height: 18
-                            radius: 9
-                            color: "#e6e6e6"
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: screen.networkEnabledEdited(!screen.networkEnabled)
-                        }
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: "#e6e6e6"
-                        font.pixelSize: 15
-                        text: "Enable Network"
-                    }
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AlwaysOn
+                    visible: networkPart.contentHeight > networkPart.height
                 }
 
-                Row {
-                    spacing: 10
+                KineticWheel {}
 
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 110
-                        color: "#b0b3b8"
-                        font.pixelSize: 13
-                        text: "Network Name"
-                    }
+                Column {
+                    id: networkWords
 
-                    AppTextField {
-                        objectName: "networkName"
-                        width: 260
-                        height: 30
-                        font.pixelSize: 13
-                        placeholderText: HttpApi.computerName()
-                        text: screen.networkName
-                        onEditingFinished: screen.networkNameEdited(text.trim())
-                    }
-                }
-
-                Row {
-                    spacing: 10
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 110
-                        color: "#b0b3b8"
-                        font.pixelSize: 13
-                        text: "Port"
-                    }
-
-                    NumberField {
-                        objectName: "networkPort"
-                        width: 90
-                        from: 1024
-                        to: 65535
-                        value: screen.networkPort
-                        onEdited: (value) => screen.networkPortEdited(Math.round(value))
-                    }
-                }
-
-                Text {
-                    objectName: "networkStatus"
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    color: HttpApi.problem !== "" ? "#ff8a80" : "#e6e6e6"
-                    font.pixelSize: 13
-                    text: HttpApi.problem !== "" ? "Not listening: " + HttpApi.problem
-                        : !HttpApi.listening ? "Off."
-                        : HttpApi.addresses.length === 0 ? "Listening on port " + HttpApi.port + ", but this computer is on no network."
-                        : "Listening at " + HttpApi.addresses.map(a => a + ":" + HttpApi.port).join(", ")
-                          + (HttpApi.streams > 0 ? ". " + HttpApi.streams + (HttpApi.streams === 1 ? " client is" : " clients are") + " following the show." : ".")
-                }
-
-                Text {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    color: "#9a9da3"
-                    font.pixelSize: 13
-                    text: "ProPresenter's network API, as ProPresenter offers it: programs on this network that work "
-                        + "with ProPresenter, such as Bitfocus Companion's ProPresenter module, can follow the show and "
-                        + "operate it through it, by this computer's address and the port. Anyone on the network can, "
-                        + "as with ProPresenter: there is no password.\n\n"
-                        + "Only what this app has is there: much of what ProPresenter offers through it is not. "
-                        + "What is there is linked from the README."
-                }
-
-                // ProPresenter Remote, Renewed Vision's app for a phone or a tablet, which
-                // finds the app on the network and works through the API above, under a
-                // password (src/proremote.h). As ProPresenter's settings are described: a
-                // switch, then a controller's password, which may operate the show, and an
-                // observer's, which may only follow it. (GUESSES: the names, the order, and
-                // the controller on and the observer off to begin with.)
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: "#3a3c41"
-                }
-
-                Row {
-                    spacing: 12
-
-                    Rectangle {
-                        objectName: "remoteSwitch"
-                        width: 44
-                        height: 24
-                        radius: 12
-                        color: screen.remoteEnabled ? "#ff8a1f" : "#45484e"
-
-                        Rectangle {
-                            x: screen.remoteEnabled ? parent.width - width - 3 : 3
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 18
-                            height: 18
-                            radius: 9
-                            color: "#e6e6e6"
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: screen.remoteEnabledEdited(!screen.remoteEnabled)
-                        }
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: "#e6e6e6"
-                        font.pixelSize: 15
-                        text: "Enable ProPresenter Remote"
-                    }
-                }
-
-                Repeater {
-                    model: [{ role: "controller", label: "Controller" }, { role: "observer", label: "Observer" }]
+                    width: networkPart.width - 14
+                    spacing: 14
 
                     Row {
-                        id: roleRow
+                        spacing: 12
 
-                        required property var modelData
-                        readonly property bool controller: modelData.role === "controller"
+                        // A switch
+                        Rectangle {
+                            objectName: "networkSwitch"
+                            width: 44
+                            height: 24
+                            radius: 12
+                            color: screen.networkEnabled ? "#ff8a1f" : "#45484e"
 
+                            Rectangle {
+                                x: screen.networkEnabled ? parent.width - width - 3 : 3
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 18
+                                height: 18
+                                radius: 9
+                                color: "#e6e6e6"
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: screen.networkEnabledEdited(!screen.networkEnabled)
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#e6e6e6"
+                            font.pixelSize: 15
+                            text: "Enable Network"
+                        }
+                    }
+
+                    Row {
                         spacing: 10
 
-                        AppCheck {
-                            objectName: "remote:" + roleRow.modelData.role
+                        Text {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 110
-                            text: roleRow.modelData.label
-                            checked: roleRow.controller ? screen.remoteController : screen.remoteObserver
-                            onToggled: (checked) => roleRow.controller ? screen.remoteControllerEdited(checked)
-                                                                       : screen.remoteObserverEdited(checked)
+                            color: "#b0b3b8"
+                            font.pixelSize: 13
+                            text: "Network Name"
                         }
 
                         AppTextField {
-                            objectName: "remotePassword:" + roleRow.modelData.role
+                            objectName: "networkName"
                             width: 260
                             height: 30
                             font.pixelSize: 13
-                            echoMode: TextInput.PasswordEchoOnEdit
-                            placeholderText: "Password"
-                            text: roleRow.controller ? screen.remoteControllerPassword : screen.remoteObserverPassword
-                            onEditingFinished: roleRow.controller ? screen.remoteControllerPasswordEdited(text)
-                                                                  : screen.remoteObserverPasswordEdited(text)
+                            placeholderText: HttpApi.computerName()
+                            text: screen.networkName
+                            onEditingFinished: screen.networkNameEdited(text.trim())
                         }
                     }
-                }
 
-                Text {
-                    objectName: "remoteStatus"
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    color: HttpApi.remoteProblem !== "" ? "#ff8a80" : "#e6e6e6"
-                    font.pixelSize: 13
-                    text: !screen.remoteEnabled ? "Off."
-                        : !screen.remoteController && !screen.remoteObserver ? "Off: neither the controller nor the observer is on."
-                        : !HttpApi.listening ? "Waiting for the network above to be on."
-                        : HttpApi.remoteProblem !== "" ? "Not found on the network by itself: " + HttpApi.remoteProblem
-                          + ". A Remote can still be given this computer's address."
-                        : (HttpApi.remoteAdvertised ? "On the network as \u201c" + HttpApi.remoteName + "\u201d." : "Being put on the network.")
-                          + (HttpApi.remotes > 0 ? " " + HttpApi.remotes + (HttpApi.remotes === 1 ? " Remote is" : " Remotes are") + " connected." : "")
-                }
+                    Row {
+                        spacing: 10
 
-                Text {
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    color: "#9a9da3"
-                    font.pixelSize: 13
-                    text: "ProPresenter Remote, Renewed Vision's app for a phone or a tablet, finds this computer on the "
-                        + "network by the Network Name above, as it finds ProPresenter, and works the show through the API. "
-                        + "It asks for a password: the controller's lets it operate the show, the observer's only follow it. "
-                        + "The passwords are kept with this computer's settings, as ProPresenter keeps its own."
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 110
+                            color: "#b0b3b8"
+                            font.pixelSize: 13
+                            text: "Port"
+                        }
+
+                        NumberField {
+                            objectName: "networkPort"
+                            width: 90
+                            from: 1024
+                            to: 65535
+                            value: screen.networkPort
+                            onEdited: (value) => screen.networkPortEdited(Math.round(value))
+                        }
+                    }
+
+                    Text {
+                        objectName: "networkStatus"
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        color: HttpApi.problem !== "" ? "#ff8a80" : "#e6e6e6"
+                        font.pixelSize: 13
+                        text: HttpApi.problem !== "" ? "Not listening: " + HttpApi.problem
+                            : !HttpApi.listening ? "Off."
+                            : HttpApi.addresses.length === 0 ? "Listening on port " + HttpApi.port + ", but this computer is on no network."
+                            : "Listening at " + HttpApi.addresses.map(a => a + ":" + HttpApi.port).join(", ")
+                              + (HttpApi.streams > 0 ? ". " + HttpApi.streams + (HttpApi.streams === 1 ? " client is" : " clients are") + " following the show." : ".")
+                    }
+
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        color: "#9a9da3"
+                        font.pixelSize: 13
+                        text: "ProPresenter's network API, as ProPresenter offers it: programs on this network that work "
+                            + "with ProPresenter, such as Bitfocus Companion's ProPresenter module, can follow the show and "
+                            + "operate it through it, by this computer's address and the port. Anyone on the network can, "
+                            + "as with ProPresenter: there is no password.\n\n"
+                            + "Only what this app has is there: much of what ProPresenter offers through it is not. "
+                            + "What is there is linked from the README."
+                    }
+
+                    // ProPresenter Remote, Renewed Vision's app for a phone or a tablet, which
+                    // finds the app on the network and works through the API above, under a
+                    // password (src/proremote.h). As ProPresenter's settings are described: a
+                    // switch, then a controller's password, which may operate the show, and an
+                    // observer's, which may only follow it. (GUESSES: the names, the order, and
+                    // the controller on and the observer off to begin with.)
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: "#3a3c41"
+                    }
+
+                    Row {
+                        spacing: 12
+
+                        Rectangle {
+                            objectName: "remoteSwitch"
+                            width: 44
+                            height: 24
+                            radius: 12
+                            color: screen.remoteEnabled ? "#ff8a1f" : "#45484e"
+
+                            Rectangle {
+                                x: screen.remoteEnabled ? parent.width - width - 3 : 3
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 18
+                                height: 18
+                                radius: 9
+                                color: "#e6e6e6"
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: screen.remoteEnabledEdited(!screen.remoteEnabled)
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#e6e6e6"
+                            font.pixelSize: 15
+                            text: "Enable ProPresenter Remote"
+                        }
+                    }
+
+                    Repeater {
+                        model: [{ role: "controller", label: "Controller" }, { role: "observer", label: "Observer" }]
+
+                        Row {
+                            id: roleRow
+
+                            required property var modelData
+                            readonly property bool controller: modelData.role === "controller"
+
+                            spacing: 10
+
+                            AppCheck {
+                                objectName: "remote:" + roleRow.modelData.role
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 110
+                                text: roleRow.modelData.label
+                                checked: roleRow.controller ? screen.remoteController : screen.remoteObserver
+                                onToggled: (checked) => roleRow.controller ? screen.remoteControllerEdited(checked)
+                                                                           : screen.remoteObserverEdited(checked)
+                            }
+
+                            AppTextField {
+                                objectName: "remotePassword:" + roleRow.modelData.role
+                                width: 260
+                                height: 30
+                                font.pixelSize: 13
+                                echoMode: TextInput.PasswordEchoOnEdit
+                                placeholderText: "Password"
+                                text: roleRow.controller ? screen.remoteControllerPassword : screen.remoteObserverPassword
+                                onEditingFinished: roleRow.controller ? screen.remoteControllerPasswordEdited(text)
+                                                                      : screen.remoteObserverPasswordEdited(text)
+                            }
+                        }
+                    }
+
+                    Text {
+                        objectName: "remoteStatus"
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        color: HttpApi.remoteProblem !== "" ? "#ff8a80" : "#e6e6e6"
+                        font.pixelSize: 13
+                        text: !screen.remoteEnabled ? "Off."
+                            : !screen.remoteController && !screen.remoteObserver ? "Off: neither the controller nor the observer is on."
+                            : !HttpApi.listening ? "Waiting for the network above to be on."
+                            : HttpApi.remoteProblem !== "" ? "Not found on the network by itself: " + HttpApi.remoteProblem
+                              + ". A Remote can still be given this computer's address."
+                            : (HttpApi.remoteAdvertised ? "On the network as \u201c" + HttpApi.remoteName + "\u201d." : "Being put on the network.")
+                              + (HttpApi.remotes > 0 ? " " + HttpApi.remotes + (HttpApi.remotes === 1 ? " Remote is" : " Remotes are") + " connected." : "")
+                    }
+
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        color: "#9a9da3"
+                        font.pixelSize: 13
+                        text: "ProPresenter Remote, Renewed Vision's app for a phone or a tablet, finds this computer on the "
+                            + "network by the Network Name above, as it finds ProPresenter, and works the show through the API. "
+                            + "It asks for a password: the controller's lets it operate the show, the observer's only follow it. "
+                            + "The passwords are kept with this computer's settings, as ProPresenter keeps its own."
+                    }
+
+                    // The extended API and MCP (src/extendedapi.h, src/mcp.h): this app's own
+                    // addition to the API above, on the same port, which makes and changes
+                    // what the workspace holds. A switch of its own, off to begin with, and
+                    // one more for letting other computers in; then where it is, for a
+                    // program that is given an address.
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: "#3a3c41"
+                    }
+
+                    Row {
+                        spacing: 12
+
+                        Rectangle {
+                            objectName: "extendedSwitch"
+                            width: 44
+                            height: 24
+                            radius: 12
+                            color: screen.extendedEnabled ? "#ff8a1f" : "#45484e"
+
+                            Rectangle {
+                                x: screen.extendedEnabled ? parent.width - width - 3 : 3
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 18
+                                height: 18
+                                radius: 9
+                                color: "#e6e6e6"
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: screen.extendedEnabledEdited(!screen.extendedEnabled)
+                            }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#e6e6e6"
+                            font.pixelSize: 15
+                            text: "Enable Extended API and MCP"
+                        }
+                    }
+
+                    AppCheck {
+                        objectName: "extendedNetwork"
+                        text: "From Other Computers"
+                        checked: screen.extendedNetwork
+                        onToggled: (checked) => screen.extendedNetworkEdited(checked)
+                    }
+
+                    Text {
+                        objectName: "extendedStatus"
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        color: "#e6e6e6"
+                        font.pixelSize: 13
+                        text: !screen.extendedEnabled ? "Off."
+                            : !HttpApi.listening ? "Waiting for the network above to be on."
+                            : "The API is at http://127.0.0.1:" + HttpApi.port + "/sp/v1/ and MCP at http://127.0.0.1:" + HttpApi.port + "/mcp"
+                              + (screen.extendedNetwork ? ", and at this computer's other addresses above." : ", for programs on this computer only.")
+                              + " A program that starts its MCP servers itself is given the command SimplePresenter --mcp"
+                    }
+
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        color: "#9a9da3"
+                        font.pixelSize: 13
+                        text: "This app's own addition to the API above, which is not ProPresenter's: through it a program can make, change "
+                            + "and delete the workspace's presentations, playlists and themes, and an AI model can be asked to, through MCP. "
+                            + "Whatever can reach it can change the workspace: there is no password. A presentation or a theme deleted "
+                            + "through it goes to the Trash, and a copy of a file is kept before it is changed."
+                    }
                 }
             }
         }

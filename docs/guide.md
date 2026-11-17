@@ -86,6 +86,15 @@ These are not ProPresenter's.
   and changes a layer in the same moment: a layer the look gives back to a screen comes
   back with what is being put on it, which comes in from nothing, and the slide before
   is not seen there; a layer the look fades from a screen goes with what it had.
+- **The extended API, and MCP.** Settings → Network, **Enable Extended API and MCP**
+  (with Enable Network on): beside ProPresenter's API, one of the app's own on the same
+  port, through which a program can make, change and delete the workspace's
+  presentations, playlists and themes; and the same offered to an AI model as tools,
+  through MCP, at `http://127.0.0.1:<port>/mcp` or by the command `SimplePresenter
+  --mcp`. It is off until switched on, and then for programs on this computer only,
+  unless **From Other Computers** is ticked. There is no password. What is deleted
+  through it goes to the Trash, a copy of a file is kept before it is changed,
+  and a presentation open in the editor is left alone.
 
 ## What it does not do
 

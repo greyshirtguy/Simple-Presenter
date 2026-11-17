@@ -1,5 +1,7 @@
 #pragma once
 
+#include "playlistrows.h"
+
 #include <QHash>
 #include <QString>
 #include <QStringList>
@@ -135,6 +137,29 @@ struct PlaylistFile
     // over; with none of them left it is an error, and nothing is written.
     static QString copyItems(const QString &root, Kind kind, const QStringList &itemIds, const QString &playlistId,
                              const QString &underId, QStringList *ids);
+    // Adds a heading to a playlist of presentations, placed as addPresentation places a
+    // row: its words, and its colour ("#rrggbb", or "" for none). As ProPresenter writes
+    // one (seen in the playlists of two workspaces): an id, the words as the row's name,
+    // and a header that holds the colour and nothing else. (A GUESS: that a heading
+    // with no colour is a header with none. Every one seen had been given a colour.)
+    static QString addHeader(const QString &root, const QString &playlistId, const QString &name, const QString &color,
+                             const QString &underId = {}, QString *id = nullptr);
+    // Changes a heading's words and colour, either where it is given (a null pointer
+    // leaves that as it is). A row that is not a heading is an error.
+    static QString setHeader(const QString &root, const QString &itemId, const QString *name, const QString *color);
+    // One of the rows setItems() is to leave a playlist with (see playlistrows.h)
+    using Wanted = playlistrows::Wanted;
+    // Makes a playlist of presentations hold these rows and no others, in this order
+    // (the extended API's set_playlist_items, for a whole service laid out at once):
+    // playlistrows::set has the rule, which keeps the rows that stay as they are. Sets
+    // *ids to the rows' ids, in step with what was wanted. On an error nothing is
+    // written, and nothing is where the playlist is that way already.
+    static QString setItems(const QString &root, const QString &playlistId, const QList<Wanted> &wanted, QStringList *ids);
+    // Adds rows to a playlist of presentations, under its row `underId` or at its end
+    // for "" (the extended API's add_playlist_items; playlistrows::insert has the rule):
+    // new rows, the others left where they are. Sets *ids to the new rows' ids.
+    static QString insertItems(const QString &root, const QString &playlistId, const QList<Wanted> &wanted, const QString &underId,
+                               QStringList *ids);
     // Adds the playlists of an exported playlist document (the `data` of a .proplaylist
     // archive) inside the folder `parentId`, or at the top level for "". Their
     // presentations are taken to be in the folder `library`. Each comes with ids of its

@@ -4,6 +4,7 @@
 #include "proconvert.h"
 #include "richtext.h"
 #include "thememath.h"
+#include "workspacefiles.h"
 
 #include "template.pb.h"
 
@@ -246,6 +247,38 @@ void dress(rv::data::Slide *slide, const rv::data::Slide &theme, const QSet<QStr
         *slide->mutable_background_color() = theme.background_color();
     else
         slide->clear_background_color();
+}
+
+void fillSlide(rv::data::Template::Slide *made, const QString &name)
+{
+    made->set_name(name.toStdString());
+    rv::data::Slide *slide = made->mutable_base_slide();
+    slide->set_draws_background_color(false);
+    slide->mutable_size()->set_width(1920);
+    slide->mutable_size()->set_height(1080);
+    slide->mutable_uuid()->set_string(workspace::newUuid());
+    rv::data::Slide::Element element = proconvert::makeTextElement(*slide, nullptr);
+    rv::data::Graphics::Text *text = element.mutable_element()->mutable_text();
+    TextRun format = proconvert::readText(*text).firstRun();
+    format.applyFormat({{"size", 90.0}, {"bold", true}, {"color", QColor(Qt::white)}});
+    proconvert::writeText(text, RichText::plain(QStringLiteral("Text"), format, Qt::AlignHCenter));
+    const QString id = QString::fromStdString(element.element().uuid().string());
+    *slide->add_elements() = element;
+    proconvert::applyChanges(slide, id, {
+        {"name", QStringLiteral("Text")}, {"x", 110.0}, {"y", 190.0}, {"width", 1700.0}, {"height", 700.0},
+        {"textScale", int(rv::data::Graphics::Text::SCALE_BEHAVIOR_SCALE_FONT_DOWN)},
+    });
+}
+
+QString freeSlideName(const rv::data::Template::Document &theme)
+{
+    QSet<QString> taken;
+    for (const rv::data::Template::Slide &slide : theme.slides())
+        taken.insert(QString::fromStdString(slide.name()));
+    QString name = QStringLiteral("Theme Slide");
+    for (int n = 2; taken.contains(name); ++n)
+        name = QStringLiteral("Theme Slide %1").arg(n);
+    return name;
 }
 
 bool hasWords(const rv::data::Slide &slide)
