@@ -2333,6 +2333,145 @@ def make_video(path, seconds, colour, test_dir):
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", path], check=True)
 
 
+# ---- Timecode (tests/ui/t/timecode.qml)
+#
+# The timecode the test listens to is sound made here: linear timecode at thirty frames a second (each frame eighty
+# bits of twenty samples: a change of side at the start of every bit, and another half way through a one; see
+# src/ltc.h), on the second channel of a file of two, with a plain tone on the first, which is not timecode. It is
+# played into the private desktop's sound input (tests/ui/audio: "Test source") when the app's log says the app has
+# begun to listen to that input (see test(): `play`).
+
+
+def ltc_bits(hours, minutes, seconds, frames):
+    """The eighty bits of a frame of timecode, the first first."""
+    bits = [0] * 80
+
+    def put(start, count, value):
+        for place in range(count):
+            bits[start + place] = (value >> place) & 1
+
+    put(0, 4, frames % 10)
+    put(8, 2, frames // 10)
+    put(16, 4, seconds % 10)
+    put(24, 3, seconds // 10)
+    put(32, 4, minutes % 10)
+    put(40, 3, minutes // 10)
+    put(48, 4, hours % 10)
+    put(56, 2, hours // 10)
+    bits[64:80] = [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1]
+    return bits
+
+
+def write_timecode(path, runs, test_dir):
+    """A sound file of two channels at 48 kHz, only inside the test's own folder: on the second, each of `runs` in
+    turn, either a number of seconds of silence or (the timecode a run starts at, as hours, minutes, seconds and
+    frames; how many frames it goes on for), at thirty frames a second; on the first, a tone of 440 Hz throughout."""
+    import math
+    import wave
+
+    if not os.path.realpath(path).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("a test's sound was about to be written outside the test's folder: %s" % os.path.realpath(path))
+    code = []
+    side = 1
+    for run in runs:
+        if not isinstance(run, tuple):
+            code += [0] * int(run * 48000)
+            continue
+        (hours, minutes, seconds, frames), count = run
+        number = ((hours * 60 + minutes) * 60 + seconds) * 30 + frames
+        for each in range(number, number + count):
+            for bit in ltc_bits(each // 108000, each // 1800 % 60, each // 30 % 60, each % 30):
+                side = -side
+                if bit:
+                    code += [side * 12000] * 10
+                    side = -side
+                    code += [side * 12000] * 10
+                else:
+                    code += [side * 12000] * 20
+    with wave.open(path, "wb") as out:
+        out.setnchannels(2)
+        out.setsampwidth(2)
+        out.setframerate(48000)
+        out.writeframes(b"".join(struct.pack("<hh", int(6000 * math.sin(2 * math.pi * 440 * n / 48000)), sample) for n, sample in enumerate(code)))
+
+
+def play_when(sound, marker, logs, env, stop):
+    """Waits for a line with `marker` in it in a log of the app under `logs`, then plays `sound` into the private
+    desktop's Test source, which the app then hears as an input; until `stop` is set."""
+    while not stop.is_set():
+        found = False
+        for log in glob.glob(os.path.join(logs, "**", "*.log"), recursive=True):
+            with open(log, errors="replace") as lines:
+                found = found or marker in lines.read()
+        if found:
+            break
+        stop.wait(0.2)
+    if stop.is_set():
+        return
+    stop.wait(0.8)
+    # (Joined to the input by hand: a player is otherwise joined to where sound is played, which an input is not.)
+    player = subprocess.Popen(["pw-cat", "-p", "-P", "{ node.name = test-player node.autoconnect = false }", sound],
+                              env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    joined = 0
+    for _ in range(40):
+        joined = sum(subprocess.run(["pw-link", "test-player:output_" + side, "test-source:input_" + side], env=env,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0 for side in ("FL", "FR"))
+        if joined == 2 or stop.is_set():
+            break
+        time.sleep(0.05)
+    while player.poll() is None and not stop.is_set():
+        stop.wait(0.1)
+    if player.poll() is None:
+        player.terminate()
+    player.wait()
+
+
+def prepare_timecode(workspace, test_dir):
+    """The timecode's test: a media bin of one video, "Run" (ffmpeg's moving test picture, 640 by 360 at thirty frames
+    a second, forty seconds, a whole picture every 250 frames as files mostly have), made with ffmpeg in the test's
+    folder; the timecode it is to hear (write_timecode: a second and a half of silence, four seconds from 01:00:02;00,
+    three from 01:00:21;00, and silence); and the song the test ticks the Timecode box of, kept as it was given
+    (timecode-song-before). Nothing is written outside the test's folder, and nothing under the copy's Media."""
+    playlists = os.path.join(workspace, "Playlists")
+    if not os.path.realpath(playlists).startswith(os.path.realpath(test_dir) + os.sep):
+        raise RuntimeError("the timecode's test would write outside its own folder: " + os.path.realpath(playlists))
+    videos = os.path.join(test_dir, "videos")
+    os.makedirs(videos)
+    video = os.path.join(videos, "Run.mp4")
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30", "-t", "40",
+                    "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-y", video], check=True)
+    rows = VIDEO_ROW % {"id": "0F0F0F0F-0000-0000-0000-%012d" % 1, "name": "Run", "file": "Run.mp4", "seconds": 40,
+                        "address": "file://" + urllib.parse.quote(video), "loop": ""}
+    with open(os.path.join(playlists, "Media"), "wb") as out:
+        out.write(protoc("encode", "rv.data.PlaylistDocument", "propresenter.proto", (TRANSPORT_BIN % {"rows": rows}).encode()))
+    write_timecode(os.path.join(test_dir, "timecode.wav"), [1.5, ((1, 0, 2, 0), 120), ((1, 0, 21, 0), 90), 1.5], test_dir)
+    shutil.copy(os.path.join(workspace, "Libraries", "MainHall", "Build My Life.pro"), os.path.join(test_dir, "timecode-song-before"))
+
+
+def after_timecode(workspace, test_dir):
+    """What the song whose Timecode box the test ticked holds afterwards, set against the file as it was given: the
+    box and the timecode it starts at are in its timeline as ProPresenter keeps them, with the cues the test put on;
+    and nothing outside the timeline has changed."""
+    def decoded(path):
+        with open(path, "rb") as source:
+            return protoc("decode", "rv.data.Presentation", "propresenter.proto", source.read()).decode()
+
+    def without_timeline(text):
+        return re.sub(r"^timeline \{\n.*?^\}\n", "", text, flags=re.S | re.M)
+
+    before = decoded(os.path.join(test_dir, "timecode-song-before"))
+    after = decoded(os.path.join(workspace, "Libraries", "MainHall", "Build My Life.pro"))
+    kept = re.search(r"^timeline \{\n.*?^\}\n", after, re.S | re.M)
+    timeline = kept.group(0) if kept else ""
+    lines = [said("timecode_enable: true" in timeline, "the file's timeline has ProPresenter's timecode_enable", timeline[:120].replace("\n", " ")),
+             said("timecode_offset: 3600" in timeline, "and its timecode_offset, the start as seconds", "".join(re.findall(r"timecode_offset: \S+", timeline))),
+             said("duration: 20" in timeline and timeline.count("cues_v2 {") == 4, "with the length and the four cues the test gave it",
+                  "%d cues" % timeline.count("cues_v2 {")),
+             said(without_timeline(before) == without_timeline(after) and len(without_timeline(after)) > 1000,
+                  "nothing of the song outside its timeline has changed", "%d characters" % len(without_timeline(after)))]
+    return lines
+
+
 def prepare_transports(workspace, test_dir):
     """The transports' test (transports): its own media bin (TRANSPORT_BIN: three videos of three seconds, red going
     round, green and blue stopping, a long white one going round, and a still), made with ffmpeg in the test's folder;
@@ -3842,12 +3981,16 @@ def after_reflow(workspace, test_dir):
     ]
 
 
-def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1, record=None):
-    """`record`, for a test on the desktop: one of the private audio's sinks (tests/ui/audio), (its name, its channels,
+def test(workspace, drawn=SHELL, timeout=170, env=None, prepare=None, after=None, also=(), monitors=1, record=None, play=None):
+    """`play`, for a test on the desktop: (a sound file in the test's folder, which `prepare` makes; words to wait
+    for in the app's log): once the log has those words, the file is played into the private audio's input, "Test
+    source" (tests/ui/audio), for the app to hear as if it came down a cable (see play_when).
+
+    `record`, for a test on the desktop: one of the private audio's sinks (tests/ui/audio), (its name, its channels,
     their positions), whose sound is recorded all the while the app runs, into the test's folder as recording.raw
     (32-bit floating point, 48 kHz, the sink's channels side by side), for `after` to say what was heard on which."""
     return {"workspace": workspace, "drawn": drawn, "timeout": timeout, "env": env or {}, "prepare": prepare, "after": after, "also": also,
-            "monitors": monitors, "record": record}
+            "monitors": monitors, "record": record, "play": play}
 
 
 # ---- Bible mode: a made-up Bible, and a stand-in for api.bible
@@ -4076,6 +4219,7 @@ TESTS = {
     "playacts": test("Act", timeout=300, prepare=prepare_playacts, after=after_playacts),
     "macromedia": test("Act", timeout=240, prepare=prepare_macromedia, after=after_macromedia),
     "transports": test("Act", timeout=300, prepare=prepare_transports, after=after_transports),
+    "timecode": test("Act", timeout=300, prepare=prepare_timecode, after=after_timecode, play=("timecode.wav", "listening to channel 2 of Test source")),
     "markers": test("Act", timeout=360, prepare=prepare_markers, after=after_markers),
     "copyright": test("Act", timeout=300, prepare=prepare_copyright, after=after_copyright),
     "calendar": test("Act", timeout=300, prepare=prepare_calendar, after=after_calendar),
@@ -4306,6 +4450,15 @@ def run_on(name, binary, run_dir, desktop, cache):
                                       "--channel-map", positions, "--format", "f32", "--rate", "48000", "--raw", os.path.join(test_dir, "recording.raw")],
                                      env=dict(os.environ, **desktop.env()), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(0.5)
+    playing = None
+    if recipe["play"] and recipe["drawn"] == SHELL:
+        import threading
+
+        played = threading.Event()
+        playing = threading.Thread(target=play_when, daemon=True,
+                                   args=(os.path.join(test_dir, recipe["play"][0]), recipe["play"][1], os.path.join(test_dir, "docs"),
+                                         dict(os.environ, **desktop.env()), played))
+        playing.start()
     try:
         done = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=recipe["timeout"])
         output = done.stdout.decode(errors="replace")
@@ -4317,6 +4470,9 @@ def run_on(name, binary, run_dir, desktop, cache):
         if recording:
             recording.terminate()
             recording.wait()
+        if playing:
+            played.set()
+            playing.join(5)
     # (What a script says of a check is kept whatever words are in it: a check that says "timecode" is not ffmpeg's
     # chatter about one.)
     lines = [line for line in output.splitlines() if line.startswith(("  ok ", "  FAILED ", "  measure ")) or not NOISE.search(line)]

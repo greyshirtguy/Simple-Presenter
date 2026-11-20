@@ -58,6 +58,21 @@ AuxWindow {
     property alias row: scene.row
     readonly property var liveVideoSink: scene.liveVideoSink
     readonly property var livePlayer: scene.livePlayer
+    // The video on the media layer sent somewhere in itself by a timeline, and held
+    // (see MediaContent.chase); and what sends it, for the tests
+    function chaseMedia(seconds) {
+        scene.chaseMedia(seconds)
+    }
+
+    function holdMedia() {
+        scene.holdMedia()
+    }
+
+    function keepMedia(seconds) {
+        scene.keepMedia(seconds)
+    }
+
+    readonly property var liveChaser: scene.liveChaser
     readonly property var liveAnnouncementPlayer: scene.liveAnnouncementPlayer
     readonly property var heldSlide: scene.heldSlide
 

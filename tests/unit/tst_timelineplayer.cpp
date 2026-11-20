@@ -187,6 +187,134 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(moved.size() >= 2, 1000);
         player.pause();
     }
+
+    // Told where the timecode is: it plays from there, with what is in force there
+    // said as entered; a cue whose own time then comes is said as not
+    void followsFromWhereItIsTold()
+    {
+        TimelinePlayer player;
+        QSignalSpy due(&player, &TimelinePlayer::cueDue);
+        QSignalSpy following(&player, &TimelinePlayer::followingChanged);
+        player.load("a.pro", "a", "", timelineOf({cue(0, 0, "media", 30), cue(1, 1, "slide"), cue(2, 5.1, "slide")}, 10));
+        player.follow(5);
+        QVERIFY(player.playing());
+        QVERIFY(player.following());
+        QCOMPARE(following.size(), 1);
+        // (In the order of their times: the video, five seconds in, and the slide)
+        QCOMPARE(placesOf(due), (QList<int> {0, 1}));
+        QCOMPARE(due.at(0).at(1).toDouble(), 5.0);
+        QCOMPARE(due.at(0).at(2).toBool(), true);
+        QCOMPARE(due.at(1).at(2).toBool(), true);
+        QTRY_COMPARE_WITH_TIMEOUT(placesOf(due), (QList<int> {0, 1, 2}), 1000);
+        QCOMPARE(due.at(2).at(2).toBool(), false);
+        player.stop();
+        QVERIFY(!player.following());
+    }
+
+    // A little out from where the timecode says, it is put right and nothing is done
+    // again; far out, it goes there as a playhead put there
+    void isPutRightWithoutDoingAnythingAgain()
+    {
+        TimelinePlayer player;
+        QSignalSpy due(&player, &TimelinePlayer::cueDue);
+        QSignalSpy paused(&player, &TimelinePlayer::paused);
+        player.load("a.pro", "a", "", timelineOf({cue(0, 0, "media", 30), cue(1, 1, "slide"), cue(2, 6, "slide")}, 20));
+        player.follow(2);
+        QCOMPARE(placesOf(due), (QList<int> {0, 1}));
+        due.clear();
+        // Three hundredths of a second on from where it is, and then two back
+        player.follow(player.position() + 0.03);
+        QVERIFY(std::abs(player.position() - 2.03) < 0.02);
+        player.follow(player.position() - 0.02);
+        QVERIFY(std::abs(player.position() - 2.01) < 0.02);
+        QCOMPARE(due.size(), 0);
+        QCOMPARE(paused.size(), 0);
+        QVERIFY(player.playing());
+        // Put right to just past a cue, the cue is done at once, as its own time come
+        player.follow(player.position() + 0.04);
+        player.follow(player.position() + 0.04);
+        QVERIFY(player.position() < 6);
+        // The timecode gone somewhere else: there, with what is in force there
+        player.follow(7);
+        QCOMPARE(paused.size(), 1);
+        QCOMPARE(placesOf(due), (QList<int> {0, 2}));
+        QCOMPARE(due.at(0).at(1).toDouble(), 7.0);
+        QCOMPARE(due.at(1).at(2).toBool(), true);
+        QVERIFY(player.following());
+        QVERIFY(std::abs(player.position() - 7) < 0.02);
+        player.stop();
+    }
+
+    // A cue that being put right carries the timeline past is done, once
+    void aCuePassedByBeingPutRightIsDone()
+    {
+        TimelinePlayer player;
+        QSignalSpy due(&player, &TimelinePlayer::cueDue);
+        player.load("a.pro", "a", "", timelineOf({cue(0, 1.02, "slide")}, 20));
+        player.follow(1);
+        QCOMPARE(due.size(), 0);
+        player.follow(player.position() + 0.04);
+        QTRY_COMPARE_WITH_TIMEOUT(placesOf(due), (QList<int> {0}), 500);
+        QCOMPARE(due.at(0).at(2).toBool(), false);
+        // Put back before it, it is not done again
+        player.follow(player.position() - 0.04);
+        QTest::qWait(120);
+        QCOMPARE(due.size(), 1);
+        player.stop();
+    }
+
+    // The timecode stopped, or gone from this timeline: paused, and no longer following;
+    // and so by a pause by hand
+    void isLetGo()
+    {
+        TimelinePlayer player;
+        QSignalSpy paused(&player, &TimelinePlayer::paused);
+        player.load("a.pro", "a", "", timelineOf({cue(0, 0, "audio", 30)}, 20));
+        player.unfollow();
+        QCOMPARE(paused.size(), 0);
+        player.follow(3);
+        player.unfollow();
+        QVERIFY(!player.playing());
+        QVERIFY(!player.following());
+        QCOMPARE(paused.size(), 1);
+        QVERIFY(std::abs(player.position() - 3) < 0.02);
+        // Played by hand, it is not following; and unfollowed then, it plays on
+        player.play();
+        QVERIFY(!player.following());
+        player.unfollow();
+        QVERIFY(player.playing());
+        player.follow(player.position());
+        QVERIFY(player.following());
+        player.pause();
+        QVERIFY(!player.following());
+        // Given another presentation's timeline, it is not following that
+        player.follow(1);
+        player.load("b.pro", "b", "", timelineOf({}, 20));
+        QVERIFY(!player.following());
+        QVERIFY(!player.playing());
+    }
+
+    // Following, it does not go round at its end, and stays there; told of its end, it
+    // goes there and plays nothing
+    void doesNotGoRoundWhileItFollows()
+    {
+        TimelinePlayer player;
+        QSignalSpy due(&player, &TimelinePlayer::cueDue);
+        player.load("a.pro", "a", "", timelineOf({cue(0, 0, "slide")}, 1, true));
+        player.follow(0.9);
+        QCOMPARE(placesOf(due), (QList<int> {0}));
+        QTRY_VERIFY_WITH_TIMEOUT(!player.playing(), 1000);
+        QCOMPARE(player.position(), 1.0);
+        QCOMPARE(due.size(), 1);
+        player.follow(5);
+        QVERIFY(!player.playing());
+        QCOMPARE(player.position(), 1.0);
+        // Nothing is given a timecode that has no timeline
+        TimelinePlayer none;
+        none.follow(3);
+        QVERIFY(!none.playing());
+        QVERIFY(!none.following());
+    }
 };
 
 QTEST_GUILESS_MAIN(TimelinePlayerTest)

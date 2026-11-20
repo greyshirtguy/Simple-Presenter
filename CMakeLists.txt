@@ -123,6 +123,10 @@ qt_add_executable(SimplePresenter
     src/prodocument.h
     src/timeline.cpp
     src/timeline.h
+    src/timecode.cpp
+    src/timecode.h
+    src/ltc.cpp
+    src/ltc.h
     src/richtext.cpp
     src/richtext.h
     src/rtf.cpp
@@ -281,6 +285,7 @@ qt_add_qml_module(SimplePresenter
         qml/TimeField.qml
         qml/TimelineCueBlock.qml
         qml/TimelinePanel.qml
+        qml/TimecodeWindow.qml
         qml/TimersPanel.qml
         qml/Toolbar.qml
         qml/ToolbarIcon.qml
@@ -321,6 +326,8 @@ qt_add_qml_module(SimplePresenter
         src/decodingguard.cpp
         src/firstframe.h
         src/firstframe.cpp
+        src/mediachase.h
+        src/mediachase.cpp
         src/frameclock.h
         src/frameclock.cpp
         src/framedelay.h
@@ -371,6 +378,8 @@ qt_add_qml_module(SimplePresenter
         src/show.cpp
         src/timelineplayer.h
         src/timelineplayer.cpp
+        src/timecodeinput.h
+        src/timecodeinput.cpp
         src/search.h
         src/search.cpp
         src/searchindex.h

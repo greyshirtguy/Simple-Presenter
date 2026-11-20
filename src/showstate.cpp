@@ -1273,12 +1273,27 @@ Effects State::runMacro(const QString &id, const Workspace &workspace)
     return effects;
 }
 
-Effects State::runTimelineAction(const QVariantMap &action, double offset, const QString &name, const Workspace &workspace)
+Effects State::runTimelineAction(const QVariantMap &action, double offset, const QString &name, bool entered, const Workspace &workspace)
 {
     Effects effects;
     QVariantMap given = action;
     const QString kind = action.value("kind").toString();
     const QString part = kind == QLatin1String("audio") ? QStringLiteral("audio") : kind == QLatin1String("media") ? QStringLiteral("media") : QString();
+    if (entered && kind == QLatin1String("media")) {
+        // The video on the media layer already, shown as this would show it: sent to
+        // where the timeline is in it (see the header)
+        const QVariantMap asked = action.value("media").toMap();
+        if (hasMedia && asked.value("video").toBool() && media.value("video").toBool() && !asked.value("path").toString().isEmpty()
+            && asked.value("path") == media.value("path")
+            && lookOf(asked.value("settings").toMap()) == lookOf(media.value("settings").toMap())) {
+            effects << note("timeline", QStringLiteral("the cue %1 is in force: its video is playing, and is sent to %2 s in").arg(quoted(name)).arg(offset, 0, 'f', 2));
+            Effect sent;
+            sent.kind = Effect::MediaSeek;
+            sent.seconds = offset;
+            effects << sent;
+            return effects;
+        }
+    }
     if (offset > 0 && !part.isEmpty()) {
         QVariantMap played = given.value(part).toMap();
         played.insert("startAt", offset);

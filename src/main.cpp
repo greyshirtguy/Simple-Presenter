@@ -90,7 +90,11 @@
 //   A presentation may have a timeline (ProPresenter's: src/timeline.h): its slides,
 //   media, audio and actions at set times. What plays one (src/timelineplayer.h) only
 //   keeps the time and says when a cue is due; Main.qml then takes the slide live, or
-//   runs the action, through Show, as any click would.
+//   runs the action, through Show, as any click would. A timeline can follow timecode
+//   (ProPresenter's: src/timecode.h has its rules, src/ltc.h reads it out of sound,
+//   src/timecodeinput.h listens for it): Main.qml's "The timecode" then tells the
+//   player where the timecode is, and a video that is playing is sent to where its
+//   timeline has gone (src/mediachase.h).
 //
 // What is heard.
 //

@@ -56,6 +56,13 @@ These are not ProPresenter's.
   a moment (150 ms), so that a click made while the hand is still moving the pointer
   stays a click, and puts nothing anywhere. A slide can be carried only while the
   timeline is open. (The editors' own handles keep the few pixels they had.)
+- **Timecode to try things with.** ProPresenter's timecode comes down a cable from a
+  playback rig. The Timecode window (the small clock under a presentation's timeline,
+  beside its Timecode box, which is how the window is opened here) has, first among its
+  input devices, **Made here (to try it)**: a timecode of the app's own that is played,
+  stopped and sent anywhere from that window, so that a timeline, and a video on one,
+  can be seen following timecode with nothing plugged in. Under the window's settings a
+  line says how loud the signal is and how many frames a second it is going at.
 - **How solid the icons on the slides are** is a setting (Settings → Slides), from
   nearly gone to solid.
 - **When the slides follow the live one** is a setting there too: **Early**, where a
@@ -105,7 +112,7 @@ These are not ProPresenter's.
 ## What it does not do
 
 ProPresenter does a great deal that this does not. Among it: capture and
-recording; video in from a DeckLink card or over NDI; timecode; reordering slides in
+recording; video in from a DeckLink card or over NDI; reordering slides in
 the editor; lists in text, and a text built a part at a time; importing PowerPoint; and
 much else. The
 [list of what is not there yet](https://github.com/greyshirtguy/Simple-Presenter/blob/main/docs/todo.md)

@@ -355,6 +355,39 @@ private slots:
         QVERIFY(presentation.timeline().loop());
         QVERIFY(!timeline::setLoop(&presentation, true));
     }
+
+    // ProPresenter's Timecode box and the timecode beside it: kept as the file has
+    // them, and nothing made for a presentation told what it already has
+    void setsWhetherItFollowsTimecode()
+    {
+        Presentation presentation = sample();
+        QVERIFY(!timeline::setTimecode(&presentation, false, 0));
+        QVERIFY(!presentation.has_timeline());
+        QVERIFY(timeline::setTimecode(&presentation, true, 3600.4));
+        QVERIFY(presentation.timeline().timecode_enable());
+        QCOMPARE(presentation.timeline().timecode_offset(), 3600.4);
+        // (Given a timeline for it, it has the length ProPresenter gives every one.)
+        QCOMPARE(presentation.timeline().duration(), 300.0);
+        QVERIFY(!timeline::setTimecode(&presentation, true, 3600.4));
+        // The start is kept while the box is not ticked, as ProPresenter keeps it shown
+        QVERIFY(timeline::setTimecode(&presentation, false, 3600.4));
+        QVERIFY(!presentation.timeline().timecode_enable());
+        QCOMPARE(presentation.timeline().timecode_offset(), 3600.4);
+        // Within a day
+        QVERIFY(timeline::setTimecode(&presentation, true, -5));
+        QCOMPARE(presentation.timeline().timecode_offset(), 0.0);
+        // What it says is what the window is given
+        const QVariantMap described = timeline::describe(presentation, [](const rv::data::Action &) { return QVariantMap(); });
+        QCOMPARE(described.value("timecode").toBool(), true);
+        QCOMPARE(described.value("timecodeOffset").toDouble(), 0.0);
+        // The cues there were are as they were
+        Presentation with = sample();
+        QVERIFY(timeline::addSlide(&with, 4, QStringLiteral("B")));
+        const std::string before = with.timeline().cues_v2(0).SerializeAsString();
+        QVERIFY(timeline::setTimecode(&with, true, 60));
+        QCOMPARE(with.timeline().cues_v2_size(), 1);
+        QCOMPARE(with.timeline().cues_v2(0).SerializeAsString(), before);
+    }
 };
 
 QTEST_GUILESS_MAIN(TimelineTest)

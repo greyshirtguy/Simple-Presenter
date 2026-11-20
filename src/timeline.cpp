@@ -289,4 +289,15 @@ bool setLoop(rv::data::Presentation *presentation, bool loop)
     return true;
 }
 
+bool setTimecode(rv::data::Presentation *presentation, bool follows, double start)
+{
+    start = qBound(0.0, start, 24 * 3600.0);
+    if (presentation->timeline().timecode_enable() == follows && presentation->timeline().timecode_offset() == start)
+        return false;
+    Timeline *timeline = changedTimeline(presentation);
+    timeline->set_timecode_enable(follows);
+    timeline->set_timecode_offset(start);
+    return true;
+}
+
 } // namespace timeline

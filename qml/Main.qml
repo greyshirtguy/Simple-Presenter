@@ -4991,8 +4991,9 @@ Window {
 
         objectName: "presentationTimeline"
         watched: win.timelineShown && win.timelineHere === presentationTimeline && win.timelineMine
-        onCueDue: (cue, offset) => win.timelineCueDue(presentationTimeline, cue, offset)
+        onCueDue: (cue, offset, entered) => win.timelineCueDue(presentationTimeline, cue, offset, entered)
         onPaused: win.timelinePaused(presentationTimeline)
+        onFollowingChanged: win.timelineFollowingChanged(presentationTimeline)
         onRecordingChanged: if (!recording) win.writeRecorded(presentationTimeline)
     }
 
@@ -5001,8 +5002,9 @@ Window {
 
         objectName: "announcementTimeline"
         watched: win.timelineShown && win.timelineHere === announcementTimeline && win.timelineMine
-        onCueDue: (cue, offset) => win.timelineCueDue(announcementTimeline, cue, offset)
+        onCueDue: (cue, offset, entered) => win.timelineCueDue(announcementTimeline, cue, offset, entered)
         onPaused: win.timelinePaused(announcementTimeline)
+        onFollowingChanged: win.timelineFollowingChanged(announcementTimeline)
         onRecordingChanged: if (!recording) win.writeRecorded(announcementTimeline)
     }
 
@@ -5133,9 +5135,14 @@ Window {
 
     // A timeline's cue is due (see TimelinePlayer): a slide goes live, where the
     // arrangement being shown has it (timeline::slidePlace); anything else is run.
-    function timelineCueDue(player, cue, offset) {
+    // `entered` is for a cue that is in force where the timeline has been started or put,
+    // its own time not having come: then a slide that is the one live already is left as
+    // it is (a timeline put somewhere else within one slide's time, as timecode that jumps
+    // a little does, is not that slide triggered again), and a video that is playing
+    // already is sent to where the timeline is in it (show::State::runTimelineAction).
+    function timelineCueDue(player, cue, offset, entered) {
         if (cue.track !== "slide") {
-            Show.runTimelineAction(cue.action, offset, cue.name)
+            Show.runTimelineAction(cue.action, offset, cue.name, entered === true)
             return
         }
         const presentation = timelineDocumentOf(player)
@@ -5144,8 +5151,11 @@ Window {
         const announcements = player === announcementTimeline
         const atIt = announcements ? Show.announcementKey === player.key && Show.announcementPlaylistId === player.playlistId
                                    : Show.liveKey === player.key && Show.livePlaylistId === player.playlistId
-        const place = player.slidePlace(presentation.slides.map(slide => slide.id), cue.slideId,
-                                        atIt ? (announcements ? Show.announcementIndex : Show.liveIndex) : -1)
+        const at = atIt ? (announcements ? Show.announcementIndex : Show.liveIndex) : -1
+        const ids = presentation.slides.map(slide => slide.id)
+        if (entered === true && at >= 0 && ids[at] === cue.slideId && !(announcements ? Show.announcementCleared : Show.cleared))
+            return
+        const place = player.slidePlace(ids, cue.slideId, at)
         if (place < 0) {
             Log.note("timeline", "the cue " + quoted(cue.name) + " is of a slide the arrangement shown has not, and nothing was triggered")
             return
@@ -5187,6 +5197,199 @@ Window {
             if (player.path === reloaded.path && player.holds(documentKey, viewedPlaylistId))
                 loadTimeline(player, reloaded, documentKey, viewedPlaylistId)
         }
+    }
+
+    // ---- The timecode (ProPresenter's Timecode: src/timecode.h has what its help says of
+    // it and what is guessed; Timecode, src/timecodeinput.h, is what listens for it).
+    //
+    // A playlist is chosen in the Timecode window (TimecodeWindow.qml), and then each of
+    // its presentations whose timeline has its Timecode box ticked is the timecode's to
+    // play: while the timecode is within that timeline (from the timecode beside the box,
+    // for the timeline's length), the timeline is where the timecode says it is. So when
+    // the timecode starts, or jumps, the timeline it is now in is given to its player (the
+    // presentation read, if the player has not got it) and told where it is
+    // (TimelinePlayer.follow), which does what is in force there: its slide goes live,
+    // its audio starts where the timeline is in it, and its video is started there, or,
+    // if it is the one playing already, is sent there (MediaChase). Twice a second while
+    // the timecode runs the timeline is told again, to be kept to it, and its video is
+    // looked at, to be sent again if it has come away. When the timecode stops, the
+    // timeline is paused: its audio stops, and its video is held where it is, to go on
+    // from there if the timecode starts again from there. When the timecode goes out of
+    // the timeline while it runs (into another's, or into none), or is no longer listened
+    // for, the timeline is paused as one paused by hand is: its audio stops, and its video
+    // plays on. Nothing is done here between those: a frame of timecode that follows the
+    // last one says nothing.
+    //
+    // A GUESS at ProPresenter, each of these, its help saying only that the playlist's
+    // slides are triggered by the timecode and that the playhead is controlled by it:
+    //   - that a timeline is the timecode's only while its presentation is in the
+    //     playlist chosen;
+    //   - that what is done by hand while a timeline follows is left alone until the
+    //     timecode next starts or jumps: another presentation's slide taken live, or a
+    //     clear, stops the timeline (as it does one played by hand), and it is not
+    //     started again by the timecode going on as it was;
+    //   - that the operator's own view is left where it is: the presentation the timecode
+    //     is in is not opened over what is being looked at.
+    property bool timecodeOpen: false
+    property bool timecodeMade: false
+    // The presentations of the playlist chosen, each with what its timeline says of
+    // timecode (catalog.timecodeRows, which reads each file), read when there is a use for
+    // them: while timecode is listened for, or its window is open; and those that follow it
+    property var timecodeRows: []
+    readonly property var timecodeFollowing: timecodeRows.filter(row => row.follows)
+    readonly property string timecodeWanted: Timecode.playlist !== "" && (Timecode.engaged || timecodeOpen) ? Timecode.playlist : ""
+    // The row whose timeline was following and was stopped by something other than the
+    // timecode (see above): not started again until the timecode next starts or jumps
+    property string timecodeDropped: ""
+    property bool timecodeLetting: false
+
+    onTimecodeWantedChanged: readTimecodeRows()
+
+    function toggleTimecode() {
+        if (!timecodeMade) {
+            // (Made from its file by the file's name, the first time it is wanted, and not
+            // named here as a kind of thing: named here, its file and all it is made of
+            // would be read as this file is, at every start, for a window that most
+            // starts never open. Not that the benchmark could tell the two apart: six
+            // rounds of each, 2026-11-19, started in the same time and held the same
+            // memory. It is done so because it is no more to write.)
+            timecodeLoader.setSource("TimecodeWindow.qml", { owner: win, objectName: "timecodeWindow" })
+            timecodeMade = true
+        }
+        timecodeOpen = !timecodeOpen
+        Log.note("timecode", timecodeOpen ? "the Timecode window opened" : "the Timecode window closed")
+    }
+
+    function readTimecodeRows() {
+        timecodeRows = timecodeWanted !== "" ? catalog.timecodeRows(timecodeWanted) : []
+        // (The timecode may be in another timeline now, or in none.)
+        if (Timecode.running)
+            followTimecode("jumped")
+    }
+
+    // The files changed (a playlist's rows, a presentation's timeline): the rows are read
+    // again, a moment after the last of the changes
+    Timer {
+        id: timecodeRowsLater
+
+        interval: 400
+        onTriggered: win.readTimecodeRows()
+    }
+
+    Connections {
+        target: catalog
+        enabled: win.timecodeWanted !== ""
+
+        function onChanged() {
+            timecodeRowsLater.restart()
+        }
+    }
+
+    Connections {
+        target: Timecode
+
+        function onMoved(how) {
+            win.followTimecode(how)
+        }
+    }
+
+    // The cue of a timeline's media track that the playhead is in, if its video is the
+    // one on the media layer; else null. (Of several, the one that started last.)
+    function timelineVideoAt(player) {
+        const live = Show.liveMedia
+        if (!live || !live.video)
+            return null
+        const at = player.position
+        let found = null
+        for (const cue of player.timeline.cues ?? []) {
+            if (cue.track === "media" && cue.time <= at && (cue.length <= 0 || at < cue.time + cue.length)
+                    && cue.action?.media?.path === live.path && (found === null || cue.time >= found.time))
+                found = cue
+        }
+        return found
+    }
+
+    // A timeline the timecode had is let go of: paused, and its video held where it is
+    // if the timecode has stopped (`held`)
+    function letTimecodeGo(player, why, held) {
+        Log.note("timecode", "the timeline of " + quoted(timelineDocumentOf(player)?.name ?? player.path) + " paused: " + why)
+        if (held === true && output && timelineVideoAt(player) !== null)
+            output.holdMedia()
+        timecodeLetting = true
+        player.unfollow()
+        timecodeLetting = false
+    }
+
+    // The timecode has "started", "jumped" or "stopped", is "kept" (twice a second while
+    // it runs), or is "left" (no longer listened for): see above.
+    function followTimecode(how) {
+        const players = [presentationTimeline, announcementTimeline]
+        if (how === "left" || how === "stopped") {
+            for (const player of players) {
+                if (player.following)
+                    letTimecodeGo(player, how === "stopped" ? "the timecode has stopped" : "timecode is no longer listened for", how === "stopped")
+            }
+            return
+        }
+        if (how !== "kept")
+            timecodeDropped = ""
+        const row = timecodeFollowing.length > 0 ? Timecode.under(timecodeFollowing) : ({})
+        const has = row.key !== undefined
+        for (const player of players) {
+            if (player.following && !(has && player.holds(row.key, Timecode.playlist)))
+                letTimecodeGo(player, "the timecode has gone out of it")
+        }
+        if (!has || row.key === timecodeDropped)
+            return
+        let player = players.find(candidate => candidate.holds(row.key, Timecode.playlist))
+        if (!player) {
+            const read = catalog.openArranged(row.file, row.arrangement)
+            if (!read || read.error !== "") {
+                Log.problem("Timecode is in the timeline of " + quoted(row.name) + ", which could not be read" + (read ? ": " + read.error : ""))
+                timecodeDropped = row.key
+                return
+            }
+            player = timelinePlayerOf(read)
+            if (player.following)
+                letTimecodeGo(player, "the timecode is in another presentation's")
+            loadTimeline(player, read, row.key, Timecode.playlist)
+        }
+        if (!player.following)
+            Log.note("timecode", "the timeline of " + quoted(row.name) + " follows the timecode, from " + row.position.toFixed(2) + " s in")
+        player.follow(row.position)
+        // (Its video, looked at now and then: sent again only if it has come away.)
+        if (how === "kept" && output) {
+            const video = timelineVideoAt(player)
+            if (video !== null)
+                output.keepMedia(player.position - video.time)
+        }
+    }
+
+    // A timeline that was following is no longer, and not by the timecode: by a slide of
+    // another presentation taken live, a clear, a pause by hand. It is left so until the
+    // timecode next starts or jumps.
+    function timelineFollowingChanged(player) {
+        if (!player.following && !timecodeLetting && player.key !== "") {
+            timecodeDropped = player.key
+            Log.note("timecode", "the timeline of " + quoted(timelineDocumentOf(player)?.name ?? player.path)
+                     + " was stopped by something else, and is left until the timecode next starts or jumps")
+        }
+    }
+
+    // ProPresenter's Timecode box of a timeline, and the timecode beside it
+    function setTimelineTimecode(follows, start) {
+        if (!document || !report(catalog.setTimelineTimecode(document.path, follows, start)))
+            return
+        Log.note("edit", "the timeline of " + quoted(document.name) + (follows ? " follows timecode, from " + Timecode.faceText(start)
+                                                                               : " does not follow timecode"))
+        afterTimelineChange(document.path)
+        if (timecodeWanted !== "")
+            readTimecodeRows()
+    }
+
+    // The Timecode window, once it has been made (see toggleTimecode)
+    Loader {
+        id: timecodeLoader
     }
 
     function setTimelineLoop(on) {
@@ -5580,6 +5783,8 @@ Window {
         AudioMixer.remember = remember
         Devices.remember = remember
         VideoInputs.remember = remember
+        Timecode.remember = remember
+        Timecode.workspace = path
         Search.read(catalog.librariesDirectory)
         for (const error of [Timers.open(path, clocksHeld), Props.open(path), StageLayouts.open(path), GroupKeys.open(path),
                              Macros.open(path), Screens.open(path), Looks.open(path), Labels.open(path), ClearGroups.open(path),
@@ -6723,6 +6928,13 @@ Window {
         // A slide's or a macro's action for a communication device
         function onCommunicate(action) {
             Devices.send(action)
+        }
+
+        // A timeline put somewhere in the video that is playing: the video goes there
+        // (show::Effect::MediaSeek; MediaChase), in the scene that plays it
+        function onMediaSought(seconds) {
+            if (win.output)
+                win.output.chaseMedia(seconds)
         }
 
         // A clear group's Stop Timeline, or everything cleared

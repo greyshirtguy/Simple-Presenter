@@ -1946,6 +1946,8 @@ Rectangle {
                         : kind === "marker" ? (inspector.element.linkMarkerTime ? "Time to Marker" : "Marker Name")
                         : kind === "copyright" ? "Copyright"
                         : kind === "stageMessage" ? "Stage Message"
+                        : kind === "timecode" ? "Timecode"
+                        : kind === "timecodeStatus" ? "Timecode Status"
                         : "Its Own Text"
 
                     // The rows of the menu the button opens
@@ -2027,7 +2029,12 @@ Rectangle {
                                 if (linkLine.kind !== "stageMessage")
                                     Object.assign(changes, { linkFlash: true, linkFlashColor: "#ff2d21" })
                                 inspector.setProperties(changes, false)
-                            } }
+                            } },
+                            // The timecode coming in, and whether it is playing (see Timecode): ProPresenter's
+                            // Timecode and Timecode Status. (Where they stand in its menu is A GUESS.)
+                            { label: "Timecode", current: linkLine.kind === "timecode", run: () => inspector.setProperties({ linkKind: "timecode" }, false) },
+                            { label: "Timecode Status", current: linkLine.kind === "timecodeStatus",
+                              run: () => inspector.setProperties({ linkKind: "timecodeStatus" }, false) }
                         ]
                     }
 

@@ -14,10 +14,15 @@ import SimplePresenterApp
 //     on the first of a run of it and each cue's name under that; the media, and the
 //     audio, as bars as long as each piece is, named; and the actions, a block each;
 //   - under them, Rewind, Play (Pause while it plays), Record and Loop at the left, and
-//     at the right the Duration, typed, and a slider that spreads the time out or
-//     draws it in.
-// ProPresenter has its Timecode beside the Duration, which is to come (the maintainer,
-// 2026-11-14): it is not here until it does something.
+//     at the right its Timecode box, ticked for a timeline that follows timecode, with
+//     the timecode it starts at beside it, written as ProPresenter's picture has it
+//     (00:00:00;00) and typed over to change it; the Duration, typed; and a slider that
+//     spreads the time out or draws it in.
+// What following timecode is, is src/timecode.h's and Main's "The timecode". Beside the
+// timecode it starts at there is a button of this app's own, a clock, which opens the
+// Timecode window, where timecode is listened for and its playlist chosen (ProPresenter
+// opens its own from its View menu, and this app has no menus along the top); and while
+// the timecode has the timeline, "following timecode" is said beside the time.
 //
 // What is done with it, as ProPresenter's help has it where it says, and as this app
 // chooses where it does not (A GUESS each, said where they are done):
@@ -710,12 +715,118 @@ Item {
                 font.pixelSize: 11
                 text: visible ? area.player.recordedCount + " recorded, saved when Record is turned off" : ""
             }
+
+            // While the timecode has it (this app's own)
+            Text {
+                objectName: "timelineFollowing"
+                anchors.verticalCenter: parent.verticalCenter
+                leftPadding: 6
+                visible: area.mine && area.player.following
+                color: "#7fbaff"
+                font.pixelSize: 11
+                text: "following timecode"
+            }
         }
 
         Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
+
+            // ProPresenter's Timecode: the box, and the timecode the timeline starts at
+            AppCheck {
+                objectName: "timelineTimecode"
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Timecode"
+                checked: area.timeline.timecode === true
+                onToggled: (checked) => area.win.setTimelineTimecode(checked, Number(area.timeline.timecodeOffset ?? 0))
+            }
+
+            AppTextField {
+                id: startField
+
+                objectName: "timelineTimecodeStart"
+                // (As the format has it, which is what says how many frames a second has)
+                readonly property string shown: Timecode.format >= 0 ? Timecode.faceText(Number(area.timeline.timecodeOffset ?? 0)) : ""
+
+                width: 100
+                height: 24
+                leftPadding: 6
+                rightPadding: 6
+                font.pixelSize: 12
+                font.family: "monospace"
+                text: shown
+                onShownChanged: text = shown
+                // Enter, or the box left: what is typed is the start, if it is a timecode;
+                // if it is not, that is said, and the box says what the start is again
+                onEditingFinished: {
+                    if (text === shown)
+                        return
+                    const seconds = Timecode.typed(text)
+                    if (seconds < 0) {
+                        area.win.report("“" + text + "” is not a timecode: hours, minutes, seconds and frames, as 01:00:00;00")
+                        text = shown
+                        return
+                    }
+                    area.win.setTimelineTimecode(area.timeline.timecode === true, seconds)
+                    text = Qt.binding(() => shown)
+                }
+                onAccepted: area.win.takeFocus()
+                Keys.onEscapePressed: {
+                    text = shown
+                    area.win.takeFocus()
+                }
+            }
+
+            // The Timecode window (this app's own way to it): a clock, lit while the window
+            // is open, and green at its middle while timecode is running
+            Rectangle {
+                objectName: "timecodeWindowButton"
+                width: 30
+                height: 24
+                radius: 5
+                color: area.win.timecodeOpen ? "#4da3ff" : windowMouse.pressed ? "#50535a" : windowMouse.containsMouse ? "#45484e" : "#3a3c42"
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 14
+                    height: 14
+                    radius: 7
+                    color: "transparent"
+                    border.width: 1.5
+                    border.color: area.win.timecodeOpen ? "black" : "#e6e6e6"
+
+                    // The hands, at three o'clock
+                    Rectangle {
+                        x: 6.25
+                        y: 3
+                        width: 1.5
+                        height: 4.5
+                        color: parent.border.color
+                    }
+
+                    Rectangle {
+                        x: 6.25
+                        y: 6.25
+                        width: 4
+                        height: 1.5
+                        color: Timecode.running ? "#5ab53b" : parent.border.color
+                    }
+                }
+
+                MouseArea {
+                    id: windowMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: area.win.toggleTimecode()
+                }
+            }
+
+            Item {
+                width: 10
+                height: 1
+            }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter

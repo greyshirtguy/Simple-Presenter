@@ -139,6 +139,14 @@ Item {
             // What the stage is being told, which is nothing until it is told
             // something (see Show).
             return Show.stageMessage
+        case "timecode":
+            // The timecode coming in, as it is said. Reading the revision is what has
+            // this asked again as it goes on, and asking is what keeps it told (see
+            // Timecode): thirty times a second while it runs and a box shows it.
+            return Timecode.revision >= 0 ? Timecode.text() : ""
+        case "timecodeStatus":
+            // ProPresenter's word for how it is: Playing, Stopped, or Not Engaged
+            return Timecode.status
         case "message":
             // The words of a message of the messages' layer, as they are at the
             // moment: they are worked out elsewhere, once for every screen, and
@@ -603,7 +611,7 @@ Item {
         // the clock, a video's countdown, a marker's time and a message, which may have a
         // timer in it, change by the second or faster, and are drawn as they change.)
         ticking: element.source.linkKind !== "slideText" && element.source.linkKind !== "copyright"
-                 && element.source.linkKind !== "stageMessage"
+                 && element.source.linkKind !== "stageMessage" && element.source.linkKind !== "timecodeStatus"
         lineFill: element.source.fillEnabled && element.source.fillLinesOnly ? element.source.fillColor : "transparent"
         lineFillStyle: element.source.lineMaskStyle
         lineFillWidthOffset: element.source.lineMaskWidthOffset

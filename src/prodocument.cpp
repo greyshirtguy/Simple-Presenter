@@ -901,6 +901,25 @@ QString ProDocument::setTimelineLoop(const QString &path, bool loop)
     });
 }
 
+QVariantMap ProDocument::timelineTimecode(const QString &path)
+{
+    rv::data::Presentation presentation;
+    QString error;
+    if (!proconvert::readPresentation(path, &presentation, &error))
+        return {};
+    const rv::data::Presentation::Timeline &kept = presentation.timeline();
+    return {{"follows", kept.timecode_enable()}, {"start", kept.timecode_offset()},
+            {"duration", kept.duration() > 0 ? kept.duration() : timeline::kUsualDuration}};
+}
+
+QString ProDocument::setTimelineTimecode(const QString &path, bool follows, double start)
+{
+    return changeTimeline(path, [&](rv::data::Presentation *presentation, bool *changed) {
+        *changed = timeline::setTimecode(presentation, follows, start);
+        return QString();
+    });
+}
+
 QString ProDocument::changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action)
 {
     return changeCue(path, cueId, [&](rv::data::Cue *cue) {

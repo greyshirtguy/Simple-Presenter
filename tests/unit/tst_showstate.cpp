@@ -274,7 +274,7 @@ QString outside(const Effects &effects)
     static const char *names[] = {"slide", "slideovermedia", "slidewithmedia", "noslide", "media", "nomedia",
                                   "announcement", "announcementovermedia", "announcementwithmedia", "noannouncements",
                                   "advance", "noadvance", "audio", "nomusic", "nosounds", "timer", "look", "message", "messagetime", "note", "problem", "build", "communicate",
-                                  "videoinput", "novideoinput", "notimeline"};
+                                  "videoinput", "novideoinput", "notimeline", "mediaseek"};
     QStringList said;
     for (const Effect &effect : effects) {
         if (effect.kind != Effect::Note)
@@ -2500,19 +2500,59 @@ private slots:
     void aTimelinesActionIsRunAndStartsWhereTheTimelineIs()
     {
         State show;
-        Effects effects = show.runTimelineAction(audioAction(tune("Track")), 12.5, "Track.mp3", workspace());
+        Effects effects = show.runTimelineAction(audioAction(tune("Track")), 12.5, "Track.mp3", false, workspace());
         QCOMPARE(outside(effects), "audio");
         QCOMPARE(show.music.value("startAt").toDouble(), 12.5);
         QVERIFY(noted(effects, "the cue \"Track.mp3\" is due, 12.50 s in"));
         const QVariantMap mediaAction {{"kind", "media"}, {"title", "Show the video"}, {"done", true}, {"media", video("waves.mp4")}};
-        effects = show.runTimelineAction(mediaAction, 3, "waves.mp4", workspace());
+        effects = show.runTimelineAction(mediaAction, 3, "waves.mp4", false, workspace());
         QCOMPARE(outside(effects), "media");
         QCOMPARE(show.media.value("startAt").toDouble(), 3.0);
         // From its start: nothing said of where
-        effects = show.runTimelineAction(audioAction(tune("Other")), 0, "Other.mp3", workspace());
+        effects = show.runTimelineAction(audioAction(tune("Other")), 0, "Other.mp3", false, workspace());
         QVERIFY(!show.music.contains("startAt"));
-        // A background playing already is left to play, part way or not
-        QCOMPARE(outside(show.runTimelineAction(mediaAction, 9, "waves.mp4", workspace())), "");
+        // A background playing already is left to play, when its cue's own time comes
+        QCOMPARE(outside(show.runTimelineAction(mediaAction, 9, "waves.mp4", false, workspace())), "");
+    }
+
+    // A timeline put somewhere (its playhead moved, or the timecode it follows gone
+    // somewhere else): a video that is on the media layer already is sent to where the
+    // timeline is in it, and is the same playing; another is started there
+    void aTimelinePutSomewhereSendsItsVideoThere()
+    {
+        State show;
+        const QVariantMap mediaAction {{"kind", "media"}, {"title", "Show the video"}, {"done", true}, {"media", video("waves.mp4")}};
+        // Nothing on the layer: started, part way
+        Effects effects = show.runTimelineAction(mediaAction, 3, "waves.mp4", true, workspace());
+        QCOMPARE(outside(effects), "media");
+        QCOMPARE(show.media.value("startAt").toDouble(), 3.0);
+        const QVariantMap playing = show.media;
+        // On it already: sent, and what is playing is as it was
+        effects = show.runTimelineAction(mediaAction, 42.5, "waves.mp4", true, workspace());
+        QCOMPARE(outside(effects), "mediaseek");
+        QCOMPARE(effects.last().seconds, 42.5);
+        QVERIFY(noted(effects, "its video is playing, and is sent to 42.50 s in"));
+        QCOMPARE(show.media, playing);
+        // To its start, too
+        effects = show.runTimelineAction(mediaAction, 0, "waves.mp4", true, workspace());
+        QCOMPARE(outside(effects), "mediaseek");
+        QCOMPARE(effects.last().seconds, 0.0);
+        // A video that plays once, in the foreground, the same: it is not started again
+        const QVariantMap once {{"kind", "media"}, {"title", "Show the film"}, {"done", true}, {"media", video("film.mp4", true, 0)}};
+        QCOMPARE(outside(show.runTimelineAction(once, 0, "film.mp4", true, workspace())), "media");
+        QCOMPARE(outside(show.runTimelineAction(once, 7, "film.mp4", true, workspace())), "mediaseek");
+        // Its own time come, it is started as ever
+        QCOMPARE(outside(show.runTimelineAction(once, 0, "film.mp4", false, workspace())), "media");
+        // A picture has nowhere to be sent, and another video is started
+        const QVariantMap still {{"kind", "media"}, {"title", "Show the picture"}, {"done", true}, {"media", picture("hills.jpg")}};
+        QCOMPARE(outside(show.runTimelineAction(still, 0, "hills.jpg", true, workspace())), "media");
+        QCOMPARE(outside(show.runTimelineAction(still, 5, "hills.jpg", true, workspace())), "");
+        QCOMPARE(outside(show.runTimelineAction(mediaAction, 5, "waves.mp4", true, workspace())), "media");
+        // The media cleared: started again
+        show.clearMedia();
+        QCOMPARE(outside(show.runTimelineAction(mediaAction, 5, "waves.mp4", true, workspace())), "media");
+        // Audio is as it was
+        QCOMPARE(outside(show.runTimelineAction(audioAction(tune("Track")), 12.5, "Track.mp3", true, workspace())), "audio");
     }
 
     // Paused, a timeline stops the music it started, and only that

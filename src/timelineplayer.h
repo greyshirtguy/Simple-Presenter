@@ -26,8 +26,18 @@
 // of its time, however long the gap before it. (The timeline's time is its own: a
 // piece of audio it starts is started where the timeline is in it, and plays on by
 // the audio's own clock, which a few minutes of a song do not set apart from this one
-// by any amount to hear. Following timecode, which ProPresenter can, is to come: the
-// maintainer, 2026-11-14. Then this is set to where the timecode says, by seek().)
+// by any amount to hear.)
+//
+// Following timecode (ProPresenter's Timecode: timecode.h, and Main's "The timecode").
+// The timecode is another clock, and not this computer's; what follows it here is still
+// this clock, put right as often as it is told where the timecode is (`follow`): told
+// of somewhere else altogether (the timecode started, or jumped), the timeline goes
+// there as if the playhead had been put there by hand, and what is in force there is
+// done; told of somewhere a twentieth of a second or less from where it is (the two
+// clocks drifting, as any two do), it is put right with nothing done over again. So
+// between tellings nothing is done here for the timecode at all, and a cue is still
+// done at its own moment by the timer that waits for it. While it follows, it does not
+// go round at its end: where it is is the timecode's to say.
 //
 // Where it is, for the playhead the operator window draws, is told ten times a second
 // while it plays and something shows it (`watched`), and at once when it moves by
@@ -61,6 +71,8 @@ class TimelinePlayer : public QObject
     Q_PROPERTY(double position READ position NOTIFY positionChanged)
     // Whether anything shows where the playhead is, for it to be told as it plays
     Q_PROPERTY(bool watched READ watched WRITE setWatched NOTIFY watchedChanged)
+    // Whether timecode has it (see follow)
+    Q_PROPERTY(bool following READ following NOTIFY followingChanged)
 
 public:
     explicit TimelinePlayer(QObject *parent = nullptr);
@@ -76,6 +88,7 @@ public:
     double position() const;
     bool watched() const { return m_watched; }
     void setWatched(bool watched);
+    bool following() const { return m_following; }
 
     // Gives this the timeline of the presentation in file `path`, opened from the row
     // `key` of `playlistId`. Another presentation's that was playing stops, and the
@@ -101,6 +114,15 @@ public:
     Q_INVOKABLE void seek(double seconds);
     // ProPresenter's Rewind: to the start
     Q_INVOKABLE void rewind() { seek(0); }
+
+    // The timecode says the playhead is at `seconds`, and going: not playing, it plays
+    // from there; playing somewhere else, it goes there (as seek); playing within a
+    // twentieth of a second of there, it is put right, and nothing is done again. It is
+    // `following` from then until it is let go, or stopped by anything but the timecode.
+    Q_INVOKABLE void follow(double seconds);
+    // The timecode has stopped, or left this timeline: paused, if it was following and
+    // playing, and no longer following
+    Q_INVOKABLE void unfollow();
 
     // A slide of the presentation of row `key` of `playlistId` has been taken live on
     // the layer this plays on, by something other than this: if that is another
@@ -128,9 +150,13 @@ signals:
     void recordingChanged();
     void positionChanged();
     void watchedChanged();
+    void followingChanged();
     // A cue is due: `cue` as timeline::describe has it, and `offset` how far into it the
-    // timeline is (for audio and video started part way; 0 for the rest)
-    void cueDue(const QVariantMap &cue, double offset);
+    // timeline is (for audio and video started part way; 0 for the rest). `entered` says
+    // that it is in force where the timeline has just been started or put, and not that
+    // its own time has come: a slide that is live already is then left as it is, and a
+    // video that is playing already is sent to where the timeline is in it.
+    void cueDue(const QVariantMap &cue, double offset, bool entered);
     // Paused, by hand or by the API: what it started is to stop (see pause)
     void paused();
 
@@ -142,6 +168,7 @@ private:
     void enter(double at);
     double duration() const;
     void halt();
+    void setFollowing(bool following);
 
     QString m_path;
     QString m_key;
@@ -152,6 +179,7 @@ private:
     bool m_playing = false;
     bool m_recording = false;
     bool m_watched = false;
+    bool m_following = false;
     // Where it was started from, and the clock since; or, stopped, where it is
     double m_base = 0;
     QElapsedTimer m_clock;

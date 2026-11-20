@@ -138,6 +138,7 @@ struct Effect
         NoVideoInput,   // take the video input layer off
         NoTimeline,     // stop the timeline that is playing (timelineplayer.h) of `text`: "presentation", the
                         // presentation's on the slide and media layers, or "announcements"
+        MediaSeek,      // send the video that is playing on the media layer to `seconds` into it, and play on from there
     };
     Kind kind = Note;
     QVariantMap media;
@@ -501,8 +502,15 @@ public:
     // as a macro's actions are. `offset` is how far into it the timeline is, for a
     // piece of audio or a video started part way (timeline::entering): it is handed on
     // with the audio or the media as `startAt`, in seconds, for whatever plays it to
-    // start there. `name` is the cue's, for the log.
-    Effects runTimelineAction(const QVariantMap &action, double offset, const QString &name, const Workspace &workspace);
+    // start there. `name` is the cue's, for the log. `entered` says that the timeline
+    // has been started or put where the cue is in force (TimelinePlayer's cueDue), and
+    // not that the cue's own time has come: then a video that is the one on the media
+    // layer already is not started again but sent to where the timeline is in it, to
+    // play on from there (MediaSeek). That is what has a video keep to a timeline whose
+    // playhead is moved, by hand or by timecode, without being taken off and put on
+    // again each time, which costs the opening of its file and shows as a gap. (A
+    // video that is another, or shown otherwise, is started as ever.)
+    Effects runTimelineAction(const QVariantMap &action, double offset, const QString &name, bool entered, const Workspace &workspace);
     // A timeline has been paused: the music it started stops, if it is still the music
     // playing, by the ids of the pieces of audio on the timeline (`ids`), so that the
     // timeline played on starts it again where it is. (Sound effects are short, and

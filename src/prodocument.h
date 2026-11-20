@@ -202,6 +202,10 @@ struct ProDocument
     static QString removeTimelineCue(const QString &path, int place);
     static QString setTimelineDuration(const QString &path, double seconds);
     static QString setTimelineLoop(const QString &path, bool loop);
+    static QString setTimelineTimecode(const QString &path, bool follows, double start);
+    // What a presentation's timeline says of timecode, and how long it is: { follows,
+    // start, duration } (see timeline::setTimecode); nothing for a file that cannot be read
+    static QVariantMap timelineTimecode(const QString &path);
     static QString changeCueAction(const QString &path, const QString &cueId, const QString &actionId, const QVariantMap &action);
     static QString removeCueAction(const QString &path, const QString &cueId, const QString &actionId);
     // Sets the key the presentation's chords are written in, as chords.h names keys.

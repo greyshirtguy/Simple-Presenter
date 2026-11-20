@@ -800,3 +800,28 @@ qt_add_executable(tst_presentationedit
 target_include_directories(tst_presentationedit PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(tst_presentationedit PRIVATE Qt6::Core Qt6::Gui Qt6::Quick Qt6::Test proproto Fontconfig::Fontconfig)
 add_test(NAME presentationedit COMMAND tst_presentationedit)
+
+# Timecode read out of sound (src/ltc.h), on sound made for it (ltcmaker.h)
+qt_add_executable(tst_ltc
+    tst_ltc.cpp
+    ltcmaker.h
+    ${PROJECT_SOURCE_DIR}/src/ltc.h
+    ${PROJECT_SOURCE_DIR}/src/ltc.cpp
+)
+target_include_directories(tst_ltc PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_ltc PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME ltc COMMAND tst_ltc)
+
+# The rules of timecode (src/timecode.h): its formats, when it starts, jumps and stops,
+# and which presentation it is in
+qt_add_executable(tst_timecode
+    tst_timecode.cpp
+    ltcmaker.h
+    ${PROJECT_SOURCE_DIR}/src/timecode.h
+    ${PROJECT_SOURCE_DIR}/src/timecode.cpp
+    ${PROJECT_SOURCE_DIR}/src/ltc.h
+    ${PROJECT_SOURCE_DIR}/src/ltc.cpp
+)
+target_include_directories(tst_timecode PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(tst_timecode PRIVATE Qt6::Core Qt6::Test)
+add_test(NAME timecode COMMAND tst_timecode)

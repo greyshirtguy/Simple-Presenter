@@ -126,5 +126,10 @@ bool remove(rv::data::Presentation *presentation, int place);
 // Its length, at least a second; and whether it goes round.
 bool setDuration(rv::data::Presentation *presentation, double seconds);
 bool setLoop(rv::data::Presentation *presentation, bool loop);
+// Whether it follows timecode (ProPresenter's Timecode box), and the timecode it starts
+// at, as seconds of the timecode read as a clock (timecode.h's faceSeconds: A GUESS at
+// the unit of ProPresenter's `timecode_offset`, see there). A presentation with no
+// timeline is not given one for being told what it has not.
+bool setTimecode(rv::data::Presentation *presentation, bool follows, double start);
 
 } // namespace timeline

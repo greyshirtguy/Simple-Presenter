@@ -4,6 +4,15 @@
 
 #include <cmath>
 
+namespace {
+
+// How far from where the timecode says it is a timeline that follows it may be, and be
+// put right where it stands: a frame and a half at thirty a second. Further than that is
+// the timecode having gone somewhere else.
+constexpr double kSlip = 0.05;
+
+}
+
 TimelinePlayer::TimelinePlayer(QObject *parent) : QObject(parent)
 {
     m_due.setSingleShot(true);
@@ -66,6 +75,7 @@ void TimelinePlayer::load(const QString &path, const QString &key, const QString
 {
     const bool same = path == m_path && key == m_key && playlistId == m_playlistId;
     if (!same) {
+        setFollowing(false);
         halt();
         m_base = 0;
         m_recorded.clear();
@@ -119,7 +129,7 @@ void TimelinePlayer::enter(double at)
     const int run = m_run;
     m_doneTo = at;
     for (const timeline::Entry &entry : timeline::entering(m_cues, at)) {
-        emit cueDue(m_cues.at(entry.place).toMap(), entry.offset);
+        emit cueDue(m_cues.at(entry.place).toMap(), entry.offset, true);
         if (run != m_run)
             return;
     }
@@ -145,7 +155,7 @@ bool TimelinePlayer::tell(const QList<int> &places, double now)
         const QString track = cue.value("track").toString();
         const double offset = track == QLatin1String("audio") || track == QLatin1String("media")
                                   ? std::max(0.0, now - cue.value("time").toDouble()) : 0.0;
-        emit cueDue(cue, offset < 0.05 ? 0.0 : offset);
+        emit cueDue(cue, offset < 0.05 ? 0.0 : offset, false);
         if (run != m_run)
             return false;
     }
@@ -167,7 +177,7 @@ void TimelinePlayer::due()
         schedule();
         return;
     }
-    if (m_timeline.value("loop").toBool()) {
+    if (m_timeline.value("loop").toBool() && !m_following) {
         // Round again: from the start, as at the start
         m_base = 0;
         ++m_run;
@@ -196,6 +206,7 @@ void TimelinePlayer::halt()
 
 void TimelinePlayer::pause()
 {
+    setFollowing(false);
     if (!m_playing)
         return;
     halt();
@@ -204,7 +215,57 @@ void TimelinePlayer::pause()
 
 void TimelinePlayer::stop()
 {
+    setFollowing(false);
     halt();
+}
+
+void TimelinePlayer::setFollowing(bool following)
+{
+    if (m_following == following)
+        return;
+    m_following = following;
+    emit followingChanged();
+}
+
+void TimelinePlayer::follow(double seconds)
+{
+    if (m_path.isEmpty())
+        return;
+    const double at = std::clamp(seconds, 0.0, duration());
+    setFollowing(true);
+    if (!m_playing) {
+        // (At its very end there is nothing to play: it stays there.)
+        m_base = at;
+        if (at >= duration()) {
+            emit positionChanged();
+            return;
+        }
+        play();
+        return;
+    }
+    const double out = at - position();
+    if (std::abs(out) > kSlip) {
+        seek(at);
+        return;
+    }
+    // A little out: put right, and the next cue waited for from where it now is. (A cue
+    // in the little it was put on by is done at once by that; one in the little it was
+    // put back by has been done, and is not done again.)
+    m_base += out;
+    schedule();
+    if (m_watched)
+        emit positionChanged();
+}
+
+void TimelinePlayer::unfollow()
+{
+    if (!m_following)
+        return;
+    setFollowing(false);
+    if (m_playing) {
+        halt();
+        emit paused();
+    }
 }
 
 void TimelinePlayer::seek(double seconds)

@@ -87,6 +87,32 @@ Item {
     // sound to be heard is showing, else null: how loud it is played is that one's
     readonly property var feed: content !== null && content.video && loader.item ? loader.item.feed : null
 
+    // A timeline has been put somewhere in the video this is playing (its playhead
+    // moved, or the timecode it follows gone somewhere else): the video is sent to
+    // `seconds` into it, past its in point, to play on from there (MediaChase). And the
+    // timecode has stopped: it is held where it is, until it is sent somewhere again.
+    // Nothing for a picture, or in a scene that is only fed the video.
+    function chase(seconds) {
+        if (content !== null && content.video && leads && loader.item)
+            loader.item.chase(seconds)
+    }
+
+    function hold() {
+        if (content !== null && content.video && leads && loader.item)
+            loader.item.hold()
+    }
+
+    // Looked at as the timecode goes on: the video belongs `seconds` in, and is sent
+    // there only if it has come away from there
+    function keep(seconds) {
+        if (content !== null && content.video && leads && loader.item)
+            loader.item.keep(seconds)
+    }
+
+    // What sends it there (a MediaChase), once it has been sent somewhere, else null:
+    // for the tests, which read what a jump came to
+    readonly property var chaser: content !== null && content.video && leads && loader.item ? loader.item.chaser : null
+
     Loader {
         id: loader
 
@@ -171,22 +197,64 @@ Item {
             // that starts at an in point or part way (the player can only be sent there then)
             property bool started: false
 
-            // Starts it, from its in point if it has one, and as far past that as it is
-            // to start. Past its end, a video that goes round is as far into a round as
-            // that would be; one that plays once starts at its end.
-            function start() {
-                if (started)
-                    return
-                let from = inAt + startAt
-                if (startAt > 0 && mediaPlayer.duration > 0) {
+            // Where in the file `past` milliseconds past its in point is. Past its end, a
+            // video that goes round is as far into a round as that would be; one that
+            // plays once is at its end.
+            function placeOf(past) {
+                let from = inAt + past
+                if (past > 0 && mediaPlayer.duration > 0) {
                     const end = outAt > 0 ? Math.min(outAt, mediaPlayer.duration) : mediaPlayer.duration
                     if (from >= end)
                         from = root.content?.loops === true ? inAt + (from - inAt) % Math.max(1, end - inAt) : Math.max(inAt, end - 1)
                 }
+                return from
+            }
+
+            // Starts it, from its in point if it has one, and as far past that as it is
+            // to start.
+            function start() {
+                if (started)
+                    return
+                const from = placeOf(startAt)
                 if (from > 0)
                     mediaPlayer.setPosition(from)
                 started = true
                 mediaPlayer.play()
+            }
+
+            // Sent somewhere by a timeline while it plays, and held (see root.chase). What
+            // sends it is made the first time it is wanted, which for nearly every video is
+            // never. One that had come to its end is no longer at it.
+            readonly property var chaser: chaseLoader.item
+            function chase(seconds) {
+                if (!started)
+                    return
+                chaseLoader.active = true
+                atEnd = false
+                chaseLoader.item.send(placeOf(Math.max(0, seconds) * 1000))
+            }
+
+            function hold() {
+                if (!started)
+                    return
+                chaseLoader.active = true
+                chaseLoader.item.hold()
+            }
+
+            function keep(seconds) {
+                if (started && chaseLoader.item && !atEnd)
+                    chaseLoader.item.keep(placeOf(Math.max(0, seconds) * 1000))
+            }
+
+            Loader {
+                id: chaseLoader
+
+                active: false
+                sourceComponent: MediaChase {
+                    player: mediaPlayer
+                    sink: output.videoSink
+                    name: movie.name
+                }
             }
 
             // At the out point: round again, or to an end, as at the end of the file.

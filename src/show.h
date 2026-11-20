@@ -335,7 +335,7 @@ public:
     // A timeline's action cue has come due, `offset` seconds into it (see
     // show::State::runTimelineAction); and a timeline has been paused, the music among
     // its pieces of audio (by their ids) to stop (show::State::stopMusicOf)
-    Q_INVOKABLE void runTimelineAction(const QVariantMap &action, double offset, const QString &name);
+    Q_INVOKABLE void runTimelineAction(const QVariantMap &action, double offset, const QString &name, bool entered);
     Q_INVOKABLE void stopMusicOf(const QStringList &ids);
     // Where the markers of a layer's media are kept ("media", "announcements" or "audio":
     // see show::State::placeOf), for the transport to change them; empty for none
@@ -448,6 +448,9 @@ signals:
     // The timeline of `which` is to stop: "presentation" or "announcements" (a clear
     // group's Stop Timeline, or everything cleared)
     void timelineStopped(const QString &which);
+    // The video that is playing on the media layer is to be sent to `seconds` into it
+    // and play on from there: a timeline put somewhere in it (show::Effect::MediaSeek)
+    void mediaSought(double seconds);
 
 private:
     // Does one thing to the show: says what of it has changed, and then carries out

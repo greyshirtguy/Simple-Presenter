@@ -14,7 +14,7 @@ cmake --build build          # they are built with the app
 ctest --test-dir build       # add --output-on-failure to see what failed
 ```
 
-So far there are sixty-nine:
+So far there are seventy-one:
 
 | Test | What it tries |
 | --- | --- |
@@ -33,8 +33,10 @@ So far there are sixty-nine:
 | `tst_httpapidoc` | The API's pages of documentation (`src/httpapidoc.h`): every route with a line of its own or said to answer nothing, and no line for a route there is not; what the page lists held to what the window's answerer has a case for, whose source it reads; the description's paths, the parts of each said once, its headings, what a route takes in its query and its body, and what it answers with; the description as the page loads it, a line of JavaScript; the page's files, each one the app carries; and which paths are of the page's folder |
 | `tst_proremote` | ProPresenter Remote's side of the API (`src/proremote.h`): the key made of a password and the AES-256 CTR sealing and opening, against published vectors; a WebSocket's opening and frames, whole, masked, in pieces, too large or wrong; and the Remote's requests read and its answers written as ProPresenter's are |
 | `tst_slidepictures` | The pictures of slides for the API (`src/slidepictures.h`): the size and kind asked for read as ProPresenter reads them, the checkerboard's squares, what is asked of the second process and what it answers, and the name a picture is kept in the cache by |
-| `tst_timeline` | ProPresenter's timeline (`src/timeline.h`), on a presentation made as ProPresenter 22 writes one, with fields it knows nothing of: the cues read from the new list or the old one, slides named "Cue" and their place through the groups, a piece's length from its action or its media; what a playhead passing triggers and in what order, what a timeline started part way does, and which place of a slide that comes up twice is taken; and cues put on, moved and taken off, the old list copied over and left, and the length and Loop, with everything else kept |
-| `tst_timelineplayer` | What plays a timeline (`src/timelineplayer.h`), on the real clock with timelines of fractions of a second: its cues said due at their times and in order, stopping at its end or going round; started part way; paused, moved and rewound while it plays; stopped by another presentation; read again while it plays; recording, kept and not done until it is written; and the playhead told only while something shows it |
+| `tst_timeline` | ProPresenter's timeline (`src/timeline.h`), on a presentation made as ProPresenter 22 writes one, with fields it knows nothing of: the cues read from the new list or the old one, slides named "Cue" and their place through the groups, a piece's length from its action or its media; what a playhead passing triggers and in what order, what a timeline started part way does, and which place of a slide that comes up twice is taken; and cues put on, moved and taken off, the old list copied over and left, the length and Loop, and whether it follows timecode and from what timecode, with everything else kept |
+| `tst_timelineplayer` | What plays a timeline (`src/timelineplayer.h`), on the real clock with timelines of fractions of a second: its cues said due at their times and in order, stopping at its end or going round; started part way; paused, moved and rewound while it plays; stopped by another presentation; read again while it plays; recording, kept and not done until it is written; the playhead told only while something shows it; and following a timecode: started where it is told, with what is in force there said as entered, put right when it is a little out with nothing done again, sent there when it is far out, let go, and not going round while it follows |
+| `tst_ltc` | Timecode read out of sound (`src/ltc.h`), on sound made for it (`ltcmaker.h`): a run read frame by frame, each said to end where its last bit does; every rate there is, at several sound cards' rates and from a source running fast and slow, with how fast it is going told from the frames' lengths; a signal turned over, quiet, off centre and with hiss; sound handed over in pieces of any size; a jump, and silence between two runs, with the first and last frame of each run read; what is not timecode (silence, hiss, a tone, music of a kind, timecode played backwards) read as none; and a frame whose digits are no time let go |
+| `tst_timecode` | The rules of timecode (`src/timecode.h`): ProPresenter's four formats by its numbers; a timecode as a clock and back, as it is written and as it is typed; frames counted, with and without the dropping of frames at 29.97, and what that is in real time; when a sample was heard, from pieces of sound handed over late, and after sound was lost; a start and a jump believed at their second frame, one frame out of place passed over, a stop when the frames do, frames given late all at once, a source a little fast kept to; sound to frames to where the timecode is, as the app does it; and which presentation of a playlist the timecode is in |
 | `tst_mediasettings` | What a piece of media's Media Inspector sets (`src/mediasettings.h`, `src/mediaeffects.h`), on media laid out as ProPresenter writes it with fields the app does not know: read as the inspector shows it; a change that changes the fields it names and nothing else, byte for byte; a value that cannot be changing nothing at all; trimming, and an out point at the end being none; effects kept by their ids, added from the catalogue and taken off, and added and taken off again leaving the media as it was; what a new effect is and what its shader is given; ProPresenter's forty, each once; another file keeping what still makes sense |
 | `tst_httpapijson` | What the HTTP API's answers are made of (`src/httpapijson.h`): ids and colours; the slides now and next; where the show is, and nowhere; times as ProPresenter writes them; how a timer stands, and timers of each kind; a look for each audience screen; props and messages with their tokens; clear groups and macros in ProPresenter's words; libraries' UUIDs made from their names; playlist trees, and the media and audio ones |
 | `tst_extendedapi` | The extended API's table of operations and who may ask (`src/extendedapi.h`): each operation named once, with a path of its own whose parts are its fields; a request found by its method and path, a theme's slide by its own path, a part with a slash in it kept one part; what an MCP tool takes and what the OpenAPI description has, both made of the table; the page for people (`docs/features/extended-api.md`) held to having every operation; and the requests turned away: all while it is off, another computer unless it is let in, a web page from elsewhere, and a name that is not this computer's |
@@ -268,6 +270,28 @@ bin, its tab working it, a sound effect over it not taking its place, paused and
 on from where it was; and with everything cleared, nothing to work. The media bin is
 read with `protoc` after: each row's Next Cue as ProPresenter keeps it, and the rest as
 it was.
+
+And `timecode` works ProPresenter's Timecode, on a media bin of the test's own (a video
+of ffmpeg's moving test picture, made in the test's folder) and two songs of the Act
+workspace put in a playlist: a timeline's Timecode box ticked and its start typed, a
+start that is no timecode refused; the Timecode window opened by the clock beside them,
+its figures, its word and its list of the playlist; then, with the timecode made here,
+a timeline following from where the timecode is, its slide live and its video started
+part way; jumps, with the same video sent there and found in step with its timeline to
+two frames (by its own player's place, and by what `MediaChase` measured, which the test
+prints); a jump within one slide's time not triggering the slide again; a jump into the
+other song's timeline and out of both; a slide taken live by hand stopping the timeline
+until the timecode next jumps; a stop, with the video held, and playing on in step. Then
+the same from sound: the private desktop has a sound input, "Test source" (see
+`tests/ui/audio`), and a test declared with `play` has a sound file of its own played
+into it once the app's log says the app is listening (see `play_when` in `run.py`); the
+file is timecode at thirty frames a second on its second channel, made in the test's
+folder (`write_timecode`), with a tone on its first, so the test hears a start, a jump
+into the other song and a stop as a rig would send them, and hears nothing on the
+channel with the tone. Last, a text box set in the editor to show ProPresenter's
+Timecode, written to the file and drawn on the output. The song is read with `protoc`
+after: the box and the start as ProPresenter keeps them, and nothing outside its
+timeline changed.
 
 And `markers` works playback markers, on a media bin and an audio bin of the test's own
 (a video made with ffmpeg in the test's folder, a still, a tone): the Media Inspector's

@@ -237,7 +237,7 @@ ctest --test-dir build
 
 **Scripted tests** work the whole app as someone would, with the mouse and the keyboard,
 and look at what its windows then hold and show (and, for sound, what a sound device of
-eight channels was sent, recorded): ninety scripts and some three
+eight channels was sent, recorded): ninety-nine scripts and some four
 thousand checks. They run on a desktop of their own that shows nowhere, on
 copies of workspaces, with settings of their own, so nothing of a run touches the real
 desktop, settings or workspaces. The app is built for them with a door the scripts come
@@ -317,6 +317,7 @@ repository's to publish), so on another computer only the unit tests run as they
 | `src/httpapidoc.*`, `src/apidoc.html`, `third_party/swagger-ui` | The pages that list the API and let it be tried, where ProPresenter serves its own (`/v1/doc/index.html`) and for the app's own API (`/sp/v1/doc/index.html`): the description of ProPresenter's API as far as the app answers it, made from the table of routes with a line of the app's own for each; the page; and Swagger UI, which draws it, as its release has it |
 | `src/proremote.*`, `src/dnssd.*` | ProPresenter Remote through that API: the WebSocket, its encryption and its messages; and the app advertised on the network by Avahi so that the Remote finds it |
 | `src/timeline.*`, `src/timelineplayer.*`, `qml/TimelinePanel.qml`, `qml/TimelineCueBlock.qml` | ProPresenter's timeline: its file and the rules of what plays when (`timeline`), what keeps its time and says when a cue is due (`timelineplayer`), and the timeline over the slides |
+| `src/ltc.*`, `src/timecode.*`, `src/timecodeinput.*`, `src/mediachase.*`, `qml/TimecodeWindow.qml` | ProPresenter's Timecode: timecode read out of sound (`ltc`); its formats, and when it starts, jumps and stops (`timecode`); what listens to a sound device for it, with its settings and the timecode made here to try it with (`timecodeinput`); what sends a video that is playing to where its timeline has gone (`mediachase`); and the Timecode window. What a timeline does about it is Main's "The timecode" |
 | `src/ndi.*`, `third_party/ndi/include/` | A screen sent over the network as an NDI source: drawn out of sight, read back, and handed to NDI's library, which is looked for when the app runs, and fetched for whoever asks. The folder has NDI's header files |
 | `src/ndisetup.*`, `qml/NdiSetup.qml` | Getting NDI's library: reading NDI's installer for its licence and its archive, and the panel that offers to fetch it or says how to by hand |
 | `src/playlistimport.*`, `src/zipreader.*` | Imports exported `.proplaylist` archives |

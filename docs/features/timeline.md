@@ -28,9 +28,10 @@ four tracks under it, each with its picture at the left:
 
 The **playhead** is the white line down through them. Under the tracks are, at the left,
 **Rewind**, **Play** (**Pause** while it plays), **Record** and **Loop**, and where the
-playhead is; at the right the **Duration**, typed in seconds, and a slider that spreads
-the time out or draws it in. The view keeps the playhead in sight as it plays, and the
-wheel scrolls it along.
+playhead is; at the right the **Timecode** box and the timecode the timeline starts at
+(see [Timecode](timecode.md)), the **Duration**, typed in seconds, and a slider that
+spreads the time out or draws it in. The view keeps the playhead in sight as it plays,
+and the wheel scrolls it along.
 
 ## Playing it
 
@@ -46,7 +47,11 @@ playhead at it.
 Played from part way, for rehearsing from the second verse, the timeline does what it
 would have been doing there: the slide of the cue before the playhead goes live, and
 the audio and the video whose time is under the playhead start where the playhead is in
-them. Actions before the playhead are not run.
+them. Actions before the playhead are not run. A slide that is live already is not
+triggered again; and a video that is the one playing already is not started again but
+sent to where the playhead is in it, as it plays (see
+[A video on the timeline](timecode.md#a-video-on-the-timeline)), so the playhead can be
+moved about while the timeline plays and its video goes with it.
 
 A slide that comes up more than once in the arrangement being shown (a chorus sung
 three times) is taken at its next place after the slide that is live, so that the
@@ -54,6 +59,10 @@ timeline goes through the song in order.
 
 Two timelines can play at once, as in ProPresenter: that of the presentation on the
 slides and media, and that of a presentation sent to the announcements.
+
+A timeline can **follow timecode**, ProPresenter's Timecode: its box is ticked, and then
+the timecode coming in says where its playhead is. That has a page of its own:
+[Timecode](timecode.md).
 
 **What stops it**, besides Pause and its end:
 
@@ -133,10 +142,6 @@ its file, with its length. Nothing else in the file is touched.
 
 ## Not here yet
 
-- **Timecode.** ProPresenter's timeline can follow SMPTE timecode, from its Timecode
-  box beside the Duration; that is to come, and the box is not shown until it does
-  something. A timeline that follows timecode in ProPresenter plays by its own clock
-  here, and what it says of its timecode is kept in the file as it is.
 - The end of the timeline dragged to lengthen it: the Duration is typed.
 - Other actions dragged onto it (a clear button, a timer, a prop): they are put on by
   the right button and by recording.
@@ -161,8 +166,9 @@ screenshot and one file of the maintainer's; how it behaves was not watched. So 
 are guesses:
 
 - what a timeline played from part way does (the slide before, the audio and video
-  started part way, the actions before not run), and which place of a slide that
-  comes up more than once is taken;
+  started part way, the actions before not run, a slide that is live left as it is, a
+  video that is playing sent to the place), and which place of a slide that comes up
+  more than once is taken;
 - that Play at the end of a timeline plays it from the start, and that Pause stops the
   music it started;
 - that a slide of another presentation stops a timeline, and that MIDI's Clear All

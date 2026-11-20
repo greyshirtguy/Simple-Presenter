@@ -218,7 +218,7 @@ With no arrangement selected, the slides run group by group.
 | `groups` | `[{id, name, color, slides: [ids]}]`, in order |
 | `arrangements` | `[{id, name, groups: [group ids], group_names}]` |
 | `slide_count`, `slides` | its slides in its own order: see Slides |
-| `timeline` | `{duration, loop, cues: [{place, time, name, track, slide or action}]}` |
+| `timeline` | `{duration, loop, timecode, timecode_start, cues: [{place, time, name, track, slide or action}]}` |
 
 A change to a presentation as a whole is answered with the same without `slides`.
 
@@ -252,8 +252,9 @@ sets: `family`, `style`, `size`, `size_by`, `color`, `capitalization`, `alignmen
 `update_group` takes `name`, `color`, and `before` or `after` another group.
 `set_arrangement` makes the arrangement named in the path if there is none, and takes
 `groups` (the whole list, by id or name) and `name`. `update_timeline` takes `duration`,
-`loop`, `remove` (places), `move` (`[{place, time}]`) and `add` (`[{time, slide}]` or
-`[{time, action, name}]`).
+`loop`, `timecode` (whether it follows [timecode](timecode.md)) and `timecode_start` (the
+timecode it starts at, in seconds from 00:00:00;00), `remove` (places), `move`
+(`[{place, time}]`) and `add` (`[{time, slide}]` or `[{time, action, name}]`).
 
 ## Slides
 

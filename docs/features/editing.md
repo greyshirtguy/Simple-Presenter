@@ -149,6 +149,9 @@ choose between three ways of working. **Slides** is everything described here.
     ([Stage layouts](stage-layouts.md)), and nothing until it is told something. A tick
     box has the box flash when a message is shown, in the colour beside it: to begin
     with, the red ProPresenter's own layouts flash.
+  - **Timecode** shows the [timecode](timecode.md) coming in, as it is said
+    (`01:00:00;12`), and **Timecode Status** whether it is Playing, Stopped or Not
+    Engaged.
   - **Playback Marker** shows a [playback marker](playback-markers.md)'s **Marker Name**
     or the **Time to Marker**: of the presentation's media, the announcements' or the
     audio's (**Of**), which marker (**First**, **Previous**, **Next**, **Last**, or **By

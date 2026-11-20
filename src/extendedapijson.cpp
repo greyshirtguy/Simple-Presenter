@@ -960,6 +960,8 @@ QVariantMap timelineOf(const QVariantMap &timeline)
     return {
         {QStringLiteral("duration"), timeline.value(QStringLiteral("duration"))},
         {QStringLiteral("loop"), timeline.value(QStringLiteral("loop")).toBool()},
+        {QStringLiteral("timecode"), timeline.value(QStringLiteral("timecode")).toBool()},
+        {QStringLiteral("timecode_start"), timeline.value(QStringLiteral("timecodeOffset")).toDouble()},
         {QStringLiteral("cues"), cues},
     };
 }

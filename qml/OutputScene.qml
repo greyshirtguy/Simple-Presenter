@@ -83,6 +83,24 @@ Item {
     readonly property var liveVideoSink: mediaLayer.currentItem ? mediaLayer.currentItem.videoSink : null
     // The MediaPlayer of the video on the media layer, or null; lets a transport control work it.
     readonly property var livePlayer: mediaLayer.currentItem ? mediaLayer.currentItem.player : null
+    // The video on the media layer sent somewhere in itself by a timeline, and held where
+    // it is (see MediaContent.chase); and what sends it, for the tests
+    function chaseMedia(seconds) {
+        if (mediaLayer.currentItem)
+            mediaLayer.currentItem.chase(seconds)
+    }
+
+    function holdMedia() {
+        if (mediaLayer.currentItem)
+            mediaLayer.currentItem.hold()
+    }
+
+    function keepMedia(seconds) {
+        if (mediaLayer.currentItem)
+            mediaLayer.currentItem.keep(seconds)
+    }
+
+    readonly property var liveChaser: mediaLayer.currentItem ? mediaLayer.currentItem.chaser : null
     // The same for the video on the announcements layer
     readonly property var liveAnnouncementPlayer: announcementsLayer.item ? announcementsLayer.item.livePlayer : null
     // The video on the media layer has played to its end, by the number of its playing:

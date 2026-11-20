@@ -341,6 +341,14 @@ public:
     Q_INVOKABLE QString removeTimelineCue(const QString &path, int place);
     Q_INVOKABLE QString setTimelineDuration(const QString &path, double seconds);
     Q_INVOKABLE QString setTimelineLoop(const QString &path, bool loop);
+    Q_INVOKABLE QString setTimelineTimecode(const QString &path, bool follows, double start);
+    // The presentations of the playlist with this id, each with what its timeline says
+    // of timecode: { key (the row's), file, arrangement, name, follows, start (the
+    // timecode its timeline starts at, as seconds of it read as a clock), duration }.
+    // For the Timecode window's list, and for which of them the timecode is in
+    // (timecode::under). Each file is read for it, so it is asked when the playlist is
+    // chosen and when something changes, not as the timecode runs.
+    Q_INVOKABLE QVariantList timecodeRows(const QString &playlist) const;
     // Stops a slide triggering media, and saves the presentation file.
     Q_INVOKABLE QString removeSlideMedia(const QString &path, const QString &slideId);
     // Deletes a slide from the presentation, for good, and saves the presentation file.

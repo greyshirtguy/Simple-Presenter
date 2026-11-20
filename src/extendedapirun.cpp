@@ -1560,6 +1560,21 @@ ExtendedApi::Answer ExtendedApi::updateTimeline(const Found &found, const QVaria
         if (!error.isEmpty())
             return bad(error);
     }
+    // Whether it follows timecode, and from what timecode: either alone leaves the other
+    // as the file has it
+    if (body.contains(QStringLiteral("timecode")) || body.contains(QStringLiteral("timecode_start"))) {
+        rv::data::Presentation presentation;
+        if (!proconvert::readPresentation(work.copy(), &presentation, &error))
+            return failed(error);
+        const double start = body.contains(QStringLiteral("timecode_start")) ? body.value(QStringLiteral("timecode_start")).toDouble()
+                                                                              : presentation.timeline().timecode_offset();
+        if (start < 0 || start >= 24 * 3600)
+            return bad(QStringLiteral("timecode_start is seconds from 00:00:00;00, under a day"));
+        error = ProDocument::setTimelineTimecode(work.copy(), body.contains(QStringLiteral("timecode")) ? body.value(QStringLiteral("timecode")).toBool()
+                                                                                                         : presentation.timeline().timecode_enable(), start);
+        if (!error.isEmpty())
+            return bad(error);
+    }
     if (body.contains(QStringLiteral("add"))) {
         rv::data::Presentation presentation;
         if (!proconvert::readPresentation(work.copy(), &presentation, &error))

@@ -513,7 +513,7 @@ QtObject {
                 return 500
             },
             () => {
-                check("the menu of what a text box shows has the stage message", labels().endsWith("System Clock, Video Countdown, Playback Marker, Copyright, Stage Message"), labels())
+                check("the menu of what a text box shows has the stage message", labels().endsWith("System Clock, Video Countdown, Playback Marker, Copyright, Stage Message, Timecode, Timecode Status"), labels())
                 click(menuRow("Stage Message"))
                 return 700
             },

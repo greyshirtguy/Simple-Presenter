@@ -174,6 +174,9 @@ void Show::change(const std::function<show::Effects()> &what)
         case show::Effect::NoTimeline:
             emit timelineStopped(effect.text);
             break;
+        case show::Effect::MediaSeek:
+            emit mediaSought(effect.seconds);
+            break;
         }
     }
 }
@@ -635,9 +638,9 @@ void Show::runMarker(const QVariantMap &marker, const QString &media)
     change([&] { return m_state.runMarker(marker, media, m_workspace); });
 }
 
-void Show::runTimelineAction(const QVariantMap &action, double offset, const QString &name)
+void Show::runTimelineAction(const QVariantMap &action, double offset, const QString &name, bool entered)
 {
-    change([&] { return m_state.runTimelineAction(action, offset, name, m_workspace); });
+    change([&] { return m_state.runTimelineAction(action, offset, name, entered, m_workspace); });
 }
 
 void Show::stopMusicOf(const QStringList &ids)

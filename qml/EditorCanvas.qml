@@ -163,6 +163,10 @@ Item {
                  + " marker: " + ["Presentation", "Announcements", "Audio"][element.linkMarkerDestination ?? 0]
         case "stageMessage":
             return "Stage Message"
+        case "timecode":
+            return "Timecode"
+        case "timecodeStatus":
+            return "Timecode Status"
         case "other":
             return element.linkLabel
         default:
@@ -448,6 +452,8 @@ Item {
                     : element.linkKind === "marker" ? "a playback marker's " + (element.linkMarkerTime ? "time" : "name")
                     : element.linkKind === "copyright" ? "the copyright of the presentation that is live"
                     : element.linkKind === "stageMessage" ? "what the stage is being told"
+                    : element.linkKind === "timecode" ? "the timecode coming in"
+                    : element.linkKind === "timecodeStatus" ? "whether timecode is playing"
                     : "a " + element.linkLabel.toLowerCase() + ", set up in ProPresenter")
                  + ", so it has no text of its own to edit. Its font and colour can still be changed.")
             return

@@ -206,11 +206,13 @@ QList<Operation> table()
                 {in("presentation", kPresentation), in("arrangement", "The arrangement: its id or its name."),
                  asked("library", "string", kLibraryOf)}});
     all.append({"update_timeline", "PATCH", "presentation/{presentation}/timeline", {}, Operation::Change, "Change a presentation's timeline",
-                "Changes ProPresenter's timeline of a presentation: its length, whether it goes round, and the cues on it. "
+                "Changes ProPresenter's timeline of a presentation: its length, whether it goes round, whether it follows timecode, and the cues on it. "
                 "`remove` and `move` name cues by the place get_presentation gives each; they are done before `add`.",
                 {in("presentation", kPresentation), asked("library", "string", kLibraryOf),
                  given("duration", "number", "Its length in seconds."),
                  given("loop", "boolean", "Whether it starts again at its end."),
+                 given("timecode", "boolean", "Whether it follows timecode (ProPresenter's Timecode box)."),
+                 given("timecode_start", "number", "The timecode it starts at, in seconds from 00:00:00;00."),
                  given("remove", "array", "Cues to take off, by their places.", false, "integer"),
                  given("move", "array", "Cues to move, each {place, time}.", false, "object"),
                  given("add", "array", "Cues to put on, each {time, slide} for a slide (its id or number) or {time, action, name} for an action as add_action takes one.", false, "object")}});
