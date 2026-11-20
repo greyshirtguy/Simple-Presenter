@@ -4317,7 +4317,9 @@ def run_on(name, binary, run_dir, desktop, cache):
         if recording:
             recording.terminate()
             recording.wait()
-    lines = [line for line in output.splitlines() if not NOISE.search(line)]
+    # (What a script says of a check is kept whatever words are in it: a check that says "timecode" is not ffmpeg's
+    # chatter about one.)
+    lines = [line for line in output.splitlines() if line.startswith(("  ok ", "  FAILED ", "  measure ")) or not NOISE.search(line)]
     if recipe["after"]:
         try:
             lines += recipe["after"](workspace, test_dir)
