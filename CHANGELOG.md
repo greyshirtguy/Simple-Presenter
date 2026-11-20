@@ -6,6 +6,29 @@ What each version brought, the newest first. Each version's number leads to its 
 which has the package and the notes written for it at the time. The note at the top of
 the [README](README.md) holds for every one of them: an experiment, not a product for use.
 
+## [0.142](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.142) · 2026-11-20
+
+- Timecode, as ProPresenter has it: a timeline that follows the timecode a playback rig
+  or a desk sends. Under a timeline are ProPresenter's Timecode box and the timecode it
+  starts at, kept in the presentation's file where ProPresenter keeps them; a clock
+  beside them opens a Timecode window with the timecode coming in, the word Playing,
+  Stopped or Not Engaged, the playlist the timecode triggers, and the input device, its
+  channel, the format and an offset. What is listened to is linear timecode (timecode as
+  sound, on one channel of a sound input), read by the app itself
+  ([Timecode](docs/features/timecode.md)).
+- When the timecode starts or jumps, the timeline it is in goes there, with its slide,
+  its audio and its video; when it stops, the timeline pauses and its video is held.
+  What is done by hand is left alone until the timecode next starts or jumps.
+- A video on a timeline goes where the timecode goes: at a jump it is sent to the new
+  place as it plays, the old picture staying until the new one comes, and is not taken
+  off and started again. The same is done when a playing timeline's playhead is moved by
+  hand. How long the new picture takes depends on how the video was made, and was
+  measured: the page has the figures.
+- "Made here (to try it)", first among the input devices: a timecode of the app's own,
+  played, stopped and sent somewhere from the window, to try it with nothing plugged in.
+- A text box can show ProPresenter's Timecode and Timecode Status, and the extended API
+  gives and takes a timeline's `timecode` and `timecode_start`.
+
 ## [0.141](https://github.com/greyshirtguy/Simple-Presenter/releases/tag/0.141) · 2026-11-18
 
 - The extended API: an API of the app's own beside ProPresenter's, on the same port

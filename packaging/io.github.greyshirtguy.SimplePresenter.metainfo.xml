@@ -39,6 +39,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.142" date="2026-11-20">
+      <description>
+        <p>
+          Timecode: a timeline that follows the linear timecode a rig sends as sound, a
+          window for it, and a video on the timeline that goes where the timecode goes.
+        </p>
+      </description>
+    </release>
     <release version="0.141" date="2026-11-18">
       <description>
         <p>

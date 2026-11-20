@@ -135,20 +135,20 @@ there is no capture here yet, nor video in from a DeckLink card or over NDI, amo
 
 The latest, newest first. [CHANGELOG.md](CHANGELOG.md) has every version.
 
+- **0.142: Timecode.** ProPresenter's Timecode: a timeline that follows the timecode a playback rig sends as sound (linear timecode), with its Timecode box and start, and a Timecode window with the timecode coming in, the playlist it triggers and its settings. A video on the timeline goes where the timecode goes: at a jump it is sent to the new place as it plays, not started again. And a timecode of the app's own, to try it with nothing plugged in ([Timecode](docs/features/timecode.md)).
 - **0.141: The extended API, MCP, and pages that list the API.** An API of the app's own beside ProPresenter's, switched on by itself, through which a program can make, change and delete the workspace's presentations, playlists and themes; the same offered to an AI model as tools, through MCP ([The extended API, and MCP](docs/features/extended-api.md)); and a page that lists what the app answers of ProPresenter's API and lets each request be tried, where ProPresenter serves its own, with another for the extended API ([The API](docs/features/api.md)).
 - **0.140: Macros onto the timeline, and a thinner chin.** A macro dragged onto the timeline goes on its actions track ([Timeline](docs/features/timeline.md)); the media bin's live ring marks only what the bin itself played, a slide's media being its own ([Media](docs/features/media.md)); and the band under each slide's thumbnail is thinner, its words larger.
 - **0.139: The timeline.** ProPresenter's timeline, opened by its button beside Arrangements: a presentation's slides, media, audio and actions at set times, played from the start or from anywhere in it, looped, recorded by clicking along with a song, and slides, pictures and audio dragged onto it; kept in the presentation's file as ProPresenter keeps it, and played by the API's routes and by MIDI ([Timeline](docs/features/timeline.md)). And a light guard against dragging by accident: a drag starts only once the pointer is a little way off with the button held a moment.
 - **0.138: ProPresenter Remote, and pictures of slides.** Renewed Vision's ProPresenter Remote, on a phone or a tablet, finds the app on the network and works the show through the API, with a controller's or an observer's password (Settings → Network), and shows each slide by a picture of it, which the app draws in a process of its own, stopped whenever something goes live, so that the show is never held up by it ([ProPresenter Remote](docs/features/api.md#propresenter-remote)). With Enable Network on, a slide taken live no longer costs the app 2 ms more; and music started under the logo leaves the logo up.
-- **0.137: Easy View, Table View and Clear to Logo.** The slides can be shown as their words alone, large and plain (Easy View), or as rows with each slide's words and notes beside its thumbnail (Table View), picked by three buttons under the slides, before the size buttons, with a … for each view's font, colours and alignment ([Grid, Easy View and Table View](docs/features/slide-views.md)). F12, or the clear buttons' right-click menu, clears everything and puts up a logo chosen in Settings → Screens, which goes as soon as anything else comes on ([Clear to Logo](docs/features/clear-groups.md#clear-to-logo)).
 
 ## Installing
 
 <a id="the-first-run"></a><a id="building-from-source"></a><a id="hardware-video-decoding"></a>There is a package for Ubuntu 26.04 on ordinary (64-bit Intel or AMD) computers. Download
-`simplepresenter_0.141_amd64.deb` from the
+`simplepresenter_0.142_amd64.deb` from the
 [Releases](https://github.com/greyshirtguy/Simple-Presenter/releases) page and install it:
 
 ```
-sudo apt install ./simplepresenter_0.141_amd64.deb
+sudo apt install ./simplepresenter_0.142_amd64.deb
 ```
 
 Anywhere else, [build it from source](docs/installing.md#building-from-source), which takes
